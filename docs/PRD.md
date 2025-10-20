@@ -4,7 +4,7 @@
 **Date:** 2025-10-16
 **Project Level:** 3 (Complex System - subsystems, integrations, architectural decisions)
 **Project Type:** Web Application
-**Target Scale:** 50 adults initially, scaling to 1,000 by year 5
+**Target Scale:** 50 adults initially, scaling to 1,000 by year 30
 
 ---
 
