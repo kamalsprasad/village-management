@@ -1,62 +1,32 @@
 <!-- BMAD BMM Story Context Assembly Instructions (v6) -->
 
-````xml
+```xml
 <critical>The workflow execution engine is governed by: {project_root}/bmad/core/tasks/workflow.xml</critical>
 <critical>You MUST have already loaded and processed: {installed_path}/workflow.yaml</critical>
+<critical>Communicate all responses in {communication_language} and language MUST be tailored to {user_skill_level}</critical>
+<critical>Generate all documents in {document_output_language}</critical>
 <critical>This workflow assembles a Story Context XML for a single user story by extracting ACs, tasks, relevant docs/code, interfaces, constraints, and testing guidance to support implementation.</critical>
 <critical>Default execution mode: #yolo (non-interactive). Only ask if {{non_interactive}} == false. If auto-discovery fails, HALT and request 'story_path' or 'story_dir'.</critical>
 
+<critical>DOCUMENT OUTPUT: Technical XML context file. Concise, structured, project-relative paths only. User skill level ({user_skill_level}) affects conversation style ONLY, not context content.</critical>
+
 <workflow>
-  <step n="1" goal="Check and load workflow status file">
-    <action>Search {output_folder}/ for files matching pattern: project-workflow-status*.md</action>
-    <action>Find the most recent file (by date in filename: project-workflow-status-YYYY-MM-DD.md)</action>
+  <step n="1" goal="Validate workflow sequence">
+    <invoke-workflow path="{project-root}/bmad/bmm/workflows/workflow-status">
+      <param>mode: validate</param>
+      <param>calling_workflow: story-context</param>
+    </invoke-workflow>
 
-    <check if="exists">
-      <action>Load the status file</action>
-      <action>Extract key information:</action>
-      - current_step: What workflow was last run
-      - next_step: What workflow should run next
-      - planned_workflow: The complete workflow journey table
-      - progress_percentage: Current progress
-      - IN PROGRESS story: The story being worked on (from Implementation Progress section)
-
-      <action>Set status_file_found = true</action>
-      <action>Store status_file_path for later updates</action>
-
-      <check if='next_step != "story-context" AND current_step != "story-ready"'>
-        <ask>**⚠️ Workflow Sequence Note**
-
-Status file shows:
-- Current step: {{current_step}}
-- Expected next: {{next_step}}
-
-This workflow (story-context) is typically run after story-ready.
-
-Options:
-1. Continue anyway (story-context is optional)
-2. Exit and run the expected workflow: {{next_step}}
-3. Check status with workflow-status
-
-What would you like to do?</ask>
-        <action>If user chooses exit → HALT with message: "Run workflow-status to see current state"</action>
+    <check if="warning != ''">
+      <output>{{warning}}</output>
+      <ask>Continue with story-context anyway? (y/n)</ask>
+      <check if="n">
+        <output>{{suggestion}}</output>
+        <action>Exit workflow</action>
       </check>
     </check>
 
-    <check if="not exists">
-      <ask>**No workflow status file found.**
-
-The status file tracks progress across all workflows and provides context about which story to work on.
-
-Options:
-1. Run workflow-status first to create the status file (recommended)
-2. Continue in standalone mode (no progress tracking)
-3. Exit
-
-What would you like to do?</ask>
-      <action>If user chooses option 1 → HALT with message: "Please run workflow-status first, then return to story-context"</action>
-      <action>If user chooses option 2 → Set standalone_mode = true and continue</action>
-      <action>If user chooses option 3 → HALT</action>
-    </check>
+    <action>Store {{status_file_path}} for later updates</action>
   </step>
 
   <step n="2" goal="Locate story and initialize output">
@@ -67,6 +37,8 @@ What would you like to do?</ask>
     <action>If {{non_interactive}} == true: choose the most recently modified story automatically. If none found, HALT with a clear message to provide 'story_path' or 'story_dir'. Else resolve selection into {{story_path}} and READ COMPLETE file.</action>
     <action>Extract {{epic_id}}, {{story_id}}, {{story_title}}, {{story_status}} from filename/content; parse sections: Story, Acceptance Criteria, Tasks/Subtasks, Dev Notes.</action>
     <action>Extract user story fields (asA, iWant, soThat).</action>
+    <action>Store project root path for relative path conversion: extract from {project-root} variable.</action>
+    <action>Define path normalization function: convert any absolute path to project-relative by removing project root prefix.</action>
     <action>Initialize output by writing template to {default_output_file}.</action>
     <template-output file="{default_output_file}">as_a</template-output>
     <template-output file="{default_output_file}">i_want</template-output>
@@ -74,10 +46,15 @@ What would you like to do?</ask>
   </step>
 
   <step n="3" goal="Collect relevant documentation">
-    <action>Scan docs and src module docs for items relevant to this story's domain: search keywords from story title, ACs, and tasks<</action>
+    <action>Scan docs and src module docs for items relevant to this story's domain: search keywords from story title, ACs, and tasks.</action>
     <action>Prefer authoritative sources: PRD, Architecture, Front-end Spec, Testing standards, module-specific docs.</action>
+    <action>For each discovered document: convert absolute paths to project-relative format by removing {project-root} prefix. Store only relative paths (e.g., "docs/prd.md" not "/Users/.../docs/prd.md").</action>
     <template-output file="{default_output_file}">
-      Add artifacts.docs entries with {path, title, section, snippet} (NO invention)
+      Add artifacts.docs entries with {path, title, section, snippet}:
+      - path: PROJECT-RELATIVE path only (strip {project-root} prefix)
+      - title: Document title
+      - section: Relevant section name
+      - snippet: Brief excerpt (2-3 sentences max, NO invention)
     </template-output>
   </step>
 
@@ -85,10 +62,24 @@ What would you like to do?</ask>
     <action>Search source tree for modules, files, and symbols matching story intent and AC keywords (controllers, services, components, tests).</action>
     <action>Identify existing interfaces/APIs the story should reuse rather than recreate.</action>
     <action>Extract development constraints from Dev Notes and architecture (patterns, layers, testing requirements).</action>
+    <action>For all discovered code artifacts: convert absolute paths to project-relative format (strip {project-root} prefix).</action>
     <template-output file="{default_output_file}">
-      Add artifacts.code entries with {path, kind, symbol, lines, reason}; include a brief reason explaining relevance to the story
-      Populate interfaces with any API/interface signatures that the developer must call (name, kind, signature, path)
-      Populate constraints with development rules extracted from Dev Notes and architecture (e.g., patterns, layers, testing requirements)
+      Add artifacts.code entries with {path, kind, symbol, lines, reason}:
+      - path: PROJECT-RELATIVE path only (e.g., "src/services/api.js" not full path)
+      - kind: file type (controller, service, component, test, etc.)
+      - symbol: function/class/interface name
+      - lines: line range if specific (e.g., "45-67")
+      - reason: brief explanation of relevance to this story
+
+      Populate interfaces with API/interface signatures:
+      - name: Interface or API name
+      - kind: REST endpoint, GraphQL, function signature, class interface
+      - signature: Full signature or endpoint definition
+      - path: PROJECT-RELATIVE path to definition
+
+      Populate constraints with development rules:
+      - Extract from Dev Notes and architecture
+      - Include: required patterns, layer restrictions, testing requirements, coding standards
     </template-output>
   </step>
 
@@ -125,29 +116,21 @@ What would you like to do?</ask>
   </step>
 
   <step n="9" goal="Update status file on completion">
-    <action>Search {output_folder}/ for files matching pattern: project-workflow-status*.md</action>
+    <action>Search {output_folder}/ for files matching pattern: bmm-workflow-status.md</action>
     <action>Find the most recent file (by date in filename)</action>
 
     <check if="status file exists">
-      <action>Load the status file</action>
+      <invoke-workflow path="{project-root}/bmad/bmm/workflows/workflow-status">
+        <param>mode: update</param>
+        <param>action: set_current_workflow</param>
+        <param>workflow_name: story-context</param>
+      </invoke-workflow>
 
-      <template-output file="{{status_file_path}}">current_step</template-output>
-      <action>Set to: "story-context (Story {{story_id}})"</action>
+      <check if="success == true">
+        <output>✅ Status updated: Context generated for Story {{story_id}}</output>
+      </check>
 
-      <template-output file="{{status_file_path}}">current_workflow</template-output>
-      <action>Set to: "story-context (Story {{story_id}}) - Complete"</action>
-
-      <template-output file="{{status_file_path}}">progress_percentage</template-output>
-      <action>Calculate per-story weight: remaining_40_percent / total_stories / 5</action>
-      <action>Increment by: {{per_story_weight}} * 1 (story-context weight is ~1% per story)</action>
-
-      <template-output file="{{status_file_path}}">decisions_log</template-output>
-      <action>Add entry:</action>
-      ```
-      - **{{date}}**: Completed story-context for Story {{story_id}} ({{story_title}}). Context file: {{default_output_file}}. Next: DEV agent should run dev-story to implement.
-      ```
-
-      <output>**✅ Story Context Generated Successfully**
+      <output>**✅ Story Context Generated Successfully, {user_name}!**
 
 **Story Details:**
 - Story ID: {{story_id}}
@@ -168,7 +151,7 @@ Check status anytime with: `workflow-status`
     </check>
 
     <check if="status file not found">
-      <output>**✅ Story Context Generated Successfully**
+      <output>**✅ Story Context Generated Successfully, {user_name}!**
 
 **Story Details:**
 - Story ID: {{story_id}}
@@ -186,4 +169,4 @@ To track progress across workflows, run `workflow-status` first.
   </step>
 
 </workflow>
-````
+```

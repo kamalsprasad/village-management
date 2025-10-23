@@ -375,27 +375,19 @@ Select option (1-4):</ask>
 </step>
 
 <step n="FINAL" goal="Update status file on completion">
-<action>Search {output_folder}/ for files matching pattern: project-workflow-status*.md</action>
+<action>Search {output_folder}/ for files matching pattern: bmm-workflow-status.md</action>
 <action>Find the most recent file (by date in filename)</action>
 
 <check if="status file exists">
-  <action>Load the status file</action>
+  <invoke-workflow path="{project-root}/bmad/bmm/workflows/workflow-status">
+    <param>mode: update</param>
+    <param>action: complete_workflow</param>
+    <param>workflow_name: research</param>
+  </invoke-workflow>
 
-<template-output file="{{status_file_path}}">current_step</template-output>
-<action>Set to: "research (deep-prompt)"</action>
-
-<template-output file="{{status_file_path}}">current_workflow</template-output>
-<action>Set to: "research (deep-prompt) - Complete"</action>
-
-<template-output file="{{status_file_path}}">progress_percentage</template-output>
-<action>Increment by: 5% (optional Phase 1 workflow)</action>
-
-<template-output file="{{status_file_path}}">decisions_log</template-output>
-<action>Add entry:</action>
-
-```
-- **{{date}}**: Completed research workflow (deep-prompt mode). Research prompt generated and saved. Next: Execute prompt with AI platform or continue with plan-project workflow.
-```
+  <check if="success == true">
+    <output>Status updated! Next: {{next_workflow}}</output>
+  </check>
 
 <output>**✅ Deep Research Prompt Generated**
 
