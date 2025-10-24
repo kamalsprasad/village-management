@@ -11,11 +11,11 @@ WORKFLOW_PATH: bmad/bmm/workflows/workflow-status/paths/greenfield-level-3.yaml
 
 ## Current State
 
-CURRENT_PHASE: 2-Planning
-CURRENT_WORKFLOW: ux-spec (IN PROGRESS)
-CURRENT_AGENT: UX Expert
+CURRENT_PHASE: 3-Solutioning
+CURRENT_WORKFLOW: create-architecture (READY)
+CURRENT_AGENT: Architect
 PHASE_1_COMPLETE: true
-PHASE_2_COMPLETE: false
+PHASE_2_COMPLETE: true
 PHASE_3_COMPLETE: false
 PHASE_4_COMPLETE: false
 
@@ -30,9 +30,9 @@ STORIES_DONE: []
 
 ## Next Action
 
-NEXT_ACTION: Produce the UX specification to finish Phase 2, then advance to create-architecture followed by solutioning-gate-check
-NEXT_COMMAND: ux-spec
-NEXT_AGENT: UX Expert
+NEXT_ACTION: Create system architecture document defining technical stack, data models, API design, and deployment strategy, then proceed to solutioning-gate-check
+NEXT_COMMAND: create-architecture
+NEXT_AGENT: Architect
 
 ## Story Backlog
 

@@ -3,7 +3,7 @@
 **Author:** Kamal S. Prasad
 **Date:** 2025-10-23
 **Project Level:** 3 (Complex System)
-**Target Scale:** 50 adults initially, scaling to 1,000 by year 5
+**Target Scale:** 50 adults initially, scaling to 1,000 by year 30
 
 ---
 

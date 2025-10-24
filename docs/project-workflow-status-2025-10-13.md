@@ -43,7 +43,7 @@ An open-source web application for managing rural African villages, specifically
 - **Energy Tracking:** Solar microgrid monitoring
 - **Role-Based Access Control:** Village head, deputy, head teacher, teachers, farm managers, workers, learners
 
-**Target Scale:** 50 adults initially, scaling to 1,000 by year 5
+**Target Scale:** 50 adults initially, scaling to 1,000 by year 30
 
 ---
 
