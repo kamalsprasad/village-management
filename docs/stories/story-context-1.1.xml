@@ -1,0 +1,227 @@
+<story-context id="bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>1</epicId>
+    <storyId>1.1</storyId>
+    <title>Project Setup and Quasar + Appwrite Integration</title>
+    <status>Ready</status>
+    <generatedAt>2025-10-25</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/stories/story-1.1.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>developer</asA>
+    <iWant>a fully configured Quasar SSR project with Appwrite backend integration</iWant>
+    <soThat>I have a solid foundation to build all subsequent features</soThat>
+    <tasks>
+      <task id="1" status="completed">Initialize Quasar Project with SSR (AC: 1, 2)</task>
+      <task id="2" status="in-progress">Configure Appwrite Integration (AC: 3, 4)</task>
+      <task id="3" status="pending">Setup Basic Routing and Home Page (AC: 5)</task>
+      <task id="4" status="pending">Verify Development Server (AC: 6)</task>
+      <task id="5" status="pending">Documentation and Git Setup (AC: 7, 8)</task>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <criterion id="1" status="completed">Quasar Framework (Vue 3) project initialized with SSR mode enabled</criterion>
+    <criterion id="2" status="completed">Project structure follows Quasar best practices (pages, components, layouts, stores)</criterion>
+    <criterion id="3" status="partial">Appwrite SDK integrated with connection configuration (endpoint, project ID)</criterion>
+    <criterion id="4" status="partial">Environment variables configured for Appwrite credentials (.env file with .env.example template)</criterion>
+    <criterion id="5" status="pending">Basic routing setup with placeholder home page</criterion>
+    <criterion id="6" status="pending">Development server runs successfully on localhost with hot reload</criterion>
+    <criterion id="7" status="pending">README.md includes setup instructions for new developers</criterion>
+    <criterion id="8" status="partial">Git repository initialized with .gitignore configured</criterion>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc>
+        <path>docs/architecture.md</path>
+        <title>Architecture Document</title>
+        <section>1. Project Initialization</section>
+        <snippet>Complete setup commands for Quasar + Appwrite initialization. Includes yarn create quasar, quasar mode add ssr, and dependency installation commands. Defines base architecture provided by Quasar starter.</snippet>
+      </doc>
+      <doc>
+        <path>docs/architecture.md</path>
+        <title>Architecture Document</title>
+        <section>2.1 Core Technologies</section>
+        <snippet>Technology stack versions: Quasar v2.18.5, Appwrite v21.2.1, Vue 3 v3.5.22, Pinia v2.x, Vue Router v4.x. Verification dates and purposes for each technology.</snippet>
+      </doc>
+      <doc>
+        <path>docs/architecture.md</path>
+        <title>Architecture Document</title>
+        <section>2.2 Backend Services (Appwrite)</section>
+        <snippet>Appwrite services overview: Auth for authentication, Databases for NoSQL data, Storage for files, Functions for serverless operations, Realtime for WebSocket connections.</snippet>
+      </doc>
+      <doc>
+        <path>docs/architecture.md</path>
+        <title>Architecture Document</title>
+        <section>3.1 Architectural Decisions</section>
+        <snippet>Mandatory patterns: Vue 3 script setup syntax ONLY (never export default), PascalCase for components, camelCase for composables/utils/stores, Quasar conventions for project structure.</snippet>
+      </doc>
+      <doc>
+        <path>docs/PRD.md</path>
+        <title>Product Requirements Document</title>
+        <section>Technical Foundation</section>
+        <snippet>Frontend: Quasar Framework (Vue 3) with SSR. Backend: Appwrite (TablesDB, Storage, Functions). Deployment: Web-only MVP, LAN-first with 2-day offline buffer. Language: JavaScript (TypeScript post-MVP).</snippet>
+      </doc>
+      <doc>
+        <path>docs/PRD.md</path>
+        <title>Product Requirements Document</title>
+        <section>NFR-8: Maintainability and Open Source</section>
+        <snippet>Codebase must follow Vue 3 and Quasar best practices with clear documentation. Use JavaScript (not TypeScript) for MVP. Modular architecture enabling independent module development.</snippet>
+      </doc>
+      <doc>
+        <path>docs/epics.md</path>
+        <title>Epic Breakdown</title>
+        <section>Story 1.1: Project Setup and Quasar + Appwrite Integration</section>
+        <snippet>Foundational story with 8 acceptance criteria covering Quasar initialization, Appwrite integration, environment configuration, routing, dev server, and documentation. No prerequisites.</snippet>
+      </doc>
+    </docs>
+    <code>
+      <artifact>
+        <path>package.json</path>
+        <kind>config</kind>
+        <symbol>dependencies</symbol>
+        <lines>17-28</lines>
+        <reason>Shows installed dependencies including appwrite v21.2.1, chart.js v4.5.1, date-fns v4.1.0, dexie v4.2.1, pinia v3.0.1, quasar v2.16.0, vue v3.5.22, vue-cal v5.0.1-rc.33, vue-router v4.0.0. Confirms Task 1 completion.</reason>
+      </artifact>
+      <artifact>
+        <path>quasar.config.js</path>
+        <kind>config</kind>
+        <symbol>boot</symbol>
+        <lines>14</lines>
+        <reason>Boot files configuration currently includes only 'axios'. Need to add 'appwrite' boot file for Task 2.</reason>
+      </artifact>
+      <artifact>
+        <path>quasar.config.js</path>
+        <kind>config</kind>
+        <symbol>framework.plugins</symbol>
+        <lines>94</lines>
+        <reason>Quasar plugins configured: Notify and Dialog. These will be used for user notifications and confirmations throughout the app.</reason>
+      </artifact>
+      <artifact>
+        <path>src/boot/axios.js</path>
+        <kind>boot-file</kind>
+        <symbol>boot</symbol>
+        <lines>1-978</lines>
+        <reason>Example boot file showing pattern for creating boot files. Use as reference for creating src/boot/appwrite.js in Task 2.</reason>
+      </artifact>
+      <artifact>
+        <path>src/App.vue</path>
+        <kind>component</kind>
+        <symbol>App</symbol>
+        <lines>1-70</lines>
+        <reason>Root Vue component. Verify it uses script setup syntax as required by architecture.</reason>
+      </artifact>
+    </code>
+    <dependencies>
+      <node>
+        <package name="quasar" version="^2.16.0" />
+        <package name="vue" version="^3.5.22" />
+        <package name="vue-router" version="^4.0.0" />
+        <package name="pinia" version="^3.0.1" />
+        <package name="appwrite" version="^21.2.1" />
+        <package name="axios" version="^1.2.1" />
+        <package name="chart.js" version="^4.5.1" />
+        <package name="date-fns" version="^4.1.0" />
+        <package name="dexie" version="^4.2.1" />
+        <package name="vue-cal" version="^5.0.1-rc.33" />
+        <package name="@quasar/extras" version="^1.16.4" />
+        <package name="@quasar/app-vite" version="^2.1.0" dev="true" />
+        <package name="eslint" version="^9.14.0" dev="true" />
+        <package name="prettier" version="^3.3.3" dev="true" />
+        <package name="vite-plugin-checker" version="^0.11.0" dev="true" />
+      </node>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint id="1" type="mandatory">
+      <rule>Component Syntax: Vue 3 script setup ONLY - never use export default</rule>
+      <source>docs/architecture.md#3.1-architectural-decisions</source>
+    </constraint>
+    <constraint id="2" type="mandatory">
+      <rule>File Naming: PascalCase for components, camelCase for composables/utils/stores</rule>
+      <source>docs/architecture.md#3.1-architectural-decisions</source>
+    </constraint>
+    <constraint id="3" type="mandatory">
+      <rule>Project Structure: Follow Quasar conventions (/src/pages, /src/components, /src/layouts, /src/stores, /src-ssr)</rule>
+      <source>docs/stories/story-1.1.md#dev-notes</source>
+    </constraint>
+    <constraint id="4" type="mandatory">
+      <rule>Appwrite Configuration: Store credentials in .env file (never commit to git), create boot file at src/boot/appwrite.js</rule>
+      <source>docs/stories/story-1.1.md#dev-notes</source>
+    </constraint>
+    <constraint id="5" type="mandatory">
+      <rule>SSR Considerations: Appwrite client must be initialized in boot file (runs on both server and client), environment variables must be accessible in SSR context</rule>
+      <source>docs/stories/story-1.1.md#dev-notes</source>
+    </constraint>
+    <constraint id="6" type="guideline">
+      <rule>Code Quality: Follow ESLint and Prettier configurations, maintain clear documentation</rule>
+      <source>docs/PRD.md#nfr-8</source>
+    </constraint>
+  </constraints>
+
+  <interfaces>
+    <interface>
+      <name>Appwrite Client</name>
+      <kind>SDK</kind>
+      <signature>
+        import { Client, Account, Databases, Storage, Functions } from 'appwrite'
+        
+        const client = new Client()
+        client.setEndpoint(process.env.APPWRITE_ENDPOINT).setProject(process.env.APPWRITE_PROJECT_ID)
+        
+        export const account = new Account(client)
+        export const databases = new Databases(client)
+        export const storage = new Storage(client)
+        export const functions = new Functions(client)
+      </signature>
+      <path>src/boot/appwrite.js (to be created)</path>
+    </interface>
+    <interface>
+      <name>Quasar Boot File</name>
+      <kind>boot-pattern</kind>
+      <signature>
+        export default ({ app, router, store }) => {
+          // Boot file logic here
+          // Can access Vue app instance, router, and Pinia store
+        }
+      </signature>
+      <path>src/boot/*.js</path>
+    </interface>
+    <interface>
+      <name>Environment Variables</name>
+      <kind>config</kind>
+      <signature>
+        # .env file
+        APPWRITE_ENDPOINT=https://cloud.appwrite.io/v1
+        APPWRITE_PROJECT_ID=your-project-id
+        
+        # .env.example file (template)
+        APPWRITE_ENDPOINT=https://cloud.appwrite.io/v1
+        APPWRITE_PROJECT_ID=your-project-id-here
+      </signature>
+      <path>.env and .env.example (to be created)</path>
+    </interface>
+  </interfaces>
+
+  <tests>
+    <standards>
+      Manual testing required for Story 1.1 as this is foundational setup. Automated testing will be added post-MVP. Testing standards: (1) Development server starts without errors, (2) Hot reload works when editing components, (3) SSR renders HTML correctly (view page source), (4) Appwrite connection succeeds (test in browser console), (5) Environment variables load correctly.
+    </standards>
+    <locations>
+      No automated test locations for Story 1.1. Manual verification only.
+    </locations>
+    <ideas>
+      <idea ac="1,2">Verify Quasar project structure exists: src/pages, src/components, src/layouts, src/stores, src-ssr directories present</idea>
+      <idea ac="3">Test Appwrite client initialization in browser console: check that client, account, databases, storage, functions are exported and accessible</idea>
+      <idea ac="4">Verify .env file is gitignored and .env.example exists with placeholder values</idea>
+      <idea ac="5">Navigate to localhost and verify IndexPage renders, check router configuration in src/router/routes.js</idea>
+      <idea ac="6">Run 'quasar dev -m ssr', verify server starts on localhost, test hot reload by editing a component, verify no console errors</idea>
+      <idea ac="7">Review README.md for completeness: project description, prerequisites, installation steps, running dev server, Appwrite configuration</idea>
+      <idea ac="8">Verify .gitignore includes: node_modules, .env, dist, .quasar, and git repository is initialized</idea>
+    </ideas>
+  </tests>
+</story-context>

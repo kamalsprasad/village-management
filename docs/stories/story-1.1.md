@@ -156,7 +156,9 @@ yarn lint
 
 ### Context Reference
 
-<!-- Path(s) to story context XML will be added here by context workflow -->
+- **Story Context XML:** `docs/stories/story-context-1.1.xml`
+- **Generated:** 2025-10-25
+- **Status:** Complete implementation context available
 
 ### Agent Model Used
 
