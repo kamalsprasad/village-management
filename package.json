@@ -1,0 +1,48 @@
+{
+  "name": "village-management-system",
+  "version": "0.0.1",
+  "description": "The Sustainable Model Village Management System is an open-source web platform designed to transform rural African villages from memory-based, trial-and-error operations into data-driven, systematically managed communities.",
+  "productName": "Village Management System",
+  "author": "Kamal S. Prasad",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "lint": "eslint -c ./eslint.config.js \"./src*/**/*.{js,cjs,mjs,vue}\"",
+    "format": "prettier --write \"**/*.{js,vue,scss,html,md,json}\" --ignore-path .gitignore",
+    "test": "echo \"No test specified\" && exit 0",
+    "dev": "quasar dev",
+    "build": "quasar build",
+    "postinstall": "quasar prepare"
+  },
+  "dependencies": {
+    "@quasar/extras": "^1.16.4",
+    "appwrite": "^21.2.1",
+    "axios": "^1.2.1",
+    "chart.js": "^4.5.1",
+    "date-fns": "^4.1.0",
+    "dexie": "^4.2.1",
+    "pinia": "^3.0.1",
+    "quasar": "^2.16.0",
+    "vue": "^3.5.22",
+    "vue-cal": "^5.0.1-rc.33",
+    "vue-router": "^4.0.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.14.0",
+    "@quasar/app-vite": "^2.1.0",
+    "@vue/eslint-config-prettier": "^10.1.0",
+    "autoprefixer": "^10.4.2",
+    "eslint": "^9.14.0",
+    "eslint-plugin-vue": "^10.4.0",
+    "globals": "^16.4.0",
+    "postcss": "^8.4.14",
+    "prettier": "^3.3.3",
+    "vite-plugin-checker": "^0.11.0",
+    "vue-eslint-parser": "^10.2.0"
+  },
+  "engines": {
+    "node": "^28 || ^26 || ^24 || ^22 || ^20",
+    "npm": ">= 6.13.4",
+    "yarn": ">= 1.21.1"
+  }
+}
