@@ -90,6 +90,206 @@ yarn add -D @types/node
 | **Appwrite Functions** | Serverless functions for complex operations                   |
 | **Appwrite Realtime**  | WebSocket connections for live updates (optional enhancement) |
 
+### 2.3 Bulk Data Entry Components
+
+**Approach:** Custom implementation using Quasar QTable with editable cells
+
+**Rationale:**
+- No external dependencies required (uses built-in Quasar components)
+- Full control over validation and behavior
+- Consistent with existing Quasar Framework choice
+- Lightweight and performant for rural connectivity constraints
+
+**Implementation Pattern:**
+
+```vue
+<script setup>
+import { ref } from 'vue'
+import { useQuasar } from 'quasar'
+import { useErrorHandler } from 'composables/useErrorHandler'
+
+const $q = useQuasar()
+const { validateForm } = useErrorHandler()
+
+// Bulk entry data structure
+const rows = ref([
+  { id: 1, learner_name: 'John Doe', score: null, notes: '', errors: {} },
+  { id: 2, learner_name: 'Jane Smith', score: null, notes: '', errors: {} },
+  // ... more rows
+])
+
+const columns = [
+  { name: 'learner_name', label: 'Learner Name', field: 'learner_name', align: 'left', sortable: false },
+  { name: 'score', label: 'Score (%)', field: 'score', align: 'center', sortable: false },
+  { name: 'notes', label: 'Notes', field: 'notes', align: 'left', sortable: false }
+]
+
+// Inline validation
+function validateScore(row) {
+  if (row.score === null || row.score === '') {
+    row.errors.score = null
+    return true
+  }
+  
+  const score = Number(row.score)
+  if (isNaN(score) || score < 0 || score > 100) {
+    row.errors.score = 'Score must be between 0 and 100'
+    return false
+  }
+  
+  row.errors.score = null
+  return true
+}
+
+// Auto-save draft every 30 seconds
+let autoSaveTimer = null
+function startAutoSave() {
+  autoSaveTimer = setInterval(() => {
+    saveDraft()
+  }, 30000)
+}
+
+function saveDraft() {
+  localStorage.setItem('bulk_entry_draft', JSON.stringify(rows.value))
+  $q.notify({ message: 'Draft saved', color: 'info', position: 'bottom-right', timeout: 1000 })
+}
+
+// Load draft on mount
+function loadDraft() {
+  const draft = localStorage.getItem('bulk_entry_draft')
+  if (draft) {
+    rows.value = JSON.parse(draft)
+  }
+}
+
+// Save all entries
+async function saveAll() {
+  // Validate all rows
+  let hasErrors = false
+  rows.value.forEach(row => {
+    if (!validateScore(row)) {
+      hasErrors = true
+    }
+  })
+  
+  if (hasErrors) {
+    $q.notify({ message: 'Please fix validation errors', color: 'negative' })
+    return
+  }
+  
+  // Filter rows with data
+  const dataToSave = rows.value.filter(row => row.score !== null && row.score !== '')
+  
+  if (dataToSave.length === 0) {
+    $q.notify({ message: 'No data to save', color: 'warning' })
+    return
+  }
+  
+  // Save to backend
+  try {
+    // ... save logic
+    $q.notify({ message: `${dataToSave.length} scores saved successfully`, color: 'positive' })
+    localStorage.removeItem('bulk_entry_draft')
+  } catch (error) {
+    $q.notify({ message: 'Failed to save scores', color: 'negative' })
+  }
+}
+
+// Keyboard navigation
+function handleKeydown(event, rowIndex, colName) {
+  if (event.key === 'Tab' || event.key === 'Enter') {
+    event.preventDefault()
+    
+    // Move to next editable cell
+    if (colName === 'score') {
+      // Focus notes field in same row
+      const notesInput = document.querySelector(`#notes-${rowIndex}`)
+      if (notesInput) notesInput.focus()
+    } else if (colName === 'notes') {
+      // Move to score field in next row
+      if (rowIndex < rows.value.length - 1) {
+        const nextScoreInput = document.querySelector(`#score-${rowIndex + 1}`)
+        if (nextScoreInput) nextScoreInput.focus()
+      }
+    }
+  }
+}
+</script>
+
+<template>
+  <q-table
+    :rows="rows"
+    :columns="columns"
+    row-key="id"
+    flat
+    bordered
+    dense
+    :rows-per-page-options="[0]"
+  >
+    <template #body="props">
+      <q-tr :props="props">
+        <q-td key="learner_name" :props="props">
+          {{ props.row.learner_name }}
+        </q-td>
+        
+        <q-td key="score" :props="props">
+          <q-input
+            :id="`score-${props.rowIndex}`"
+            v-model.number="props.row.score"
+            type="number"
+            min="0"
+            max="100"
+            dense
+            borderless
+            :error="!!props.row.errors.score"
+            :error-message="props.row.errors.score"
+            @blur="validateScore(props.row)"
+            @keydown="handleKeydown($event, props.rowIndex, 'score')"
+            :class="{
+              'bg-red-1': props.row.score < 50,
+              'bg-yellow-1': props.row.score >= 50 && props.row.score < 60,
+              'bg-green-1': props.row.score >= 60
+            }"
+          />
+        </q-td>
+        
+        <q-td key="notes" :props="props">
+          <q-input
+            :id="`notes-${props.rowIndex}`"
+            v-model="props.row.notes"
+            dense
+            borderless
+            @keydown="handleKeydown($event, props.rowIndex, 'notes')"
+          />
+        </q-td>
+      </q-tr>
+    </template>
+    
+    <template #bottom>
+      <div class="row q-pa-md q-gutter-sm full-width justify-between">
+        <div>
+          <q-btn label="Save Draft" color="secondary" @click="saveDraft" />
+          <q-btn label="Load Draft" color="secondary" outline @click="loadDraft" class="q-ml-sm" />
+        </div>
+        <q-btn label="Save All Scores" color="primary" @click="saveAll" />
+      </div>
+    </template>
+  </q-table>
+</template>
+```
+
+**Key Features:**
+- **Tab Navigation:** Press Tab or Enter to move between cells
+- **Inline Validation:** Real-time validation with visual feedback (red for <50%, yellow for 50-60%, green for ≥60%)
+- **Auto-Save Draft:** Saves to localStorage every 30 seconds to prevent data loss
+- **Keyboard-Friendly:** Optimized for rapid data entry without mouse
+- **Lightweight:** No external dependencies, uses native Quasar components
+
+**Usage in Epic 4 Stories:**
+- Story 4.2: Bulk test score entry for entire class
+- Story 4.3: Bulk attendance recording
+- Any future bulk data entry requirements
+
 ---
 
 ## 3. Decision Summary
@@ -196,7 +396,10 @@ db.version(1).stores({
 **Conflict Resolution:**
 - Last-write-wins for simple fields
 - User prompt for complex conflicts (e.g., both online and offline edits)
+- Field-level conflict highlighting with merge strategy
+- Optimistic locking to prevent conflicts
 - Preserve both versions in conflict log for admin review
+- **See UX Specification Flow 4 (Section 3, Flow 4) for detailed conflict resolution UI patterns**
 
 ### 4.2 Offline Composable
 
@@ -1372,6 +1575,740 @@ function cancel() {
 - Role-based permissions reused inside resolvers using `permissions.js` helpers.
 - Support for service-level API keys for scheduled jobs and reporting tools.
 
+### 10.5 GraphQL Schema Design
+
+**Installation:**
+```bash
+yarn add graphql graphql-http apollo-server-express
+```
+
+**Schema Definition (schema.graphql):**
+
+```graphql
+# Village Overview Dashboard Query
+type Query {
+  villageOverview: VillageOverview!
+  farmDashboard(dateRange: DateRangeInput): FarmDashboard!
+  schoolDashboard(term: String): SchoolDashboard!
+  financeDashboard(dateRange: DateRangeInput): FinanceDashboard!
+}
+
+# Village Overview Types
+type VillageOverview {
+  residents: ResidentsSummary!
+  households: HouseholdsSummary!
+  recentActivity: [ActivityItem!]!
+}
+
+type ResidentsSummary {
+  total: Int!
+  byRole: [RoleCount!]!
+  recentAdditions: [Resident!]!
+}
+
+type RoleCount {
+  role: String!
+  count: Int!
+}
+
+type Resident {
+  id: ID!
+  fullName: String!
+  roles: [String!]!
+  householdName: String
+}
+
+type HouseholdsSummary {
+  total: Int!
+  byType: [TypeCount!]!
+}
+
+type TypeCount {
+  type: String!
+  count: Int!
+}
+
+type ActivityItem {
+  id: ID!
+  type: String!
+  description: String!
+  timestamp: String!
+  module: String!
+}
+
+# Farm Dashboard Types
+type FarmDashboard {
+  plots: PlotsSummary!
+  upcomingHarvests: [UpcomingHarvest!]!
+  recentSales: [FarmSale!]!
+  profitSummary: ProfitSummary!
+  inventoryAlerts: [InventoryAlert!]!
+}
+
+type PlotsSummary {
+  total: Int!
+  active: Int!
+  fallow: Int!
+  plots: [PlotOverview!]!
+}
+
+type PlotOverview {
+  id: ID!
+  name: String!
+  size: Float!
+  status: String!
+  currentCrop: String
+  cropManager: String
+}
+
+type UpcomingHarvest {
+  id: ID!
+  plotName: String!
+  cropName: String!
+  expectedDate: String!
+  daysUntil: Int!
+}
+
+type FarmSale {
+  id: ID!
+  cropName: String!
+  quantity: Float!
+  revenue: Float!
+  profit: Float!
+  date: String!
+}
+
+type ProfitSummary {
+  totalRevenue: Float!
+  totalCosts: Float!
+  netProfit: Float!
+  topCrops: [CropProfit!]!
+}
+
+type CropProfit {
+  cropName: String!
+  profit: Float!
+}
+
+type InventoryAlert {
+  id: ID!
+  itemName: String!
+  currentQuantity: Float!
+  reorderThreshold: Float!
+  severity: String!
+}
+
+# School Dashboard Types
+type SchoolDashboard {
+  atRiskLearners: [AtRiskLearner!]!
+  classPerformance: [ClassPerformance!]!
+  attendanceSummary: AttendanceSummary!
+  activeInterventions: Int!
+}
+
+type AtRiskLearner {
+  id: ID!
+  fullName: String!
+  grade: String!
+  subjectsBelowThreshold: [SubjectScore!]!
+  attendancePercentage: Float!
+}
+
+type SubjectScore {
+  subject: String!
+  score: Float!
+}
+
+type ClassPerformance {
+  grade: String!
+  averageScore: Float!
+  totalLearners: Int!
+}
+
+type AttendanceSummary {
+  thisWeek: Float!
+  lastWeek: Float!
+  trend: String!
+}
+
+# Finance Dashboard Types
+type FinanceDashboard {
+  cashBalance: Float!
+  incomeThisMonth: IncomeSummary!
+  expensesThisMonth: ExpenseSummary!
+  pendingLoans: LoansSummary!
+  budgetVsActual: [BudgetItem!]!
+}
+
+type IncomeSummary {
+  total: Float!
+  bySource: [SourceAmount!]!
+}
+
+type ExpenseSummary {
+  total: Float!
+  byCategory: [CategoryAmount!]!
+}
+
+type SourceAmount {
+  source: String!
+  amount: Float!
+}
+
+type CategoryAmount {
+  category: String!
+  amount: Float!
+}
+
+type LoansSummary {
+  count: Int!
+  totalAmountDue: Float!
+}
+
+type BudgetItem {
+  category: String!
+  budgeted: Float!
+  actual: Float!
+  variance: Float!
+}
+
+# Input Types
+input DateRangeInput {
+  startDate: String!
+  endDate: String!
+}
+```
+
+### 10.6 GraphQL Server Implementation
+
+**Server Setup (src-ssr/graphql/server.js):**
+
+```javascript
+import express from 'express'
+import { createHandler } from 'graphql-http/lib/use/express'
+import { buildSchema } from 'graphql'
+import { readFileSync } from 'fs'
+import { join } from 'path'
+import { Client, Databases, Query } from 'node-appwrite'
+
+// Load schema
+const schemaSDL = readFileSync(join(__dirname, 'schema.graphql'), 'utf-8')
+const schema = buildSchema(schemaSDL)
+
+// Initialize Appwrite client
+const client = new Client()
+  .setEndpoint(process.env.APPWRITE_ENDPOINT)
+  .setProject(process.env.APPWRITE_PROJECT_ID)
+  .setKey(process.env.APPWRITE_API_KEY)
+
+const databases = new Databases(client)
+const DATABASE_ID = process.env.APPWRITE_DATABASE_ID
+
+// Root resolver
+const root = {
+  villageOverview: async (args, context) => {
+    // Verify authentication
+    if (!context.user) {
+      throw new Error('Unauthorized')
+    }
+
+    // Fetch residents summary
+    const residentsResponse = await databases.listDocuments(
+      DATABASE_ID,
+      'residents',
+      [Query.limit(100)]
+    )
+
+    const residents = residentsResponse.documents
+    const totalResidents = residentsResponse.total
+
+    // Count by role
+    const roleCount = {}
+    residents.forEach(resident => {
+      resident.role_ids.forEach(roleId => {
+        roleCount[roleId] = (roleCount[roleId] || 0) + 1
+      })
+    })
+
+    const byRole = Object.entries(roleCount).map(([role, count]) => ({
+      role,
+      count
+    }))
+
+    // Get recent additions (last 5)
+    const recentAdditions = residents
+      .sort((a, b) => new Date(b.$createdAt) - new Date(a.$createdAt))
+      .slice(0, 5)
+      .map(r => ({
+        id: r.$id,
+        fullName: r.full_name,
+        roles: r.role_ids,
+        householdName: r.household_name
+      }))
+
+    // Fetch households summary
+    const householdsResponse = await databases.listDocuments(
+      DATABASE_ID,
+      'households',
+      [Query.limit(100)]
+    )
+
+    const households = householdsResponse.documents
+    const totalHouseholds = householdsResponse.total
+
+    // Count by type
+    const typeCount = {}
+    households.forEach(household => {
+      const type = household.household_type || 'Other'
+      typeCount[type] = (typeCount[type] || 0) + 1
+    })
+
+    const byType = Object.entries(typeCount).map(([type, count]) => ({
+      type,
+      count
+    }))
+
+    // Fetch recent activity (simplified - would need activity log collection)
+    const recentActivity = []
+
+    return {
+      residents: {
+        total: totalResidents,
+        byRole,
+        recentAdditions
+      },
+      households: {
+        total: totalHouseholds,
+        byType
+      },
+      recentActivity
+    }
+  },
+
+  farmDashboard: async ({ dateRange }, context) => {
+    if (!context.user) {
+      throw new Error('Unauthorized')
+    }
+
+    // Check if user has farm access
+    const hasFarmAccess = context.user.role_ids.some(role => 
+      ['role_admin', 'role_farm_manager', 'role_crop_manager'].includes(role)
+    )
+
+    if (!hasFarmAccess) {
+      throw new Error('Forbidden: No farm access')
+    }
+
+    // Fetch plots
+    const plotsResponse = await databases.listDocuments(
+      DATABASE_ID,
+      'plots',
+      [Query.limit(50)]
+    )
+
+    const plots = plotsResponse.documents
+    const totalPlots = plots.length
+    const activePlots = plots.filter(p => p.status === 'Active').length
+    const fallowPlots = plots.filter(p => p.status === 'Fallow').length
+
+    const plotsOverview = plots.map(p => ({
+      id: p.$id,
+      name: p.plot_name,
+      size: p.size_hectares,
+      status: p.status,
+      currentCrop: p.current_crop_name,
+      cropManager: p.crop_manager_name
+    }))
+
+    // Fetch upcoming harvests
+    const plantingsResponse = await databases.listDocuments(
+      DATABASE_ID,
+      'plantings',
+      [
+        Query.equal('status', 'Growing'),
+        Query.limit(10),
+        Query.orderAsc('expected_harvest_date')
+      ]
+    )
+
+    const upcomingHarvests = plantingsResponse.documents.map(p => {
+      const expectedDate = new Date(p.expected_harvest_date)
+      const today = new Date()
+      const daysUntil = Math.ceil((expectedDate - today) / (1000 * 60 * 60 * 24))
+
+      return {
+        id: p.$id,
+        plotName: p.plot_name,
+        cropName: p.crop_name,
+        expectedDate: p.expected_harvest_date,
+        daysUntil
+      }
+    })
+
+    // Fetch recent sales (last 5)
+    const salesResponse = await databases.listDocuments(
+      DATABASE_ID,
+      'farm_sales',
+      [
+        Query.limit(5),
+        Query.orderDesc('sale_date')
+      ]
+    )
+
+    const recentSales = salesResponse.documents.map(s => ({
+      id: s.$id,
+      cropName: s.crop_name,
+      quantity: s.quantity_sold,
+      revenue: s.total_amount,
+      profit: s.profit,
+      date: s.sale_date
+    }))
+
+    // Calculate profit summary
+    const allSalesResponse = await databases.listDocuments(
+      DATABASE_ID,
+      'farm_sales',
+      dateRange ? [
+        Query.greaterThanEqual('sale_date', dateRange.startDate),
+        Query.lessThanEqual('sale_date', dateRange.endDate)
+      ] : []
+    )
+
+    const totalRevenue = allSalesResponse.documents.reduce((sum, s) => sum + s.total_amount, 0)
+    const totalCosts = allSalesResponse.documents.reduce((sum, s) => sum + s.total_costs, 0)
+    const netProfit = totalRevenue - totalCosts
+
+    // Top crops by profit
+    const cropProfits = {}
+    allSalesResponse.documents.forEach(s => {
+      if (!cropProfits[s.crop_name]) {
+        cropProfits[s.crop_name] = 0
+      }
+      cropProfits[s.crop_name] += s.profit
+    })
+
+    const topCrops = Object.entries(cropProfits)
+      .map(([cropName, profit]) => ({ cropName, profit }))
+      .sort((a, b) => b.profit - a.profit)
+      .slice(0, 5)
+
+    // Fetch inventory alerts
+    const inventoryResponse = await databases.listDocuments(
+      DATABASE_ID,
+      'inventory',
+      [
+        Query.equal('item_type', 'Farm Inputs'),
+        Query.limit(50)
+      ]
+    )
+
+    const inventoryAlerts = inventoryResponse.documents
+      .filter(item => item.quantity <= item.reorder_threshold)
+      .map(item => ({
+        id: item.$id,
+        itemName: item.item_name,
+        currentQuantity: item.quantity,
+        reorderThreshold: item.reorder_threshold,
+        severity: item.quantity === 0 ? 'critical' : 'warning'
+      }))
+
+    return {
+      plots: {
+        total: totalPlots,
+        active: activePlots,
+        fallow: fallowPlots,
+        plots: plotsOverview
+      },
+      upcomingHarvests,
+      recentSales,
+      profitSummary: {
+        totalRevenue,
+        totalCosts,
+        netProfit,
+        topCrops
+      },
+      inventoryAlerts
+    }
+  },
+
+  // Additional resolvers for schoolDashboard and financeDashboard...
+}
+
+// Middleware to extract user from JWT
+async function authMiddleware(req, res, next) {
+  const authHeader = req.headers.authorization
+  
+  if (!authHeader) {
+    req.user = null
+    return next()
+  }
+
+  try {
+    const token = authHeader.replace('Bearer ', '')
+    // Verify JWT with Appwrite
+    // In production, validate token with Appwrite Auth API
+    // For now, decode and trust (implement proper validation)
+    req.user = { role_ids: ['role_admin'] } // Placeholder
+    next()
+  } catch (error) {
+    req.user = null
+    next()
+  }
+}
+
+// Setup Express app
+export function setupGraphQL(app) {
+  app.use('/graphql', authMiddleware)
+  
+  app.all(
+    '/graphql',
+    createHandler({
+      schema,
+      rootValue: root,
+      context: (req) => ({
+        user: req.user
+      })
+    })
+  )
+}
+```
+
+### 10.7 Client-Side GraphQL Queries
+
+**Frontend Query Example (src/composables/useDashboardData.js):**
+
+```javascript
+import { ref } from 'vue'
+import { useAuthStore } from 'stores/auth'
+
+export function useDashboardData() {
+  const authStore = useAuthStore()
+  const loading = ref(false)
+  const error = ref(null)
+  const data = ref(null)
+
+  async function fetchVillageOverview() {
+    loading.value = true
+    error.value = null
+
+    const query = `
+      query VillageOverview {
+        villageOverview {
+          residents {
+            total
+            byRole {
+              role
+              count
+            }
+            recentAdditions {
+              id
+              fullName
+              roles
+              householdName
+            }
+          }
+          households {
+            total
+            byType {
+              type
+              count
+            }
+          }
+        }
+      }
+    `
+
+    try {
+      const response = await fetch('/graphql', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${authStore.session.jwt}`
+        },
+        body: JSON.stringify({ query })
+      })
+
+      const result = await response.json()
+
+      if (result.errors) {
+        throw new Error(result.errors[0].message)
+      }
+
+      data.value = result.data.villageOverview
+    } catch (err) {
+      error.value = err.message
+    } finally {
+      loading.value = false
+    }
+  }
+
+  async function fetchFarmDashboard(dateRange = null) {
+    loading.value = true
+    error.value = null
+
+    const query = `
+      query FarmDashboard($dateRange: DateRangeInput) {
+        farmDashboard(dateRange: $dateRange) {
+          plots {
+            total
+            active
+            fallow
+            plots {
+              id
+              name
+              size
+              status
+              currentCrop
+              cropManager
+            }
+          }
+          upcomingHarvests {
+            id
+            plotName
+            cropName
+            expectedDate
+            daysUntil
+          }
+          recentSales {
+            id
+            cropName
+            quantity
+            revenue
+            profit
+            date
+          }
+          profitSummary {
+            totalRevenue
+            totalCosts
+            netProfit
+            topCrops {
+              cropName
+              profit
+            }
+          }
+          inventoryAlerts {
+            id
+            itemName
+            currentQuantity
+            reorderThreshold
+            severity
+          }
+        }
+      }
+    `
+
+    try {
+      const response = await fetch('/graphql', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${authStore.session.jwt}`
+        },
+        body: JSON.stringify({
+          query,
+          variables: { dateRange }
+        })
+      })
+
+      const result = await response.json()
+
+      if (result.errors) {
+        throw new Error(result.errors[0].message)
+      }
+
+      data.value = result.data.farmDashboard
+    } catch (err) {
+      error.value = err.message
+    } finally {
+      loading.value = false
+    }
+  }
+
+  return {
+    loading,
+    error,
+    data,
+    fetchVillageOverview,
+    fetchFarmDashboard
+  }
+}
+```
+
+**Usage in Dashboard Component:**
+
+```vue
+<script setup>
+import { onMounted } from 'vue'
+import { useDashboardData } from 'composables/useDashboardData'
+
+const { loading, error, data, fetchVillageOverview } = useDashboardData()
+
+onMounted(() => {
+  fetchVillageOverview()
+})
+</script>
+
+<template>
+  <div v-if="loading">Loading...</div>
+  <div v-else-if="error">Error: {{ error }}</div>
+  <div v-else-if="data">
+    <h2>Village Overview</h2>
+    <p>Total Residents: {{ data.residents.total }}</p>
+    <p>Total Households: {{ data.households.total }}</p>
+    <!-- ... more dashboard content -->
+  </div>
+</template>
+```
+
+### 10.8 GraphQL Caching Strategy
+
+**Cache Implementation:**
+- Use in-memory cache (Node.js Map) for GraphQL responses
+- Cache TTL: 5 minutes for dashboard queries
+- Cache invalidation: On relevant REST mutations (e.g., new resident → clear villageOverview cache)
+- Cache key: `${queryName}:${userId}:${JSON.stringify(variables)}`
+
+**Example Cache Middleware:**
+
+```javascript
+const cache = new Map()
+const CACHE_TTL = 5 * 60 * 1000 // 5 minutes
+
+function getCacheKey(queryName, userId, variables) {
+  return `${queryName}:${userId}:${JSON.stringify(variables)}`
+}
+
+function getCachedResult(key) {
+  const cached = cache.get(key)
+  if (!cached) return null
+  
+  if (Date.now() - cached.timestamp > CACHE_TTL) {
+    cache.delete(key)
+    return null
+  }
+  
+  return cached.data
+}
+
+function setCachedResult(key, data) {
+  cache.set(key, {
+    data,
+    timestamp: Date.now()
+  })
+}
+
+function invalidateCache(pattern) {
+  for (const key of cache.keys()) {
+    if (key.startsWith(pattern)) {
+      cache.delete(key)
+    }
+  }
+}
+
+// Export for use in REST mutation handlers
+export { invalidateCache }
+```
+
 ---
 
 ## 11. Secure Backend Extension Service
@@ -1417,6 +2354,664 @@ While Appwrite covers most CRUD operations, certain workflows require additional
 - Systemd or PM2 monitors process in on-prem LAN setup.
 - CI pipeline runs unit tests (Jest) and integration tests (Supertest + mocked Appwrite).
 - Metrics exported via Prometheus endpoint for future monitoring dashboard.
+
+---
+
+## 12. Internationalization (i18n) Architecture
+
+### 12.1 Rationale
+
+While the MVP is English-only (per PRD NFR-4), the architecture must support future internationalization for Nyanja (primary language in Eastern Province), Bemba, and other Zambian languages. Early preparation prevents costly refactoring later.
+
+### 12.2 Vue I18n Integration
+
+**Installation:**
+```bash
+yarn add vue-i18n@9
+```
+
+**Setup (src/boot/i18n.js):**
+
+```javascript
+import { boot } from 'quasar/wrappers'
+import { createI18n } from 'vue-i18n'
+import messages from 'src/i18n'
+
+export default boot(({ app }) => {
+  const i18n = createI18n({
+    locale: 'en-US',
+    fallbackLocale: 'en-US',
+    messages,
+    legacy: false, // Use Composition API mode
+    globalInjection: true
+  })
+
+  app.use(i18n)
+})
+```
+
+### 12.3 Translation File Structure
+
+**Directory Structure:**
+```
+src/i18n/
+├── index.js              # Exports all locales
+├── en-US/
+│   ├── index.js          # Aggregates all English translations
+│   ├── common.js         # Common UI strings
+│   ├── auth.js           # Authentication strings
+│   ├── residents.js      # Residents module strings
+│   ├── households.js     # Households module strings
+│   ├── finance.js        # Finance module strings
+│   ├── farm.js           # Farm module strings
+│   ├── school.js         # School module strings
+│   └── errors.js         # Error messages
+├── ny/                   # Nyanja (future)
+│   └── index.js
+└── bem/                  # Bemba (future)
+    └── index.js
+```
+
+**Example Translation Files:**
+
+**src/i18n/en-US/common.js:**
+```javascript
+export default {
+  app: {
+    name: 'Village Management System',
+    tagline: 'Sustainable Model Village Management'
+  },
+  actions: {
+    save: 'Save',
+    cancel: 'Cancel',
+    delete: 'Delete',
+    edit: 'Edit',
+    add: 'Add',
+    search: 'Search',
+    filter: 'Filter',
+    export: 'Export',
+    import: 'Import',
+    refresh: 'Refresh',
+    back: 'Back',
+    next: 'Next',
+    finish: 'Finish',
+    close: 'Close'
+  },
+  labels: {
+    name: 'Name',
+    description: 'Description',
+    date: 'Date',
+    status: 'Status',
+    type: 'Type',
+    amount: 'Amount',
+    quantity: 'Quantity',
+    notes: 'Notes'
+  },
+  messages: {
+    loading: 'Loading...',
+    saving: 'Saving...',
+    saved: 'Saved successfully',
+    deleted: 'Deleted successfully',
+    error: 'An error occurred',
+    noData: 'No data available',
+    confirmDelete: 'Are you sure you want to delete this item?'
+  },
+  navigation: {
+    dashboard: 'Dashboard',
+    residents: 'Residents',
+    households: 'Households',
+    finance: 'Finance',
+    inventory: 'Inventory',
+    calendar: 'Calendar',
+    storage: 'Storage',
+    farm: 'Farm',
+    school: 'School',
+    guests: 'Guests',
+    equipment: 'Equipment',
+    vendors: 'Vendors',
+    energy: 'Energy',
+    reports: 'Reports',
+    settings: 'Settings'
+  }
+}
+```
+
+**src/i18n/en-US/residents.js:**
+```javascript
+export default {
+  title: 'Residents',
+  addResident: 'Add Resident',
+  editResident: 'Edit Resident',
+  residentProfile: 'Resident Profile',
+  fields: {
+    fullName: 'Full Name',
+    dateOfBirth: 'Date of Birth',
+    gender: 'Gender',
+    contactPhone: 'Contact Phone',
+    contactEmail: 'Contact Email',
+    household: 'Household',
+    roles: 'Roles',
+    primaryRole: 'Primary Role'
+  },
+  genders: {
+    male: 'Male',
+    female: 'Female',
+    other: 'Other'
+  },
+  messages: {
+    residentAdded: 'Resident added successfully',
+    residentUpdated: 'Resident updated successfully',
+    residentDeleted: 'Resident deleted successfully',
+    noHouseholds: 'Please create at least one household before adding residents'
+  }
+}
+```
+
+**src/i18n/en-US/index.js:**
+```javascript
+import common from './common'
+import auth from './auth'
+import residents from './residents'
+import households from './households'
+import finance from './finance'
+import farm from './farm'
+import school from './school'
+import errors from './errors'
+
+export default {
+  common,
+  auth,
+  residents,
+  households,
+  finance,
+  farm,
+  school,
+  errors
+}
+```
+
+**src/i18n/index.js:**
+```javascript
+import enUS from './en-US'
+
+export default {
+  'en-US': enUS
+  // Future locales:
+  // 'ny': nyanja,
+  // 'bem': bemba
+}
+```
+
+### 12.4 Usage in Components
+
+**Template Usage:**
+
+```vue
+<template>
+  <div>
+    <h1>{{ $t('residents.title') }}</h1>
+    <q-btn :label="$t('residents.addResident')" @click="addResident" />
+    
+    <q-input
+      v-model="resident.full_name"
+      :label="$t('residents.fields.fullName')"
+      :hint="$t('common.labels.name')"
+    />
+    
+    <p>{{ $t('residents.messages.residentAdded') }}</p>
+  </div>
+</template>
+```
+
+**Script Usage (Composition API):**
+
+```vue
+<script setup>
+import { useI18n } from 'vue-i18n'
+
+const { t, locale } = useI18n()
+
+function showSuccessMessage() {
+  $q.notify({
+    message: t('residents.messages.residentAdded'),
+    color: 'positive'
+  })
+}
+
+// Dynamic translation with parameters
+const welcomeMessage = t('common.messages.welcome', { name: 'John' })
+
+// Pluralization
+const itemCount = t('common.messages.items', { count: 5 })
+
+// Change locale
+function switchLanguage(newLocale) {
+  locale.value = newLocale
+  localStorage.setItem('user-locale', newLocale)
+}
+</script>
+```
+
+### 12.5 String Externalization Guidelines
+
+**✅ DO:**
+- Externalize ALL user-facing text (labels, buttons, messages, errors)
+- Use semantic keys: `module.context.specificString` (e.g., `residents.fields.fullName`)
+- Group related strings by module and context
+- Use parameters for dynamic content: `$t('message', { name: userName })`
+
+**❌ DON'T:**
+- Hard-code English strings in components: ~~`<q-btn label="Save" />`~~
+- Use generic keys: ~~`$t('string1')`~~
+- Duplicate strings across modules (use `common` for shared strings)
+- Concatenate translated strings (use parameters instead)
+
+### 12.6 Translation Workflow (Future)
+
+**When adding new languages:**
+
+1. Create new locale folder: `src/i18n/ny/` (Nyanja)
+2. Copy `en-US/` structure to new locale
+3. Translate all strings in each file
+4. Add locale to `src/i18n/index.js`
+5. Add language selector to Settings page
+6. Test all modules in new language
+
+**Translation Management:**
+- Use translation management platform (e.g., Lokalise, Crowdin) for community translations
+- Export/import JSON files for translator workflow
+- Maintain English as source of truth
+- Version control all translation files
+
+### 12.7 Locale Persistence
+
+**Store user's language preference:**
+
+```javascript
+// src/stores/settings.js
+import { defineStore } from 'pinia'
+import { useI18n } from 'vue-i18n'
+
+export const useSettingsStore = defineStore('settings', {
+  state: () => ({
+    locale: localStorage.getItem('user-locale') || 'en-US'
+  }),
+  
+  actions: {
+    setLocale(newLocale) {
+      this.locale = newLocale
+      localStorage.setItem('user-locale', newLocale)
+      
+      // Update i18n
+      const { locale } = useI18n()
+      locale.value = newLocale
+    }
+  }
+})
+```
+
+---
+
+## Appendix A: Post-MVP TypeScript Migration Strategy
+
+### A.1 Migration Rationale
+
+The MVP uses JavaScript (ES2022+) per PRD requirements to lower the barrier to entry for community developers. Post-MVP, TypeScript adoption will provide:
+
+- **Type Safety:** Catch errors at compile-time instead of runtime
+- **Better IDE Support:** Enhanced autocomplete, refactoring, and navigation
+- **Documentation:** Types serve as inline documentation
+- **Maintainability:** Easier to refactor large codebase with confidence
+
+### A.2 Gradual Migration Approach
+
+**Phase 1: Infrastructure Setup (Week 1)**
+
+1. Install TypeScript and type definitions:
+```bash
+yarn add -D typescript @types/node
+yarn add -D @quasar/app-vite typescript
+```
+
+2. Create `tsconfig.json`:
+```json
+{
+  "extends": "@quasar/app-vite/tsconfig-preset",
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "src/*": ["src/*"],
+      "app/*": ["*"],
+      "components/*": ["src/components/*"],
+      "layouts/*": ["src/layouts/*"],
+      "pages/*": ["src/pages/*"],
+      "assets/*": ["src/assets/*"],
+      "boot/*": ["src/boot/*"],
+      "stores/*": ["src/stores/*"]
+    },
+    "strict": false, // Start lenient, tighten gradually
+    "noImplicitAny": false,
+    "strictNullChecks": false
+  },
+  "include": ["src/**/*.ts", "src/**/*.vue"],
+  "exclude": ["dist", "node_modules"]
+}
+```
+
+3. Enable TypeScript in Quasar config:
+```javascript
+// quasar.config.js
+module.exports = function () {
+  return {
+    supportTS: {
+      tsCheckerConfig: {
+        eslint: {
+          enabled: true,
+          files: './src/**/*.{ts,tsx,js,jsx,vue}'
+        }
+      }
+    }
+  }
+}
+```
+
+**Phase 2: Type Definitions (Week 2-3)**
+
+1. Create type definition files for domain models:
+
+```typescript
+// src/types/residents.ts
+export interface Resident {
+  $id: string
+  full_name: string
+  date_of_birth: string
+  gender: 'Male' | 'Female' | 'Other'
+  contact_phone?: string
+  contact_email?: string
+  household_id: string
+  household_name?: string
+  role_ids: string[]
+  primary_role: string
+  storage_quota_gb: number
+  $createdAt: string
+  $updatedAt: string
+}
+
+export interface CreateResidentInput {
+  full_name: string
+  date_of_birth: string
+  gender: 'Male' | 'Female' | 'Other'
+  contact_phone?: string
+  contact_email?: string
+  household_id: string
+  role_ids: string[]
+  primary_role: string
+}
+```
+
+```typescript
+// src/types/farm.ts
+export interface Plot {
+  $id: string
+  plot_name: string
+  size_hectares: number
+  location_description?: string
+  soil_type?: string
+  status: 'Active' | 'Fallow' | 'Retired'
+  crop_manager_id?: string
+  crop_manager_name?: string
+  $createdAt: string
+  $updatedAt: string
+}
+
+export interface Planting {
+  $id: string
+  plot_id: string
+  plot_name: string
+  crop_id: string
+  crop_name: string
+  planting_date: string
+  expected_harvest_date: string
+  status: 'Planted' | 'Growing' | 'Harvesting' | 'Completed' | 'Failed'
+  seed_quantity: number
+  seed_unit: string
+  seed_cost: number
+  planting_labor_farmhands: number
+  planting_labor_cost: number
+  planting_labor_notes?: string
+  planting_other_costs?: number
+  planting_other_costs_notes?: string
+  $createdAt: string
+  $updatedAt: string
+}
+```
+
+**Phase 3: Migrate Utilities and Composables (Week 4-5)**
+
+Start with pure functions and composables (no Vue components yet):
+
+```typescript
+// src/utils/dateHelpers.ts
+import { format, parseISO, differenceInDays, addDays } from 'date-fns'
+
+export function formatDate(date: Date | string, formatStr: string = 'dd MMM yyyy'): string {
+  if (!date) return ''
+  const dateObj = typeof date === 'string' ? parseISO(date) : date
+  return format(dateObj, formatStr)
+}
+
+export function daysBetween(startDate: Date | string, endDate: Date | string): number {
+  const start = typeof startDate === 'string' ? parseISO(startDate) : startDate
+  const end = typeof endDate === 'string' ? parseISO(endDate) : endDate
+  return differenceInDays(end, start)
+}
+```
+
+```typescript
+// src/composables/useErrorHandler.ts
+import { useQuasar } from 'quasar'
+
+interface ErrorContext {
+  module?: string
+  operation?: string
+  silent?: boolean
+  customMessage?: string
+}
+
+interface ValidationRule {
+  required?: boolean
+  min?: number
+  max?: number
+  pattern?: RegExp
+  custom?: (value: any, data: any) => boolean
+  label?: string
+  message?: string
+}
+
+interface ValidationRules {
+  [field: string]: ValidationRule
+}
+
+interface ValidationResult {
+  isValid: boolean
+  errors: { [field: string]: string }
+}
+
+export function useErrorHandler() {
+  const $q = useQuasar()
+  
+  function handleError(error: Error, context: ErrorContext = {}): { error: Error; userMessage: string } {
+    // ... implementation
+  }
+  
+  function validateForm(data: any, rules: ValidationRules): ValidationResult {
+    // ... implementation
+  }
+  
+  return {
+    handleError,
+    validateForm
+  }
+}
+```
+
+**Phase 4: Migrate Pinia Stores (Week 6-7)**
+
+```typescript
+// src/stores/residents.ts
+import { defineStore } from 'pinia'
+import { databases } from 'boot/appwrite'
+import type { Resident, CreateResidentInput } from 'src/types/residents'
+
+interface ResidentsState {
+  residents: Resident[]
+  loading: boolean
+  error: string | null
+}
+
+export const useResidentsStore = defineStore('residents', {
+  state: (): ResidentsState => ({
+    residents: [],
+    loading: false,
+    error: null
+  }),
+  
+  getters: {
+    getResidentById: (state) => (id: string): Resident | undefined => {
+      return state.residents.find(r => r.$id === id)
+    },
+    
+    residentsByHousehold: (state) => (householdId: string): Resident[] => {
+      return state.residents.filter(r => r.household_id === householdId)
+    }
+  },
+  
+  actions: {
+    async fetchResidents(): Promise<void> {
+      this.loading = true
+      this.error = null
+      
+      try {
+        const response = await databases.listDocuments<Resident>(
+          process.env.APPWRITE_DATABASE_ID!,
+          'residents'
+        )
+        this.residents = response.documents
+      } catch (error) {
+        this.error = (error as Error).message
+        throw error
+      } finally {
+        this.loading = false
+      }
+    },
+    
+    async createResident(input: CreateResidentInput): Promise<Resident> {
+      // ... implementation
+    }
+  }
+})
+```
+
+**Phase 5: Migrate Vue Components (Week 8-12)**
+
+Convert `.vue` files to use `<script setup lang="ts">`:
+
+```vue
+<script setup lang="ts">
+import { ref, computed, onMounted } from 'vue'
+import { useResidentsStore } from 'stores/residents'
+import type { Resident } from 'src/types/residents'
+
+interface Props {
+  residentId: string
+}
+
+const props = defineProps<Props>()
+
+const emit = defineEmits<{
+  (e: 'saved', resident: Resident): void
+  (e: 'cancelled'): void
+}>()
+
+const residentsStore = useResidentsStore()
+const resident = ref<Resident | null>(null)
+const loading = ref<boolean>(false)
+
+const fullName = computed<string>(() => resident.value?.full_name || '')
+
+onMounted(async () => {
+  await fetchResident()
+})
+
+async function fetchResident(): Promise<void> {
+  loading.value = true
+  try {
+    resident.value = residentsStore.getResidentById(props.residentId) || null
+  } finally {
+    loading.value = false
+  }
+}
+
+function handleSave(): void {
+  if (resident.value) {
+    emit('saved', resident.value)
+  }
+}
+</script>
+```
+
+**Phase 6: Tighten Type Checking (Week 13-14)**
+
+Gradually enable stricter TypeScript options:
+
+```json
+{
+  "compilerOptions": {
+    "strict": true,
+    "noImplicitAny": true,
+    "strictNullChecks": true,
+    "strictFunctionTypes": true,
+    "strictBindCallApply": true,
+    "strictPropertyInitialization": true,
+    "noImplicitThis": true,
+    "alwaysStrict": true
+  }
+}
+```
+
+Fix type errors module by module, starting with utilities and working up to components.
+
+### A.3 Migration Priorities
+
+**High Priority (Migrate First):**
+1. Type definitions for all domain models
+2. Utility functions (dateHelpers, validators, formatters)
+3. Composables (useErrorHandler, useOffline, useFileUpload)
+4. Pinia stores (state management benefits most from types)
+
+**Medium Priority:**
+5. Core components (ResidentCard, PlotCard, TransactionRow)
+6. Page components (Dashboard, Lists, Detail views)
+7. Form components
+
+**Low Priority:**
+8. Layout components (already simple)
+9. Boot files (minimal logic)
+
+### A.4 Coexistence Strategy
+
+- JavaScript and TypeScript files coexist during migration
+- Use `.ts` extension for new files
+- Gradually convert `.js` to `.ts` as files are touched
+- No "big bang" rewrite—incremental migration over 3-4 months
+- Maintain full test coverage throughout migration
+
+### A.5 Team Training
+
+- Provide TypeScript training sessions for community contributors
+- Create TypeScript style guide specific to project
+- Document common patterns and type definitions
+- Set up pre-commit hooks to catch type errors early
 
 ---
 

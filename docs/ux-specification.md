@@ -708,18 +708,120 @@ graph TD
    - **Sync Success:** Green checkmark + "Synced"
    - **Sync Error:** Red X + "Sync failed - Retry?"
 
-4. **Conflict Resolution Dialog**
-   - Title: "Sync Conflict Detected"
-   - Description: "This record was modified on another device. Choose which version to keep."
-   - Two columns: Local Version | Server Version
-   - Show: Timestamp, modified fields (highlighted differences)
-   - Buttons: Keep Local (primary), Keep Server (secondary), Merge (advanced)
+4. **Enhanced Conflict Resolution Dialog**
+
+**Layout:**
+```
+┌─────────────────────────────────────────────────────────────┐
+│ ⚠️ Sync Conflict Detected                            [X]   │
+├─────────────────────────────────────────────────────────────┤
+│ This record was modified on another device while you were   │
+│ offline. Review the changes and choose how to resolve.      │
+├─────────────────────────────────────────────────────────────┤
+│ Record: Maize Field A - Harvest #123                        │
+│                                                              │
+│ ┌──────────────────────┬──────────────────────┐            │
+│ │ Your Changes (Local)  │ Server Version       │            │
+│ │ Modified: 2 min ago   │ Modified: 5 min ago  │            │
+│ ├──────────────────────┼──────────────────────┤            │
+│ │ Field: Quantity      │ Field: Quantity      │            │
+│ │ 2,200 kg ✓           │ 2,150 kg             │ [Use This] │
+│ │                      │                      │            │
+│ │ Field: Labor Cost    │ Field: Labor Cost    │            │
+│ │ 500 ZMW ✓            │ 500 ZMW              │ [Same]     │
+│ │                      │                      │            │
+│ │ Field: Notes         │ Field: Notes         │            │
+│ │ "Good harvest" ✓     │ "Excellent yield"    │ [Use This] │
+│ │                      │                      │            │
+│ │ Field: Date          │ Field: Date          │            │
+│ │ 2025-10-25 ✓         │ 2025-10-25           │ [Same]     │
+│ └──────────────────────┴──────────────────────┘            │
+│                                                              │
+│ Conflict Summary: 2 fields differ                           │
+│                                                              │
+│ [Keep All Local] [Keep All Server] [Use Selected] [Cancel] │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**Features:**
+
+a. **Field-Level Conflict Highlighting**
+   - Each conflicting field shown separately with side-by-side comparison
+   - Differences highlighted in yellow background
+   - Identical fields marked with checkmark (✓) and greyed out
+   - Visual diff for text fields (added/removed text highlighted)
+
+b. **Merge Strategy Options**
+   - **Keep All Local:** Accept all your offline changes (default)
+   - **Keep All Server:** Accept all server changes
+   - **Use Selected:** Cherry-pick fields individually (click "Use This" button per field)
+   - **Cancel:** Abort sync, keep in queue for manual review later
+
+c. **Conflict Prevention (Optimistic Locking)**
+   - Each record stores `$updatedAt` timestamp
+   - Before offline edit: Store original `$updatedAt` value
+   - During sync: Compare stored timestamp with server timestamp
+   - If timestamps match: No conflict, proceed with update
+   - If timestamps differ: Trigger conflict resolution dialog
+   - Reduces false conflicts from concurrent non-overlapping edits
+
+d. **Conflict Metadata Display**
+   - Record identifier (e.g., "Maize Field A - Harvest #123")
+   - Last modified timestamps for both versions
+   - User who made server changes (if available)
+   - Count of conflicting fields vs. total fields
+   - Conflict severity indicator (minor/major based on field importance)
+
+e. **Advanced Merge UI (Optional)**
+   - Toggle to show "Advanced Mode"
+   - Displays raw JSON diff for technical users
+   - Option to manually edit merged result
+   - Validation before accepting merge
+
+**Conflict Resolution Flow:**
+
+```mermaid
+graph TD
+    A[Sync Detects Conflict] --> B[Load Both Versions]
+    B --> C[Compare Field by Field]
+    C --> D{All Fields Same?}
+    D -->|Yes| E[Auto-Resolve: No Conflict]
+    D -->|No| F[Show Conflict Dialog]
+    
+    F --> G[User Reviews Differences]
+    G --> H{User Action?}
+    
+    H -->|Keep All Local| I[Apply Local Version]
+    H -->|Keep All Server| J[Apply Server Version]
+    H -->|Use Selected| K[Build Merged Version]
+    H -->|Cancel| L[Keep in Queue]
+    
+    I --> M[Update Server]
+    J --> M
+    K --> N[Validate Merged Data]
+    N --> M
+    
+    M --> O[Mark as Synced]
+    O --> P[Remove from Queue]
+    P --> Q[Show Success]
+    
+    L --> R[Flag for Manual Review]
+    R --> S[Admin Notification]
+```
+
+**Error States:**
+- **Network failure during resolution:** Save resolution choice locally, retry on reconnection
+- **Invalid merge result:** Show validation errors, prevent save until fixed
+- **Timeout (user doesn't resolve):** Keep in queue, show persistent notification
+- **Multiple conflicts:** Process one at a time, show progress (e.g., "Conflict 2 of 5")
 
 **Success Criteria:**
 - Zero data loss during offline periods
 - Sync completes within 5 minutes of reconnection
 - Clear visual feedback at all times
-- Conflicts are rare and easy to resolve
+- Conflicts are rare (optimistic locking prevents most)
+- When conflicts occur, resolution is intuitive and quick (<2 minutes)
+- Field-level merge reduces need for all-or-nothing decisions
 
 ---
 

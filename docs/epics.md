@@ -502,13 +502,16 @@ As a **Farm Manager**, I want to record plantings with automatic seed inventory 
 
 **Acceptance Criteria:**
 
-1. "Record New Planting" button on plot detail page opens form with fields: crop, planting date, expected harvest date (auto-calculated, overridable), seeds used (quantity, unit, cost), seed source (From Inventory/Purchased Separately/Donated), number of farmhands, labor cost for planting, labor notes
-2. If seed source is "From Inventory": system validates sufficient quantity, automatically decrements inventory, links planting to inventory item
-3. If seed source is "Purchased Separately" or "Donated": records seed cost for profitability calculation
-4. System auto-calculates expected harvest date: planting_date + crop.maturity_days
-5. Planting status automatically set to "Planted", plot status changes to "Active"
-6. Calendar automatically creates event: "[Crop] - Expected Harvest" on expected harvest date
-7. Validation: Cannot plant on plot with existing active planting
+1. "Record New Planting" button on plot detail page opens form with fields: crop, planting date, expected harvest date (auto-calculated, overridable), seeds used (quantity, unit, cost), seed source (From Inventory/Purchased Separately/Donated)
+2. Labor cost tracking fields: number of farmhands (integer), labor cost for planting (currency), labor notes (optional text)
+3. Other costs field: other costs amount (optional currency), other costs notes (optional text) for miscellaneous expenses (fertilizer, pesticides, equipment rental, etc.)
+4. If seed source is "From Inventory": system validates sufficient quantity, automatically decrements inventory, links planting to inventory item
+5. If seed source is "Purchased Separately" or "Donated": records seed cost for profitability calculation
+6. System auto-calculates expected harvest date: planting_date + crop.maturity_days
+7. Planting status automatically set to "Planted", plot status changes to "Active"
+8. Calendar automatically creates event: "[Crop] - Expected Harvest" on expected harvest date
+9. Validation: Cannot plant on plot with existing active planting
+10. All cost fields (seeds, labor, other) stored for profitability calculation in Story 3.9
 
 **Prerequisites:** Story 3.2, Epic 2 Story 2.6
 
@@ -540,12 +543,13 @@ As a **Farm Manager**, I want to record harvests with support for single-day and
 **Acceptance Criteria:**
 
 1. "Record Harvest" button on planting detail page opens form with harvest type: Single Day, Multi-Day Aggregate, Continuous Picking (Continuous Picking in Story 3.6)
-2. Single Day Harvest: harvest date, quantity harvested (kg), number of farmhands, labor cost for harvesting, notes
-3. Multi-Day Aggregate Harvest: harvest start/end date, daily harvest details table (date, quantity, farmhands, labor cost per day), total quantity auto-calculated
-4. Harvest record stores: linked planting_id, harvest type, total quantity (kg), harvest date(s), status, daily breakdown, harvest_labor_farmhands, harvest_labor_cost
+2. Single Day Harvest fields: harvest date, quantity harvested (kg), labor tracking (number of farmhands, labor cost for harvesting, labor notes), other costs (amount, notes for miscellaneous expenses), general notes
+3. Multi-Day Aggregate Harvest fields: harvest start/end date, daily harvest details table (date, quantity, farmhands count, labor cost per day, other costs per day), total quantity auto-calculated, total labor cost auto-calculated, total other costs auto-calculated
+4. Harvest record stores: linked planting_id, harvest type, total quantity (kg), harvest date(s), status, daily breakdown (if applicable), harvest_labor_farmhands, harvest_labor_cost, harvest_other_costs, harvest_other_costs_notes
 5. Planting status automatically changes to "Completed"
 6. Validation: Cannot record harvest if planting status is "Failed"
 7. Farm Manager can record harvest for any plot; Crop Manager only for assigned plots
+8. All cost fields (labor, other) stored for profitability calculation in Story 3.9
 
 **Prerequisites:** Story 3.4
 
@@ -611,13 +615,14 @@ As a **Farm Manager**, I want to see profit calculations per plot and per crop t
 
 **Acceptance Criteria:**
 
-1. Profit calculation formula: Total Sales Revenue - (Seed Costs + Planting Labor Costs + Harvest Labor Costs)
-2. Plot detail page "Profitability Summary": total revenue, cost breakdown (seed costs, planting labor, harvest labor, total costs), net profit, ROI percentage
-3. Crop performance report: group all plantings by crop type, show total plantings, total harvests, total revenue, total seed costs, total planting labor costs, total harvest labor costs, total costs, average profit per planting, average yield per hectare, success rate
-4. Farm dashboard widget: "Top Performing Crops" bar chart showing top 5 crops by total profit
-5. Farm dashboard widget: "Plot Profitability" table showing all plots with profit/loss, color-coded
-6. Profitability filters: date range, specific crop, specific plot
-7. Export profitability reports to PDF
+1. Profit calculation formula: Total Sales Revenue - (Seed Costs + Planting Labor Costs + Planting Other Costs + Harvest Labor Costs + Harvest Other Costs)
+2. Plot detail page "Profitability Summary": total revenue, detailed cost breakdown (seed costs, planting labor costs, planting other costs, harvest labor costs, harvest other costs, total costs), net profit, ROI percentage
+3. Cost breakdown display: each cost category shown separately with amount and percentage of total costs, expandable detail showing notes for other costs
+4. Crop performance report: group all plantings by crop type, show total plantings, total harvests, total revenue, total seed costs, total planting labor costs, total planting other costs, total harvest labor costs, total harvest other costs, total costs, average profit per planting, average yield per hectare, success rate
+5. Farm dashboard widget: "Top Performing Crops" bar chart showing top 5 crops by total profit
+6. Farm dashboard widget: "Plot Profitability" table showing all plots with profit/loss, color-coded (green for profit, red for loss, yellow for break-even)
+7. Profitability filters: date range, specific crop, specific plot
+8. Export profitability reports to PDF with complete cost breakdown
 
 **Prerequisites:** Story 3.8
 
