@@ -7,6 +7,10 @@
         <q-toolbar-title> Village Management System </q-toolbar-title>
 
         <div>v0.0.1</div>
+
+        <q-btn flat dense round icon="logout" aria-label="Logout" @click="handleLogout">
+          <q-tooltip>Logout</q-tooltip>
+        </q-btn>
       </q-toolbar>
     </q-header>
 
@@ -41,11 +45,44 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref } from 'vue';
+import { useRouter } from 'vue-router';
+import { useQuasar } from 'quasar';
+import { useAuthStore } from 'src/stores/auth-store';
 
-const leftDrawerOpen = ref(false)
+const router = useRouter();
+const $q = useQuasar();
+const authStore = useAuthStore();
+
+const leftDrawerOpen = ref(false);
 
 function toggleLeftDrawer() {
-  leftDrawerOpen.value = !leftDrawerOpen.value
+  leftDrawerOpen.value = !leftDrawerOpen.value;
+}
+
+async function handleLogout() {
+  $q.dialog({
+    title: 'Confirm Logout',
+    message: 'Are you sure you want to log out?',
+    cancel: true,
+    persistent: true,
+  }).onOk(async () => {
+    const result = await authStore.logout();
+
+    if (result.success) {
+      $q.notify({
+        type: 'positive',
+        message: 'Logged out successfully',
+        position: 'top',
+      });
+      router.push('/auth');
+    } else {
+      $q.notify({
+        type: 'negative',
+        message: result.error || 'Failed to log out',
+        position: 'top',
+      });
+    }
+  });
 }
 </script>

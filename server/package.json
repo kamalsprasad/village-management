@@ -1,0 +1,16 @@
+{
+  "name": "server",
+  "version": "0.0.1",
+  "description": "Server for Village Management System",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "Kamal S. Prasad",
+  "license": "Apache-2.0",
+  "type": "module",
+  "dependencies": {
+    "node-appwrite": "^20.2.1"
+  }
+}

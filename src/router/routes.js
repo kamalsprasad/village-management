@@ -1,10 +1,16 @@
 const routes = [
+  // Auth page (no layout)
+  {
+    path: '/auth',
+    component: () => import('pages/AuthPage.vue'),
+  },
+
   {
     path: '/',
     component: () => import('layouts/MainLayout.vue'),
     children: [
-      { path: '', component: () => import('pages/IndexPage.vue') },
-      { path: 'appwrite-test', component: () => import('pages/AppwriteTestPage.vue') },
+      { path: '', component: () => import('pages/IndexPage.vue'), meta: { requiresAuth: true } },
+      { path: 'appwrite-test', component: () => import('pages/AppwriteTestPage.vue'), meta: { requiresAuth: true } },
     ],
   },
 
