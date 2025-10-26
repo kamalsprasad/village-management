@@ -68,16 +68,16 @@ As a **developer**, I want a fully configured Quasar SSR project with Appwrite b
 
 ### Story 1.2: Appwrite Project Structure and Database Schema
 
-As a **developer**, I want Appwrite databases, collections, and initial schema configured, so that the backend is ready to store village data with proper relationships.
+As a **developer**, I want Appwrite databases, tables, and initial schema configured, so that the backend is ready to store village data with proper relationships.
 
 **Acceptance Criteria:**
 
 1. Appwrite project created with appropriate name and configuration
-2. Database created: "village_management"
-3. Core collections created with schemas: users, residents, households, roles
-4. Collection relationships configured (residents → households)
+2. Database created: "villageDB"
+3. Core tables created with schemas: users, residents, households, roles
+4. Table relationships configured (residents → households)
 5. Indexes created for common queries (household_id, role_ids)
-6. Appwrite permissions configured for collection-level access control
+6. Appwrite permissions configured for table-level access control
 7. Documentation added to README for database schema
 
 **Prerequisites:** Story 1.1

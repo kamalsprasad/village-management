@@ -22,6 +22,15 @@
             <q-item-label>Home</q-item-label>
           </q-item-section>
         </q-item>
+
+        <q-item clickable to="/appwrite-test">
+          <q-item-section avatar>
+            <q-icon name="cloud" />
+          </q-item-section>
+          <q-item-section>
+            <q-item-label>Appwrite Test</q-item-label>
+          </q-item-section>
+        </q-item>
       </q-list>
     </q-drawer>
 

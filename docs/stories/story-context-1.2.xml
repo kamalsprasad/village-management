@@ -1,0 +1,157 @@
+<story-context id="bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>1</epicId>
+    <storyId>1.2</storyId>
+    <title>Appwrite Project Structure and Database Schema</title>
+    <status>In Progress</status>
+    <generatedAt>2025-10-26</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/stories/story-1.2.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>developer</asA>
+    <iWant>Appwrite databases, tables, and initial schema configured</iWant>
+    <soThat>the backend is ready to store village data with proper relationships</soThat>
+    <tasks>
+      - Task 1: Create Appwrite Project (COMPLETE)
+      - Task 2: Create Database and Core Tables (COMPLETE)
+      - Task 3: Configure Relationships and Indexes
+      - Task 4: Configure Permissions
+      - Task 5: Document Database Schema
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <criterion id="AC1">Appwrite project created with appropriate name and configuration</criterion>
+    <criterion id="AC2">Database created: "villageDB"</criterion>
+    <criterion id="AC3">Core tables created with schemas: users, residents, households, roles</criterion>
+    <criterion id="AC4">Table relationships configured (residents → households)</criterion>
+    <criterion id="AC5">Indexes created for common queries (household_id, role_ids)</criterion>
+    <criterion id="AC6">Appwrite permissions configured for table-level access control</criterion>
+    <criterion id="AC7">Documentation added to README for database schema</criterion>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc>
+        <path>docs/architecture.md</path>
+        <title>Architecture Document - Section 2.2 Backend Services</title>
+        <section>Appwrite Databases</section>
+        <snippet>Appwrite Databases service provides NoSQL database for all village data. Tables are equivalent to tables in relational databases with columns defining schema fields (string, integer, datetime, etc.). Relationships configured through Appwrite console or SDK. Permissions support table-level and row-level access control.</snippet>
+      </doc>
+      <doc>
+        <path>docs/architecture.md</path>
+        <title>Architecture Document - Section 3.1 Architectural Decisions</title>
+        <section>Database Schema</section>
+        <snippet>Normalized schema pattern: Separate tables for each entity, ID-based relationships (store foreign key IDs like household_id in residents), no data duplication. Indexing strategy: Create indexes on all foreign key fields and frequently queried fields.</snippet>
+      </doc>
+      <doc>
+        <path>docs/PRD.md</path>
+        <title>Product Requirements Document - FR-1</title>
+        <section>Residents Management</section>
+        <snippet>Comprehensive profile information (name, DOB, gender, contact details). Support multi-role assignment where users can hold multiple roles simultaneously. Track resident relationships to households with defined roles. Manage storage quotas per user based on primary role.</snippet>
+      </doc>
+      <doc>
+        <path>docs/PRD.md</path>
+        <title>Product Requirements Document - FR-2</title>
+        <section>Household Management</section>
+        <snippet>Add, edit, and delete households with name, head resident, address. Link multiple residents to each household. Track household composition and relationships.</snippet>
+      </doc>
+      <doc>
+        <path>docs/PRD.md</path>
+        <title>Product Requirements Document - FR-3</title>
+        <section>Role-Based Access Control</section>
+        <snippet>RBAC with permissions union when users hold multiple roles. Storage quotas per role (Admin: unlimited, Village Head: 20GB, Teachers: 5GB, Residents: 2GB, Learners: 1GB).</snippet>
+      </doc>
+      <doc>
+        <path>appwrite_setup/README.md</path>
+        <title>Appwrite Setup Guide</title>
+        <section>Complete Database Configuration</section>
+        <snippet>Step-by-step guide for creating 4 tables (users, residents, households, roles) with 22 columns, 4 indexes, and permissions configuration. Includes automated setup script and manual console instructions.</snippet>
+      </doc>
+    </docs>
+    <code>
+      <artifact>
+        <path>src/boot/appwrite.js</path>
+        <kind>boot file</kind>
+        <symbol>tables, databases, account, storage, functions</symbol>
+        <lines>1-33</lines>
+        <reason>Existing Appwrite SDK integration with TablesDB service initialized. Story must use this boot file for all database operations.</reason>
+      </artifact>
+      <artifact>
+        <path>src/pages/AppwriteTestPage.vue</path>
+        <kind>test page</kind>
+        <symbol>AppwriteTestPage</symbol>
+        <lines>all</lines>
+        <reason>Existing test page for verifying Appwrite connection and TablesDB access. Can be used to verify database setup completion.</reason>
+      </artifact>
+    </code>
+    <dependencies>
+      <node>
+        <package name="appwrite" version="^21.2.1" />
+        <package name="node-appwrite" version="^14.1.0" dev="true" />
+        <package name="quasar" version="^2.16.0" />
+        <package name="vue" version="^3.5.22" />
+        <package name="pinia" version="^3.0.1" />
+        <package name="dexie" version="^4.2.1" />
+        <package name="date-fns" version="^4.1.0" />
+        <package name="chart.js" version="^4.5.1" />
+        <package name="vue-cal" version="^5.0.1-rc.33" />
+      </node>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint>All components must use Vue 3 script setup syntax - NEVER use export default</constraint>
+    <constraint>Database schema must be normalized: ID-based relationships, no data duplication</constraint>
+    <constraint>Use tables service from src/boot/appwrite.js for all database operations</constraint>
+    <constraint>Follow naming conventions: PascalCase for components, camelCase for composables/utils/stores</constraint>
+    <constraint>Tasks 3-5 require manual Appwrite console configuration - cannot be fully automated</constraint>
+    <constraint>All paths in documentation must be project-relative (e.g., docs/architecture.md not absolute paths)</constraint>
+  </constraints>
+  <interfaces>
+    <interface>
+      <name>Appwrite TablesDB Service</name>
+      <kind>SDK API</kind>
+      <signature>
+        tables.listRows({ databaseId, tableId, queries? })
+        tables.createRow({ databaseId, tableId, rowId, data })
+        tables.getRow({ databaseId, tableId, rowId })
+        tables.updateRow({ databaseId, tableId, rowId, data })
+        tables.deleteRow({ databaseId, tableId, rowId })
+      </signature>
+      <path>src/boot/appwrite.js</path>
+    </interface>
+    <interface>
+      <name>Appwrite Query Builder</name>
+      <kind>SDK API</kind>
+      <signature>
+        Query.equal(attribute, value)
+        Query.notEqual(attribute, value)
+        Query.lessThan(attribute, value)
+        Query.greaterThan(attribute, value)
+        Query.search(attribute, value)
+        Query.orderAsc(attribute)
+        Query.orderDesc(attribute)
+      </signature>
+      <path>appwrite SDK</path>
+    </interface>
+  </interfaces>
+  <tests>
+    <standards>Manual testing required for this story. Verify database and tables created in Appwrite console. Test CRUD operations on each table using Appwrite SDK (TablesDB). Verify relationships work correctly (query residents by household_id). Test indexes improve query performance. Verify permissions prevent unauthorized access. Use AppwriteTestPage.vue at /appwrite-test for verification.</standards>
+    <locations>
+      <location>src/pages/AppwriteTestPage.vue - existing test page for Appwrite connection verification</location>
+      <location>Manual verification in Appwrite console required</location>
+    </locations>
+    <ideas>
+      <idea ac="AC1">Verify Appwrite project exists with correct name in console</idea>
+      <idea ac="AC2">Verify villageDB database created and accessible via TablesDB API</idea>
+      <idea ac="AC3">Verify all 4 tables (users, residents, households, roles) exist with correct column schemas</idea>
+      <idea ac="AC4">Test relationship query: fetch residents by household_id and verify correct results</idea>
+      <idea ac="AC5">Verify indexes exist on residents.household_id, residents.role_ids, households.head_resident_id</idea>
+      <idea ac="AC6">Test permissions: authenticated users can read, only Admin/Village Head can write</idea>
+      <idea ac="AC7">Verify README.md contains database schema documentation with tables, relationships, indexes</idea>
+    </ideas>
+  </tests>
+</story-context>

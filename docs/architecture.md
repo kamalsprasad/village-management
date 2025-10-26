@@ -310,7 +310,7 @@ function handleKeydown(event, rowIndex, colName) {
 | **Language**             | JavaScript (ES2022+)              | MVP uses JS, TypeScript post-MVP per PRD                                                     | All           |
 | **Deployment**           | LAN-first (local server)          | Intermittent connectivity, self-hosted, no cloud dependency                                  | All           |
 | **Offline Sync**         | IndexedDB + Dexie.js              | Reliable offline storage, sync queue for 2-day buffer, conflict resolution                   | All           |
-| **Database Schema**      | Normalized (relational via IDs)    | Separate collections, ID-based relationships, prevents duplication                           | All           |
+| **Database Schema**      | Normalized (relational via IDs)    | Separate tables, ID-based relationships, prevents duplication                                 | All           |
 | **Error Handling**       | Composable pattern (useErrorHandler) | Consistent, reusable, context-aware error handling                                         | All           |
 | **Date/Time Handling**   | date-fns                           | Lightweight, tree-shakeable, simple API for formatting and manipulation                     | All           |
 | **Form Validation**      | Custom (useErrorHandler.validateForm) | Built-in validation, no extra dependencies, consistent with error handling                 | All           |
@@ -347,7 +347,7 @@ db.version(1).stores({
   cachedTransactions: '$id, date, updated_at',
   cachedPlots: '$id, updated_at',
   cachedLearners: '$id, resident_id, updated_at',
-  // ... other cached collections
+    // ... other cached tables
 })
 
 // Sync queue item structure
@@ -357,8 +357,8 @@ db.version(1).stores({
 //   status: 'pending' | 'syncing' | 'completed' | 'failed',
 //   module: 'residents' | 'finance' | 'farm' | 'school',
 //   operation: 'create' | 'update' | 'delete',
-//   collection: 'residents',
-//   documentId: string,
+//   table: 'residents',
+//   rowId: string,
 //   data: object,
 //   retryCount: number,
 //   error: string
@@ -470,14 +470,14 @@ export function useOffline() {
     }
   }
 
-  async function queueOperation(module, operation, collection, documentId, data) {
+  async function queueOperation(module, operation, table, rowId, data) {
     await db.syncQueue.add({
       timestamp: new Date(),
       status: 'pending',
       module,
       operation,
-      collection,
-      documentId,
+      table,
+      rowId,
       data,
       retryCount: 0
     })
@@ -497,22 +497,22 @@ export function useOffline() {
         if (item.operation === 'create') {
           await databases.createDocument(
             process.env.APPWRITE_DATABASE_ID,
-            item.collection,
-            item.documentId,
+            item.table,
+            item.rowId,
             item.data
           )
         } else if (item.operation === 'update') {
           await databases.updateDocument(
             process.env.APPWRITE_DATABASE_ID,
-            item.collection,
-            item.documentId,
+            item.table,
+            item.rowId,
             item.data
           )
         } else if (item.operation === 'delete') {
           await databases.deleteDocument(
             process.env.APPWRITE_DATABASE_ID,
-            item.collection,
-            item.documentId
+            item.table,
+            item.rowId
           )
         }
 
@@ -856,9 +856,9 @@ export const useResidentsStore = defineStore('residents', {
 ### 6.1 Schema Design Principles
 
 **Normalized Schema Approach:**
-- Each entity has its own collection
-- Relationships stored as document IDs
-- No data duplication across collections
+- Each entity has its own table
+- Relationships stored as row IDs
+- No data duplication across tables
 - Updates propagate through ID references
 
 **Benefits:**
@@ -871,10 +871,10 @@ export const useResidentsStore = defineStore('residents', {
 - Multiple queries for related data (mitigated by caching and batch fetching)
 - Need to manually join data in application layer
 
-### 6.2 Collection Naming Convention
+### 6.2 Table Naming Convention
 
 - Use lowercase with underscores: `finance_transactions`, `test_scores`
-- Plural nouns for collections: `residents`, `households`, `plots`
+- Plural nouns for tables: `residents`, `households`, `plots`
 - Descriptive names that match domain language
 
 ### 6.3 Relationship Patterns
@@ -882,7 +882,7 @@ export const useResidentsStore = defineStore('residents', {
 **One-to-Many:**
 ```javascript
 // Household (one) → Residents (many)
-// residents collection
+// residents table
 {
   $id: 'resident_123',
   household_id: 'household_456',  // Foreign key
@@ -890,16 +890,18 @@ export const useResidentsStore = defineStore('residents', {
 }
 
 // To fetch household with residents:
-const household = await databases.getDocument(dbId, 'households', householdId)
-const residents = await databases.listDocuments(dbId, 'residents', [
-  Query.equal('household_id', householdId)
-])
+const household = await tables.getRow({ databaseId: dbId, tableId: 'households', rowId: householdId })
+const residents = await tables.listRows({
+  databaseId: dbId,
+  tableId: 'residents',
+  queries: [Query.equal('household_id', householdId)],
+})
 ```
 
 **Many-to-Many:**
 ```javascript
 // Residents (many) ↔ Roles (many)
-// residents collection
+// residents table
 {
   $id: 'resident_123',
   role_ids: ['role_admin', 'role_teacher'],  // Array of role IDs
@@ -907,10 +909,10 @@ const residents = await databases.listDocuments(dbId, 'residents', [
 }
 
 // To fetch resident with roles:
-const resident = await databases.getDocument(dbId, 'residents', residentId)
+const resident = await tables.getRow({ databaseId: dbId, tableId: 'residents', rowId: residentId })
 const roles = await Promise.all(
-  resident.role_ids.map(roleId => 
-    databases.getDocument(dbId, 'roles', roleId)
+  resident.role_ids.map(roleId =>
+    tables.getRow({ databaseId: dbId, tableId: 'roles', rowId: roleId })
   )
 )
 ```
