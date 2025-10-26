@@ -26,10 +26,10 @@ READINESS_REPORT: docs/implementation-readiness-report-2025-10-25.md
 ## Development Queue
 
 STORIES_SEQUENCE: [1.1, 1.2, 1.3]
-TODO_STORY: Epic 1 Story 1.3
-TODO_TITLE: Authentication System with Email/Password
-IN_PROGRESS_STORY: 
-IN_PROGRESS_TITLE: 
+TODO_STORY: 
+TODO_TITLE: 
+IN_PROGRESS_STORY: Epic 1 Story 1.3
+IN_PROGRESS_TITLE: Authentication System with Email/Password
 STORIES_DONE: [1.1, 1.2]
 
 ## Next Action
