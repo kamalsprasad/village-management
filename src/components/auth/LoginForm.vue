@@ -62,12 +62,12 @@
 <script setup>
 import { ref } from 'vue';
 import { useRouter } from 'vue-router';
-import { useQuasar } from 'quasar';
 import { useAuthStore } from 'src/stores/auth-store';
+import { useErrorHandler } from 'src/composables/useErrorHandler';
 
 const router = useRouter();
-const $q = useQuasar();
 const authStore = useAuthStore();
+const { notifyError, notifySuccess } = useErrorHandler();
 
 const form = ref({
   email: '',
@@ -88,27 +88,15 @@ const onSubmit = async () => {
     );
 
     if (result.success) {
-      $q.notify({
-        type: 'positive',
-        message: 'Login successful!',
-        position: 'top',
-      });
+      notifySuccess('Login successful!');
 
       // Redirect to dashboard
       router.push('/');
     } else {
-      $q.notify({
-        type: 'negative',
-        message: result.error || 'Invalid email or password',
-        position: 'top',
-      });
+      notifyError(result.error || 'Invalid email or password');
     }
   } catch {
-    $q.notify({
-      type: 'negative',
-      message: 'An unexpected error occurred. Please try again.',
-      position: 'top',
-    });
+    notifyError('An unexpected error occurred. Please try again.');
   } finally {
     loading.value = false;
   }
