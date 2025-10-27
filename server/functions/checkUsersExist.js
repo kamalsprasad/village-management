@@ -1,4 +1,4 @@
-import { Client, Users } from 'node-appwrite';
+import { Client, Users, Query } from 'node-appwrite';
 import { randomUUID } from 'node:crypto';
 /**
  * Appwrite Function: Check if any users exist in the system
@@ -24,7 +24,7 @@ export default async ({ req, res, log, error }) => {
     const users = new Users(client);
 
     // Query for users with a limit of 1 (we only need to know if ANY exist)
-    const userList = await users.list([], 1);
+    const userList = await users.list([Query.limit(1)]);
 
     const userExists = userList.total > 0;
 

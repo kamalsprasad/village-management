@@ -66,11 +66,14 @@ export const useAuthStore = defineStore('auth', {
         const functionId = import.meta.env.VITE_APPWRITE_FUNCTION_CHECK_USERS;
 
         if (!functionId) {
-          console.error('VITE_APPWRITE_FUNCTION_CHECK_USERS not configured');
-          // Fallback: check for active session
-          const hasSession = await this.checkSession();
-          this.hasUsers = hasSession;
-          return hasSession;
+          const message =
+            'Authentication setup incomplete: VITE_APPWRITE_FUNCTION_CHECK_USERS is not configured. Please update your environment settings.';
+          console.error(message);
+          this.hasUsers = null;
+          this.errorMessage = message;
+          errorHandler.notifyError(message);
+          this.isLoading = false;
+          return false;
         }
 
         const execution = await functions.createExecution(functionId);
