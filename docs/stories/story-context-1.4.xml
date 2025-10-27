@@ -1,0 +1,314 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<story-context>
+  <metadata>
+    <story_id>1.4</story_id>
+    <epic_id>1</epic_id>
+    <story_key>1-4-rbac-foundation</story_key>
+    <title>Role-Based Access Control (RBAC) Foundation</title>
+    <status>drafted</status>
+    <generated_date>2025-10-27</generated_date>
+  </metadata>
+
+  <story>
+    <as_a>system administrator</as_a>
+    <i_want>a role-based permission system with multi-role support</i_want>
+    <so_that>users have appropriate access based on their village responsibilities</so_that>
+  </story>
+
+  <acceptance_criteria>
+    <criterion id="AC1">
+      <description>Roles table seeded with 5 core roles (System Administrator, Village Head, Finance Manager, Resident, Guest) including name, permissions array, and storage_quota</description>
+    </criterion>
+    <criterion id="AC2">
+      <description>User profile schema includes role_ids[] array supporting multi-role assignment</description>
+    </criterion>
+    <criterion id="AC3">
+      <description>Permission checking utility function created: hasPermission(user, permission) that calculates union of all assigned roles</description>
+    </criterion>
+    <criterion id="AC4">
+      <description>Permissions calculated correctly for users with multiple roles (union logic verified)</description>
+    </criterion>
+    <criterion id="AC5">
+      <description>Route guards enforce role-based access and redirect unauthorized users to appropriate page</description>
+    </criterion>
+    <criterion id="AC6">
+      <description>UI components conditionally render based on user permissions using v-if directives</description>
+    </criterion>
+    <criterion id="AC7">
+      <description>Appwrite table permissions configured to respect RBAC rules at table level</description>
+    </criterion>
+    <criterion id="AC8">
+      <description>Admin interface displays user roles in read-only mode (edit functionality deferred to Epic 2)</description>
+    </criterion>
+  </acceptance_criteria>
+
+  <tasks>
+    <task id="1" ac_refs="AC1">
+      <title>Seed Roles Table</title>
+      <subtasks>
+        <subtask id="1.1">Create roles table in Appwrite if not exists (may already exist from Story 1.2)</subtask>
+        <subtask id="1.2">Define role schema: id, name, permissions[], storage_quota, description, created_at</subtask>
+        <subtask id="1.3">Seed System Administrator role (permissions: ['*'], storage_quota: -1 for unlimited)</subtask>
+        <subtask id="1.4">Seed Village Head role (permissions: ['residents:read', 'residents:write', 'households:read', 'households:write', 'finance:read', 'dashboard:read'], storage_quota: 20GB)</subtask>
+        <subtask id="1.5">Seed Finance Manager role (permissions: ['finance:read', 'finance:write', 'inventory:read', 'dashboard:read'], storage_quota: 5GB)</subtask>
+        <subtask id="1.6">Seed Resident role (permissions: ['dashboard:read', 'calendar:read'], storage_quota: 2GB)</subtask>
+        <subtask id="1.7">Seed Guest role (permissions: ['calendar:read'], storage_quota: 1GB)</subtask>
+        <subtask id="1.8">Verify all 5 roles created successfully in Appwrite console</subtask>
+      </subtasks>
+    </task>
+    <task id="2" ac_refs="AC2">
+      <title>Update User Profile Schema</title>
+      <subtasks>
+        <subtask id="2.1">Add role_ids[] field to users table (string array type)</subtask>
+        <subtask id="2.2">Update auth-store to include role_ids in user state</subtask>
+        <subtask id="2.3">Fetch user roles on login and store in Pinia auth-store</subtask>
+        <subtask id="2.4">Update user profile page to display assigned roles</subtask>
+        <subtask id="2.5">Test multi-role assignment by manually assigning multiple roles via Appwrite console</subtask>
+      </subtasks>
+    </task>
+    <task id="3" ac_refs="AC3, AC4">
+      <title>Create Permission Checking Utility</title>
+      <subtasks>
+        <subtask id="3.1">Create src/utils/permissions.js with hasPermission(user, permission) function</subtask>
+        <subtask id="3.2">Implement union logic: collect all permissions from all assigned roles</subtask>
+        <subtask id="3.3">Handle wildcard permission ('*') for System Administrator</subtask>
+        <subtask id="3.4">Implement permission matching logic (exact match and wildcard patterns like 'finance:*')</subtask>
+        <subtask id="3.5">Add unit tests for permission checking (single role, multi-role, wildcard)</subtask>
+        <subtask id="3.6">Create usePermissions() composable wrapping permissions.js for Vue components</subtask>
+        <subtask id="3.7">Verify union logic works correctly for users with multiple roles</subtask>
+      </subtasks>
+    </task>
+    <task id="4" ac_refs="AC5">
+      <title>Implement Route Guards</title>
+      <subtasks>
+        <subtask id="4.1">Create src/boot/router-guards.js boot file</subtask>
+        <subtask id="4.2">Add beforeEach navigation guard to check route meta.requiresPermission</subtask>
+        <subtask id="4.3">Redirect unauthorized users to /unauthorized page (create page)</subtask>
+        <subtask id="4.4">Update routes.js to add requiresPermission meta to protected routes</subtask>
+        <subtask id="4.5">Test route guard with different user roles (should block/allow appropriately)</subtask>
+        <subtask id="4.6">Add router-guards to quasar.config.js boot files array</subtask>
+      </subtasks>
+    </task>
+    <task id="5" ac_refs="AC6">
+      <title>Implement UI Conditional Rendering</title>
+      <subtasks>
+        <subtask id="5.1">Update MainLayout.vue to conditionally show navigation items based on permissions</subtask>
+        <subtask id="5.2">Add v-if="hasPermission('residents:read')" to Residents menu item</subtask>
+        <subtask id="5.3">Add v-if="hasPermission('finance:read')" to Finance menu item</subtask>
+        <subtask id="5.4">Create PermissionGuard.vue component for reusable permission checks</subtask>
+        <subtask id="5.5">Test UI rendering with different user roles (menu items appear/disappear)</subtask>
+      </subtasks>
+    </task>
+    <task id="6" ac_refs="AC7">
+      <title>Configure Appwrite Table Permissions</title>
+      <subtasks>
+        <subtask id="6.1">Review current table permissions in Appwrite console</subtask>
+        <subtask id="6.2">Set residents table: read (authenticated), write (role:admin, role:village_head)</subtask>
+        <subtask id="6.3">Set households table: read (authenticated), write (role:admin, role:village_head)</subtask>
+        <subtask id="6.4">Set roles table: read (authenticated), write (role:admin)</subtask>
+        <subtask id="6.5">Test table permissions by attempting unauthorized operations</subtask>
+        <subtask id="6.6">Document permission model in README.md</subtask>
+      </subtasks>
+    </task>
+    <task id="7" ac_refs="AC8">
+      <title>Create Admin Interface for Role Display</title>
+      <subtasks>
+        <subtask id="7.1">Create src/pages/admin/UsersPage.vue (or update existing)</subtask>
+        <subtask id="7.2">Display list of all users with their assigned roles</subtask>
+        <subtask id="7.3">Show role names (not just IDs) by joining with roles table</subtask>
+        <subtask id="7.4">Add "Roles" column to users table showing comma-separated role names</subtask>
+        <subtask id="7.5">Add note: "Role editing coming in Epic 2"</subtask>
+        <subtask id="7.6">Restrict page access to System Administrator only</subtask>
+      </subtasks>
+    </task>
+  </tasks>
+
+  <artifacts>
+    <docs>
+      <doc>
+        <path>docs/PRD.md</path>
+        <title>Product Requirements Document</title>
+        <section>FR-1: Residents Management</section>
+        <snippet>Support multi-role assignment where users can hold multiple roles simultaneously (e.g., Admin + Village Head, Teacher + Farm Manager). Implement role-based access control (RBAC) where permissions are the union of all assigned roles. Manage storage quotas per user based on primary role (Admin: unlimited, Village Head: 20GB, Teachers: 5GB, Residents: 2GB, Learners: 1GB).</snippet>
+      </doc>
+      <doc>
+        <path>docs/epics.md</path>
+        <title>Epic Breakdown</title>
+        <section>Story 1.4: Role-Based Access Control (RBAC) Foundation</section>
+        <snippet>As a system administrator, I want a role-based permission system with multi-role support, so that users have appropriate access based on their village responsibilities. Includes 8 acceptance criteria covering role seeding, permission utilities, route guards, UI conditional rendering, and Appwrite permissions.</snippet>
+      </doc>
+      <doc>
+        <path>docs/architecture.md</path>
+        <title>Architecture Document</title>
+        <section>Section 5: Error Handling Architecture</section>
+        <snippet>Centralized error handler composable (useErrorHandler) provides consistent error handling across the application. Handles Appwrite-specific errors including 401 (unauthorized), 403 (forbidden), 404 (not found). All permission errors should use this composable for consistent UX.</snippet>
+      </doc>
+      <doc>
+        <path>docs/stories/story-1.2.md</path>
+        <title>Story 1.2: Appwrite Project Structure and Database Schema</title>
+        <section>Database Schema</section>
+        <snippet>Created roles table with schema: id, name, permissions[], storage_quota, description, created_at. Created users table with role_ids[] field for multi-role assignment. Configured table-level permissions in Appwrite console.</snippet>
+      </doc>
+      <doc>
+        <path>docs/stories/story-1.3.md</path>
+        <title>Story 1.3: Authentication System with Email/Password</title>
+        <section>Implementation</section>
+        <snippet>Implemented Pinia auth-store with user state management, login/logout functionality, and session checking. Created router-auth.js boot file with beforeEach navigation guard checking requiresAuth meta. All authentication flows use useErrorHandler for consistent error messaging.</snippet>
+      </doc>
+    </docs>
+
+    <code>
+      <artifact>
+        <path>src/stores/auth-store.js</path>
+        <kind>store</kind>
+        <symbol>useAuthStore</symbol>
+        <lines>1-220</lines>
+        <reason>Existing Pinia store managing authentication state. Needs to be extended with role_ids field and role fetching logic on login.</reason>
+      </artifact>
+      <artifact>
+        <path>src/boot/router-auth.js</path>
+        <kind>boot</kind>
+        <symbol>router.beforeEach</symbol>
+        <lines>1-32</lines>
+        <reason>Existing route guard checking requiresAuth meta. Will be extended or replaced with new router-guards.js that also checks requiresPermission meta.</reason>
+      </artifact>
+      <artifact>
+        <path>src/router/routes.js</path>
+        <kind>router</kind>
+        <symbol>routes</symbol>
+        <lines>1-26</lines>
+        <reason>Route definitions with meta.requiresAuth. Needs to be extended with meta.requiresPermission for permission-based route guards.</reason>
+      </artifact>
+      <artifact>
+        <path>src/layouts/MainLayout.vue</path>
+        <kind>component</kind>
+        <symbol>MainLayout</symbol>
+        <lines>1-89</lines>
+        <reason>Main application layout with navigation menu. Needs permission-based conditional rendering for menu items (v-if with hasPermission checks).</reason>
+      </artifact>
+      <artifact>
+        <path>src/composables/useErrorHandler.js</path>
+        <kind>composable</kind>
+        <symbol>useErrorHandler</symbol>
+        <lines>all</lines>
+        <reason>Centralized error handling composable. Should be used for all permission-related errors (403 forbidden, unauthorized access).</reason>
+      </artifact>
+      <artifact>
+        <path>src/boot/appwrite.js</path>
+        <kind>boot</kind>
+        <symbol>databases</symbol>
+        <lines>all</lines>
+        <reason>Appwrite SDK initialization. Provides databases service for querying roles table and fetching user roles.</reason>
+      </artifact>
+    </code>
+
+    <dependencies>
+      <node>
+        <package name="appwrite" version="^21.2.1">Backend-as-a-Service SDK for database operations, authentication, and permissions</package>
+        <package name="pinia" version="^3.0.1">State management for storing user roles and permissions</package>
+        <package name="vue-router" version="^4.0.0">Routing library for implementing route guards</package>
+        <package name="vue" version="^3.5.22">Frontend framework for reactive UI and composables</package>
+        <package name="quasar" version="^2.16.0">UI framework providing components and utilities</package>
+      </node>
+    </dependencies>
+  </artifacts>
+
+  <interfaces>
+    <interface>
+      <name>hasPermission</name>
+      <kind>function</kind>
+      <signature>function hasPermission(user: User, requiredPermission: string): boolean</signature>
+      <path>src/utils/permissions.js</path>
+      <description>Core permission checking function. Accepts user object with role_ids and a required permission string. Returns true if user has permission (via any assigned role), false otherwise. Handles wildcard permissions and pattern matching.</description>
+    </interface>
+    <interface>
+      <name>usePermissions</name>
+      <kind>composable</kind>
+      <signature>function usePermissions(): { hasPermission, hasAnyPermission, hasAllPermissions }</signature>
+      <path>src/composables/usePermissions.js</path>
+      <description>Vue composable wrapping permission utilities. Provides reactive permission checking functions for use in components. Automatically accesses current user from auth-store.</description>
+    </interface>
+    <interface>
+      <name>router.beforeEach</name>
+      <kind>navigation-guard</kind>
+      <signature>router.beforeEach((to, from, next) => void)</signature>
+      <path>src/boot/router-guards.js</path>
+      <description>Vue Router navigation guard. Checks to.meta.requiresPermission and redirects unauthorized users to /unauthorized page. Integrates with hasPermission utility.</description>
+    </interface>
+    <interface>
+      <name>Appwrite Databases.listDocuments</name>
+      <kind>api</kind>
+      <signature>databases.listDocuments(databaseId, collectionId, queries?)</signature>
+      <path>appwrite SDK</path>
+      <description>Appwrite SDK method for querying roles table. Used to fetch role documents by role_ids array to calculate permission union.</description>
+    </interface>
+  </interfaces>
+
+  <constraints>
+    <constraint>
+      <category>architecture</category>
+      <rule>All Vue components must use `&lt;script setup&gt;` syntax (never export default)</rule>
+      <source>docs/architecture.md#Section 9</source>
+    </constraint>
+    <constraint>
+      <category>architecture</category>
+      <rule>Use useErrorHandler composable for all error handling (consistent UX)</rule>
+      <source>docs/architecture.md#Section 5</source>
+    </constraint>
+    <constraint>
+      <category>architecture</category>
+      <rule>Database schema must be normalized (ID-based relationships, no data duplication)</rule>
+      <source>docs/architecture.md#Section 3.1</source>
+    </constraint>
+    <constraint>
+      <category>naming</category>
+      <rule>Files: PascalCase for components, camelCase for composables/utils/stores</rule>
+      <source>docs/architecture.md#Section 9</source>
+    </constraint>
+    <constraint>
+      <category>permissions</category>
+      <rule>Permission format: 'module:action' (e.g., 'residents:read', 'finance:write')</rule>
+      <source>docs/stories/story-1.4.md#Dev Notes</source>
+    </constraint>
+    <constraint>
+      <category>permissions</category>
+      <rule>Multi-role permissions calculated as UNION of all assigned roles</rule>
+      <source>docs/PRD.md#FR-1</source>
+    </constraint>
+    <constraint>
+      <category>permissions</category>
+      <rule>System Administrator has wildcard '*' permission granting full access</rule>
+      <source>docs/stories/story-1.4.md#Dev Notes</source>
+    </constraint>
+    <constraint>
+      <category>testing</category>
+      <rule>Add unit tests for permission checking (single role, multi-role, wildcard)</rule>
+      <source>docs/stories/story-1.4.md#Task 3.5</source>
+    </constraint>
+    <constraint>
+      <category>appwrite</category>
+      <rule>Configure table-level permissions in Appwrite console (not just application-level)</rule>
+      <source>docs/stories/story-1.4.md#AC7</source>
+    </constraint>
+  </constraints>
+
+  <tests>
+    <standards>
+      Testing framework not yet configured (deferred to post-MVP per architecture). For now, implement manual testing and prepare test structure for future unit tests. Permission logic should be testable in isolation (pure functions). Consider test cases: single role permission check, multi-role union logic, wildcard permission handling, pattern matching (e.g., 'finance:*'), unauthorized access scenarios.
+    </standards>
+    <locations>
+      <location>tests/unit/utils/permissions.spec.js (future)</location>
+      <location>tests/unit/composables/usePermissions.spec.js (future)</location>
+    </locations>
+    <ideas>
+      <idea ac_ref="AC3">Test hasPermission with user having single role - should return true for role's permissions, false for others</idea>
+      <idea ac_ref="AC4">Test hasPermission with user having multiple roles - should return true for union of all role permissions</idea>
+      <idea ac_ref="AC4">Test wildcard permission - System Administrator with '*' should have access to all permissions</idea>
+      <idea ac_ref="AC4">Test pattern matching - user with 'finance:*' should have access to 'finance:read', 'finance:write', etc.</idea>
+      <idea ac_ref="AC5">Test route guard - unauthorized user attempting to access protected route should redirect to /unauthorized</idea>
+      <idea ac_ref="AC5">Test route guard - authorized user with correct permission should access protected route</idea>
+      <idea ac_ref="AC6">Test UI conditional rendering - menu items should appear/disappear based on user permissions</idea>
+      <idea ac_ref="AC7">Test Appwrite table permissions - unauthorized user should receive 403 error when attempting write operation</idea>
+    </ideas>
+  </tests>
+</story-context>

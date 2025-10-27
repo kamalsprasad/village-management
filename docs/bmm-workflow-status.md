@@ -25,18 +25,19 @@ READINESS_REPORT: docs/implementation-readiness-report-2025-10-25.md
 
 ## Development Queue
 
-STORIES_SEQUENCE: [1.1, 1.2, 1.3, 1.4]
-TODO_STORY: 1.4
-TODO_TITLE: Role-Based Access Control (RBAC) Foundation
+STORIES_SEQUENCE: [1.1, 1.2, 1.3, 1.4, 1.5]
+TODO_STORY: 
+TODO_TITLE: 
 IN_PROGRESS_STORY: 
 IN_PROGRESS_TITLE: 
 STORIES_DONE: [1.1, 1.2, 1.3]
+STORIES_READY: [1.4]
 
 ## Next Action
 
-NEXT_ACTION: Draft Story 1.4 (Role-Based Access Control) with the SM agent
-NEXT_COMMAND: create-story
-NEXT_AGENT: Scrum Master (sm)
+NEXT_ACTION: Implement Story 1.4 (RBAC Foundation) with the Dev agent
+NEXT_COMMAND: dev-story
+NEXT_AGENT: Dev Agent (dev)
 
 ## Architecture Decisions Completed
 
@@ -123,6 +124,18 @@ See docs/epics.md for complete story breakdown
 
 ## Recent Activity
 
+**2025-10-27 20:36 UTC+11:**
+- ✅ Story 1.4 context generated and validated (no findings)
+- 📄 Context file: docs/stories/story-context-1.4.xml
+- 📑 Validation report: docs/stories/story-context-1.4-validation-report-2025-10-27.md
+- ⏭️ Next: Run dev-story to implement RBAC foundation
+
+**2025-10-27 20:26 UTC+11:**
+- ✅ Story 1.4 drafted: Role-Based Access Control (RBAC) Foundation
+- 📋 8 acceptance criteria, 7 tasks, 42 subtasks defined
+- 📚 Includes: multi-role support, permission union logic, route guards, UI conditional rendering
+- ⏭️ Next: Run story-context to generate technical context XML
+
 **2025-10-27 20:08 UTC+11:**
 - ✅ Story 1.3 marked DONE and documentation updated
 - 🔁 Queue advanced: Story 1.4 moved to TODO (SM agent next)
@@ -181,5 +194,5 @@ See docs/epics.md for complete story breakdown
 
 ---
 
-_Last Updated: 2025-10-27 20:08 UTC+11_
-_Status Version: 3.9_
+_Last Updated: 2025-10-27 20:39 UTC+11_
+_Status Version: 4.1_
