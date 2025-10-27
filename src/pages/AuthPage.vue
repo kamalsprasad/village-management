@@ -22,7 +22,7 @@
           </div>
 
           <!-- Conditional Form Rendering -->
-          <template v-else>
+          <template v-else-if="!authStore.errorMessage">
             <!-- Show Admin Creation Form if no users exist -->
             <CreateAdminForm v-if="authStore.hasUsers === false" />
 
@@ -35,6 +35,28 @@
               <div class="text-white q-mt-md">Initializing...</div>
             </div>
           </template>
+
+          <!-- Error State -->
+          <div v-else class="text-center">
+            <q-card class="q-pa-xl" style="max-width: 500px; width: 100%">
+              <q-card-section>
+                <q-icon name="warning" color="negative" size="48px" />
+                <div class="text-h6 q-mt-md">Authentication Service Unavailable</div>
+                <div class="text-body2 q-mt-sm">
+                  {{ authStore.errorMessage || 'The authentication service is unreachable at the moment. Please try again later.' }}
+                </div>
+              </q-card-section>
+
+              <q-card-actions align="center">
+                <q-btn
+                  color="primary"
+                  label="Try Again"
+                  :loading="authStore.isLoading"
+                  @click="retryCheck"
+                />
+              </q-card-actions>
+            </q-card>
+          </div>
         </div>
       </q-page>
     </q-page-container>
@@ -55,4 +77,8 @@ onMounted(async () => {
     await authStore.checkHasUsers();
   }
 });
+
+const retryCheck = async () => {
+  await authStore.checkHasUsers();
+};
 </script>

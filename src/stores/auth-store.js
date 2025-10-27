@@ -1,7 +1,10 @@
 import { defineStore } from 'pinia';
 import { account, functions } from 'src/boot/appwrite';
+import { useErrorHandler } from 'src/composables/useErrorHandler';
 import { ID } from 'appwrite';
 //import { api } from 'src/boot/axios';
+
+const errorHandler = useErrorHandler();
 
 export const useAuthStore = defineStore('auth', {
   state: () => ({
@@ -9,6 +12,7 @@ export const useAuthStore = defineStore('auth', {
     isLoggedIn: false,
     isLoading: false,
     hasUsers: null, // null = not checked yet, true = users exist, false = no users
+    errorMessage: null,
   }),
 
   getters: {
@@ -42,6 +46,8 @@ export const useAuthStore = defineStore('auth', {
      * Uses localStorage as a performance cache to avoid unnecessary function calls
      */
     async checkHasUsers() {
+      this.isLoading = true;
+      this.errorMessage = null;
       // Check localStorage cache first (performance optimization)
       const hasWindow = typeof window !== 'undefined';
       const storage = hasWindow ? window.localStorage : null;
@@ -51,6 +57,7 @@ export const useAuthStore = defineStore('auth', {
         this.hasUsers = true;
         // Also check for active session
         await this.checkSession();
+        this.isLoading = false;
         return true;
       }
 
@@ -69,6 +76,17 @@ export const useAuthStore = defineStore('auth', {
         const execution = await functions.createExecution(functionId);
         const response = JSON.parse(execution.responseBody);
 
+        if (response.success === false && response.userExists === null) {
+          this.hasUsers = null;
+          errorHandler.notifyError(
+            response.message || 'The authentication service is unreachable at the moment. Please try again shortly.',
+          );
+          this.errorMessage =
+            response.message || 'The authentication service is unreachable at the moment. Please try again shortly.';
+          this.isLoading = false;
+          return false;
+        }
+
         if (response.success && response.userExists) {
           this.hasUsers = true;
           storage?.setItem('systemInitialized', 'true');
@@ -77,13 +95,22 @@ export const useAuthStore = defineStore('auth', {
           return true;
         } else {
           this.hasUsers = false;
+          this.isLoading = false;
           return false;
         }
       } catch (error) {
         console.error('Error checking for users:', error);
-        // Fallback: assume no users on error
-        this.hasUsers = false;
+        this.hasUsers = null;
+        errorHandler.notifyError(
+          'The authentication service is unreachable at the moment. Please try again shortly.',
+        );
+        this.errorMessage = 'The authentication service is unreachable at the moment. Please try again shortly.';
+        this.isLoading = false;
         return false;
+      } finally {
+        if (this.isLoading) {
+          this.isLoading = false;
+        }
       }
     },
 

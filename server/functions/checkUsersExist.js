@@ -1,4 +1,5 @@
 import { Client, Users } from 'node-appwrite';
+import { randomUUID } from 'node:crypto';
 /**
  * Appwrite Function: Check if any users exist in the system
  *
@@ -12,7 +13,6 @@ import { Client, Users } from 'node-appwrite';
  *
  * Execute Access: role:guest (must be configured in Appwrite Console)
  */
-console.log(process.env.APPWRITE_FUNCTION_ENDPOINT);
 export default async ({ req, res, log, error }) => {
   try {
     // Initialize Appwrite client with server credentials
@@ -38,16 +38,21 @@ export default async ({ req, res, log, error }) => {
         : 'No users found - first time setup required',
     });
   } catch (err) {
-    error('Error checking for users: ' + err.message);
+    const errorId = typeof randomUUID === 'function' ? randomUUID() : Date.now().toString();
+    const errorMessage = `Error checking for users [${errorId}]: ${err.message}`;
+
+    error(errorMessage);
 
     return res.json(
       {
         success: false,
-        userExists: false,
-        error: 'Failed to check for existing users',
-        message: err.message,
+        userExists: null,
+        error: 'Unable to determine if users exist',
+        errorId,
+        message:
+          'The authentication service is unreachable at the moment. Please try again shortly.',
       },
-      500,
+      503,
     );
   }
 };
