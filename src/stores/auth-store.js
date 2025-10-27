@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia';
-import { account } from 'src/boot/appwrite';
+import { account, functions } from 'src/boot/appwrite';
 import { ID } from 'appwrite';
+//import { api } from 'src/boot/axios';
 
 export const useAuthStore = defineStore('auth', {
   state: () => ({
@@ -37,34 +38,50 @@ export const useAuthStore = defineStore('auth', {
     },
 
     /**
-     * Check if any users exist in the system
-     * Note: This requires admin privileges or a server function
-     * For now, we'll use a workaround by attempting to get current session
+     * Check if any users exist in the system using Appwrite Function
+     * Uses localStorage as a performance cache to avoid unnecessary function calls
      */
     async checkHasUsers() {
-      // Use localStorage as a persistent flag to know if setup was ever completed.
+      // Check localStorage cache first (performance optimization)
       const hasWindow = typeof window !== 'undefined';
       const storage = hasWindow ? window.localStorage : null;
       const systemInitialized = storage?.getItem('systemInitialized');
 
       if (systemInitialized === 'true') {
         this.hasUsers = true;
+        // Also check for active session
+        await this.checkSession();
         return true;
       }
 
-      // If flag not set, fallback to original logic for first-time setup.
+      // If not cached, call the Appwrite Function to check for users
       try {
-        const hasSession = await this.checkSession();
-        if (hasSession) {
-          this.hasUsers = true;
-          storage?.setItem('systemInitialized', 'true');
-          return true;
+        const functionId = import.meta.env.VITE_APPWRITE_FUNCTION_CHECK_USERS;
+
+        if (!functionId) {
+          console.error('VITE_APPWRITE_FUNCTION_CHECK_USERS not configured');
+          // Fallback: check for active session
+          const hasSession = await this.checkSession();
+          this.hasUsers = hasSession;
+          return hasSession;
         }
 
-        // No session and no flag, assume it's a fresh setup.
-        this.hasUsers = false;
-        return false;
-      } catch {
+        const execution = await functions.createExecution(functionId);
+        const response = JSON.parse(execution.responseBody);
+
+        if (response.success && response.userExists) {
+          this.hasUsers = true;
+          storage?.setItem('systemInitialized', 'true');
+          // Also check for active session
+          await this.checkSession();
+          return true;
+        } else {
+          this.hasUsers = false;
+          return false;
+        }
+      } catch (error) {
+        console.error('Error checking for users:', error);
+        // Fallback: assume no users on error
         this.hasUsers = false;
         return false;
       }

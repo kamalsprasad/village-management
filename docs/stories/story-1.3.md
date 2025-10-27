@@ -135,15 +135,29 @@ This story will introduce core authentication components into the existing proje
 - `src/pages/AuthPage.vue` - Authentication page with conditional rendering
 - `src/components/auth/CreateAdminForm.vue` - Form for creating first admin user
 - `src/components/auth/LoginForm.vue` - Login form for existing users
+- `server/functions/checkUsersExist.js` - Appwrite Function to securely check for users
+- `server/package.json` - Node.js dependencies for server functions
+- `server/README.md` - Server functions documentation
+- `appwrite_setup/FUNCTION_DEPLOYMENT.md` - Comprehensive function deployment guide
 
 ### Modified
 - `src/router/routes.js` - Added /auth route and requiresAuth meta to protected routes
 - `src/layouts/MainLayout.vue` - Added logout button with confirmation dialog
 - `quasar.config.js` - Added auth-init and router-auth to boot files array
+- `.env.example` - Added VITE_APPWRITE_FUNCTION_CHECK_USERS environment variable
 
 ## Change Log
 
-- **2025-10-26**: Implemented complete authentication system with email/password
+- **2025-10-26 (Update 2)**: Implemented secure user existence check using Appwrite Function
+  - Created `server/functions/checkUsersExist.js` - Appwrite Function to securely check for users
+  - Updated `auth-store.js` to use Appwrite Function instead of session-based check
+  - Added `VITE_APPWRITE_FUNCTION_CHECK_USERS` environment variable
+  - Created comprehensive deployment guide at `appwrite_setup/FUNCTION_DEPLOYMENT.md`
+  - Created `server/README.md` with function documentation
+  - Kept localStorage cache for performance optimization
+  - Fixed post-logout bug where admin creation form was shown incorrectly
+
+- **2025-10-26 (Initial)**: Implemented complete authentication system with email/password
   - Created Pinia auth store with login, logout, createAdmin, checkSession actions
   - Implemented conditional rendering for admin creation vs login based on user existence
   - Added router guard to protect authenticated routes
@@ -174,8 +188,18 @@ This story will introduce core authentication components into the existing proje
 - Router guard checks auth state before each navigation
 - All forms use Quasar's built-in validation rules
 
-**Note on Limitations:**
-- The checkHasUsers() implementation has a limitation: Appwrite client SDK doesn't expose user listing to non-admin users. Current implementation checks for active session as a proxy. In production, this should be handled by an Appwrite server function that can query the users collection.
+**Security Implementation:**
+- Implemented secure user existence check using Appwrite Function (`checkUsersExist`)
+- Function has `users.read` scope and `role:guest` execute access
+- Client-side code calls function via Appwrite Functions SDK
+- localStorage used as performance cache to minimize function calls
+- Comprehensive deployment documentation created
+
+**Post-Logout Bug Fix:**
+- Fixed issue where admin creation form was shown after logout
+- Solution: Appwrite Function provides authoritative source of truth
+- localStorage cache persists across sessions for performance
+- Function only called on first app load or when cache is cleared
 
 ### Completion Notes
 
@@ -187,5 +211,11 @@ All 5 tasks and 26 subtasks completed successfully. Authentication system fully 
 - ✅ Logout functionality with confirmation
 - ✅ User-friendly error messages
 - ✅ Linting passed (0 errors)
+- ✅ Secure user existence check via Appwrite Function
+- ✅ Post-logout bug fixed
 
-Ready for manual testing per Story Context test ideas.
+**Next Steps:**
+1. Deploy `checkUsersExist` function to Appwrite (see `appwrite_setup/FUNCTION_DEPLOYMENT.md`)
+2. Add function ID to `.env` file
+3. Perform manual testing per Story Context test ideas
+4. Verify login/logout flow works correctly

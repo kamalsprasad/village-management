@@ -11,6 +11,7 @@
   "license": "Apache-2.0",
   "type": "module",
   "dependencies": {
+    "dotenv": "^17.2.3",
     "node-appwrite": "^20.2.1"
   }
 }
