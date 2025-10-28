@@ -30,12 +30,12 @@ TODO_STORY:
 TODO_TITLE:
 IN_PROGRESS_STORY:
 IN_PROGRESS_TITLE:
-STORIES_DONE: [1.1, 1.2, 1.3]
-STORIES_READY: [1.4]
+STORIES_DONE: [1.1, 1.2, 1.3, 1.4]
+STORIES_READY: [1.5]
 
 ## Next Action
 
-NEXT_ACTION: Implement Story 1.4 (RBAC Foundation) with the Dev agent
+NEXT_ACTION: Implement Story 1.5 (Dashboard Framework and Layout) with the Dev agent
 NEXT_COMMAND: dev-story
 NEXT_AGENT: Dev Agent (dev)
 
@@ -96,10 +96,15 @@ See docs/epics.md for complete story breakdown
 - **Story 1.1:** Project Setup and Quasar + Appwrite Integration ✅ (Completed: 2025-10-25)
 - **Story 1.2:** Appwrite Project Structure and Database Schema ✅ (Completed: 2025-10-26)
 - **Story 1.3:** Authentication System with Email/Password ✅ (Completed: 2025-10-27)
+- **Story 1.4:** Role-Based Access Control (RBAC) Foundation ✅ (Completed: 2025-10-28)
 
 ## Stories in Progress
 
 - _None_
+
+## Ready for Development
+
+- **Story 1.5:** Dashboard Framework and Layout (Next story in queue)
 
 ## Solutioning Gate Check Results
 

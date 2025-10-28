@@ -506,6 +506,26 @@ For now, we'll allow all authenticated users to write. Later, you can restrict t
 - ✅ households
 - ✅ roles
 
+### RBAC Table Permission Matrix (Story 1.4)
+
+To satisfy Story 1.4 Acceptance Criterion 7, apply these table-level rules once the core RBAC roles exist. Use the **Advanced permissions** dialog in Appwrite to assign each role explicitly.
+
+| Table        | Read Access                          | Create Access                     | Update Access                     | Delete Access                     |
+|--------------|--------------------------------------|-----------------------------------|-----------------------------------|-----------------------------------|
+| `users`      | System Administrator                 | System Administrator              | System Administrator              | System Administrator              |
+| `residents`  | System Administrator, Village Head   | System Administrator, Village Head| System Administrator, Village Head| System Administrator, Village Head|
+| `households` | System Administrator, Village Head   | System Administrator, Village Head| System Administrator, Village Head| System Administrator, Village Head|
+| `roles`      | System Administrator (read-only)     | System Administrator              | System Administrator              | System Administrator              |
+
+**How to apply:**
+
+1. Open the table → **Settings** → **Permissions**.
+2. Remove broad `Users` entries if present (from initial setup).
+3. Add each role under the appropriate access type (`Read`, `Create`, `Update`, `Delete`).
+4. Click **Update** to save.
+
+> 💡 Tip: Keep the initial "Users" read permission in non-production environments if you still need anonymous testing. For production, restrict access to the roles above to enforce RBAC.
+
 ### Advanced Permissions (Optional - for later)
 
 For production, you'll want to restrict write access to specific roles:

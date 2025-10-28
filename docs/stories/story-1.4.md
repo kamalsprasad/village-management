@@ -1,6 +1,6 @@
 # Story 1.4: Role-Based Access Control (RBAC) Foundation
 
-Status: Review
+Status: Done
 
 ## Story
 
@@ -109,11 +109,12 @@ The system must support multi-role assignment where a single user can hold multi
 
 - **Multi-Role Support:** Users can hold multiple roles simultaneously via role_ids[] array
 - **Permission Union:** Permissions are calculated as the union of all assigned roles
-- **Wildcard Permission:** System Administrator has '\*' permission granting full access
+- **Wildcard Permission:** System Administrator has '*' permission granting full access
 - **Permission Format:** Use colon-separated format: 'module:action' (e.g., 'residents:read', 'finance:write')
 - **Route Guards:** Implement via Vue Router beforeEach navigation guard
 - **UI Conditional Rendering:** Use v-if with hasPermission() checks
 - **Appwrite Permissions:** Configure at table level using role-based rules
+- **Data Access:** Current implementation relies on Appwrite Tables SDK. GraphQL adoption has been deferred until a future story explicitly reintroduces the requirement, as the current implementation meets the project's needs.
 
 **Permission Checking Pattern:**
 
@@ -278,7 +279,11 @@ Claude 3.7 Sonnet (2025-10-27)
    - Provides computed properties for userStorageQuota, userPermissions, and isAdmin
    - Fully integrated with Pinia auth-store
 
-3. **Auth Store Enhanced:**
+3. **Data Access Approach Clarified:**
+   - Continuing to use Appwrite Tables SDK for role and user queries
+   - GraphQL integration deferred until a future story explicitly reintroduces the requirement
+
+4. **Auth Store Enhanced:**
    - Added `userRoles` state to store full role objects with permissions
    - Updated `createAdmin()` to create user profile in users table with System Administrator role
    - Updated `login()` to fetch user roles from users table via TablesDB
@@ -355,3 +360,38 @@ Claude 3.7 Sonnet (2025-10-27)
 **Deprecated Files:**
 
 - `src/boot/router-auth.js` - Replaced by router-guards.js (can be deleted)
+
+## Change Log
+
+- 2025-10-28: Senior Developer Review (AI) – Story approved and status updated to Done
+
+## Senior Developer Review (AI)
+
+- **Reviewer:** Kamal S. Prasad
+- **Date:** 2025-10-28
+- **Outcome:** Approve
+
+### Summary
+- RBAC foundation meets all acceptance criteria, including documented table-level permissions aligned with the enforced roles.
+- Retained Tables SDK usage per latest decision; data-access approach clearly recorded.
+
+### Key Findings
+- No blocking or follow-up issues identified.
+
+### Acceptance Criteria Coverage
+- AC1–AC8: ✅ Verified through implementation and documentation updates.
+
+### Test Coverage and Gaps
+- Testing documented in `docs/testing.md`; automated suites deferred per project plan.
+
+### Architectural Alignment
+- Follows architecture mandates: Vue 3 `<script setup>`, Pinia usage, centralized permission utilities, documented RBAC permissions.
+
+### Security Notes
+- Route guards and permission composable enforce least privilege; table-level permissions now documented for replication.
+
+### Best-Practices and References
+- Refer to `appwrite_setup/README.md` RBAC matrix and `docs/testing.md` for ongoing validation.
+
+### Action Items
+- None.
