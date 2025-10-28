@@ -5,12 +5,34 @@ const routes = [
     component: () => import('pages/AuthPage.vue'),
   },
 
+  // Unauthorized page (no layout)
+  {
+    path: '/unauthorized',
+    component: () => import('pages/UnauthorizedPage.vue'),
+  },
+
   {
     path: '/',
     component: () => import('layouts/MainLayout.vue'),
     children: [
-      { path: '', component: () => import('pages/IndexPage.vue'), meta: { requiresAuth: true } },
-      { path: 'appwrite-test', component: () => import('pages/AppwriteTestPage.vue'), meta: { requiresAuth: true } },
+      { 
+        path: '', 
+        component: () => import('pages/IndexPage.vue'), 
+        meta: { requiresAuth: true } 
+      },
+      { 
+        path: 'appwrite-test', 
+        component: () => import('pages/AppwriteTestPage.vue'), 
+        meta: { requiresAuth: true } 
+      },
+      {
+        path: 'admin/users',
+        component: () => import('pages/admin/UsersPage.vue'),
+        meta: { 
+          requiresAuth: true,
+          requiresPermission: '*' // System Administrator only
+        }
+      },
     ],
   },
 

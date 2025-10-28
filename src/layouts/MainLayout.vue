@@ -35,6 +35,22 @@
             <q-item-label>Appwrite Test</q-item-label>
           </q-item-section>
         </q-item>
+
+        <!-- Admin Section - Only visible to System Administrators -->
+        <div v-if="hasPermission('*')">
+          <q-separator class="q-my-md" />
+
+          <q-item-label header> Administration </q-item-label>
+
+          <q-item clickable to="/admin/users">
+            <q-item-section avatar>
+              <q-icon name="people" />
+            </q-item-section>
+            <q-item-section>
+              <q-item-label>User Management</q-item-label>
+            </q-item-section>
+          </q-item>
+        </div>
       </q-list>
     </q-drawer>
 
@@ -49,10 +65,12 @@ import { ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { useQuasar } from 'quasar';
 import { useAuthStore } from 'src/stores/auth-store';
+import { usePermissions } from 'src/composables/usePermissions';
 
 const router = useRouter();
 const $q = useQuasar();
 const authStore = useAuthStore();
+const { hasPermission } = usePermissions();
 
 const leftDrawerOpen = ref(false);
 
