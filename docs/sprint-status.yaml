@@ -1,0 +1,99 @@
+# generated: 2025-10-28
+# project: Sustainable Model Village Management System
+# project_key: Sustainable Model Village Management System
+# tracking_system: file-system
+# story_location: {project-root}/docs/stories
+
+# STATUS DEFINITIONS:
+# ==================
+# Epic Status:
+#   - backlog: Epic exists in epic file but not contexted
+#   - contexted: Epic tech context created (required before drafting stories)
+#
+# Story Status:
+#   - backlog: Story only exists in epic file
+#   - drafted: Story file created in stories folder
+#   - ready-for-dev: Draft approved and story context created
+#   - in-progress: Developer actively working on implementation
+#   - review: Under SM review (via review-story workflow)
+#   - done: Story completed
+#
+# Retrospective Status:
+#   - optional: Can be completed but not required
+#   - completed: Retrospective has been done
+#
+# WORKFLOW NOTES:
+# ===============
+# - Epics should be 'contexted' before stories can be 'drafted'
+# - Stories can be worked in parallel if team capacity allows
+# - SM typically drafts next story after previous one is 'done' to incorporate learnings
+# - Dev moves story to 'review', SM reviews, then Dev moves to 'done'
+
+generated: 2025-10-28
+project: Sustainable Model Village Management System
+project_key: Sustainable Model Village Management System
+tracking_system: file-system
+story_location: {project-root}/docs/stories
+
+development_status:
+  epic-1: backlog
+  1-1-project-setup-and-quasar-appwrite-integration: done
+  1-2-appwrite-project-structure-and-database-schema: done
+  1-3-authentication-system-with-email-password: done
+  1-4-role-based-access-control-rbac-foundation: review
+  1-5-dashboard-framework-and-layout: backlog
+  1-6-households-management-crud-operations: backlog
+  1-7-residents-management-crud-operations: backlog
+  1-8-village-configuration-and-default-settings: backlog
+  1-9-sample-data-mode-katete-model-village-seed-data: backlog
+  1-10-dashboard-widgets-residents-and-households-summary: backlog
+  1-11-user-profile-and-storage-quota-display: backlog
+  epic-1-retrospective: optional
+  epic-2: backlog
+  2-1-finance-module-income-transaction-recording: backlog
+  2-2-finance-module-expense-transaction-recording: backlog
+  2-3-finance-module-admin-configurable-categories: backlog
+  2-4-finance-module-funding-source-tracking-for-donor-accountability: backlog
+  2-5-village-lending-loan-management: backlog
+  2-6-inventory-module-core-inventory-management: backlog
+  2-7-inventory-module-automatic-inventory-from-finance-purchases: backlog
+  2-8-financial-reports-basic-reports-suite: backlog
+  2-9-finance-dashboard-comprehensive-financial-overview: backlog
+  epic-2-retrospective: optional
+  epic-3: backlog
+  3-1-farm-module-plot-management: backlog
+  3-2-farm-module-crops-database-and-management: backlog
+  3-3-farm-module-planting-records-with-seed-inventory-and-labor-tracking: backlog
+  3-4-farm-module-planting-status-tracking-and-lifecycle-management: backlog
+  3-5-farm-module-harvest-recording-single-day-and-multi-day-aggregate: backlog
+  3-6-farm-module-continuous-picking-harvests-for-perennial-crops: backlog
+  3-7-farm-module-automatic-inventory-creation-on-harvest-completion: backlog
+  3-8-farm-module-sales-recording-with-finance-and-inventory-integration: backlog
+  3-9-farm-module-profitability-analysis-and-roi-calculation: backlog
+  3-10-farm-module-yield-analysis-and-trend-reporting: backlog
+  3-11-farm-module-agronomic-insights-and-recommendations: backlog
+  epic-3-retrospective: optional
+  epic-4: backlog
+  4-1-school-module-student-registration-and-grade-tracking: backlog
+  4-2-school-module-class-scheduling-and-attendance: backlog
+  4-3-school-module-assessment-and-reporting: backlog
+  4-4-school-module-parent-engagement-portal: backlog
+  4-5-school-module-teacher-performance-and-development: backlog
+  4-6-school-module-student-support-and-intervention-tracking: backlog
+  4-7-school-module-extracurricular-program-management: backlog
+  4-8-school-module-resource-library-and-document-management: backlog
+  4-9-school-module-community-service-tracking: backlog
+  4-10-school-module-education-analytics-dashboard: backlog
+  epic-4-retrospective: optional
+  epic-5: backlog
+  5-1-calendar-module-community-events-scheduling: backlog
+  5-2-calendar-module-resource-bookings-and-availability: backlog
+  5-3-storage-module-document-versioning-and-access-control: backlog
+  5-4-storage-module-photo-and-media-archive: backlog
+  5-5-storage-module-forms-and-template-management: backlog
+  5-6-communications-module-announcements-and-alerts: backlog
+  5-7-communications-module-feedback-and-surveys: backlog
+  5-8-analytics-module-impact-metrics-dashboard: backlog
+  5-9-optional-module-village-marketplace: backlog
+  5-10-optional-module-external-integrations-and-open-apis: backlog
+  epic-5-retrospective: optional

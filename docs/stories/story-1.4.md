@@ -1,6 +1,6 @@
 # Story 1.4: Role-Based Access Control (RBAC) Foundation
 
-Status: Done
+Status: Review
 
 ## Story
 
@@ -269,7 +269,7 @@ Claude 3.7 Sonnet (2025-10-27)
 
 1. **Core Permission System Implemented:**
    - Created `src/utils/permissions.js` with comprehensive permission checking logic
-   - Supports wildcard permissions (*), exact matches, and wildcard patterns (module:*)
+   - Supports wildcard permissions (\*), exact matches, and wildcard patterns (module:\_)
    - Implements multi-role permission union as specified in PRD FR-1
    - Added helper functions: hasPermission, hasAnyPermission, hasAllPermissions, getUserStorageQuota, getAllUserPermissions
 
@@ -334,6 +334,7 @@ Claude 3.7 Sonnet (2025-10-27)
 ### File List
 
 **Created Files:**
+
 - `src/utils/permissions.js` - Core permission checking logic
 - `src/composables/usePermissions.js` - Vue composable for permissions
 - `src/boot/router-guards.js` - Extended route guard with permission checking
@@ -343,6 +344,7 @@ Claude 3.7 Sonnet (2025-10-27)
 - `docs/testing.md` - Comprehensive testing documentation
 
 **Modified Files:**
+
 - `src/stores/auth-store.js` - Added userRoles state and role fetching logic
 - `src/layouts/MainLayout.vue` - Added permission-based navigation
 - `src/router/routes.js` - Added unauthorized and admin routes
@@ -351,4 +353,5 @@ Claude 3.7 Sonnet (2025-10-27)
 - `.env.example` - Added database ID and collection ID templates
 
 **Deprecated Files:**
+
 - `src/boot/router-auth.js` - Replaced by router-guards.js (can be deleted)
