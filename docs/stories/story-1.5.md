@@ -45,10 +45,9 @@ so that **I can quickly access the areas of the system relevant to my responsibi
 - [ ] **Task 5: Performance Guardrails (AC: 5,9)**
   - [ ] Instrument lazy loading for heavy modules and defer GraphQL fetch within `onMounted`.
   - [ ] Add Vitest perf regression harness or scripted Lighthouse run targeting 3G profile.
-- [ ] **Task 6: Testing & Validation (AC: 3,5,6,8,9)**
-  - [ ] Extend `tests/e2e/rbac-dashboard.spec.js` (create) to validate navigation visibility per role. [Source: docs/testing.md#220-256]
-  - [ ] Add unit/component tests for dashboard layout responsiveness and placeholder widgets.
-  - [ ] Document manual checklist covering sidebar collapse, greeting accuracy, and performance budget.
+- [ ] **Task 6: Verification Notes (AC: 3,5,6,8,9)**
+  - [ ] Capture manual verification checklist results for navigation visibility, responsiveness, and performance budget.
+  - [ ] Log that automated test creation is deferred until post-MVP per project direction.
 
 ## Dev Notes
 
@@ -76,6 +75,10 @@ so that **I can quickly access the areas of the system relevant to my responsibi
 - Register any new composables under `src/composables/` following camelCase naming, and ensure imports use existing alias mapping (`components/*`, `layouts/*`). [Source: docs/architecture.md#2685-2690]
 - Update `quasar.config.js` only if additional boot files are required; reuse current boot pipeline. [Source: docs/stories/story-1.4.md#294-305]
 
+### Testing Considerations
+
+- Execute dashboard layout test suites outlined in `docs/testing.md` (component, integration, E2E, performance) once implementation stabilizes; testing is documented but intentionally deferred. [Source: docs/testing.md#Story 1.5: Dashboard Framework and Layout - Testing Requirements]
+
 ### References
 
 - [Source: docs/epics.md#126-141]
@@ -84,19 +87,19 @@ so that **I can quickly access the areas of the system relevant to my responsibi
 - [Source: docs/ux-specification.md#236-305]
 - [Source: docs/stories/story-1.4.md#271-356]
 - [Source: docs/testing.md#220-335]
+- [Source: docs/testing.md#Story 1.5: Dashboard Framework and Layout - Testing Requirements]
 
 ## Dev Agent Record
 
 ### Context Reference
 
-<!-- Path(s) to story context XML will be added here by context workflow -->
+### Key Findings
 
-### Agent Model Used
+- Acceptance criteria map cleanly to tasks, and Dev Notes highlight reuse of RBAC utilities and dashboard GraphQL patterns for upcoming widgets.
+- Added testing considerations ensure developers reference the centralized plan before sign-off.
 
-{{agent_model_name_version}}
+### Action Items
 
-### Debug Log References
-
-### Completion Notes List
+- None.
 
 ### File List

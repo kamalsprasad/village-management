@@ -366,6 +366,13 @@ This document outlines all tests that need to be implemented for the Village Man
 
 ---
 
+## Story 1.5: Dashboard Framework and Layout - MVP Testing Plan
+
+- Automated unit, integration, E2E, and performance tests are deferred until post-MVP per product direction.
+- During MVP implementation, capture manual verification notes (navigation visibility, responsiveness, performance budget) in story completion records without adding code-based tests.
+
+---
+
 ## Testing Tools and Frameworks
 
 ### Recommended Setup
