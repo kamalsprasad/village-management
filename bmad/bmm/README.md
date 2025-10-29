@@ -21,6 +21,15 @@ Specialized AI agents for different development roles:
 - **UX** - User experience design
 - And more specialized roles
 
+**Game Development Agents** (Optional):
+During installation, you can optionally include game development specialists:
+
+- **Game Designer** - Creative vision and game design documents (GDD)
+- **Game Developer** - Game-specific implementation
+- **Game Architect** - Game systems and technical infrastructure
+
+These agents come with specialized workflows (`brainstorm-game`, `game-brief`, `gdd`) and are only installed if you select "Include Game Planning Agents and Workflows" during BMM installation.
+
 ### 📋 `/workflows`
 
 The heart of BMM - structured workflows for the four development phases:
@@ -44,7 +53,7 @@ The heart of BMM - structured workflows for the four development phases:
    - `story-context` - Expertise injection (SM agent)
    - `dev-story` - Implementation (DEV agent)
    - `story-done` - Mark story done (DEV agent)
-   - `review-story` - Quality validation (DEV/SR agent)
+   - `code-review` - Quality validation (DEV/SR agent)
    - `correct-course` - Issue resolution
    - `retrospective` - Continuous improvement
 

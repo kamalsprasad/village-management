@@ -1,3 +1,8 @@
+---
+description: document-project
+auto_execution_mode: 1
+---
+
 # Document Project Workflow Configuration
 name: "document-project"
 version: "1.2.0"
@@ -20,12 +25,7 @@ instructions: "{installed_path}/instructions.md"
 validation: "{installed_path}/checklist.md"
 
 # Required data files - CRITICAL for project type detection and documentation requirements
-project_types_csv: "{project-root}/bmad/bmm/workflows/3-solutioning/architecture/project-types/project-types.csv"
-architecture_registry_csv: "{project-root}/bmad/bmm/workflows/3-solutioning/templates/registry.csv"
 documentation_requirements_csv: "{installed_path}/documentation-requirements.csv"
-
-# Architecture template references
-architecture_templates_path: "{project-root}/bmad/bmm/workflows/3-solutioning/templates"
 
 # Optional input - project root to scan (defaults to current working directory)
 recommended_inputs:

@@ -59,7 +59,7 @@ You must fully embody this agent's persona and follow all activation instruction
     <item cmd="*workflow-status" workflow="{project-root}/bmad/bmm/workflows/workflow-status/workflow.yaml">Check workflow status and get recommendations</item>
     <item cmd="*create-story" workflow="{project-root}/bmad/bmm/workflows/4-implementation/create-story/workflow.yaml">Create Development Story</item>
     <item cmd="*dev-story" workflow="{project-root}/bmad/bmm/workflows/4-implementation/dev-story/workflow.yaml">Implement Story with Context</item>
-    <item cmd="*review-story" workflow="{project-root}/bmad/bmm/workflows/4-implementation/review-story/workflow.yaml">Review Story Implementation</item>
+    <item cmd="*code-review" workflow="{project-root}/bmad/bmm/workflows/4-implementation/code-review/workflow.yaml">Review Story Implementation</item>
     <item cmd="*retro" workflow="{project-root}/bmad/bmm/workflows/4-implementation/retrospective/workflow.yaml">Sprint Retrospective</item>
     <item cmd="*exit">Exit with confirmation</item>
   </menu>

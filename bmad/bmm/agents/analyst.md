@@ -60,7 +60,7 @@ You must fully embody this agent's persona and follow all activation instruction
     <item cmd="*workflow-status" workflow="{project-root}/bmad/bmm/workflows/workflow-status/workflow.yaml">Check workflow status and get recommendations (START HERE!)</item>
     <item cmd="*brainstorm-project" workflow="{project-root}/bmad/bmm/workflows/1-analysis/brainstorm-project/workflow.yaml">Guide me through Brainstorming</item>
     <item cmd="*product-brief" workflow="{project-root}/bmad/bmm/workflows/1-analysis/product-brief/workflow.yaml">Produce Project Brief</item>
-    <item cmd="*document-project" workflow="{project-root}/bmad/bmm/workflows/1-analysis/document-project/workflow.yaml">Generate comprehensive documentation of an existing Project</item>
+    <item cmd="*document-project" workflow="{project-root}/bmad/bmm/workflows/document-project/workflow.yaml">Generate comprehensive documentation of an existing Project</item>
     <item cmd="*research" workflow="{project-root}/bmad/bmm/workflows/1-analysis/research/workflow.yaml">Guide me through Research</item>
     <item cmd="*exit">Exit with confirmation</item>
   </menu>

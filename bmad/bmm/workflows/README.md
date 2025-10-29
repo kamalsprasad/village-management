@@ -16,14 +16,15 @@ The BMM (BMAD Method Module) orchestrates software development through four dist
 
 **Continuous Learning Loop**: Retrospectives feed improvements back into workflows, making each epic smoother than the last.
 
-## The Five Phases
+## The Four Phases (Plus Documentation Prerequisite)
 
 ```
 ┌──────────────────────────────────────────────────────────────┐
-│              PHASE 0: DOCUMENTATION (Brownfield)             │
-│                  (Conditional - if undocumented)             │
+│       PREREQUISITE: PROJECT DOCUMENTATION (Conditional)      │
+│        For brownfield projects without adequate docs         │
+│                     OR post-completion cleanup               │
 ├──────────────────────────────────────────────────────────────┤
-│  document-project ──→ Codebase documentation                 │
+│  document-project ──→ Comprehensive project documentation    │
 └────────────────────────────────────────────────────────┼─────┘
                                                          ↓
 ┌──────────────────────────────────────────────────────────────┐
@@ -66,7 +67,7 @@ The BMM (BMAD Method Module) orchestrates software development through four dist
 │  │   ↓                                                       │
 │  │   create-story ──→ story-context ──→ dev-story ─┐         │
 │  │                                                 ↓         │
-│  │   retrospective ←── [epic done] ←─── review-story         │
+│  │   retrospective ←── [epic done] ←─── code-review         │
 │  │                                                 ↓         │
 │  └──────────── correct-course ←──[if issues]───────┘         │
 └──────────────────────────────────────────────────────────────┘
@@ -102,23 +103,46 @@ The `workflow-status` workflow is the **universal entry point** for all BMM work
 
 ---
 
-## Phase 0: Documentation (Brownfield Only)
+## Documentation Prerequisite (Brownfield Projects)
 
-Required for undocumented brownfield projects before planning can begin.
+**NOT a numbered phase** - this is a prerequisite workflow for brownfield projects without adequate documentation, OR a post-completion tool for creating clean source-of-truth documentation after Phases 1-4 are complete.
+
+### Purpose
+
+The `document-project` workflow serves TWO critical purposes:
+
+1. **Pre-Phase 1 Prerequisite (Brownfield)**: Run BEFORE planning to understand existing codebases
+2. **Post-Phase 4 Documentation (Any Project)**: Run AFTER completion to create superior documentation that replaces scattered PRD/architecture/story artifacts
 
 ### Workflows
 
-| Workflow             | Agent   | Purpose                    | Output                | When to Use                      |
-| -------------------- | ------- | -------------------------- | --------------------- | -------------------------------- |
-| **document-project** | Analyst | Document existing codebase | Project documentation | Brownfield without adequate docs |
+| Workflow             | Agent   | Purpose                             | Output                              | When to Use                                                    |
+| -------------------- | ------- | ----------------------------------- | ----------------------------------- | -------------------------------------------------------------- |
+| **document-project** | Analyst | Analyze and document entire project | Comprehensive project documentation | Brownfield without docs OR post-completion cleanup (any scale) |
 
-### Flow
+### Use Cases
+
+**Use Case 1: Brownfield Prerequisite**
 
 ```
-Brownfield Check → document-project → Analysis/Planning (Phase 1/2)
+workflow-init detects undocumented brownfield
+    ↓
+document-project (generates index.md, architecture.md, etc.)
+    ↓
+Phase 1 (optional) → Phase 2 (planning with full context)
 ```
 
-**Critical**: Brownfield projects require adequate documentation before planning. If workflow-init detects an undocumented brownfield project, it will direct you to run document-project first.
+**Use Case 2: Post-Completion Documentation**
+
+```
+Phase 4 Implementation Complete
+    ↓
+document-project (scans final codebase)
+    ↓
+Produces clean, LLM-optimized docs > scattered phase artifacts
+```
+
+**Why it's superior**: Creates comprehensive, consistent documentation that both humans and LLMs can use to understand projects of any size or complexity - often better than manually-maintained PRDs, architecture docs, and story files.
 
 ---
 
@@ -245,7 +269,7 @@ optional ↔ completed
 - **drafted**: Story file created (e.g., `stories/1-3-plant-naming.md`)
 - **ready-for-dev**: Draft approved + story context created
 - **in-progress**: Developer actively working on implementation
-- **review**: Under SM review (via review-story workflow)
+- **review**: Under SM review (via code-review workflow)
 - **done**: Story completed and deployed
 
 **Retrospective Statuses:**
@@ -290,7 +314,7 @@ Phase Transition (Phase 2 or 3 → Phase 4)
 └───────────────────┬─────────────────────────────┘
                     ↓
 ┌─────────────────────────────────────────────────┐
-│  SM: review-story (validates implementation)     │
+│  DEV: code-review (validates implementation)     │
 │  Reviews: Code changes against DoD               │
 │  Feedback: Iteration or approval                 │
 └───────────────────┬─────────────────────────────┘
@@ -324,7 +348,7 @@ Phase Transition (Phase 2 or 3 → Phase 4)
 | **create-story**      | SM    | Draft individual story files           | Story: backlog → drafted                    |
 | **story-context**     | SM    | Generate implementation context/XML    | Story: drafted → ready-for-dev              |
 | **dev-story**         | DEV   | Implement story                        | Story: ready-for-dev → in-progress → review |
-| **review-story**      | SM/SR | Quality validation and feedback        | (No automatic state change)                 |
+| **code-review**       | SM/SR | Quality validation and feedback        | (No automatic state change)                 |
 | **retrospective**     | SM    | Capture epic learnings                 | Retrospective: optional → completed         |
 | **correct-course**    | SM    | Handle issues/scope changes            | (Adaptive based on situation)               |
 
@@ -349,20 +373,21 @@ Phase Transition (Phase 2 or 3 → Phase 4)
 
 ### Brownfield Projects (Existing Code)
 
-**Path:** Phase 0 (if undocumented) → Phase 1 (optional) → Phase 2 → Phase 3 (Levels 2-4) → Phase 4
+**Path:** Documentation Prerequisite (if undocumented) → Phase 1 (optional) → Phase 2 → Phase 3 (Levels 2-4) → Phase 4
 
-**Phase 0 - Documentation (Conditional):**
+**Documentation Prerequisite (Conditional):**
 
 ```
 workflow-status/workflow-init
     ├─→ Check: Is existing codebase documented?
     │   ├─→ YES: Proceed to Phase 1 or 2
-    │   └─→ NO: REQUIRED - Run document-project workflow
+    │   └─→ NO: REQUIRED - Run document-project workflow first
     │       ├─→ Analyzes existing code
     │       ├─→ Documents current architecture
     │       ├─→ Identifies technical debt
-    │       └─→ Creates baseline documentation
-    └─→ Continue with scale-adaptive planning
+    │       ├─→ Creates comprehensive baseline documentation
+    │       └─→ Produces superior docs for LLM + human understanding
+    └─→ Continue with scale-adaptive planning (Phases 1-4)
 ```
 
 **Critical for Brownfield**:
@@ -372,15 +397,18 @@ workflow-status/workflow-init
 - Technical debt must be visible in planning
 - Constraints from existing system affect scale decisions
 
+**Post-Completion Option**: After Phase 4 completes, run `document-project` again to create clean source-of-truth documentation that supersedes scattered phase artifacts.
+
 ## Agent Participation by Phase
 
-| Phase                 | Primary Agents         | Supporting Agents    | Key Workflows                               |
-| --------------------- | ---------------------- | -------------------- | ------------------------------------------- |
-| **0: Documentation**  | Analyst                | -                    | document-project                            |
-| **1: Analysis**       | Analyst, Game Designer | PM, Researcher       | brainstorm-_, research, _-brief             |
-| **2: Planning**       | PM                     | UX Designer, Analyst | prd, tech-spec, gdd, narrative              |
-| **3: Solutioning**    | Architect              | PM, Tech Lead        | create-architecture, solutioning-gate-check |
-| **4: Implementation** | SM, DEV                | SR (review-story)    | sprint-planning, create-story, dev-story    |
+| Phase/Step                         | Primary Agents         | Supporting Agents    | Key Workflows                               |
+| ---------------------------------- | ---------------------- | -------------------- | ------------------------------------------- |
+| **Prerequisite: Documentation**    | Analyst                | -                    | document-project (conditional)              |
+| **Phase 1: Analysis**              | Analyst, Game Designer | PM, Researcher       | brainstorm-_, research, _-brief             |
+| **Phase 2: Planning**              | PM                     | UX Designer, Analyst | prd, tech-spec, gdd, narrative              |
+| **Phase 3: Solutioning**           | Architect              | PM, Tech Lead        | create-architecture, solutioning-gate-check |
+| **Phase 4: Implementation**        | SM, DEV                | SR (code-review)     | sprint-planning, create-story, dev-story    |
+| **Post-Completion: Documentation** | Analyst                | -                    | document-project (optional cleanup)         |
 
 ## Key Files and Artifacts
 
@@ -402,8 +430,9 @@ workflow-status/workflow-init
 
 ### Phase Outputs
 
-- **Phase 0**:
-  - Codebase documentation (project overview, architecture, source tree)
+- **Documentation Prerequisite (if run)**:
+  - Comprehensive project documentation (index.md, architecture.md, source-tree-analysis.md, component-inventory.md, etc.)
+  - Superior to manually-maintained docs for LLM understanding
 
 - **Phase 1**:
   - Product briefs, game briefs, research documents
@@ -448,12 +477,13 @@ workflow-status/workflow-init
 - Create story context before implementation
 - Each phase completes before the next begins
 
-### 4. Document Brownfield First
+### 4. Document Brownfield First (Prerequisite)
 
 - Never plan without understanding existing code
-- Run document-project if codebase is undocumented
+- Run document-project if codebase is undocumented (PREREQUISITE, not Phase 0)
 - Technical debt must be visible in planning
 - Integration points need documentation
+- Can also run post-Phase 4 for superior final documentation
 
 ### 5. Learn Continuously
 
@@ -481,7 +511,7 @@ workflow-status/workflow-init
 # Universal Entry Point (Start Here!)
 bmad analyst workflow-status  # Check status and get recommendations
 
-# Phase 0: Documentation (Brownfield if needed)
+# Documentation Prerequisite (Brownfield without docs OR post-completion cleanup)
 bmad analyst document-project
 
 # Phase 1: Analysis (Optional)
@@ -509,7 +539,7 @@ bmad sm epic-tech-context    # Create epic context (per epic)
 bmad sm create-story         # Draft story file
 bmad sm story-context        # Create story context
 bmad dev dev-story           # Implement story
-bmad sm review-story         # Quality validation
+bmad sm code-review         # Quality validation
 # (Update sprint-status.yaml to 'done' manually or via workflow)
 bmad sm retrospective        # After epic complete
 bmad sm correct-course       # If issues arise
