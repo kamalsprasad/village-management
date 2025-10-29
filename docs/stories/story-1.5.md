@@ -1,6 +1,6 @@
 # Story 1.5: Dashboard Framework and Layout
 
-Status: drafted
+Status: ready-for-dev
 
 ## Story
 
@@ -92,6 +92,8 @@ so that **I can quickly access the areas of the system relevant to my responsibi
 ## Dev Agent Record
 
 ### Context Reference
+
+- docs/stories/story-context-1.5.xml
 
 ### Key Findings
 

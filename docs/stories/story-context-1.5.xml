@@ -1,0 +1,109 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<story-context>
+  <metadata>
+    <story_id>1.5</story_id>
+    <epic_id>1</epic_id>
+    <story_key>1-5-dashboard-framework-and-layout</story_key>
+    <title>Dashboard Framework and Layout</title>
+    <status>ready-for-dev</status>
+    <generated_date>2025-10-29</generated_date>
+  </metadata>
+
+  <story>
+    <as_a>village administrator</as_a>
+    <i_want>a role-aware dashboard layout with intuitive navigation</i_want>
+    <so_that>I can quickly access the areas of the system relevant to my responsibilities</so_that>
+  </story>
+
+  <acceptance_criteria>
+    <criterion id="AC1">Main layout includes top header, left sidebar navigation, and main content region wired into Quasar layout primitives.</criterion>
+    <criterion id="AC2">Dashboard landing page renders placeholder widget slots for key modules (Upcoming Events, Quick Stats, Recent Activity).</criterion>
+    <criterion id="AC3">Navigation menu items respect the user's permissions, showing only authorized modules based on RBAC utilities.</criterion>
+    <criterion id="AC4">Header user menu displays the authenticated user's name and active role badges.</criterion>
+    <criterion id="AC5">Layout is responsive for desktop (1920px), tablet (768px), and mobile (320px) breakpoints with consistent usability.</criterion>
+    <criterion id="AC6">Sidebar collapses into a hamburger-triggered drawer on tablet/mobile screens.</criterion>
+    <criterion id="AC7">Dashboard hero greets the user with "Welcome back, [User Name]".</criterion>
+    <criterion id="AC8">Placeholder widgets display section headers and loading states for Upcoming Events, Quick Stats, and Recent Activity.</criterion>
+    <criterion id="AC9">Dashboard initial render completes within 2 seconds on a simulated 3G connection by minimizing blocking requests and leveraging skeleton states.</criterion>
+  </acceptance_criteria>
+
+  <tasks>
+    <task id="T1" ac_refs="AC1,AC7">Establish Layout Shell</task>
+    <task id="T2" ac_refs="AC3,AC4,AC7">Role-Aware Navigation</task>
+    <task id="T3" ac_refs="AC5,AC6">Responsive Behavior</task>
+    <task id="T4" ac_refs="AC2,AC8">Dashboard Page Scaffolding</task>
+    <task id="T5" ac_refs="AC5,AC9">Performance Guardrails</task>
+    <task id="T6" ac_refs="AC3,AC5,AC6,AC8,AC9">Verification Notes (MVP manual validation only)</task>
+  </tasks>
+
+  <artifacts>
+    <docs>
+      <doc path="docs/epics.md" title="Epic Breakdown" section="Story 1.5: Dashboard Framework and Layout">Defines story goals, acceptance criteria, and prerequisite alignment for the dashboard shell.</doc>
+      <doc path="docs/PRD.md" title="Product Requirements Document" section="NFR-3: Performance on Low-End Devices">Specifies 3G performance targets and responsive design requirements for low-end hardware.</doc>
+      <doc path="docs/architecture.md" title="Architecture Document" section="10.5-10.7 GraphQL Dashboard Queries">Describes GraphQL aggregation strategy and client utilities (`useDashboardData`) that the dashboard shell must integrate with.</doc>
+      <doc path="docs/ux-specification.md" title="UX/UI Specification" section="2.2 Navigation Structure">Outlines sidebar, bottom navigation, role-based visibility, and offline indicator placement expectations.</doc>
+      <doc path="docs/stories/story-1.4.md" title="Story 1.4: Role-Based Access Control (RBAC) Foundation" section="Dev Notes">Captures RBAC utilities (`usePermissions`, `PermissionGuard.vue`) and navigation guard patterns to reuse.</doc>
+      <doc path="docs/testing.md" title="Testing Documentation" section="Story 1.5: Dashboard Framework and Layout - MVP Testing Plan">States that automated testing is deferred for MVP and manual verification notes must be captured instead.</doc>
+    </docs>
+
+    <code>
+      <file path="src/layouts/MainLayout.vue" kind="layout" symbol="MainLayout" lines="1-107">Existing shell that will be expanded with RBAC-aware navigation, greeting banner, and responsive drawer behavior.</file>
+      <file path="src/composables/usePermissions.js" kind="composable" symbol="usePermissions" lines="1-81">Provides permission helpers used to hide or show navigation items and header actions per user role.</file>
+      <file path="src/boot/router-guards.js" kind="boot" symbol="router.beforeEach" lines="1-44">Navigation guard enforcing `meta.requiresAuth` and `meta.requiresPermission`; dashboard routes should rely on these checks.</file>
+      <file path="src/router/routes.js" kind="router" symbol="routes" lines="1-48">Current route definitions; dashboard routes will need RBAC metadata and new `/dashboard` view registration.</file>
+      <file path="src/pages/IndexPage.vue" kind="page" symbol="IndexPage" lines="1-120">Temporary landing page illustrating layout bindings; will either evolve or redirect to the new Dashboard page.</file>
+    </code>
+
+    <dependencies>
+      <node>
+        <package name="quasar" version="^2.16.0">UI framework supplying layout components (`QLayout`, `QHeader`, `QDrawer`, `QPageContainer`).</package>
+        <package name="vue" version="^3.5.22">Core framework for Composition API and `<script setup>` usage.</package>
+        <package name="pinia" version="^3.0.1">State store backing user/session data consumed by navigation and greeting.</package>
+        <package name="vue-router" version="^4.0.0">Routing system providing nested layout routes and navigation guards.</package>
+        <package name="appwrite" version="^21.2.1">Backend SDK used for user details surfaced in the header (name, roles).</package>
+        <package name="date-fns" version="^4.1.0">Utility for displaying time-based greetings or timestamps if needed in placeholder widgets.</package>
+      </node>
+    </dependencies>
+  </artifacts>
+
+  <interfaces>
+    <interface>
+      <name>usePermissions</name>
+      <kind>composable</kind>
+      <signature>function usePermissions(): { hasPermission, hasAnyPermission, hasAllPermissions }</signature>
+      <path>src/composables/usePermissions.js</path>
+    </interface>
+    <interface>
+      <name>router.beforeEach</name>
+      <kind>navigation-guard</kind>
+      <signature>router.beforeEach((to, from, next) =&gt; void)</signature>
+      <path>src/boot/router-guards.js</path>
+    </interface>
+    <interface>
+      <name>useDashboardData</name>
+      <kind>composable</kind>
+      <signature>function useDashboardData(): { loading, error, data, fetchVillageOverview, fetchFarmDashboard }</signature>
+      <path>docs/architecture.md#10.7 Client-Side GraphQL Queries</path>
+    </interface>
+  </interfaces>
+
+  <constraints>
+    <constraint>Vue components must use `<script setup>` syntax and follow Quasar layout patterns. [docs/architecture.md#Section 9]</constraint>
+    <constraint>Navigation visibility must reuse RBAC utilities delivered in Story 1.4; no duplicate permission logic. [docs/stories/story-1.4.md#Dev Notes]</constraint>
+    <constraint>Dashboard data hydration should call consolidated GraphQL resolvers to avoid multiple REST calls. [docs/architecture.md#10.5-10.7]</constraint>
+    <constraint>Offline indicator and sync status must remain visible and unobstructed across breakpoints. [docs/ux-specification.md#Navigation States]</constraint>
+    <constraint>MVP testing relies on manual verification only; document results without introducing new automated suites. [docs/testing.md#Story 1.5: Dashboard Framework and Layout - MVP Testing Plan]</constraint>
+  </constraints>
+
+  <tests>
+    <standards>Automated testing is deferred for MVP. Developers must record manual verification outcomes covering navigation visibility, responsiveness across breakpoints, and 3G performance budget.</standards>
+    <locations>Manual verification notes stored in story completion log; no automated test directories required during MVP.</locations>
+    <ideas>
+      <idea ac="AC3">Confirm different role logins show only authorized navigation modules in the sidebar.</idea>
+      <idea ac="AC5">Resize viewport (desktop, tablet, mobile) ensuring layout remains usable and content accessible.</idea>
+      <idea ac="AC6">On mobile, trigger hamburger menu via keyboard and touch to verify drawer accessibility.</idea>
+      <idea ac="AC8">Render placeholder widgets with loading state and ensure skeletons display while data hydrates.</idea>
+      <idea ac="AC9">Run Lighthouse with 3G profile and capture first-contentful-paint metrics within 2 seconds.</idea>
+    </ideas>
+  </tests>
+</story-context>
