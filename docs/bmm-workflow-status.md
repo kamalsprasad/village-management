@@ -12,8 +12,8 @@ WORKFLOW_PATH: bmad/bmm/workflows/workflow-status/paths/greenfield-level-3.yaml
 ## Current State
 
 CURRENT_PHASE: 4-Implementation
-CURRENT_WORKFLOW: dev-story
-CURRENT_AGENT: Dev Agent (dev)
+CURRENT_WORKFLOW: create-story
+CURRENT_AGENT: SM Agent (sm)
 PHASE_1_COMPLETE: true
 PHASE_2_COMPLETE: true
 PHASE_3_COMPLETE: true
@@ -30,14 +30,14 @@ TODO_STORY:
 TODO_TITLE:
 IN_PROGRESS_STORY:
 IN_PROGRESS_TITLE:
-STORIES_DONE: [1.1, 1.2, 1.3, 1.4]
-STORIES_READY: [1.5]
+STORIES_DONE: [1.1, 1.2, 1.3, 1.4, 1.5]
+STORIES_READY: []
 
 ## Next Action
 
-NEXT_ACTION: Implement Story 1.5 (Dashboard Framework and Layout) with the Dev agent
-NEXT_COMMAND: dev-story
-NEXT_AGENT: Dev Agent (dev)
+NEXT_ACTION: Draft Story 1.6 (Households Management - CRUD Operations)
+NEXT_COMMAND: create-story
+NEXT_AGENT: SM Agent (sm)
 
 ## Architecture Decisions Completed
 
@@ -97,6 +97,7 @@ See docs/epics.md for complete story breakdown
 - **Story 1.2:** Appwrite Project Structure and Database Schema ✅ (Completed: 2025-10-26)
 - **Story 1.3:** Authentication System with Email/Password ✅ (Completed: 2025-10-27)
 - **Story 1.4:** Role-Based Access Control (RBAC) Foundation ✅ (Completed: 2025-10-28)
+- **Story 1.5:** Dashboard Framework and Layout ✅ (Completed: 2025-10-30)
 
 ## Stories in Progress
 
@@ -104,7 +105,7 @@ See docs/epics.md for complete story breakdown
 
 ## Ready for Development
 
-- **Story 1.5:** Dashboard Framework and Layout (Next story in queue)
+- _None_
 
 ## Solutioning Gate Check Results
 
@@ -134,6 +135,13 @@ See docs/epics.md for complete story breakdown
 **Confidence Level:** High - Project ready to proceed to implementation
 
 ## Recent Activity
+
+**2025-10-30 13:44 UTC+11:**
+
+- ✅ Story 1.5 marked DONE after Senior Developer approval
+- 📄 Story file updated: `docs/stories/story-1.5.md` (Status → done, DoD notes added)
+- 📊 sprint-status.yaml updated: Story 1.5 now done
+- ⏭️ Next: Run `create-story` to draft Story 1.6 (Households Management - CRUD Operations)
 
 **2025-10-27 20:36 UTC+11:**
 
@@ -217,5 +225,5 @@ See docs/epics.md for complete story breakdown
 
 ---
 
-_Last Updated: 2025-10-27 20:39 UTC+11_
+_Last Updated: 2025-10-30 13:44 UTC+11_
 _Status Version: 4.1_

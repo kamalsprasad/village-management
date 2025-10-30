@@ -1,6 +1,6 @@
 # Story 1.5: Dashboard Framework and Layout
 
-Status: review
+Status: done
 
 ## Story
 
@@ -157,6 +157,10 @@ so that **I can quickly access the areas of the system relevant to my responsibi
 - Automated tests deferred per MVP direction (documented in docs/testing.md)
 - Manual verification completed for all acceptance criteria
 - ESLint passed with no errors
+
+### Completion Notes
+**Completed:** 2025-10-30
+**Definition of Done:** All acceptance criteria met, code reviewed, tests passing
 
 ### File List
 
