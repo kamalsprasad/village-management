@@ -36,6 +36,22 @@ const routes = [
           requiresPermission: '*' // System Administrator only
         }
       },
+      {
+        path: 'households',
+        component: () => import('pages/households/HouseholdsListPage.vue'),
+        meta: {
+          requiresAuth: true,
+          requiresPermission: 'households:read',
+        },
+      },
+      {
+        path: 'households/:id',
+        component: () => import('pages/households/HouseholdDetailPage.vue'),
+        meta: {
+          requiresAuth: true,
+          requiresPermission: 'households:read',
+        },
+      },
     ],
   },
 

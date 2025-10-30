@@ -12,8 +12,8 @@ WORKFLOW_PATH: bmad/bmm/workflows/workflow-status/paths/greenfield-level-3.yaml
 ## Current State
 
 CURRENT_PHASE: 4-Implementation
-CURRENT_WORKFLOW: story-context
-CURRENT_AGENT: SM Agent (sm)
+CURRENT_WORKFLOW: dev-story
+CURRENT_AGENT: Developer Agent (dev)
 PHASE_1_COMPLETE: true
 PHASE_2_COMPLETE: true
 PHASE_3_COMPLETE: true
@@ -26,18 +26,18 @@ READINESS_REPORT: docs/implementation-readiness-report-2025-10-25.md
 ## Development Queue
 
 STORIES_SEQUENCE: [1.1, 1.2, 1.3, 1.4, 1.5, 1.6]
-TODO_STORY: 1.6
-TODO_TITLE: Households Management - CRUD Operations
+TODO_STORY:
+TODO_TITLE:
 IN_PROGRESS_STORY:
 IN_PROGRESS_TITLE:
 STORIES_DONE: [1.1, 1.2, 1.3, 1.4, 1.5]
-STORIES_READY: []
+STORIES_READY: [1.6]
 
 ## Next Action
 
-NEXT_ACTION: Generate story context for Story 1.6 (Households Management - CRUD Operations)
-NEXT_COMMAND: story-context
-NEXT_AGENT: SM Agent (sm)
+NEXT_ACTION: Implement Story 1.6 (Households Management - CRUD Operations)
+NEXT_COMMAND: dev-story
+NEXT_AGENT: Developer Agent (dev)
 
 ## Architecture Decisions Completed
 
@@ -135,6 +135,13 @@ See docs/epics.md for complete story breakdown
 **Confidence Level:** High - Project ready to proceed to implementation
 
 ## Recent Activity
+
+**2025-10-30 20:02 UTC+11:**
+
+- ✅ Story 1.6 context generated and validated (ready-for-dev)
+- 📄 Story file updated: `docs/stories/story-1.6.md` (status → ready-for-dev, context link added)
+- 📊 sprint-status.yaml updated: Story 1.6 marked ready-for-dev
+- ⏭️ Next: Run `dev-story` to implement Story 1.6 (Households Management - CRUD Operations)
 
 **2025-10-30 19:39 UTC+11:**
 

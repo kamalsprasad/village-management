@@ -24,6 +24,11 @@
       <div class="col-12 col-md-6 col-lg-8">
         <RecentActivityWidget :activities="recentActivity" :loading="loading" :max-display="8" />
       </div>
+
+      <!-- Households Widget -->
+      <div class="col-12 col-md-6 col-lg-4">
+        <HouseholdsWidget />
+      </div>
     </div>
   </q-page>
 </template>
@@ -34,6 +39,7 @@ import { useAuthStore } from 'src/stores/auth-store';
 import UpcomingEventsWidget from 'src/components/dashboard/UpcomingEventsWidget.vue';
 import QuickStatsWidget from 'src/components/dashboard/QuickStatsWidget.vue';
 import RecentActivityWidget from 'src/components/dashboard/RecentActivityWidget.vue';
+import HouseholdsWidget from 'src/components/dashboard/HouseholdsWidget.vue';
 import {
   upcomingEvents as placeholderEvents,
   quickStats as placeholderStats,
