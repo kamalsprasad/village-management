@@ -2,14 +2,101 @@
   <q-layout view="lHh Lpr lFf">
     <q-header elevated>
       <q-toolbar>
-        <q-btn flat dense round icon="menu" aria-label="Menu" @click="toggleLeftDrawer" />
+        <q-btn
+          flat
+          dense
+          round
+          icon="menu"
+          aria-label="Menu"
+          @click="toggleLeftDrawer"
+          class="lt-md"
+        />
 
         <q-toolbar-title> Village Management System </q-toolbar-title>
 
-        <div>v0.0.1</div>
+        <div class="text-caption q-mr-md">v0.0.1</div>
 
-        <q-btn flat dense round icon="logout" aria-label="Logout" @click="handleLogout">
-          <q-tooltip>Logout</q-tooltip>
+        <!-- User Profile Dropdown -->
+        <q-btn flat round dense>
+          <q-avatar size="32px" color="primary" text-color="white">
+            <span class="text-weight-bold">{{ userInitials }}</span>
+          </q-avatar>
+          <q-menu>
+            <q-list style="min-width: 250px">
+              <!-- User Info Section -->
+              <q-item>
+                <q-item-section>
+                  <q-item-label class="text-weight-bold">{{ userName }}</q-item-label>
+                  <q-item-label caption>{{ userEmail }}</q-item-label>
+                </q-item-section>
+              </q-item>
+
+              <!-- Role Badges -->
+              <q-item v-if="userRoles.length > 0">
+                <q-item-section>
+                  <div class="q-gutter-xs">
+                    <q-chip
+                      v-for="role in userRoles"
+                      :key="role.$id"
+                      size="sm"
+                      color="primary"
+                      text-color="white"
+                      dense
+                    >
+                      {{ role.name }}
+                    </q-chip>
+                  </div>
+                </q-item-section>
+              </q-item>
+
+              <!-- Storage Quota -->
+              <q-item v-if="storageQuota !== -1">
+                <q-item-section>
+                  <q-item-label caption>Storage Quota</q-item-label>
+                  <q-linear-progress
+                    :value="storageUsagePercent"
+                    color="primary"
+                    class="q-mt-xs"
+                  />
+                  <q-item-label caption class="q-mt-xs">
+                    {{ formatStorageQuota(storageQuota) }} available
+                  </q-item-label>
+                </q-item-section>
+              </q-item>
+
+              <q-separator class="q-my-sm" />
+
+              <!-- Quick Actions -->
+              <q-item clickable v-close-popup>
+                <q-item-section avatar>
+                  <q-icon name="person" />
+                </q-item-section>
+                <q-item-section>
+                  <q-item-label>Profile</q-item-label>
+                </q-item-section>
+              </q-item>
+
+              <q-item clickable v-close-popup>
+                <q-item-section avatar>
+                  <q-icon name="settings" />
+                </q-item-section>
+                <q-item-section>
+                  <q-item-label>Settings</q-item-label>
+                </q-item-section>
+              </q-item>
+
+              <q-separator class="q-my-sm" />
+
+              <q-item clickable v-close-popup @click="handleLogout">
+                <q-item-section avatar>
+                  <q-icon name="logout" color="negative" />
+                </q-item-section>
+                <q-item-section>
+                  <q-item-label class="text-negative">Logout</q-item-label>
+                </q-item-section>
+              </q-item>
+            </q-list>
+          </q-menu>
         </q-btn>
       </q-toolbar>
     </q-header>
@@ -18,39 +105,149 @@
       <q-list>
         <q-item-label header> Navigation </q-item-label>
 
-        <q-item clickable to="/">
+        <!-- Dashboard - Always visible -->
+        <q-item clickable to="/" exact>
+          <q-item-section avatar>
+            <q-icon name="dashboard" />
+          </q-item-section>
+          <q-item-section>
+            <q-item-label>Dashboard</q-item-label>
+          </q-item-section>
+        </q-item>
+
+        <q-separator class="q-my-sm" />
+
+        <!-- Households & Residents Section -->
+        <q-item-label header> Community </q-item-label>
+
+        <q-item v-if="hasPermission('households:read')" clickable to="/households">
           <q-item-section avatar>
             <q-icon name="home" />
           </q-item-section>
           <q-item-section>
-            <q-item-label>Home</q-item-label>
+            <q-item-label>Households</q-item-label>
           </q-item-section>
         </q-item>
 
-        <q-item clickable to="/appwrite-test">
+        <q-item v-if="hasPermission('residents:read')" clickable to="/residents">
           <q-item-section avatar>
-            <q-icon name="cloud" />
+            <q-icon name="people" />
           </q-item-section>
           <q-item-section>
-            <q-item-label>Appwrite Test</q-item-label>
+            <q-item-label>Residents</q-item-label>
           </q-item-section>
         </q-item>
 
-        <!-- Admin Section - Only visible to System Administrators -->
-        <div v-if="hasPermission('*')">
-          <q-separator class="q-my-md" />
+        <!-- Finance Section -->
+        <template v-if="hasAnyPermission(['finance:read', 'inventory:read', 'lending:read'])">
+          <q-separator class="q-my-sm" />
+          <q-item-label header> Finance </q-item-label>
 
+          <q-item v-if="hasPermission('finance:read')" clickable to="/finance">
+            <q-item-section avatar>
+              <q-icon name="account_balance_wallet" />
+            </q-item-section>
+            <q-item-section>
+              <q-item-label>Finance</q-item-label>
+            </q-item-section>
+          </q-item>
+
+          <q-item v-if="hasPermission('inventory:read')" clickable to="/inventory">
+            <q-item-section avatar>
+              <q-icon name="inventory_2" />
+            </q-item-section>
+            <q-item-section>
+              <q-item-label>Inventory</q-item-label>
+            </q-item-section>
+          </q-item>
+
+          <q-item v-if="hasPermission('lending:read')" clickable to="/lending">
+            <q-item-section avatar>
+              <q-icon name="account_balance" />
+            </q-item-section>
+            <q-item-section>
+              <q-item-label>Lending</q-item-label>
+            </q-item-section>
+          </q-item>
+        </template>
+
+        <!-- Farm Section -->
+        <template v-if="hasPermission('farm:read')">
+          <q-separator class="q-my-sm" />
+          <q-item-label header> Agriculture </q-item-label>
+
+          <q-item clickable to="/farm">
+            <q-item-section avatar>
+              <q-icon name="agriculture" />
+            </q-item-section>
+            <q-item-section>
+              <q-item-label>Farm</q-item-label>
+            </q-item-section>
+          </q-item>
+        </template>
+
+        <!-- School Section -->
+        <template v-if="hasPermission('school:read')">
+          <q-separator class="q-my-sm" />
+          <q-item-label header> Education </q-item-label>
+
+          <q-item clickable to="/school">
+            <q-item-section avatar>
+              <q-icon name="school" />
+            </q-item-section>
+            <q-item-section>
+              <q-item-label>School</q-item-label>
+            </q-item-section>
+          </q-item>
+        </template>
+
+        <!-- Community Services Section -->
+        <template v-if="hasAnyPermission(['calendar:read', 'communications:read', 'storage:read'])">
+          <q-separator class="q-my-sm" />
+          <q-item-label header> Services </q-item-label>
+
+          <q-item v-if="hasPermission('calendar:read')" clickable to="/calendar">
+            <q-item-section avatar>
+              <q-icon name="event" />
+            </q-item-section>
+            <q-item-section>
+              <q-item-label>Calendar</q-item-label>
+            </q-item-section>
+          </q-item>
+
+          <q-item v-if="hasPermission('communications:read')" clickable to="/communications">
+            <q-item-section avatar>
+              <q-icon name="campaign" />
+            </q-item-section>
+            <q-item-section>
+              <q-item-label>Communications</q-item-label>
+            </q-item-section>
+          </q-item>
+
+          <q-item v-if="hasPermission('storage:read')" clickable to="/storage">
+            <q-item-section avatar>
+              <q-icon name="folder" />
+            </q-item-section>
+            <q-item-section>
+              <q-item-label>Storage</q-item-label>
+            </q-item-section>
+          </q-item>
+        </template>
+
+        <!-- Admin Section - Only visible to System Administrators -->
+        <template v-if="hasPermission('*')">
+          <q-separator class="q-my-md" />
           <q-item-label header> Administration </q-item-label>
 
           <q-item clickable to="/admin/users">
             <q-item-section avatar>
-              <q-icon name="people" />
+              <q-icon name="admin_panel_settings" />
             </q-item-section>
             <q-item-section>
               <q-item-label>User Management</q-item-label>
             </q-item-section>
           </q-item>
-        </div>
+        </template>
       </q-list>
     </q-drawer>
 
@@ -61,7 +258,7 @@
 </template>
 
 <script setup>
-import { ref } from 'vue';
+import { ref, computed } from 'vue';
 import { useRouter } from 'vue-router';
 import { useQuasar } from 'quasar';
 import { useAuthStore } from 'src/stores/auth-store';
@@ -70,9 +267,29 @@ import { usePermissions } from 'src/composables/usePermissions';
 const router = useRouter();
 const $q = useQuasar();
 const authStore = useAuthStore();
-const { hasPermission } = usePermissions();
+const { hasPermission, hasAnyPermission, userStorageQuota } = usePermissions();
 
 const leftDrawerOpen = ref(false);
+
+// User info computed properties
+const userName = computed(() => authStore.user?.name || 'User');
+const userEmail = computed(() => authStore.user?.email || '');
+const userRoles = computed(() => authStore.userRoles || []);
+const storageQuota = computed(() => userStorageQuota.value);
+const storageUsagePercent = computed(() => {
+  // Placeholder - will be calculated from actual storage usage in future stories
+  return 0.35; // 35% used
+});
+
+// User initials for avatar
+const userInitials = computed(() => {
+  const name = userName.value;
+  const parts = name.split(' ');
+  if (parts.length >= 2) {
+    return (parts[0][0] + parts[1][0]).toUpperCase();
+  }
+  return name.substring(0, 2).toUpperCase();
+});
 
 function toggleLeftDrawer() {
   leftDrawerOpen.value = !leftDrawerOpen.value;
@@ -102,5 +319,11 @@ async function handleLogout() {
       });
     }
   });
+}
+
+function formatStorageQuota(bytes) {
+  if (bytes === -1) return 'Unlimited';
+  const gb = bytes / (1024 * 1024 * 1024);
+  return `${gb.toFixed(1)} GB`;
 }
 </script>

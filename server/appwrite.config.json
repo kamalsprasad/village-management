@@ -1,407 +1,370 @@
 {
-    "projectId": "village-project",
-    "projectName": "Village Management",
-    "settings": {
-        "services": {
-            "account": true,
-            "avatars": true,
-            "databases": true,
-            "locale": true,
-            "health": true,
-            "storage": true,
-            "teams": true,
-            "users": true,
-            "sites": true,
-            "functions": true,
-            "graphql": true,
-            "messaging": true
-        },
-        "auth": {
-            "methods": {
-                "jwt": false,
-                "phone": true,
-                "invites": false,
-                "anonymous": false,
-                "email-otp": true,
-                "magic-url": true,
-                "email-password": true
-            },
-            "security": {
-                "duration": 1209600,
-                "limit": 0,
-                "sessionsLimit": 2,
-                "passwordHistory": 0,
-                "passwordDictionary": true,
-                "personalDataCheck": true,
-                "sessionAlerts": false,
-                "mockNumbers": []
-            }
-        }
+  "projectId": "village-project",
+  "projectName": "Village Management",
+  "settings": {
+    "services": {
+      "account": true,
+      "avatars": true,
+      "databases": true,
+      "locale": true,
+      "health": true,
+      "storage": true,
+      "teams": true,
+      "users": true,
+      "sites": true,
+      "functions": true,
+      "graphql": true,
+      "messaging": true
     },
-    "functions": [
+    "auth": {
+      "methods": {
+        "jwt": false,
+        "phone": true,
+        "invites": false,
+        "anonymous": false,
+        "email-otp": true,
+        "magic-url": true,
+        "email-password": true
+      },
+      "security": {
+        "duration": 1209600,
+        "limit": 0,
+        "sessionsLimit": 2,
+        "passwordHistory": 0,
+        "passwordDictionary": true,
+        "personalDataCheck": true,
+        "sessionAlerts": false,
+        "mockNumbers": []
+      }
+    }
+  },
+  "functions": [
+    {
+      "$id": "checkUsersExist",
+      "execute": ["any", "guests"],
+      "name": "Check Users Exist",
+      "enabled": true,
+      "logging": true,
+      "runtime": "node-16.0",
+      "scopes": ["users.read"],
+      "events": [],
+      "schedule": "",
+      "timeout": 15,
+      "entrypoint": "src/main.js",
+      "commands": "npm install",
+      "specification": "s-0.5vcpu-512mb",
+      "path": "functions/Check Users Exist"
+    }
+  ],
+  "tablesDB": [
+    {
+      "$id": "db_village",
+      "name": "village",
+      "enabled": true
+    },
+    {
+      "$id": "villageDB",
+      "name": "Village Database",
+      "enabled": true
+    }
+  ],
+  "tables": [
+    {
+      "$id": "village_options",
+      "$permissions": [],
+      "databaseId": "db_village",
+      "name": "Village Info",
+      "enabled": true,
+      "rowSecurity": false,
+      "columns": [
         {
-            "$id": "checkUsersExist",
-            "execute": [
-                "guests"
-            ],
-            "name": "Check Users Exist",
-            "enabled": true,
-            "logging": true,
-            "runtime": "node-16.0",
-            "scopes": [
-                "users.read"
-            ],
-            "events": [],
-            "schedule": "",
-            "timeout": 15,
-            "entrypoint": "src/main.js",
-            "commands": "npm install",
-            "specification": "s-0.5vcpu-512mb",
-            "path": "functions/Check Users Exist"
+          "key": "option_name",
+          "type": "string",
+          "required": true,
+          "array": false,
+          "size": 255,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "option_value",
+          "type": "string",
+          "required": true,
+          "array": false,
+          "size": 255,
+          "default": null,
+          "encrypt": false
         }
-    ],
-    "tablesDB": [
+      ],
+      "indexes": []
+    },
+    {
+      "$id": "village_residents",
+      "$permissions": ["create(\"any\")", "read(\"any\")", "update(\"any\")", "delete(\"any\")"],
+      "databaseId": "db_village",
+      "name": "Residents",
+      "enabled": true,
+      "rowSecurity": false,
+      "columns": [
         {
-            "$id": "db_village",
-            "name": "village",
-            "enabled": true
+          "key": "first_name",
+          "type": "string",
+          "required": true,
+          "array": false,
+          "size": 100,
+          "default": null,
+          "encrypt": false
         },
         {
-            "$id": "villageDB",
-            "name": "Village Database",
-            "enabled": true
+          "key": "middle_names",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 255,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "last_name",
+          "type": "string",
+          "required": true,
+          "array": false,
+          "size": 100,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "date_of_birth",
+          "type": "datetime",
+          "required": true,
+          "array": false,
+          "format": "",
+          "default": null
         }
-    ],
-    "tables": [
+      ],
+      "indexes": []
+    },
+    {
+      "$id": "users",
+      "$permissions": ["create(\"any\")", "read(\"any\")", "update(\"any\")", "delete(\"any\")"],
+      "databaseId": "villageDB",
+      "name": "Users",
+      "enabled": true,
+      "rowSecurity": false,
+      "columns": [
         {
-            "$id": "village_options",
-            "$permissions": [],
-            "databaseId": "db_village",
-            "name": "Village Info",
-            "enabled": true,
-            "rowSecurity": false,
-            "columns": [
-                {
-                    "key": "option_name",
-                    "type": "string",
-                    "required": true,
-                    "array": false,
-                    "size": 255,
-                    "default": null,
-                    "encrypt": false
-                },
-                {
-                    "key": "option_value",
-                    "type": "string",
-                    "required": true,
-                    "array": false,
-                    "size": 255,
-                    "default": null,
-                    "encrypt": false
-                }
-            ],
-            "indexes": []
+          "key": "email",
+          "type": "string",
+          "required": true,
+          "array": false,
+          "size": 255,
+          "default": null,
+          "encrypt": false
         },
         {
-            "$id": "village_residents",
-            "$permissions": [
-                "create(\"any\")",
-                "read(\"any\")",
-                "update(\"any\")",
-                "delete(\"any\")"
-            ],
-            "databaseId": "db_village",
-            "name": "Residents",
-            "enabled": true,
-            "rowSecurity": false,
-            "columns": [
-                {
-                    "key": "first_name",
-                    "type": "string",
-                    "required": true,
-                    "array": false,
-                    "size": 100,
-                    "default": null,
-                    "encrypt": false
-                },
-                {
-                    "key": "middle_names",
-                    "type": "string",
-                    "required": false,
-                    "array": false,
-                    "size": 255,
-                    "default": null,
-                    "encrypt": false
-                },
-                {
-                    "key": "last_name",
-                    "type": "string",
-                    "required": true,
-                    "array": false,
-                    "size": 100,
-                    "default": null,
-                    "encrypt": false
-                },
-                {
-                    "key": "date_of_birth",
-                    "type": "datetime",
-                    "required": true,
-                    "array": false,
-                    "format": "",
-                    "default": null
-                }
-            ],
-            "indexes": []
-        },
-        {
-            "$id": "users",
-            "$permissions": [
-                "create(\"any\")",
-                "read(\"any\")",
-                "update(\"any\")",
-                "delete(\"any\")"
-            ],
-            "databaseId": "villageDB",
-            "name": "Users",
-            "enabled": true,
-            "rowSecurity": false,
-            "columns": [
-                {
-                    "key": "email",
-                    "type": "string",
-                    "required": true,
-                    "array": false,
-                    "size": 255,
-                    "default": null,
-                    "encrypt": false
-                },
-                {
-                    "key": "name",
-                    "type": "string",
-                    "required": true,
-                    "array": false,
-                    "size": 255,
-                    "default": null,
-                    "encrypt": false
-                }
-            ],
-            "indexes": [
-                {
-                    "key": "email_unique_index",
-                    "type": "unique",
-                    "status": "available",
-                    "columns": [
-                        "email"
-                    ],
-                    "orders": [
-                        "ASC"
-                    ]
-                }
-            ]
-        },
-        {
-            "$id": "residents",
-            "$permissions": [
-                "create(\"any\")",
-                "read(\"any\")",
-                "update(\"any\")",
-                "delete(\"any\")"
-            ],
-            "databaseId": "villageDB",
-            "name": "Residents",
-            "enabled": true,
-            "rowSecurity": false,
-            "columns": [
-                {
-                    "key": "first_name",
-                    "type": "string",
-                    "required": true,
-                    "array": false,
-                    "size": 50,
-                    "default": null,
-                    "encrypt": false
-                },
-                {
-                    "key": "middle_names",
-                    "type": "string",
-                    "required": false,
-                    "array": false,
-                    "size": 255,
-                    "default": null,
-                    "encrypt": false
-                },
-                {
-                    "key": "last_name",
-                    "type": "string",
-                    "required": true,
-                    "array": false,
-                    "size": 50,
-                    "default": null,
-                    "encrypt": false
-                },
-                {
-                    "key": "dob",
-                    "type": "datetime",
-                    "required": true,
-                    "array": false,
-                    "format": "",
-                    "default": null
-                },
-                {
-                    "key": "gender",
-                    "type": "string",
-                    "required": true,
-                    "array": false,
-                    "elements": [
-                        "Female",
-                        "Male",
-                        "Other"
-                    ],
-                    "format": "enum",
-                    "default": null
-                },
-                {
-                    "key": "contact",
-                    "type": "string",
-                    "required": false,
-                    "array": false,
-                    "size": 255,
-                    "default": null,
-                    "encrypt": false
-                },
-                {
-                    "key": "household_id",
-                    "type": "relationship",
-                    "required": false,
-                    "array": false,
-                    "relatedTable": "households",
-                    "relationType": "manyToOne",
-                    "twoWay": true,
-                    "twoWayKey": "resident_ids",
-                    "onDelete": "restrict",
-                    "side": "parent"
-                },
-                {
-                    "key": "role_ids",
-                    "type": "relationship",
-                    "required": false,
-                    "array": false,
-                    "relatedTable": "roles",
-                    "relationType": "manyToMany",
-                    "twoWay": false,
-                    "twoWayKey": "68fd623d002376893c8a",
-                    "onDelete": "restrict",
-                    "side": "parent"
-                }
-            ],
-            "indexes": []
-        },
-        {
-            "$id": "households",
-            "$permissions": [
-                "create(\"any\")",
-                "read(\"any\")",
-                "update(\"any\")",
-                "delete(\"any\")"
-            ],
-            "databaseId": "villageDB",
-            "name": "Households",
-            "enabled": true,
-            "rowSecurity": false,
-            "columns": [
-                {
-                    "key": "name",
-                    "type": "string",
-                    "required": true,
-                    "array": false,
-                    "size": 255,
-                    "default": null,
-                    "encrypt": false
-                },
-                {
-                    "key": "head_resident_id",
-                    "type": "relationship",
-                    "required": false,
-                    "array": false,
-                    "relatedTable": "residents",
-                    "relationType": "oneToOne",
-                    "twoWay": false,
-                    "twoWayKey": "68fd533700306e919aa2",
-                    "onDelete": "restrict",
-                    "side": "parent"
-                },
-                {
-                    "key": "address",
-                    "type": "string",
-                    "required": false,
-                    "array": false,
-                    "size": 500,
-                    "default": null,
-                    "encrypt": false
-                },
-                {
-                    "key": "resident_ids",
-                    "type": "relationship",
-                    "required": false,
-                    "array": false,
-                    "relatedTable": "residents",
-                    "relationType": "manyToOne",
-                    "twoWay": true,
-                    "twoWayKey": "household_id",
-                    "onDelete": "restrict",
-                    "side": "child"
-                }
-            ],
-            "indexes": []
-        },
-        {
-            "$id": "roles",
-            "$permissions": [
-                "create(\"any\")",
-                "read(\"any\")",
-                "update(\"any\")",
-                "delete(\"any\")"
-            ],
-            "databaseId": "villageDB",
-            "name": "Roles",
-            "enabled": true,
-            "rowSecurity": false,
-            "columns": [
-                {
-                    "key": "storage_quota",
-                    "type": "integer",
-                    "required": false,
-                    "array": false,
-                    "min": 0,
-                    "max": 1000,
-                    "default": 2
-                },
-                {
-                    "key": "permissions",
-                    "type": "string",
-                    "required": false,
-                    "array": true,
-                    "size": 100,
-                    "default": null,
-                    "encrypt": false
-                },
-                {
-                    "key": "name",
-                    "type": "string",
-                    "required": true,
-                    "array": false,
-                    "size": 100,
-                    "default": null,
-                    "encrypt": false
-                }
-            ],
-            "indexes": []
+          "key": "name",
+          "type": "string",
+          "required": true,
+          "array": false,
+          "size": 255,
+          "default": null,
+          "encrypt": false
         }
-    ],
-    "teams": [
+      ],
+      "indexes": [
         {
-            "$id": "village_administrators",
-            "name": "Administrators"
+          "key": "email_unique_index",
+          "type": "unique",
+          "status": "available",
+          "columns": ["email"],
+          "orders": ["ASC"]
         }
-    ]
+      ]
+    },
+    {
+      "$id": "residents",
+      "$permissions": ["create(\"any\")", "read(\"any\")", "update(\"any\")", "delete(\"any\")"],
+      "databaseId": "villageDB",
+      "name": "Residents",
+      "enabled": true,
+      "rowSecurity": false,
+      "columns": [
+        {
+          "key": "first_name",
+          "type": "string",
+          "required": true,
+          "array": false,
+          "size": 50,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "middle_names",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 255,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "last_name",
+          "type": "string",
+          "required": true,
+          "array": false,
+          "size": 50,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "dob",
+          "type": "datetime",
+          "required": true,
+          "array": false,
+          "format": "",
+          "default": null
+        },
+        {
+          "key": "gender",
+          "type": "string",
+          "required": true,
+          "array": false,
+          "elements": ["Female", "Male", "Other"],
+          "format": "enum",
+          "default": null
+        },
+        {
+          "key": "contact",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 255,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "household_id",
+          "type": "relationship",
+          "required": false,
+          "array": false,
+          "relatedTable": "households",
+          "relationType": "manyToOne",
+          "twoWay": true,
+          "twoWayKey": "resident_ids",
+          "onDelete": "restrict",
+          "side": "parent"
+        },
+        {
+          "key": "role_ids",
+          "type": "relationship",
+          "required": false,
+          "array": false,
+          "relatedTable": "roles",
+          "relationType": "manyToMany",
+          "twoWay": false,
+          "twoWayKey": "68fd623d002376893c8a",
+          "onDelete": "restrict",
+          "side": "parent"
+        }
+      ],
+      "indexes": []
+    },
+    {
+      "$id": "households",
+      "$permissions": ["create(\"any\")", "read(\"any\")", "update(\"any\")", "delete(\"any\")"],
+      "databaseId": "villageDB",
+      "name": "Households",
+      "enabled": true,
+      "rowSecurity": false,
+      "columns": [
+        {
+          "key": "name",
+          "type": "string",
+          "required": true,
+          "array": false,
+          "size": 255,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "head_resident_id",
+          "type": "relationship",
+          "required": false,
+          "array": false,
+          "relatedTable": "residents",
+          "relationType": "oneToOne",
+          "twoWay": false,
+          "twoWayKey": "68fd533700306e919aa2",
+          "onDelete": "restrict",
+          "side": "parent"
+        },
+        {
+          "key": "address",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 500,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "resident_ids",
+          "type": "relationship",
+          "required": false,
+          "array": false,
+          "relatedTable": "residents",
+          "relationType": "manyToOne",
+          "twoWay": true,
+          "twoWayKey": "household_id",
+          "onDelete": "restrict",
+          "side": "child"
+        }
+      ],
+      "indexes": []
+    },
+    {
+      "$id": "roles",
+      "$permissions": ["create(\"any\")", "read(\"any\")", "update(\"any\")", "delete(\"any\")"],
+      "databaseId": "villageDB",
+      "name": "Roles",
+      "enabled": true,
+      "rowSecurity": false,
+      "columns": [
+        {
+          "key": "storage_quota",
+          "type": "integer",
+          "required": false,
+          "array": false,
+          "min": 0,
+          "max": 1000,
+          "default": 2
+        },
+        {
+          "key": "permissions",
+          "type": "string",
+          "required": false,
+          "array": true,
+          "size": 100,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "name",
+          "type": "string",
+          "required": true,
+          "array": false,
+          "size": 100,
+          "default": null,
+          "encrypt": false
+        }
+      ],
+      "indexes": []
+    }
+  ],
+  "teams": [
+    {
+      "$id": "village_administrators",
+      "name": "Administrators"
+    }
+  ]
 }
