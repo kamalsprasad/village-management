@@ -1,0 +1,113 @@
+<story-context id="bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>1</epicId>
+    <storyId>1.6</storyId>
+    <title>Households Management CRUD Operations</title>
+    <status>ready-for-dev</status>
+    <generatedAt>2025-10-30</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/stories/story-1.6.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>village administrator</asA>
+    <iWant>to create, view, update, and retire households with accurate occupant context</iWant>
+    <soThat>the community structure remains organized and supports downstream resident and service workflows</soThat>
+    <tasks>
+      <task id="T1" ac_refs="AC3,AC5,AC7">Define households data layer</task>
+      <task id="T2" ac_refs="AC1,AC5">Build households list experience</task>
+      <task id="T3" ac_refs="AC2,AC3,AC5">Implement add/edit household form</task>
+      <task id="T4" ac_refs="AC4,AC7">Build household detail view</task>
+      <task id="T5" ac_refs="AC6">Add household dashboard widget</task>
+      <task id="T6" ac_refs="AC1,AC2,AC3,AC4,AC5,AC6,AC7">Verification and documentation</task>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <criterion id="AC1">Households list page shows each household&apos;s name, type, occupant count, and construction date.</criterion>
+    <criterion id="AC2">“Add Household” form captures household name, type, construction date, bedrooms, bathrooms, and room/unit numbers.</criterion>
+    <criterion id="AC3">Successful save creates the household record in Appwrite.</criterion>
+    <criterion id="AC4">Household detail view displays metadata, lists occupants (initially empty), and prompts administrators to add residents.</criterion>
+    <criterion id="AC5">Edit and delete flows confirm actions and respect RBAC visibility requirements.</criterion>
+    <criterion id="AC6">Dashboard widget summarizes total households grouped by type.</criterion>
+    <criterion id="AC7">Deletion is blocked when the household still has occupants assigned.</criterion>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc path="docs/epics.md" title="Epic Breakdown" section="Story 1.6: Households Management - CRUD Operations">Outlines required households list, creation form, detail view messaging, dashboard widget, and occupant-safe deletion rules for this story. [docs/epics.md#146-159]</doc>
+      <doc path="docs/PRD.md" title="Product Requirements Document" section="FR-2: Households Management">Specifies household data fields (types, rooms, construction details) and links to residents/guests for full occupancy visibility. [docs/PRD.md#101-109]</doc>
+      <doc path="docs/architecture.md" title="Architecture Document" section="6.3 Relationship Patterns">Describes normalized Appwrite schema with households tables and resident foreign keys, plus indexed queries for occupant lookups. [docs/architecture.md#854-899]</doc>
+      <doc path="docs/architecture.md" title="Architecture Document" section="4.1 Offline Sync Strategy">Details Dexie-based offline queue, sync notifications, and connectivity handling that households CRUD must integrate with. [docs/architecture.md#324-556]</doc>
+      <doc path="docs/ux-specification.md" title="UX/UI Specification" section="2.1-2.2 Core Navigation">Defines Households list/add/detail flows within the core navigation, including role-based module visibility and responsive patterns. [docs/ux-specification.md#132-275]</doc>
+      <doc path="docs/stories/story-1.5.md" title="Story 1.5 Dev Notes" section="Architecture Patterns and Learnings">Captures RBAC utilities, dashboard widget scaffolding, and navigation patterns to reuse for households experiences. [docs/stories/story-1.5.md#56-147]</doc>
+      <doc path="docs/testing.md" title="Testing Documentation" section="RBAC Navigation Suites">Provides manual verification plan for permission-based navigation and visibility checks used by households pages. [docs/testing.md#220-255]</doc>
+    </docs>
+
+    <code>
+      <file path="src/layouts/MainLayout.vue" kind="layout" symbol="MainLayout" lines="1-200">Implements RBAC-aware navigation structure with Households link and header widgets that new pages must integrate with. [docs/stories/story-1.5.md#56-147]</file>
+      <file path="src/composables/usePermissions.js" kind="composable" symbol="usePermissions" lines="1-81">Provides permission helpers (`hasPermission`, `hasAnyPermission`) required to guard households UI and actions. [docs/stories/story-1.5.md#56-137]</file>
+      <file path="src/utils/permissions.js" kind="utility" symbol="hasPermission" lines="1-137">Contains RBAC union logic, wildcard handling, and storage quotas consumed by households role checks. [docs/stories/story-1.4.md#301-313]</file>
+      <file path="src/boot/router-guards.js" kind="boot" symbol="router.beforeEach" lines="1-44">Route guard enforces authentication and `requiresPermission` metadata that households routes must declare. [docs/stories/story-1.4.md#294-305]</file>
+      <file path="src/components/dashboard/QuickStatsWidget.vue" kind="component" symbol="QuickStatsWidget" lines="1-210">Existing dashboard widget displays households totals, illustrating data contracts to extend with real metrics. [docs/stories/story-1.5.md#126-147]</file>
+      <file path="src/utils/placeholder-data.js" kind="utility" symbol="quickStats.households" lines="62-140">Provides interim households statistics used by dashboard widgets until real Appwrite data is wired. [docs/stories/story-1.5.md#126-147]</file>
+      <file path="src/stores/auth-store.js" kind="store" symbol="useAuthStore" lines="1-320">Fetches user roles and exposes session state consumed by permissions and households route access checks. [docs/stories/story-1.4.md#286-305]</file>
+    </code>
+
+    <dependencies>
+      <node>
+        <package name="quasar" version="^2.16.0">UI framework providing layout, drawer, form, and dialog components used across households flows.</package>
+        <package name="vue" version="^3.5.22">Composition API base for pages, composables, and stores.</package>
+        <package name="pinia" version="^3.0.1">State management for households data stores and auth context.</package>
+        <package name="vue-router" version="^4.0.0">Routing metadata and guards controlling module access.</package>
+        <package name="appwrite" version="^21.2.1">Backend SDK for households CRUD operations and indexing.</package>
+        <package name="dexie" version="^4.2.1">IndexedDB wrapper powering offline queue for household mutations.</package>
+        <package name="date-fns" version="^4.1.0">Utility for formatting construction dates and timeline values.</package>
+        <package name="chart.js" version="^4.5.1">Supports future visualization of household trends within dashboard widgets.</package>
+      </node>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint>All Vue components must use `<script setup>` syntax and follow Quasar component conventions. [docs/architecture.md#293-321]</constraint>
+    <constraint>Persist households and resident links using normalized Appwrite tables with indexed foreign keys to enable occupant queries. [docs/architecture.md#854-899]</constraint>
+    <constraint>Reuse RBAC utilities (`usePermissions`, router guards) for visibility and action permissions; do not duplicate permission logic. [docs/stories/story-1.5.md#56-137]</constraint>
+    <constraint>Integrate with offline sync notifications so users are warned when actions queue offline and sync resumes. [docs/architecture.md#324-556]</constraint>
+    <constraint>Document manual verification outcomes per MVP testing strategy; automated suites remain deferred. [docs/testing.md#220-255]</constraint>
+  </constraints>
+
+  <interfaces>
+    <interface>
+      <name>usePermissions</name>
+      <kind>composable</kind>
+      <signature>function usePermissions(): { hasPermission, hasAnyPermission, hasAllPermissions, userPermissions }</signature>
+      <path>src/composables/usePermissions.js</path>
+    </interface>
+    <interface>
+      <name>router.beforeEach</name>
+      <kind>navigation-guard</kind>
+      <signature>router.beforeEach((to, from, next) =&gt; void)</signature>
+      <path>src/boot/router-guards.js</path>
+    </interface>
+    <interface>
+      <name>quickStats.households</name>
+      <kind>data-contract</kind>
+      <signature>{ total: number, active: number, change: string, changePercent: number, trend: string }</signature>
+      <path>src/utils/placeholder-data.js</path>
+    </interface>
+  </interfaces>
+
+  <tests>
+    <standards>Manual verification remains the standard for MVP: follow documented RBAC navigation checks and households UX walkthroughs, capturing results for each acceptance criterion. [docs/testing.md#220-255]</standards>
+    <locations>Manual verification notes recorded in story Dev Notes; future automated suites will live under src/tests/ when enabled.</locations>
+    <ideas>
+      <idea ac="AC1">Verify households list fetch shows name, type, occupant count, and construction date while respecting permissions.</idea>
+      <idea ac="AC2">Exercise the create and edit form, validating required fields and error messaging when data is missing.</idea>
+      <idea ac="AC3">Confirm Appwrite tables receive persisted household records and offline queue synchronizes queued writes.</idea>
+      <idea ac="AC4">Open a household detail view, ensure occupant panel displays prompt when empty, and verify occupant list updates after linking residents.</idea>
+      <idea ac="AC5">Trigger edit/delete actions to ensure confirmation dialogs appear and permission checks prevent unauthorized access.</idea>
+      <idea ac="AC6">Load dashboard widget and confirm totals by type match underlying data set once households exist.</idea>
+      <idea ac="AC7">Attempt to delete a household with occupants and confirm guard prevents deletion with clear messaging.</idea>
+    </ideas>
+  </tests>
+</story-context>

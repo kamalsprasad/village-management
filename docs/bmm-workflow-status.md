@@ -12,7 +12,7 @@ WORKFLOW_PATH: bmad/bmm/workflows/workflow-status/paths/greenfield-level-3.yaml
 ## Current State
 
 CURRENT_PHASE: 4-Implementation
-CURRENT_WORKFLOW: create-story
+CURRENT_WORKFLOW: story-context
 CURRENT_AGENT: SM Agent (sm)
 PHASE_1_COMPLETE: true
 PHASE_2_COMPLETE: true
@@ -25,9 +25,9 @@ READINESS_REPORT: docs/implementation-readiness-report-2025-10-25.md
 
 ## Development Queue
 
-STORIES_SEQUENCE: [1.1, 1.2, 1.3, 1.4, 1.5]
-TODO_STORY:
-TODO_TITLE:
+STORIES_SEQUENCE: [1.1, 1.2, 1.3, 1.4, 1.5, 1.6]
+TODO_STORY: 1.6
+TODO_TITLE: Households Management - CRUD Operations
 IN_PROGRESS_STORY:
 IN_PROGRESS_TITLE:
 STORIES_DONE: [1.1, 1.2, 1.3, 1.4, 1.5]
@@ -35,8 +35,8 @@ STORIES_READY: []
 
 ## Next Action
 
-NEXT_ACTION: Draft Story 1.6 (Households Management - CRUD Operations)
-NEXT_COMMAND: create-story
+NEXT_ACTION: Generate story context for Story 1.6 (Households Management - CRUD Operations)
+NEXT_COMMAND: story-context
 NEXT_AGENT: SM Agent (sm)
 
 ## Architecture Decisions Completed
@@ -135,6 +135,13 @@ See docs/epics.md for complete story breakdown
 **Confidence Level:** High - Project ready to proceed to implementation
 
 ## Recent Activity
+
+**2025-10-30 19:39 UTC+11:**
+
+- ✅ Story 1.6 drafted: Households Management - CRUD Operations
+- 📄 Story file created: `docs/stories/story-1.6.md` (status → drafted)
+- 📊 sprint-status.yaml updated: Story 1.6 marked drafted
+- ⏭️ Next: Run `story-context` to generate technical context for Story 1.6
 
 **2025-10-30 13:44 UTC+11:**
 
