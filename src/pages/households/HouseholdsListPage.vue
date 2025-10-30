@@ -19,7 +19,10 @@
       </div>
 
       <!-- Loading State -->
-      <div v-if="householdsStore.isLoading && householdsStore.households.length === 0" class="q-pa-md">
+      <div
+        v-if="householdsStore.isLoading && householdsStore.households.length === 0"
+        class="q-pa-md"
+      >
         <q-skeleton type="rect" height="60px" class="q-mb-sm" />
         <q-skeleton type="rect" height="60px" class="q-mb-sm" />
         <q-skeleton type="rect" height="60px" class="q-mb-sm" />
@@ -38,12 +41,7 @@
           <!-- Custom column: household_type -->
           <template #body-cell-household_type="props">
             <q-td :props="props">
-              <q-chip
-                :color="getTypeColor(props.value)"
-                text-color="white"
-                dense
-                size="sm"
-              >
+              <q-chip :color="getTypeColor(props.value)" text-color="white" dense size="sm">
                 {{ props.value }}
               </q-chip>
             </q-td>
@@ -77,30 +75,32 @@
               >
                 <q-tooltip>View Details</q-tooltip>
               </q-btn>
-              <q-btn
-                v-if="hasPermission('households:write')"
-                flat
-                dense
-                round
-                icon="edit"
-                color="primary"
-                size="sm"
-                @click="editHousehold(props.row)"
-              >
-                <q-tooltip>Edit</q-tooltip>
-              </q-btn>
-              <q-btn
-                v-if="hasPermission('households:delete')"
-                flat
-                dense
-                round
-                icon="delete"
-                color="negative"
-                size="sm"
-                @click="confirmDelete(props.row)"
-              >
-                <q-tooltip>Delete</q-tooltip>
-              </q-btn>
+              <span v-if="!props.row.occupant_count">
+                <q-btn
+                  v-if="hasPermission('households:write')"
+                  flat
+                  dense
+                  round
+                  icon="edit"
+                  color="primary"
+                  size="sm"
+                  @click="editHousehold(props.row)"
+                >
+                  <q-tooltip>Edit</q-tooltip>
+                </q-btn>
+                <q-btn
+                  v-if="hasPermission('households:delete')"
+                  flat
+                  dense
+                  round
+                  icon="delete"
+                  color="negative"
+                  size="sm"
+                  @click="confirmDelete(props.row)"
+                >
+                  <q-tooltip>Delete</q-tooltip>
+                </q-btn>
+              </span>
             </q-td>
           </template>
         </q-table>
@@ -162,7 +162,8 @@
           </q-card-section>
 
           <q-card-section class="q-pt-none">
-            Are you sure you want to delete <strong>{{ householdToDelete?.name }}</strong>?
+            Are you sure you want to delete <strong>{{ householdToDelete?.name }}</strong
+            >?
             <div v-if="householdToDelete?.occupant_count > 0" class="text-negative q-mt-sm">
               <q-icon name="warning" />
               This household has {{ householdToDelete.occupant_count }} occupant(s).
@@ -256,7 +257,8 @@ const columns = [
 ];
 
 const paginationLabel = computed(() => {
-  const start = (householdsStore.pagination.currentPage - 1) * householdsStore.pagination.itemsPerPage + 1;
+  const start =
+    (householdsStore.pagination.currentPage - 1) * householdsStore.pagination.itemsPerPage + 1;
   const end = Math.min(
     householdsStore.pagination.currentPage * householdsStore.pagination.itemsPerPage,
     householdsStore.pagination.total,

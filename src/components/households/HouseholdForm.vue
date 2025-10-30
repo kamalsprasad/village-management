@@ -68,10 +68,11 @@
           </div>
         </div>
 
-        <!-- Address -->
+        <!-- Notes -->
         <q-input
-          v-model="formData.address"
-          label="Address"
+          v-model="formData.notes"
+          label="Notes"
+          placeholder="Add any additional notes about the household"
           outlined
           dense
           type="textarea"
@@ -119,7 +120,7 @@ const formData = ref({
   construction_date: '',
   bedrooms: 0,
   bathrooms: 0,
-  address: '',
+  notes: '',
 });
 
 const isEditMode = computed(() => !!props.household?.$id);
@@ -137,7 +138,7 @@ watch(
           : '',
         bedrooms: newHousehold.bedrooms || 0,
         bathrooms: newHousehold.bathrooms || 0,
-        address: newHousehold.address || '',
+        notes: newHousehold.notes || '',
       };
     } else {
       resetForm();
@@ -153,7 +154,7 @@ function resetForm() {
     construction_date: '',
     bedrooms: 0,
     bathrooms: 0,
-    address: '',
+    notes: '',
   };
 }
 
