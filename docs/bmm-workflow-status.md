@@ -12,8 +12,8 @@ WORKFLOW_PATH: bmad/bmm/workflows/workflow-status/paths/greenfield-level-3.yaml
 ## Current State
 
 CURRENT_PHASE: 4-Implementation
-CURRENT_WORKFLOW: dev-story
-CURRENT_AGENT: Developer Agent (dev)
+CURRENT_WORKFLOW: create-story
+CURRENT_AGENT: SM Agent (sm)
 PHASE_1_COMPLETE: true
 PHASE_2_COMPLETE: true
 PHASE_3_COMPLETE: true
@@ -30,14 +30,14 @@ TODO_STORY:
 TODO_TITLE:
 IN_PROGRESS_STORY:
 IN_PROGRESS_TITLE:
-STORIES_DONE: [1.1, 1.2, 1.3, 1.4, 1.5]
-STORIES_READY: [1.6]
+STORIES_DONE: [1.1, 1.2, 1.3, 1.4, 1.5, 1.6]
+STORIES_READY: []
 
 ## Next Action
 
-NEXT_ACTION: Implement Story 1.6 (Households Management - CRUD Operations)
-NEXT_COMMAND: dev-story
-NEXT_AGENT: Developer Agent (dev)
+NEXT_ACTION: Draft Story 1.7 (Residents Management - CRUD Operations)
+NEXT_COMMAND: create-story
+NEXT_AGENT: SM Agent (sm)
 
 ## Architecture Decisions Completed
 
