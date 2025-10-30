@@ -17,11 +17,22 @@
         <div class="text-caption q-mr-md">v0.0.1</div>
 
         <!-- User Profile Dropdown -->
-        <q-btn flat round dense>
+        <q-btn
+          flat
+          round
+          dense
+          aria-haspopup="menu"
+          :aria-expanded="userMenuVisible ? 'true' : 'false'"
+          @click="toggleUserMenu"
+        >
           <q-avatar size="32px" color="primary" text-color="white">
             <span class="text-weight-bold">{{ userInitials }}</span>
           </q-avatar>
-          <q-menu>
+          <q-menu
+            ref="userMenu"
+            @before-show="userMenuVisible = true"
+            @hide="userMenuVisible = false"
+          >
             <q-list style="min-width: 250px">
               <!-- User Info Section -->
               <q-item>
@@ -53,11 +64,7 @@
               <q-item v-if="storageQuota !== -1">
                 <q-item-section>
                   <q-item-label caption>Storage Quota</q-item-label>
-                  <q-linear-progress
-                    :value="storageUsagePercent"
-                    color="primary"
-                    class="q-mt-xs"
-                  />
+                  <q-linear-progress :value="storageUsagePercent" color="primary" class="q-mt-xs" />
                   <q-item-label caption class="q-mt-xs">
                     {{ formatStorageQuota(storageQuota) }} available
                   </q-item-label>
@@ -258,7 +265,7 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue';
+import { ref, computed, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { useQuasar } from 'quasar';
 import { useAuthStore } from 'src/stores/auth-store';
@@ -270,6 +277,8 @@ const authStore = useAuthStore();
 const { hasPermission, hasAnyPermission, userStorageQuota } = usePermissions();
 
 const leftDrawerOpen = ref(false);
+const userMenu = ref(null);
+const userMenuVisible = ref(false);
 
 // User info computed properties
 const userName = computed(() => authStore.user?.name || 'User');
@@ -277,7 +286,7 @@ const userEmail = computed(() => authStore.user?.email || '');
 const userRoles = computed(() => authStore.userRoles || []);
 const storageQuota = computed(() => userStorageQuota.value);
 const storageUsagePercent = computed(() => {
-  // Placeholder - will be calculated from actual storage usage in future stories
+  // TODO(Story 1.11): Replace placeholder with actual storage usage once storage metrics are available
   return 0.35; // 35% used
 });
 
@@ -293,6 +302,10 @@ const userInitials = computed(() => {
 
 function toggleLeftDrawer() {
   leftDrawerOpen.value = !leftDrawerOpen.value;
+}
+
+function toggleUserMenu() {
+  userMenu.value = !userMenu.value;
 }
 
 async function handleLogout() {
@@ -326,4 +339,12 @@ function formatStorageQuota(bytes) {
   const gb = bytes / (1024 * 1024 * 1024);
   return `${gb.toFixed(1)} GB`;
 }
+
+watch(
+  () => $q.screen.gt.md,
+  (isDesktop) => {
+    leftDrawerOpen.value = isDesktop;
+  },
+  { immediate: true },
+);
 </script>

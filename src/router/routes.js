@@ -15,10 +15,13 @@ const routes = [
     path: '/',
     component: () => import('layouts/MainLayout.vue'),
     children: [
-      { 
-        path: '', 
-        component: () => import('pages/dashboard/DashboardPage.vue'), 
-        meta: { requiresAuth: true } 
+      {
+        path: '',
+        component: () => import('pages/dashboard/DashboardPage.vue'),
+        meta: {
+          requiresAuth: true,
+          // TODO(Story 1.10): Add dashboard-specific permission metadata once role matrix is finalized
+        },
       },
       { 
         path: 'appwrite-test', 
