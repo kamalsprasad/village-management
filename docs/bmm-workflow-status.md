@@ -25,19 +25,19 @@ READINESS_REPORT: docs/implementation-readiness-report-2025-10-25.md
 
 ## Development Queue
 
-STORIES_SEQUENCE: [1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7]
-TODO_STORY:
-TODO_TITLE:
+STORIES_SEQUENCE: [1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 1.8]
+TODO_STORY: 1.9
+TODO_TITLE: Sample Data Mode - Katete Model Village Seed Data
 IN_PROGRESS_STORY:
 IN_PROGRESS_TITLE:
 STORIES_DONE: [1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7]
-STORIES_READY: []
+STORIES_READY: [1.8]
 
 ## Next Action
 
-NEXT_ACTION: Draft Story 1.8 (Village Configuration and Default Settings)
-NEXT_COMMAND: create-story
-NEXT_AGENT: Scrum Master (sm)
+NEXT_ACTION: Implement Story 1.8 (Village Configuration and Default Settings)
+NEXT_COMMAND: dev-story
+NEXT_AGENT: Developer (dev)
 
 ## Architecture Decisions Completed
 
@@ -135,6 +135,14 @@ See docs/epics.md for complete story breakdown
 **Confidence Level:** High - Project ready to proceed to implementation
 
 ## Recent Activity
+
+**2025-10-31 20:20 UTC+11:**
+
+- ✅ Story 1.8 context generated and validated (ready-for-dev)
+- 📄 Story file updated: `docs/stories/story-1.8.md` (status → ready-for-dev, context link added)
+- 📁 Context file created: `docs/stories/story-context-1.8.xml`
+- 📊 `docs/sprint-status.yaml` updated: Story 1.8 marked ready-for-dev
+- ⏭️ Next: Run `dev-story` to implement Story 1.8 (Village Configuration and Default Settings)
 
 **2025-10-31 15:19 UTC+11:**
 
@@ -253,5 +261,5 @@ See docs/epics.md for complete story breakdown
 
 ---
 
-_Last Updated: 2025-10-31 13:41 UTC+11_
+_Last Updated: 2025-10-31 20:20 UTC+11_
 _Status Version: 4.1_

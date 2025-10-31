@@ -44,7 +44,7 @@ development_status:
   1-5-dashboard-framework-and-layout: done
   1-6-households-management-crud-operations: done
   1-7-residents-management-crud-operations: done
-  1-8-village-configuration-and-default-settings: backlog
+  1-8-village-configuration-and-default-settings: ready-for-dev
   1-9-sample-data-mode-katete-model-village-seed-data: backlog
   1-10-dashboard-widgets-residents-and-households-summary: backlog
   1-11-user-profile-and-storage-quota-display: backlog
