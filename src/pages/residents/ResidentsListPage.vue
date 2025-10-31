@@ -109,6 +109,20 @@
             </q-td>
           </template>
 
+          <!-- Custom column: age -->
+          <template #body-cell-age="props">
+            <q-td :props="props">
+              <q-badge
+                v-if="formatAge(props.row.dob) !== 'N/A'"
+                color="primary"
+                text-color="white"
+                dense
+                :label="formatAge(props.row.dob)"
+              />
+              <span v-else class="text-grey">N/A</span>
+            </q-td>
+          </template>
+
           <!-- Custom column: household -->
           <template #body-cell-household="props">
             <q-td :props="props">
@@ -259,6 +273,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
+import { differenceInYears } from 'date-fns';
 import { useResidentsStore } from 'src/stores/residents-store';
 import { useHouseholdsStore } from 'src/stores/households-store';
 import { usePermissions } from 'src/composables/usePermissions';
@@ -277,6 +292,24 @@ const itemsPerPage = ref(10);
 const searchName = ref('');
 const selectedHousehold = ref(null);
 
+function calculateAge(dob) {
+  if (!dob) {
+    return null;
+  }
+
+  try {
+    return differenceInYears(new Date(), new Date(dob));
+  } catch (error) {
+    console.error('Error calculating age for resident:', error);
+    return null;
+  }
+}
+
+function formatAge(dob) {
+  const age = calculateAge(dob);
+  return age === null || Number.isNaN(age) ? 'N/A' : age;
+}
+
 // All columns definition
 const allColumns = [
   {
@@ -292,6 +325,16 @@ const allColumns = [
     label: 'Gender',
     align: 'left',
     field: 'gender',
+    sortable: true,
+  },
+  {
+    name: 'age',
+    label: 'Age',
+    align: 'center',
+    field: (row) => {
+      const age = calculateAge(row.dob);
+      return age === null ? -1 : age;
+    },
     sortable: true,
   },
   {
