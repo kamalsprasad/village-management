@@ -4,7 +4,7 @@
     <div class="welcome-banner q-mb-lg">
       <h4 class="text-h4 q-my-none">Welcome back, {{ userName }}</h4>
       <p class="text-subtitle1 text-grey-7 q-mt-sm q-mb-none">
-        Here's what's happening in your village today
+        Here's what's happening in {{ settingsStore.villageName }} today
       </p>
     </div>
 
@@ -36,6 +36,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue';
 import { useAuthStore } from 'src/stores/auth-store';
+import { useSettingsStore } from 'src/stores/settings-store';
 import UpcomingEventsWidget from 'src/components/dashboard/UpcomingEventsWidget.vue';
 import QuickStatsWidget from 'src/components/dashboard/QuickStatsWidget.vue';
 import RecentActivityWidget from 'src/components/dashboard/RecentActivityWidget.vue';
@@ -47,6 +48,7 @@ import {
 } from 'src/utils/placeholder-data';
 
 const authStore = useAuthStore();
+const settingsStore = useSettingsStore();
 
 // Loading state for skeleton loaders
 const loading = ref(true);

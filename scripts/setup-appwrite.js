@@ -127,6 +127,22 @@ const tableSchemas = {
     ],
     indexes: [],
   },
+  village_settings: {
+    name: 'Village Settings',
+    columns: [
+      { key: 'village_name', type: 'string', size: 255, required: true },
+      { key: 'address', type: 'string', size: 500, required: false },
+      { key: 'established_date', type: 'datetime', required: false },
+      { key: 'default_currency', type: 'string', size: 10, required: true, default: 'ZMW' },
+      { key: 'currency_symbol', type: 'string', size: 10, required: true, default: 'K' },
+      { key: 'timezone', type: 'string', size: 50, required: true, default: 'Africa/Lusaka' },
+      { key: 'country_code', type: 'string', size: 10, required: true, default: 'ZM' },
+      { key: 'is_using_sample_data', type: 'boolean', required: true, default: false },
+      { key: 'council_members', type: 'string', size: 10000, required: false },
+      { key: 'modules_enabled', type: 'string', size: 500, array: true, required: false },
+    ],
+    indexes: [],
+  },
 };
 
 // Helper functions
@@ -208,6 +224,17 @@ async function createAttribute(collectionId, column) {
           collectionId,
           key,
           elements,
+          required,
+          defaultValue,
+          array || false,
+        );
+        break;
+
+      case 'boolean':
+        await databases.createBooleanAttribute(
+          config.databaseId,
+          collectionId,
+          key,
           required,
           defaultValue,
           array || false,
@@ -320,8 +347,8 @@ async function setupDatabase() {
 
     console.log('\n✅ Database setup complete!');
     console.log('\n📋 Summary:');
-    console.log('   - 4 collections created/verified');
-    console.log('   - 22 columns created/verified');
+    console.log('   - 5 collections created/verified');
+    console.log('   - 32 columns created/verified');
     console.log('   - 4 indexes created/verified');
     console.log('   - Permissions configured');
     console.log('\n🎉 You can now test the database connection at /appwrite-test');

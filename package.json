@@ -14,7 +14,8 @@
     "dev": "quasar dev",
     "build": "quasar build",
     "postinstall": "quasar prepare",
-    "setup:appwrite": "node scripts/setup-appwrite.js"
+    "setup:appwrite": "node scripts/setup-appwrite.js",
+    "seed:settings": "node scripts/seed-village-settings.js"
   },
   "dependencies": {
     "@quasar/extras": "^1.16.4",
@@ -22,6 +23,7 @@
     "axios": "^1.2.1",
     "chart.js": "^4.5.1",
     "date-fns": "^4.1.0",
+    "date-fns-tz": "^3.2.0",
     "dexie": "^4.2.1",
     "pinia": "^3.0.1",
     "quasar": "^2.16.0",

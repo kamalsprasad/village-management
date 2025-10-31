@@ -1,0 +1,132 @@
+#!/usr/bin/env node
+
+/**
+ * Village Settings Seed Script
+ *
+ * This script creates the default settings_root document in the village_settings collection.
+ * This document serves as the single source of truth for village configuration.
+ *
+ * Prerequisites:
+ * - Appwrite project and database set up
+ * - village_settings collection created (run setup-appwrite.js first)
+ * - API key with appropriate permissions
+ * - Environment variables set in .env file
+ *
+ * Usage:
+ *   node scripts/seed-village-settings.js
+ *
+ * Or via npm:
+ *   npm run seed:settings
+ */
+
+import { Client, Databases, ID } from 'node-appwrite';
+import dotenv from 'dotenv';
+import { fileURLToPath } from 'url';
+import { dirname, join } from 'path';
+
+// Load environment variables
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+dotenv.config({ path: join(__dirname, '..', '.env') });
+
+// Configuration
+const config = {
+  endpoint: process.env.VITE_APPWRITE_ENDPOINT || 'https://cloud.appwrite.io/v1',
+  projectId: process.env.VITE_APPWRITE_PROJECT_ID,
+  apiKey: process.env.APPWRITE_API_KEY,
+  databaseId: process.env.VITE_APPWRITE_DATABASE_ID || 'villageDB',
+  collectionId: process.env.VITE_APPWRITE_COLLECTION_VILLAGE_SETTINGS || 'village_settings',
+};
+
+// Validate configuration
+if (!config.projectId) {
+  console.error('❌ Error: VITE_APPWRITE_PROJECT_ID not found in .env file');
+  process.exit(1);
+}
+
+if (!config.apiKey) {
+  console.error('❌ Error: APPWRITE_API_KEY not found in .env file');
+  process.exit(1);
+}
+
+// Initialize Appwrite client
+const client = new Client()
+  .setEndpoint(config.endpoint)
+  .setProject(config.projectId)
+  .setKey(config.apiKey);
+
+const databases = new Databases(client);
+
+// Default village settings
+const defaultSettings = {
+  village_name: 'My Village',
+  address: '',
+  established_date: null,
+  default_currency: 'ZMW',
+  currency_symbol: 'K',
+  timezone: 'Africa/Lusaka',
+  country_code: 'ZM',
+  is_using_sample_data: false,
+  council_members: JSON.stringify([]),
+  modules_enabled: ['residents', 'households', 'dashboard'],
+};
+
+async function seedVillageSettings() {
+  console.log('🌱 Seeding Village Settings');
+  console.log(`   Database: ${config.databaseId}`);
+  console.log(`   Collection: ${config.collectionId}`);
+
+  try {
+    // Check if settings_root already exists
+    console.log('\n🔍 Checking for existing settings...');
+    try {
+      const existing = await databases.getDocument(
+        config.databaseId,
+        config.collectionId,
+        'settings_root',
+      );
+
+      console.log('   ⚠️  Settings already exist');
+      console.log(`   Village: ${existing.village_name}`);
+      console.log(`   Currency: ${existing.currency_symbol} (${existing.default_currency})`);
+      console.log(`   Sample Data: ${existing.is_using_sample_data}`);
+      console.log('\n✅ No action needed - settings_root already configured');
+      return;
+    } catch (error) {
+      if (error.code !== 404) {
+        throw error;
+      }
+      // Document doesn't exist, proceed with creation
+      console.log('   ℹ️  No existing settings found, creating defaults...');
+    }
+
+    // Create settings_root document
+    console.log('\n📝 Creating settings_root document...');
+    const result = await databases.createDocument(
+      config.databaseId,
+      config.collectionId,
+      'settings_root',
+      defaultSettings,
+    );
+
+    console.log('   ✅ Settings created successfully!');
+    console.log('\n📋 Default Settings:');
+    console.log(`   Village Name: ${result.village_name}`);
+    console.log(`   Currency: ${result.currency_symbol} (${result.default_currency})`);
+    console.log(`   Timezone: ${result.timezone}`);
+    console.log(`   Country: ${result.country_code}`);
+    console.log(`   Sample Data Mode: ${result.is_using_sample_data}`);
+    console.log(`   Modules Enabled: ${result.modules_enabled.join(', ')}`);
+    console.log('\n🎉 Village settings seeded successfully!');
+    console.log('   You can now customize these settings through the Village Settings page.');
+  } catch (error) {
+    console.error('\n❌ Seeding failed:', error.message);
+    if (error.response) {
+      console.error('   Response:', JSON.stringify(error.response, null, 2));
+    }
+    process.exit(1);
+  }
+}
+
+// Run seeding
+seedVillageSettings();

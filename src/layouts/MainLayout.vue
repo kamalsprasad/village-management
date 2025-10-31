@@ -12,7 +12,9 @@
           class="lt-md"
         />
 
-        <q-toolbar-title> Village Management System </q-toolbar-title>
+        <q-toolbar-title>
+          {{ settingsStore.villageName }} - Village Management System
+        </q-toolbar-title>
 
         <div class="text-caption q-mr-md">v0.0.1</div>
 
@@ -254,6 +256,15 @@
               <q-item-label>User Management</q-item-label>
             </q-item-section>
           </q-item>
+
+          <q-item clickable to="/settings/village">
+            <q-item-section avatar>
+              <q-icon name="settings" />
+            </q-item-section>
+            <q-item-section>
+              <q-item-label>Village Settings</q-item-label>
+            </q-item-section>
+          </q-item>
         </template>
       </q-list>
     </q-drawer>
@@ -269,11 +280,13 @@ import { ref, computed, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { useQuasar } from 'quasar';
 import { useAuthStore } from 'src/stores/auth-store';
+import { useSettingsStore } from 'src/stores/settings-store';
 import { usePermissions } from 'src/composables/usePermissions';
 
 const router = useRouter();
 const $q = useQuasar();
 const authStore = useAuthStore();
+const settingsStore = useSettingsStore();
 const { hasPermission, hasAnyPermission, userStorageQuota } = usePermissions();
 
 const leftDrawerOpen = ref(false);

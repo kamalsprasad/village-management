@@ -68,6 +68,15 @@ const routes = [
           requiresPermission: 'residents:read',
         },
       },
+      {
+        path: 'settings/village',
+        component: () => import('pages/settings/VillageSettingsPage.vue'),
+        meta: {
+          requiresAuth: true,
+          requiresPermission: 'settings:read', // All authenticated users can view
+          // Edit mode is controlled within the component based on settings:write permission
+        },
+      },
     ],
   },
 

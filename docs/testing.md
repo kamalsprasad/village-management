@@ -291,6 +291,197 @@ This document outlines all tests that need to be implemented for the Village Man
 
 ---
 
+## Story 1.8: Village Configuration and Default Settings - Testing Requirements
+
+### Unit Tests
+
+#### `src/stores/settings-store.js`
+
+**Test Suite: loadSettings()**
+1. **Test: Successfully loads settings from Appwrite**
+   - Setup: settings_root document exists
+   - Action: Call `loadSettings()`
+   - Expected: `settings` state populated, `isFirstRun` = false, returns `{ success: true }`
+
+2. **Test: Handles first-run scenario (404 error)**
+   - Setup: settings_root document doesn't exist
+   - Action: Call `loadSettings()`
+   - Expected: `isFirstRun` = true, returns `{ success: false, isFirstRun: true }`
+
+3. **Test: Handles network errors gracefully**
+   - Setup: Simulate network error
+   - Action: Call `loadSettings()`
+   - Expected: Error notification shown, returns `{ success: false }`
+
+**Test Suite: updateSettings()**
+1. **Test: Validates required fields before update**
+   - Action: Call `updateSettings({ village_name: '' })`
+   - Expected: Validation fails, returns `{ success: false, errors: [...] }`
+
+2. **Test: Stringifies council_members array**
+   - Action: Call `updateSettings({ council_members: [{name: 'John', position: 'Chief'}] })`
+   - Expected: council_members sent as JSON string to Appwrite
+
+3. **Test: Updates settings and refreshes cache**
+   - Action: Call `updateSettings({ village_name: 'New Village' })`
+   - Expected: Settings updated in Appwrite, state refreshed, success notification shown
+
+**Test Suite: Getters**
+1. **Test: formatCurrency() formats amount correctly**
+   - Setup: currency_symbol = 'K'
+   - Input: `formatCurrency(1234.56)`
+   - Expected: `'K 1,234.56'`
+
+2. **Test: formatDateTime() respects timezone**
+   - Setup: timezone = 'Africa/Lusaka'
+   - Input: `formatDateTime('2024-01-01T12:00:00Z', 'PPpp')`
+   - Expected: Date formatted in CAT timezone
+
+3. **Test: councilMembers getter parses JSON correctly**
+   - Setup: council_members = '[{"name":"John","position":"Chief"}]'
+   - Expected: Returns array with one member object
+
+---
+
+### Integration Tests
+
+#### `src/pages/settings/VillageSettingsPage.vue`
+
+**Test Suite: RBAC Enforcement**
+1. **Test: System Administrator can edit settings**
+   - Setup: Logged in as System Administrator
+   - Verify: Edit button is visible, form fields are editable
+
+2. **Test: Non-admin users see read-only view**
+   - Setup: Logged in as Village Head
+   - Verify: Edit button hidden, form fields readonly, info banner shown
+
+3. **Test: Edit mode toggle works correctly**
+   - Setup: System Administrator
+   - Action: Click "Edit Settings"
+   - Verify: Form becomes editable, Save/Cancel buttons appear
+
+**Test Suite: Form Validation**
+1. **Test: Required fields are validated**
+   - Setup: Edit mode active
+   - Action: Clear village_name, click Save
+   - Expected: Validation error shown, save blocked
+
+2. **Test: Currency code must be 3 characters**
+   - Setup: Edit mode active
+   - Action: Set default_currency to 'US', click Save
+   - Expected: Validation error shown
+
+3. **Test: Country code must be 2 characters**
+   - Setup: Edit mode active
+   - Action: Set country_code to 'USA', click Save
+   - Expected: Validation error shown
+
+**Test Suite: Council Member Management**
+1. **Test: Add council member dialog works**
+   - Setup: Edit mode active
+   - Action: Click "Add Member", fill form, click Save
+   - Expected: Member added to list
+
+2. **Test: Edit council member updates correctly**
+   - Setup: Edit mode active, member exists
+   - Action: Click edit icon, modify name, click Save
+   - Expected: Member updated in list
+
+3. **Test: Delete confirmation dialog shows**
+   - Setup: Edit mode active, member exists
+   - Action: Click delete icon
+   - Expected: Confirmation dialog appears with member name
+
+4. **Test: Delete removes member from list**
+   - Setup: Edit mode active, member exists
+   - Action: Click delete, confirm
+   - Expected: Member removed from list
+
+---
+
+### E2E Tests
+
+#### Settings Page Access
+1. **Test: Settings link visible in admin menu**
+   - Setup: Logged in as System Administrator
+   - Verify: "Village Settings" link appears in Administration section
+
+2. **Test: Settings page loads successfully**
+   - Setup: Logged in as System Administrator
+   - Action: Navigate to '/settings/village'
+   - Expected: Page loads, settings form displayed
+
+3. **Test: Non-authenticated user redirected**
+   - Setup: Not logged in
+   - Action: Navigate to '/settings/village'
+   - Expected: Redirected to '/auth'
+
+#### Settings Integration
+1. **Test: Village name appears in header**
+   - Setup: village_name = 'Katete Village'
+   - Action: Navigate to any page
+   - Expected: Header shows "Katete Village - Village Management System"
+
+2. **Test: Village name appears in dashboard**
+   - Setup: village_name = 'Katete Village'
+   - Action: Navigate to dashboard
+   - Expected: Hero text shows "Here's what's happening in Katete Village today"
+
+3. **Test: Settings update reflects immediately**
+   - Setup: On settings page
+   - Action: Change village_name to 'New Village', save
+   - Expected: Header updates to show "New Village" without page reload
+
+---
+
+### Manual Testing Checklist
+
+#### Backend Setup
+- [ ] Run `yarn setup:appwrite` to create village_settings collection
+- [ ] Run `yarn seed:settings` to create settings_root document
+- [ ] Verify settings_root exists in Appwrite console with default values
+- [ ] Verify VITE_APPWRITE_COLLECTION_VILLAGE_SETTINGS in .env
+
+#### RBAC Scenarios
+- [ ] System Administrator can access settings page
+- [ ] System Administrator can edit all settings fields
+- [ ] Village Head can view settings but cannot edit
+- [ ] Resident can view settings but cannot edit
+- [ ] Non-authenticated user redirected to login
+
+#### Timezone Formatting
+- [ ] Change timezone to 'Africa/Johannesburg', verify Last Updated timestamp adjusts
+- [ ] Change timezone to 'UTC', verify Last Updated timestamp shows UTC time
+- [ ] Verify formatDateTime getter works in other components
+
+#### Currency Propagation
+- [ ] Change currency_symbol to '$', verify formatCurrency returns '$' prefix
+- [ ] Change default_currency to 'USD', verify stored correctly
+- [ ] Verify formatCurrency getter available for future finance modules
+
+#### Council Member Management
+- [ ] Add new council member with all fields
+- [ ] Add council member with only required fields (name, position)
+- [ ] Edit existing council member
+- [ ] Delete council member with confirmation
+- [ ] Cancel delete operation
+- [ ] Verify council members persist after save
+
+#### Offline Edit Retry
+- [ ] Disable network, attempt to save settings
+- [ ] Verify error notification shown
+- [ ] Re-enable network, retry save
+- [ ] Verify settings update successfully
+
+#### First-Run Scenario
+- [ ] Delete settings_root from Appwrite
+- [ ] Reload app, verify no errors in console
+- [ ] Verify isFirstRun flag set in settings store
+- [ ] Verify app continues to load (setup wizard will handle in Story 1.9)
+
+---
+
 ### Manual Testing Checklist
 
 #### Setup Verification
