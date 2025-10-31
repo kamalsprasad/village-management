@@ -2,13 +2,7 @@
   <q-page padding>
     <div class="q-pa-md">
       <!-- Back Button -->
-      <q-btn
-        flat
-        icon="arrow_back"
-        label="Back to Households"
-        @click="router.back()"
-        class="q-mb-md"
-      />
+      <q-btn flat icon="arrow_back" label="Back" @click="router.back()" class="q-mb-md" />
 
       <!-- Loading State -->
       <div v-if="householdsStore.isLoading && !householdsStore.currentHousehold" class="q-pa-md">

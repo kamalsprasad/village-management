@@ -2,7 +2,7 @@
   <q-page padding>
     <div class="q-pa-md">
       <!-- Back Button -->
-      <q-btn flat icon="arrow_back" label="Back to Residents" @click="router.back()" class="q-mb-md" />
+      <q-btn flat icon="arrow_back" label="Back" @click="router.back()" class="q-mb-md" />
 
       <!-- Loading State -->
       <div v-if="residentsStore.isLoading && !residentsStore.currentResident" class="q-pa-md">
@@ -57,9 +57,11 @@
               <div class="col-12 col-sm-6">
                 <div class="text-caption text-grey-7">Date of Birth</div>
                 <div class="text-body1">
-                  {{ residentsStore.currentResident.dob
-                    ? formatDate(residentsStore.currentResident.dob)
-                    : 'Not specified' }}
+                  {{
+                    residentsStore.currentResident.dob
+                      ? formatDate(residentsStore.currentResident.dob)
+                      : 'Not specified'
+                  }}
                   <span v-if="residentsStore.currentResident.dob" class="text-grey-7">
                     ({{ calculateAge(residentsStore.currentResident.dob) }} years old)
                   </span>
@@ -131,9 +133,7 @@
           </q-card-section>
 
           <q-card-section v-else>
-            <div class="text-center q-pa-md text-grey-7">
-              No household assigned
-            </div>
+            <div class="text-center q-pa-md text-grey-7">No household assigned</div>
           </q-card-section>
         </q-card>
 
@@ -148,9 +148,7 @@
           <q-card-section>
             <div class="text-center q-pa-lg">
               <q-icon name="timeline" size="48px" color="grey-5" />
-              <p class="text-grey-7 q-mt-md">
-                Activity timeline coming soon
-              </p>
+              <p class="text-grey-7 q-mt-md">Activity timeline coming soon</p>
               <p class="text-caption text-grey-6">
                 This section will show resident activity history and important events.
               </p>
@@ -183,10 +181,9 @@
 
           <q-card-section class="q-pt-none">
             Are you sure you want to delete
-            <strong>{{ getFullName(residentsStore.currentResident) }}</strong>?
-            <div class="text-caption text-grey-7 q-mt-sm">
-              This action cannot be undone.
-            </div>
+            <strong>{{ getFullName(residentsStore.currentResident) }}</strong
+            >?
+            <div class="text-caption text-grey-7 q-mt-sm">This action cannot be undone.</div>
           </q-card-section>
 
           <q-card-actions align="right">
