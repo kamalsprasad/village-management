@@ -2,7 +2,13 @@
   <q-page padding>
     <div class="q-pa-md">
       <!-- Back Button -->
-      <q-btn flat icon="arrow_back" label="Back to Households" @click="router.back()" class="q-mb-md" />
+      <q-btn
+        flat
+        icon="arrow_back"
+        label="Back to Households"
+        @click="router.back()"
+        class="q-mb-md"
+      />
 
       <!-- Loading State -->
       <div v-if="householdsStore.isLoading && !householdsStore.currentHousehold" class="q-pa-md">
@@ -48,9 +54,11 @@
               <div class="col-12 col-sm-6">
                 <div class="text-caption text-grey-7">Construction Date</div>
                 <div class="text-body1">
-                  {{ householdsStore.currentHousehold.construction_date
-                    ? formatDate(householdsStore.currentHousehold.construction_date)
-                    : 'Not specified' }}
+                  {{
+                    householdsStore.currentHousehold.construction_date
+                      ? formatDate(householdsStore.currentHousehold.construction_date)
+                      : 'Not specified'
+                  }}
                 </div>
               </div>
 
@@ -88,7 +96,11 @@
               <div class="col">
                 <h6 class="q-my-none">
                   Occupants
-                  <q-badge :color="householdsStore.currentHousehold.occupant_count > 0 ? 'positive' : 'grey'">
+                  <q-badge
+                    :color="
+                      householdsStore.currentHousehold.occupant_count > 0 ? 'positive' : 'grey'
+                    "
+                  >
                     {{ householdsStore.currentHousehold.occupant_count }}
                   </q-badge>
                 </h6>
@@ -112,9 +124,7 @@
           <q-card-section v-if="householdsStore.currentHousehold.occupant_count === 0">
             <div class="text-center q-pa-lg">
               <q-icon name="people_outline" size="64px" color="grey-5" />
-              <p class="text-grey-7 q-mt-md">
-                No occupants assigned to this household yet.
-              </p>
+              <p class="text-grey-7 q-mt-md">No occupants assigned to this household yet.</p>
               <p class="text-caption text-grey-6">
                 Click "Add Resident" to assign residents to this household.
               </p>
@@ -135,7 +145,12 @@
       <div v-else class="text-center q-pa-lg">
         <q-icon name="error_outline" size="64px" color="negative" />
         <p class="text-h6 q-mt-md">Household not found</p>
-        <q-btn flat label="Back to Households" color="primary" @click="router.push('/households')" />
+        <q-btn
+          flat
+          label="Back to Households"
+          color="primary"
+          @click="router.push('/households')"
+        />
       </div>
 
       <!-- Edit Dialog -->
@@ -185,10 +200,6 @@ function formatDate(dateString) {
   } catch {
     return 'Invalid date';
   }
-}
-
-function viewResident(residentId) {
-  router.push(`/residents/${residentId}`);
 }
 
 function addResident() {
