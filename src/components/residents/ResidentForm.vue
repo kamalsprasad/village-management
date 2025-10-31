@@ -10,9 +10,7 @@
         <q-icon name="warning" color="white" />
       </template>
       <div class="text-weight-medium">No households available</div>
-      <div class="text-caption">
-        Please create at least one household before adding residents.
-      </div>
+      <div class="text-caption">Please create at least one household before adding residents.</div>
       <template #action>
         <q-btn flat color="white" label="Go to Households" @click="goToHouseholds" />
       </template>
@@ -125,10 +123,7 @@
               dense
               hint="Optional"
               :rules="[
-                (val) =>
-                  !val ||
-                  /^[0-9+\-() ]+$/.test(val) ||
-                  'Please enter a valid phone number',
+                (val) => !val || /^[0-9+\-() ]+$/.test(val) || 'Please enter a valid phone number',
               ]"
             >
               <template #prepend>
@@ -253,7 +248,7 @@ watch(
         household_id: newResident.household_id || '',
         room_number: newResident.room_number || '',
         phone: newResident.phone || '',
-        email: newResident.email || '',
+        email: newResident.email ? newResident.email : null,
         notes: newResident.notes || '',
       };
     } else {

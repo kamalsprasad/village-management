@@ -139,7 +139,9 @@ export const useResidentsStore = defineStore('residents', {
         const householdsCollectionId = import.meta.env.VITE_APPWRITE_COLLECTION_HOUSEHOLDS;
 
         // Get unique household IDs
-        const householdIds = [...new Set(this.residents.map((r) => r.household_id).filter(Boolean))];
+        const householdIds = [
+          ...new Set(this.residents.map((r) => r.household_id).filter(Boolean)),
+        ];
 
         if (householdIds.length === 0) {
           return;
@@ -237,7 +239,7 @@ export const useResidentsStore = defineStore('residents', {
             household_id: residentData.household_id,
             room_number: residentData.room_number || '',
             phone: residentData.phone || '',
-            email: residentData.email || '',
+            email: residentData.email ? residentData.email : null,
             notes: residentData.notes || '',
             $createdAt: now,
             $updatedAt: now,
@@ -295,7 +297,7 @@ export const useResidentsStore = defineStore('residents', {
             household_id: residentData.household_id,
             room_number: residentData.room_number || '',
             phone: residentData.phone || '',
-            email: residentData.email || '',
+            email: residentData.email ? residentData.email : null,
             notes: residentData.notes || '',
             $updatedAt: new Date().toISOString(),
           },
