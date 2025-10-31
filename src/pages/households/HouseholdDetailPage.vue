@@ -121,35 +121,13 @@
             </div>
           </q-card-section>
 
-          <!-- Occupants List -->
-          <q-list v-else separator>
-            <q-item
-              v-for="resident in householdsStore.currentHousehold.occupants"
-              :key="resident.$id"
-              clickable
-              @click="viewResident(resident.$id)"
-            >
-              <q-item-section avatar>
-                <q-avatar color="primary" text-color="white">
-                  <q-icon name="person" />
-                </q-avatar>
-              </q-item-section>
-
-              <q-item-section>
-                <q-item-label>{{ resident.name }}</q-item-label>
-                <q-item-label caption>
-                  {{ resident.gender || 'Not specified' }}
-                  <span v-if="resident.dob">
-                    • {{ calculateAge(resident.dob) }} years old
-                  </span>
-                </q-item-label>
-              </q-item-section>
-
-              <q-item-section side>
-                <q-icon name="chevron_right" color="grey" />
-              </q-item-section>
-            </q-item>
-          </q-list>
+          <!-- Occupants Table -->
+          <q-card-section v-else class="q-pa-none">
+            <household-residents-table
+              :residents="householdsStore.currentHousehold.occupants"
+              :household-type="householdsStore.currentHousehold.household_type"
+            />
+          </q-card-section>
         </q-card>
       </div>
 
@@ -177,8 +155,9 @@ import { ref, onMounted } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { useHouseholdsStore } from 'src/stores/households-store';
 import { usePermissions } from 'src/composables/usePermissions';
-import { format, differenceInYears } from 'date-fns';
+import { format } from 'date-fns';
 import HouseholdForm from 'src/components/households/HouseholdForm.vue';
+import HouseholdResidentsTable from 'src/components/households/HouseholdResidentsTable.vue';
 
 const router = useRouter();
 const route = useRoute();
@@ -205,15 +184,6 @@ function formatDate(dateString) {
     return format(new Date(dateString), 'MMMM dd, yyyy');
   } catch {
     return 'Invalid date';
-  }
-}
-
-function calculateAge(dob) {
-  if (!dob) return 'N/A';
-  try {
-    return differenceInYears(new Date(), new Date(dob));
-  } catch {
-    return 'N/A';
   }
 }
 
