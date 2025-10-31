@@ -52,6 +52,22 @@ const routes = [
           requiresPermission: 'households:read',
         },
       },
+      {
+        path: 'residents',
+        component: () => import('pages/residents/ResidentsListPage.vue'),
+        meta: {
+          requiresAuth: true,
+          requiresPermission: 'residents:read',
+        },
+      },
+      {
+        path: 'residents/:id',
+        component: () => import('pages/residents/ResidentDetailPage.vue'),
+        meta: {
+          requiresAuth: true,
+          requiresPermission: 'residents:read',
+        },
+      },
     ],
   },
 

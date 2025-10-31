@@ -373,6 +373,131 @@ This document outlines all tests that need to be implemented for the Village Man
 
 ---
 
+## Story 1.7: Residents Management CRUD Operations - MVP Testing Plan
+
+### Manual Verification Checklist
+
+#### Residents List Page (AC1, AC2, AC10)
+- [ ] List displays all required columns: full name, gender, household, contact info, status badges
+- [ ] Pagination controls work correctly (10, 25, 50, 100 rows per page)
+- [ ] Sort functionality works on all sortable columns
+- [ ] Search by name filters results correctly (partial match)
+- [ ] Household filter dropdown populates with existing households
+- [ ] Filters persist across pagination
+- [ ] Clear filters button resets all filters and reloads full list
+- [ ] Contact information masked for users without residents:write permission
+- [ ] Contact column hidden entirely for read-only users
+- [ ] Quick actions (view, edit, delete) respect RBAC permissions
+- [ ] Skeleton loaders display during initial load
+
+#### Resident Form (AC3, AC4)
+- [ ] Form requires first name, last name, DOB, gender, household
+- [ ] Middle names field is optional
+- [ ] Phone and email fields are optional with validation
+- [ ] Phone validation accepts valid formats, rejects invalid
+- [ ] Email validation accepts valid formats, rejects invalid
+- [ ] Room number field appears only for Dormitory households
+- [ ] Room number field hides when switching away from Dormitory
+- [ ] Household dropdown lists all existing households
+- [ ] Form blocks creation when no households exist
+- [ ] Warning banner displays with CTA to Households page when no households
+- [ ] "Go to Households" button navigates correctly
+- [ ] Form validation displays inline error messages
+- [ ] Cancel button closes dialog without saving
+- [ ] Save button disabled when no households exist
+
+#### Resident Creation (AC5, AC9)
+- [ ] Successful creation shows success toast notification
+- [ ] Residents list refreshes automatically after creation
+- [ ] New resident appears in the list
+- [ ] Household occupant count increments correctly
+- [ ] Dashboard widgets update with new resident count
+
+#### Resident Detail Page (AC6)
+- [ ] Personal information displays correctly
+- [ ] Household membership shows linked household
+- [ ] Click on household navigates to household detail page
+- [ ] Activity timeline placeholder displays
+- [ ] Edit button visible only with residents:write permission
+- [ ] Delete button visible only with residents:delete permission
+- [ ] Back button returns to residents list
+
+#### Resident Edit (AC7, AC9)
+- [ ] Edit form pre-populates with existing data
+- [ ] Date fields format correctly for editing
+- [ ] Household change updates occupant counts for both old and new households
+- [ ] Successful update shows success toast
+- [ ] Detail page refreshes with updated data
+- [ ] List page reflects changes after edit
+
+#### Resident Delete (AC8, AC9)
+- [ ] Delete button shows confirmation dialog
+- [ ] Confirmation dialog displays resident name
+- [ ] Cancel button closes dialog without deleting
+- [ ] Delete succeeds for non-household-head residents
+- [ ] Delete blocked for sole household head with clear error message
+- [ ] Successful deletion shows success toast
+- [ ] Residents list refreshes after deletion
+- [ ] Household occupant count decrements correctly
+- [ ] Dashboard widgets update with reduced resident count
+
+#### RBAC and Permissions (AC10)
+- [ ] Unauthenticated users redirected to /auth
+- [ ] Users without residents:read cannot access residents pages
+- [ ] Users with residents:read can view list and details
+- [ ] Users without residents:write cannot see Add/Edit buttons
+- [ ] Users without residents:delete cannot see Delete button
+- [ ] Contact information properly masked based on permissions
+
+#### Responsive Design (AC12)
+- [ ] Layout works correctly at 320px width (mobile)
+- [ ] Layout works correctly at 768px width (tablet)
+- [ ] Layout works correctly at 1024px+ width (desktop)
+- [ ] Search/filter toolbar stacks properly on mobile
+- [ ] Table scrolls horizontally on small screens
+- [ ] Form fields stack properly on mobile
+
+#### Performance (AC12)
+- [ ] Residents list loads in <2 seconds on 3G connection
+- [ ] Skeleton loaders provide good perceived performance
+- [ ] Search debounce prevents excessive API calls (500ms delay)
+- [ ] Pagination doesn't reload entire dataset
+
+#### Keyboard Navigation (AC12)
+- [ ] Tab key navigates through form fields in logical order
+- [ ] Enter key submits forms
+- [ ] Escape key closes dialogs
+- [ ] Focus management works correctly in modals
+
+### Deferred Automated Tests
+
+#### Unit Tests (Post-MVP)
+- residents-store.js actions (CRUD operations)
+- residents-store.js getters (pagination, filtering)
+- residents-store.js household synchronization logic
+- Form validation logic
+- Permission masking logic
+
+#### Component Tests (Post-MVP)
+- ResidentsListPage.vue rendering and interactions
+- ResidentForm.vue validation and submission
+- ResidentDetailPage.vue data display and actions
+- Search/filter toolbar functionality
+
+#### Integration Tests (Post-MVP)
+- Residents CRUD flow end-to-end
+- Household occupant synchronization
+- RBAC permission enforcement
+- Search and filter combinations
+
+#### E2E Tests (Post-MVP)
+- Complete resident lifecycle (create → view → edit → delete)
+- Household guard scenario (no households → create household → create resident)
+- Multi-user permission scenarios
+- Household head deletion prevention
+
+---
+
 ## Testing Tools and Frameworks
 
 ### Recommended Setup
