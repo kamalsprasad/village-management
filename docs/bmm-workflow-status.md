@@ -12,8 +12,8 @@ WORKFLOW_PATH: bmad/bmm/workflows/workflow-status/paths/greenfield-level-3.yaml
 ## Current State
 
 CURRENT_PHASE: 4-Implementation
-CURRENT_WORKFLOW: dev-story
-CURRENT_AGENT: Dev Agent (dev)
+CURRENT_WORKFLOW: none
+CURRENT_AGENT: None
 PHASE_1_COMPLETE: true
 PHASE_2_COMPLETE: true
 PHASE_3_COMPLETE: true
@@ -30,14 +30,14 @@ TODO_STORY:
 TODO_TITLE:
 IN_PROGRESS_STORY:
 IN_PROGRESS_TITLE:
-STORIES_DONE: [1.1, 1.2, 1.3, 1.4, 1.5, 1.6]
-STORIES_READY: [1.7]
+STORIES_DONE: [1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7]
+STORIES_READY: []
 
 ## Next Action
 
-NEXT_ACTION: Implement Story 1.7 (Residents Management - CRUD Operations)
-NEXT_COMMAND: dev-story
-NEXT_AGENT: Dev Agent (dev)
+NEXT_ACTION: Draft Story 1.8 (Village Configuration and Default Settings)
+NEXT_COMMAND: create-story
+NEXT_AGENT: Scrum Master (sm)
 
 ## Architecture Decisions Completed
 
@@ -135,6 +135,13 @@ See docs/epics.md for complete story breakdown
 **Confidence Level:** High - Project ready to proceed to implementation
 
 ## Recent Activity
+
+**2025-10-31 15:19 UTC+11:**
+
+- ✅ Story 1.7 completed: Residents Management - CRUD Operations (implementation + verification)
+- 📄 Story file updated: `docs/stories/story-1.7.md` (status → done, DoD notes finalized)
+- 📊 `docs/sprint-status.yaml` updated: Story 1.7 marked done; sprint ready for next story
+- ⏭️ Next: Run `create-story` to draft Story 1.8 (Village Configuration and Default Settings)
 
 **2025-10-31 13:41 UTC+11:**
 

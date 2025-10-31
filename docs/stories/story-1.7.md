@@ -1,6 +1,6 @@
 # Story 1.7: Residents Management CRUD Operations
 
-Status: review
+Status: done
 
 ## Story
 
