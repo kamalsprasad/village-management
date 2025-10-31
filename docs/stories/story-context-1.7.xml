@@ -1,0 +1,122 @@
+<story-context id="bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>1</epicId>
+    <storyId>1.7</storyId>
+    <title>Residents Management CRUD Operations</title>
+    <status>drafted</status>
+    <generatedAt>2025-10-31</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/stories/story-1.7.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>village administrator</asA>
+    <iWant>to create, view, edit, and manage residents with enforced household assignment</iWant>
+    <soThat>the village registry stays accurate, household rosters remain synchronized, and downstream modules can rely on consistent resident data</soThat>
+    <tasks>
+      <task id="T1" ac_refs="AC3,AC5,AC7,AC8,AC9,AC11">Scaffold residents data layer</task>
+      <task id="T2" ac_refs="AC1,AC2,AC10">Build residents list experience</task>
+      <task id="T3" ac_refs="AC3,AC4,AC6,AC7,AC8">Create resident form and detail views</task>
+      <task id="T4" ac_refs="AC5,AC8,AC11">Implement offline and error handling patterns</task>
+      <task id="T5" ac_refs="AC1,AC2,AC3,AC4,AC5,AC6,AC7,AC8,AC9,AC10,AC11,AC12">Verification and documentation</task>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <criterion id="AC1">Residents list page shows first and last name, gender, household, contact details, and status badges with sort and pagination (10/25/50/100 rows).</criterion>
+    <criterion id="AC2">Residents list offers search and filters by name (partial match) and household, preserving selections across pagination.</criterion>
+    <criterion id="AC3">“Add Resident” form requires first name, last name, DOB, gender, household assignment, dormitory room number when applicable, and validates optional phone/email using validateForm.</criterion>
+    <criterion id="AC4">If no households exist, creation is blocked and a message directs the user to create a household first.</criterion>
+    <criterion id="AC5">Successful resident creation writes to Appwrite, displays success feedback, refreshes the list, and updates the linked household’s occupant count.</criterion>
+    <criterion id="AC6">Resident detail view displays personal information, household membership, and an activity placeholder with edit/delete controls gated by RBAC.</criterion>
+    <criterion id="AC7">Edit flow pre-populates resident data and saves changes back to Appwrite while keeping household occupancy synchronized.</criterion>
+    <criterion id="AC8">Delete flow prompts confirmation, prevents removal when the resident is the sole household head, and logs metadata through useErrorHandler.</criterion>
+    <criterion id="AC9">Household occupant lists remain accurate by syncing on resident create/update/delete events and drive dashboard widgets.</criterion>
+    <criterion id="AC10">Residents list quick actions respect permissions; unauthorized users get read-only views with masked contact data.</criterion>
+    <criterion id="AC11">Resident mutations queue offline via Dexie and replay on reconnect with sync notifications and error handling.</criterion>
+    <criterion id="AC12">Manual verification covers responsive design (≥320px), keyboard navigation, and sub-2s 3G load performance.</criterion>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc path="docs/epics.md" title="Epic Breakdown" section="Story 1.7: Residents Management - CRUD Operations">Defines resident list, form, detail, delete workflows, and household linkage requirements for this story. [docs/epics.md#164-185]</doc>
+      <doc path="docs/PRD.md" title="Product Requirements Document" section="FR-1: Residents Management">Specifies resident profile fields, household relationships, RBAC expectations, and guest-to-resident conversion context. [docs/PRD.md#92-100]</doc>
+      <doc path="docs/tech-spec-epic-1.md" title="Epic 1 Technical Specification" section="Residents Module">Outlines residents module responsibilities, Appwrite tables, Pinia stores, and integration with households and RBAC. [docs/tech-spec-epic-1.md#44-168]</doc>
+      <doc path="docs/architecture.md" title="Architecture Document" section="Form Validation & Residents Store">Provides validateForm usage, useErrorHandler integration, and residents store patterns for Appwrite CRUD. [docs/architecture.md#575-848]</doc>
+      <doc path="docs/architecture.md" title="Architecture Document" section="Offline Sync Strategy">Describes Dexie-based sync queue, connectivity handling, and conflict guidance for offline mutations. [docs/architecture.md#324-395]</doc>
+      <doc path="docs/architecture.md" title="Architecture Document" section="Database Relationship Patterns">Covers normalized residents↔households relationships, foreign keys, and indexed queries. [docs/architecture.md#854-899]</doc>
+      <doc path="docs/ux-specification.md" title="UX/UI Specification" section="Residents Module Navigation">Documents residents list/add/detail flows, responsive layout, and role-based visibility expectations. [docs/ux-specification.md#132-274]</doc>
+      <doc path="docs/stories/story-1.6.md" title="Story 1.6 Dev Notes" section="Learnings from Previous Story">Highlights occupant synchronization patterns, RBAC reuse, and documentation expectations to carry into residents CRUD. [docs/stories/story-1.6.md#63-147]</doc>
+      <doc path="docs/testing.md" title="Testing Strategy" section="RBAC Navigation Suites">Lists manual RBAC and navigation checks applicable to residents module visibility and permissions. [docs/testing.md#220-255]</doc>
+    </docs>
+    <code>
+      <file path="src/composables/usePermissions.js" kind="composable" symbol="usePermissions" lines="1-120">Centralizes permission checks (`hasPermission`, `hasAnyPermission`) required to gate residents actions and quick links. [docs/stories/story-1.6.md#63-74]</file>
+      <file path="src/utils/permissions.js" kind="utility" symbol="hasPermission" lines="1-180">Implements RBAC union logic and wildcard handling that residents module must reuse for consistent access control.</file>
+      <file path="src/boot/router-guards.js" kind="boot" symbol="router.beforeEach" lines="1-80">Route guard enforcing authentication and `requiresPermission` metadata for residents routes. [docs/stories/story-1.6.md#63-74]</file>
+      <file path="src/stores/auth-store.js" kind="store" symbol="useAuthStore" lines="1-320">Provides session state and role unions consumed by permission guards and residents UI gating. [docs/stories/story-1.4.md#286-305]</file>
+      <file path="src/stores/households-store.js" kind="store" symbol="useHouseholdsStore" lines="1-220">Demonstrates occupant synchronization patterns and Appwrite CRUD helpers to extend for residents↔households linkage. [docs/stories/story-1.6.md#31-47]</file>
+      <file path="src/components/dashboard/HouseholdsWidget.vue" kind="component" symbol="HouseholdsWidget" lines="1-200">Shows dashboard data contracts residents updates must feed when syncing occupant counts. [docs/stories/story-1.6.md#43-47]</file>
+      <file path="src/utils/placeholder-data.js" kind="utility" symbol="community.residents" lines="1-140">Defines interim residents/households metrics structure for dashboard widgets until live data is implemented. [docs/tech-spec-epic-1.md#44-95]</file>
+    </code>
+    <dependencies>
+      <node>
+        <package name="quasar" version="^2.16.0">Component framework for layouts, tables, dialogs, and form controls used in residents flows.</package>
+        <package name="vue" version="^3.5.22">Composition API foundation for pages, stores, and composables.</package>
+        <package name="pinia" version="^3.0.1">State management layer for residents store and shared auth context.</package>
+        <package name="vue-router" version="^4.0.0">Handles residents route definitions and permission metadata enforced by guards.</package>
+        <package name="appwrite" version="^21.2.1">Backend SDK for managing residents documents, queries, and household relationships.</package>
+        <package name="dexie" version="^4.2.1">IndexedDB wrapper powering offline mutation queue for residents CRUD.</package>
+        <package name="date-fns" version="^4.1.0">Utility for formatting resident DOB and timeline values consistently.</package>
+      </node>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint>All Vue components must use `<script setup>` syntax and Quasar styling conventions per architecture standards. [docs/architecture.md#293-321]</constraint>
+    <constraint>Reuse `useErrorHandler` and `validateForm` for residents CRUD to ensure consistent validation and user feedback. [docs/architecture.md#575-737]</constraint>
+    <constraint>Persist residents and household linkage using normalized Appwrite tables with indexed foreign keys; avoid duplicating occupant data. [docs/architecture.md#854-899]</constraint>
+    <constraint>Apply RBAC via `usePermissions`, router guards, and permission metadata instead of bespoke checks. [docs/stories/story-1.6.md#63-74]</constraint>
+    <constraint>Integrate Dexie offline queue and sync notifications so resident mutations behave reliably offline. [docs/architecture.md#324-395]</constraint>
+    <constraint>Document manual verification outcomes; automated suites remain deferred per MVP testing direction. [docs/testing.md#294-319]</constraint>
+  </constraints>
+
+  <interfaces>
+    <interface>
+      <name>usePermissions</name>
+      <kind>composable</kind>
+      <signature>function usePermissions(): { hasPermission, hasAnyPermission, hasAllPermissions, userPermissions }</signature>
+      <path>src/composables/usePermissions.js</path>
+    </interface>
+    <interface>
+      <name>router.beforeEach</name>
+      <kind>navigation-guard</kind>
+      <signature>router.beforeEach((to, from, next) =&gt; void)</signature>
+      <path>src/boot/router-guards.js</path>
+    </interface>
+    <interface>
+      <name>Appwrite.Databases.listDocuments</name>
+      <kind>SDK</kind>
+      <signature>databases.listDocuments(databaseId, collectionId, queries?)</signature>
+      <path>src/boot/appwrite.js</path>
+    </interface>
+  </interfaces>
+
+  <tests>
+    <standards>Manual verification remains the MVP standard; follow documented RBAC navigation suites, offline checks, and residents testing guidance captured in story Dev Notes and testing strategy. [docs/testing.md#220-319]</standards>
+    <locations>Manual verification notes logged under docs/stories/story-1.7.md; future automated suites will live under src/tests/ when enabled.</locations>
+    <ideas>
+      <idea ac="AC1">Confirm residents list displays required columns, pagination sizes, and status badge rendering.</idea>
+      <idea ac="AC2">Apply name and household filters, paginate across pages, and verify filters persist across navigation.</idea>
+      <idea ac="AC3">Validate form error handling for missing required fields and incorrect phone/email formats using validateForm.</idea>
+      <idea ac="AC4">Remove all households and ensure creation flow blocks with CTA directing to Households module.</idea>
+      <idea ac="AC5">Create a resident, verify Appwrite document is written, success toast appears, list refreshes, and household count increments.</idea>
+      <idea ac="AC6">Open resident detail view, confirm personal info, household data, and that RBAC hides actions for unauthorized users.</idea>
+      <idea ac="AC7">Edit resident data (including household change) and ensure updates persist with accurate occupant synchronization.</idea>
+      <idea ac="AC8">Attempt deletion for household head and confirm guard prevents removal with explanatory messaging.</idea>
+      <idea ac="AC9">Add, update, then delete residents while observing linked household occupants and dashboard summaries stay in sync.</idea>
+      <idea ac="AC10">Log in with varying permissions to verify quick actions show/hide and contact info masks for read-only roles.</idea>
+      <idea ac="AC11">Queue create/update/delete actions while offline, reconnect, and confirm automatic sync with notifications and error fallback.</idea>
+      <idea ac="AC12">Execute responsive and performance checks (mobile width, keyboard navigation, throttled 3G) capturing timing metrics.</idea>
+    </ideas>
+  </tests>
+</story-context>

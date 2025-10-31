@@ -92,10 +92,8 @@ Enable knowledge transfer from external facilitators → local power users → p
 **FR-1: Residents Management**
 
 - Add, edit, and delete village residents with comprehensive profile information (name, DOB, gender, contact details)
-- Support multi-role assignment where users can hold multiple roles simultaneously (e.g., Admin + Village Head, Teacher + Farm Manager)
 - Implement role-based access control (RBAC) where permissions are the union of all assigned roles
 - Track resident relationships to households with defined roles (Head, Spouse, Child, Other)
-- Manage storage quotas per user based on primary role (Admin: unlimited, Village Head: 20GB, Teachers: 5GB, Residents: 2GB, Learners: 1GB)
 - Support guest-to-resident conversion workflow for long-term guests (>90 days)
 
 **FR-2: Households Management**
@@ -326,13 +324,11 @@ The modular architecture must support future plugin development for custom modul
 **Journey Steps:**
 
 1. **Purchase Seeds (Week 1 - October)**
-
    - Finance Manager records seed purchase in Finance module: 50 kg maize seeds from Katete Agro Supplies for 500 ZMW
    - System automatically creates inventory item: 50 kg maize seeds @ 10 ZMW/kg
    - John receives notification: "New farm input added to inventory"
 
 2. **Plan Planting (Week 2 - October)**
-
    - John logs into Farm dashboard, sees 6 plots with current status
    - Selects "Maize Field A" (2 hectares), currently fallow
    - Clicks "Record New Planting"
@@ -346,13 +342,11 @@ The modular architecture must support future plugin development for custom modul
    - Dashboard now shows "Maize Field A: Growing (Day 1 of 120)"
 
 3. **Monitor Growth (November - January)**
-
    - John checks dashboard weekly to see days until expected harvest
    - Calendar shows reminder: "Maize Field A - Expected Harvest: Feb 12"
    - No action required during growing period
 
 4. **Record Harvest (Week 1 - February)**
-
    - Dashboard alert: "Maize Field A ready for harvest (Day 120)"
    - John clicks "Record Harvest" on Maize Field A
    - Selects harvest type: "Multi-day aggregate" (large field, 3-day harvest)
@@ -366,7 +360,6 @@ The modular architecture must support future plugin development for custom modul
    - Planting status changes to "completed"
 
 5. **Negotiate and Record Sale (Week 2 - February)**
-
    - John checks inventory: "2,200 kg maize available for sale"
    - Negotiates with Eastern Province Cooperative: 2.5 ZMW/kg for 2,000 kg
    - Clicks "Record Sale" on inventory item
@@ -413,7 +406,6 @@ The modular architecture must support future plugin development for custom modul
 **Journey Steps:**
 
 1. **Record First Assessment (Week 3 - Term 1)**
-
    - Grace logs into School dashboard after first monthly assessment
    - Clicks "Record Test Scores" → Selects Grade 5, Subject: Mathematics
    - Enters scores for 5 learners:
@@ -423,7 +415,6 @@ The modular architecture must support future plugin development for custom modul
    - Dashboard flags: "1 learner below 50% threshold - intervention recommended"
 
 2. **Review At-Risk Dashboard (Week 4 - Term 1)**
-
    - Grace opens "At-Risk Learners" dashboard widget
    - Sees Banda highlighted in red: Math 45%, English 52%, Science 48%
    - Clicks Banda's name → Views complete profile:
@@ -434,7 +425,6 @@ The modular architecture must support future plugin development for custom modul
    - Grace adds intervention note: "Schedule one-on-one tutoring with Teacher Mwape, 3x per week, focus on reading fundamentals"
 
 3. **Assign Intervention (Week 4 - Term 1)**
-
    - Grace discusses with Teacher Mwape (Grade 5 teacher)
    - Teacher Mwape logs intervention plan in system:
      - Learner: Banda
@@ -445,7 +435,6 @@ The modular architecture must support future plugin development for custom modul
    - Calendar automatically creates recurring events: "Banda Tutoring - Teacher Mwape"
 
 4. **Monitor Progress (Weeks 5-8 - Term 1)**
-
    - Teacher Mwape records weekly progress notes:
      - Week 5: "Engaged, showing interest in reading exercises"
      - Week 6: "Improved phonics, still struggles with word problems"
@@ -454,7 +443,6 @@ The modular architecture must support future plugin development for custom modul
    - Grace reviews notes weekly in dashboard
 
 5. **Record Mid-Term Assessment (Week 9 - Term 1)**
-
    - Grace records mid-term scores for Grade 5:
      - Banda: Math 58%, English 61%, Science 55%
    - System shows improvement trend: +13% average increase
@@ -462,7 +450,6 @@ The modular architecture must support future plugin development for custom modul
    - Grace adds note: "Continue intervention through end of term"
 
 6. **End-of-Term Review (Week 12 - Term 1)**
-
    - Grace records final term scores:
      - Banda: Math 68%, English 70%, Science 65%
    - System calculates improvement: +21% average from first assessment
@@ -473,7 +460,6 @@ The modular architecture must support future plugin development for custom modul
      - Recommends continued support at home
 
 7. **Peer Review and Reflection (Week 13 - Term Break)**
-
    - Grace initiates peer review process for Teacher Mwape
    - Other teacher completes peer evaluation form:
      - Rates Mwape's intervention effectiveness: 5/5
@@ -520,7 +506,6 @@ The modular architecture must support future plugin development for custom modul
 **Journey Steps:**
 
 1. **Access Financial Dashboard (First Monday of Month)**
-
    - Joseph logs into Village Head dashboard
    - Views high-level financial summary widget:
      - Total income (current month): 12,500 ZMW
@@ -531,7 +516,6 @@ The modular architecture must support future plugin development for custom modul
    - Color-coded indicators: Green (healthy), Yellow (attention needed), Red (urgent)
 
 2. **Review Income by Source (10 minutes)**
-
    - Joseph clicks "Income Breakdown" → Views by source module:
      - Farm Sales: 8,500 ZMW (68% of income)
        - Maize: 5,000 ZMW
@@ -543,7 +527,6 @@ The modular architecture must support future plugin development for custom modul
    - Notes concern: Guest income down 20% from last month
 
 3. **Review Expenses by Category (10 minutes)**
-
    - Joseph clicks "Expense Breakdown" → Views by category:
      - Farm Expenses: 3,500 ZMW (43%)
        - Seeds: 2,000 ZMW
@@ -556,9 +539,7 @@ The modular architecture must support future plugin development for custom modul
    - Insight: Expenses within budget, no red flags
 
 4. **Review Module Performance (15 minutes)**
-
    - **Farm Module:**
-
      - Clicks "Farm Profit Summary"
      - Views: Revenue 8,500 ZMW - Seed costs 2,000 ZMW = Profit 6,500 ZMW
      - Profit margin: 76% (excellent)
@@ -566,7 +547,6 @@ The modular architecture must support future plugin development for custom modul
      - Decision point: Approve Farm Manager's request to expand maize planting
 
    - **School Module:**
-
      - Clicks "School Performance Summary"
      - Views: 10 learners, average score 77.6%, 1 at-risk learner (intervention in progress)
      - Teacher evaluations: Both teachers rated "Good" or "Excellent"
@@ -580,7 +560,6 @@ The modular architecture must support future plugin development for custom modul
      - Decision point: Schedule meeting with long-term guest about residency
 
 5. **Review Village Lending (10 minutes)**
-
    - Joseph clicks "Loan Portfolio"
    - Views active loans:
      - 3 loans totaling 15,000 ZMW outstanding
@@ -590,7 +569,6 @@ The modular architecture must support future plugin development for custom modul
    - Action: Send reminder to overdue borrower
 
 6. **Generate Donor Report (15 minutes)**
-
    - Joseph clicks "Generate Donor Report"
    - Selects date range: Last quarter (Oct-Dec 2025)
    - Selects funding source: "Global Village Foundation Grant"
@@ -622,7 +600,6 @@ The modular architecture must support future plugin development for custom modul
    - Joseph exports to PDF (5 pages, professionally formatted)
 
 7. **Share with Stakeholders (5 minutes)**
-
    - Joseph uploads donor report to Cloud Storage → "Shared/Donor Reports" folder
    - Sends email to Global Village Foundation with PDF attachment
    - Shares summary with Village Management Team via WhatsApp
@@ -831,21 +808,18 @@ Break complex multi-step processes into guided workflows with clear progress ind
 **Key Capabilities:**
 
 - **Village Calendar:**
-
   - Single global calendar with category filtering (School, Farm, Village, Guests, Equipment, Energy)
   - Role-based event creation and editing permissions
   - Upcoming events dashboard widget
   - Automatic event creation from workflows (harvest reminders, tutoring sessions, maintenance schedules)
 
 - **Cloud Storage:**
-
   - Role-based storage quotas (Admin: unlimited, Village Head: 20GB, Teachers: 5GB, Residents: 2GB, Learners: 1GB)
   - Personal and shared storage folders
   - File upload/download/delete via Appwrite Storage
   - Storage usage indicators and quota warnings
 
 - **Guests Management:**
-
   - Guest type tracking (Paying Guest, Trainees, Volunteers, Researchers)
   - Arrival/departure tracking with housing assignment
   - Payment status for paying guests
@@ -854,7 +828,6 @@ Break complex multi-step processes into guided workflows with clear progress ind
   - Guest-to-resident conversion workflow
 
 - **Equipment Management:**
-
   - Village-wide asset tracking (farm tools, vehicles, solar equipment, computers)
   - Procurement details and warranty tracking
   - Maintenance schedules with automatic reminders
@@ -862,7 +835,6 @@ Break complex multi-step processes into guided workflows with clear progress ind
   - Finance module integration for procurement expenses
 
 - **Vendors/Suppliers Management:**
-
   - Bidirectional relationships (buy from/sell to)
   - Contact info, payment terms, quality ratings
   - Transaction history linking to Finance and Farm modules
