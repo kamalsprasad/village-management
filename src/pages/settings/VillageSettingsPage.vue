@@ -316,12 +316,13 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue';
 import { useQuasar } from 'quasar';
-import { hasPermission } from 'src/utils/permissions';
+import { usePermissions } from 'src/composables/usePermissions';
 import { useSettingsStore } from 'src/stores/settings-store';
 //import { useAuthStore } from 'src/stores/auth-store';
 
 const $q = useQuasar();
 const settingsStore = useSettingsStore();
+const { hasPermission } = usePermissions();
 //const authStore = useAuthStore();
 
 // Form state
@@ -356,12 +357,12 @@ const canEdit = computed(() => {
 
 // Timezone options (common African timezones)
 const timezoneOptions = [
-  { label: 'Africa/Lusaka (CAT)', value: 'Africa/Lusaka' },
-  { label: 'Africa/Johannesburg (SAST)', value: 'Africa/Johannesburg' },
-  { label: 'Africa/Nairobi (EAT)', value: 'Africa/Nairobi' },
-  { label: 'Africa/Lagos (WAT)', value: 'Africa/Lagos' },
-  { label: 'Africa/Cairo (EET)', value: 'Africa/Cairo' },
-  { label: 'UTC', value: 'UTC' },
+  { label: 'Africa/Lusaka (+02:00)', value: 'Africa/Lusaka' },
+  { label: 'Africa/Johannesburg (+02:00)', value: 'Africa/Johannesburg' },
+  { label: 'Africa/Nairobi (+03:00)', value: 'Africa/Nairobi' },
+  { label: 'Africa/Lagos (+01:00)', value: 'Africa/Lagos' },
+  { label: 'Africa/Cairo (+02:00)', value: 'Africa/Cairo' },
+  { label: 'UTC (+00:00)', value: 'UTC' },
 ];
 
 // Module options
