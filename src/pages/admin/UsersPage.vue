@@ -121,8 +121,8 @@ async function fetchUsers() {
 
   try {
     const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
-    const usersCollectionId = import.meta.env.VITE_APPWRITE_COLLECTION_USERS;
-    const rolesCollectionId = import.meta.env.VITE_APPWRITE_COLLECTION_ROLES;
+    const usersCollectionId = import.meta.env.VITE_APPWRITE_TABLE_USERS;
+    const rolesCollectionId = import.meta.env.VITE_APPWRITE_TABLE_ROLES;
 
     // Fetch all users
     const usersResponse = await tables.listRows({
@@ -167,9 +167,7 @@ async function fetchUsers() {
         }
 
         // Fallback to mapping role IDs -> role objects from rolesMap
-        return roles
-          .map((roleId) => rolesMap.get(roleId))
-          .filter((role) => role && role.name);
+        return roles.map((roleId) => rolesMap.get(roleId)).filter((role) => role && role.name);
       })(),
     }));
   } catch (error) {
@@ -189,8 +187,8 @@ function getRoleColor(roleName) {
     'System Administrator': 'deep-purple',
     'Village Head': 'primary',
     'Finance Manager': 'green',
-    'Resident': 'blue-grey',
-    'Guest': 'grey',
+    Resident: 'blue-grey',
+    Guest: 'grey',
   };
   return colorMap[roleName] || 'grey';
 }

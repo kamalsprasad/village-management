@@ -131,8 +131,8 @@ export const useAuthStore = defineStore('auth', {
       this.isLoading = true;
       try {
         const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
-        const usersCollectionId = import.meta.env.VITE_APPWRITE_COLLECTION_USERS;
-        const rolesCollectionId = import.meta.env.VITE_APPWRITE_COLLECTION_ROLES;
+        const usersCollectionId = import.meta.env.VITE_APPWRITE_TABLE_USERS;
+        const rolesCollectionId = import.meta.env.VITE_APPWRITE_TABLE_ROLES;
 
         // 1. Create Appwrite Auth user
         const userId = ID.unique();
@@ -271,8 +271,8 @@ export const useAuthStore = defineStore('auth', {
 
       try {
         const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
-        const usersCollectionId = import.meta.env.VITE_APPWRITE_COLLECTION_USERS;
-        const rolesCollectionId = import.meta.env.VITE_APPWRITE_COLLECTION_ROLES;
+        const usersCollectionId = import.meta.env.VITE_APPWRITE_TABLE_USERS;
+        const rolesCollectionId = import.meta.env.VITE_APPWRITE_TABLE_ROLES;
 
         // Fetch user profile from users table (same ID as Auth user)
         const userProfile = await tables.getRow({

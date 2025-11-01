@@ -9,6 +9,7 @@ This document outlines all tests that need to be implemented for the Village Man
 #### `src/utils/permissions.js`
 
 **Test Suite: hasPermission()**
+
 1. **Test: Returns false when user is null**
    - Input: `hasPermission(null, [], 'residents:read')`
    - Expected: `false`
@@ -17,8 +18,8 @@ This document outlines all tests that need to be implemented for the Village Man
    - Input: `hasPermission(user, [], 'residents:read')`
    - Expected: `false`
 
-3. **Test: Returns true for wildcard permission (*)**
-   - Setup: User with System Administrator role (permission: '*')
+3. **Test: Returns true for wildcard permission (\*)**
+   - Setup: User with System Administrator role (permission: '\*')
    - Input: `hasPermission(user, [adminRole], 'any:permission')`
    - Expected: `true`
 
@@ -33,14 +34,14 @@ This document outlines all tests that need to be implemented for the Village Man
    - Expected: `false`
 
 6. **Test: Returns true for wildcard pattern match**
-   - Setup: User with role having 'finance:*' permission
+   - Setup: User with role having 'finance:\*' permission
    - Input: `hasPermission(user, [role], 'finance:read')`
    - Expected: `true`
    - Input: `hasPermission(user, [role], 'finance:write')`
    - Expected: `true`
 
 7. **Test: Returns false for wildcard pattern mismatch**
-   - Setup: User with role having 'finance:*' permission
+   - Setup: User with role having 'finance:\*' permission
    - Input: `hasPermission(user, [role], 'residents:read')`
    - Expected: `false`
 
@@ -59,6 +60,7 @@ This document outlines all tests that need to be implemented for the Village Man
    - Expected: `false`
 
 **Test Suite: hasAnyPermission()**
+
 1. **Test: Returns true when user has at least one permission**
    - Setup: User with 'residents:read' permission
    - Input: `hasAnyPermission(user, roles, ['residents:read', 'finance:write'])`
@@ -70,6 +72,7 @@ This document outlines all tests that need to be implemented for the Village Man
    - Expected: `false`
 
 **Test Suite: hasAllPermissions()**
+
 1. **Test: Returns true when user has all permissions**
    - Setup: User with 'residents:read' and 'finance:read' permissions
    - Input: `hasAllPermissions(user, roles, ['residents:read', 'finance:read'])`
@@ -81,6 +84,7 @@ This document outlines all tests that need to be implemented for the Village Man
    - Expected: `false`
 
 **Test Suite: getUserStorageQuota()**
+
 1. **Test: Returns 0 for empty roles array**
    - Input: `getUserStorageQuota([])`
    - Expected: `0`
@@ -103,6 +107,7 @@ This document outlines all tests that need to be implemented for the Village Man
    - Expected: `2147483648` (2 GB in bytes)
 
 **Test Suite: getAllUserPermissions()**
+
 1. **Test: Returns empty array for no roles**
    - Input: `getAllUserPermissions([])`
    - Expected: `[]`
@@ -121,6 +126,7 @@ This document outlines all tests that need to be implemented for the Village Man
 #### `src/stores/auth-store.js`
 
 **Test Suite: createAdmin()**
+
 1. **Test: Creates Auth user with correct credentials**
    - Action: Call `createAdmin('Admin User', 'admin@example.com', 'password123')`
    - Verify: Appwrite Auth user created with matching email and name
@@ -147,6 +153,7 @@ This document outlines all tests that need to be implemented for the Village Man
    - Expected: `{ success: false, error: 'System Administrator role not found...' }`
 
 **Test Suite: login()**
+
 1. **Test: Successfully logs in with valid credentials**
    - Setup: Create test user
    - Action: Call `login('test@example.com', 'password123')`
@@ -162,6 +169,7 @@ This document outlines all tests that need to be implemented for the Village Man
    - Expected: `{ success: false, error: 'Invalid email or password' }`
 
 **Test Suite: fetchUserRoles()**
+
 1. **Test: Fetches all roles for user with multiple roles**
    - Setup: User with Village Head and Finance Manager roles
    - Action: Call `fetchUserRoles()`
@@ -184,6 +192,7 @@ This document outlines all tests that need to be implemented for the Village Man
 #### Route Guards
 
 **Test Suite: Authentication Guard**
+
 1. **Test: Redirects unauthenticated user to /auth**
    - Setup: No active session
    - Action: Navigate to '/'
@@ -195,6 +204,7 @@ This document outlines all tests that need to be implemented for the Village Man
    - Expected: Page loads successfully
 
 **Test Suite: Permission Guard**
+
 1. **Test: Allows System Administrator to access admin routes**
    - Setup: Logged in as System Administrator
    - Action: Navigate to '/admin/users'
@@ -220,6 +230,7 @@ This document outlines all tests that need to be implemented for the Village Man
 #### UI Conditional Rendering
 
 **Test Suite: MainLayout Navigation**
+
 1. **Test: Shows admin menu items only to System Administrator**
    - Setup: Logged in as System Administrator
    - Verify: "User Management" menu item is visible
@@ -234,6 +245,7 @@ This document outlines all tests that need to be implemented for the Village Man
    - Verify: Residents menu item is not visible (no 'residents:read')
 
 **Test Suite: PermissionGuard Component**
+
 1. **Test: Renders content when user has permission**
    - Setup: User with 'residents:read' permission
    - Template: `<PermissionGuard permission="residents:read"><div>Content</div></PermissionGuard>`
@@ -259,6 +271,7 @@ This document outlines all tests that need to be implemented for the Village Man
 #### Admin Users Page
 
 **Test Suite: UsersPage.vue**
+
 1. **Test: Displays all users from users table**
    - Setup: 3 users in database
    - Action: Navigate to '/admin/users'
@@ -298,6 +311,7 @@ This document outlines all tests that need to be implemented for the Village Man
 #### `src/stores/settings-store.js`
 
 **Test Suite: loadSettings()**
+
 1. **Test: Successfully loads settings from Appwrite**
    - Setup: settings_root document exists
    - Action: Call `loadSettings()`
@@ -314,6 +328,7 @@ This document outlines all tests that need to be implemented for the Village Man
    - Expected: Error notification shown, returns `{ success: false }`
 
 **Test Suite: updateSettings()**
+
 1. **Test: Validates required fields before update**
    - Action: Call `updateSettings({ village_name: '' })`
    - Expected: Validation fails, returns `{ success: false, errors: [...] }`
@@ -327,6 +342,7 @@ This document outlines all tests that need to be implemented for the Village Man
    - Expected: Settings updated in Appwrite, state refreshed, success notification shown
 
 **Test Suite: Getters**
+
 1. **Test: formatCurrency() formats amount correctly**
    - Setup: currency_symbol = 'K'
    - Input: `formatCurrency(1234.56)`
@@ -348,6 +364,7 @@ This document outlines all tests that need to be implemented for the Village Man
 #### `src/pages/settings/VillageSettingsPage.vue`
 
 **Test Suite: RBAC Enforcement**
+
 1. **Test: System Administrator can edit settings**
    - Setup: Logged in as System Administrator
    - Verify: Edit button is visible, form fields are editable
@@ -362,6 +379,7 @@ This document outlines all tests that need to be implemented for the Village Man
    - Verify: Form becomes editable, Save/Cancel buttons appear
 
 **Test Suite: Form Validation**
+
 1. **Test: Required fields are validated**
    - Setup: Edit mode active
    - Action: Clear village_name, click Save
@@ -378,6 +396,7 @@ This document outlines all tests that need to be implemented for the Village Man
    - Expected: Validation error shown
 
 **Test Suite: Council Member Management**
+
 1. **Test: Add council member dialog works**
    - Setup: Edit mode active
    - Action: Click "Add Member", fill form, click Save
@@ -403,6 +422,7 @@ This document outlines all tests that need to be implemented for the Village Man
 ### E2E Tests
 
 #### Settings Page Access
+
 1. **Test: Settings link visible in admin menu**
    - Setup: Logged in as System Administrator
    - Verify: "Village Settings" link appears in Administration section
@@ -418,6 +438,7 @@ This document outlines all tests that need to be implemented for the Village Man
    - Expected: Redirected to '/auth'
 
 #### Settings Integration
+
 1. **Test: Village name appears in header**
    - Setup: village_name = 'Katete Village'
    - Action: Navigate to any page
@@ -438,12 +459,14 @@ This document outlines all tests that need to be implemented for the Village Man
 ### Manual Testing Checklist
 
 #### Backend Setup
+
 - [ ] Run `yarn setup:appwrite` to create village_settings collection
 - [ ] Run `yarn seed:settings` to create settings_root document
 - [ ] Verify settings_root exists in Appwrite console with default values
-- [ ] Verify VITE_APPWRITE_COLLECTION_VILLAGE_SETTINGS in .env
+- [ ] Verify VITE_APPWRITE_TABLE_VILLAGE_SETTINGS in .env
 
 #### RBAC Scenarios
+
 - [ ] System Administrator can access settings page
 - [ ] System Administrator can edit all settings fields
 - [ ] Village Head can view settings but cannot edit
@@ -451,16 +474,19 @@ This document outlines all tests that need to be implemented for the Village Man
 - [ ] Non-authenticated user redirected to login
 
 #### Timezone Formatting
+
 - [ ] Change timezone to 'Africa/Johannesburg', verify Last Updated timestamp adjusts
 - [ ] Change timezone to 'UTC', verify Last Updated timestamp shows UTC time
 - [ ] Verify formatDateTime getter works in other components
 
 #### Currency Propagation
+
 - [ ] Change currency_symbol to '$', verify formatCurrency returns '$' prefix
 - [ ] Change default_currency to 'USD', verify stored correctly
 - [ ] Verify formatCurrency getter available for future finance modules
 
 #### Council Member Management
+
 - [ ] Add new council member with all fields
 - [ ] Add council member with only required fields (name, position)
 - [ ] Edit existing council member
@@ -469,12 +495,14 @@ This document outlines all tests that need to be implemented for the Village Man
 - [ ] Verify council members persist after save
 
 #### Offline Edit Retry
+
 - [ ] Disable network, attempt to save settings
 - [ ] Verify error notification shown
 - [ ] Re-enable network, retry save
 - [ ] Verify settings update successfully
 
 #### First-Run Scenario
+
 - [ ] Delete settings_root from Appwrite
 - [ ] Reload app, verify no errors in console
 - [ ] Verify isFirstRun flag set in settings store
@@ -485,12 +513,14 @@ This document outlines all tests that need to be implemented for the Village Man
 ### Manual Testing Checklist
 
 #### Setup Verification
+
 - [ ] Roles table contains all 5 core roles with correct permissions
 - [ ] Users table has role_ids column (string array)
 - [ ] Environment variables are set correctly in .env
 - [ ] Dev server starts without errors
 
 #### Admin Creation Flow
+
 - [ ] Can create first admin user via CreateAdminForm
 - [ ] Admin user appears in Appwrite Auth
 - [ ] Admin user appears in users table with same ID
@@ -498,12 +528,14 @@ This document outlines all tests that need to be implemented for the Village Man
 - [ ] Admin is automatically logged in after creation
 
 #### Login and Role Fetching
+
 - [ ] Can log in with admin credentials
 - [ ] User roles are fetched and stored in auth-store
 - [ ] Console shows no errors during role fetching
 - [ ] Logout clears user and userRoles from state
 
 #### Route Protection
+
 - [ ] Unauthenticated users redirected to /auth
 - [ ] Authenticated users can access home page
 - [ ] System Administrator can access /admin/users
@@ -511,12 +543,14 @@ This document outlines all tests that need to be implemented for the Village Man
 - [ ] Unauthorized page displays correctly with navigation options
 
 #### UI Conditional Rendering
+
 - [ ] Admin menu section visible only to System Administrator
 - [ ] User Management link appears for admin users
 - [ ] User Management link hidden for non-admin users
 - [ ] Navigation drawer updates immediately after login
 
 #### Admin Users Page
+
 - [ ] Page loads without errors for admin users
 - [ ] All users displayed in table
 - [ ] Role chips show correct names and colors
@@ -526,18 +560,21 @@ This document outlines all tests that need to be implemented for the Village Man
 - [ ] Date formatting is correct
 
 #### Multi-Role Testing
+
 - [ ] Create user with multiple roles via Appwrite console
 - [ ] User has permissions from all assigned roles
 - [ ] Permission checking works with union logic
 - [ ] UI shows all assigned roles
 
 #### Permission Patterns
-- [ ] Wildcard (*) grants access to everything
-- [ ] Wildcard patterns (finance:*) match correctly
+
+- [ ] Wildcard (\*) grants access to everything
+- [ ] Wildcard patterns (finance:\*) match correctly
 - [ ] Exact permission matching works
 - [ ] Permission denial redirects to /unauthorized
 
 #### Error Handling
+
 - [ ] Missing role in database handled gracefully
 - [ ] Network errors show user-friendly messages
 - [ ] Invalid user profile handled without crashes
@@ -548,6 +585,7 @@ This document outlines all tests that need to be implemented for the Village Man
 ## Future Testing Requirements
 
 ### Story 1.5+: Additional Tests Needed
+
 - Test role assignment UI (Epic 2)
 - Test role editing functionality (Epic 2)
 - Test permission changes propagate to active sessions
@@ -569,6 +607,7 @@ This document outlines all tests that need to be implemented for the Village Man
 ### Manual Verification Checklist
 
 #### Residents List Page (AC1, AC2, AC10)
+
 - [ ] List displays all required columns: full name, gender, household, contact info, status badges
 - [ ] Pagination controls work correctly (10, 25, 50, 100 rows per page)
 - [ ] Sort functionality works on all sortable columns
@@ -582,6 +621,7 @@ This document outlines all tests that need to be implemented for the Village Man
 - [ ] Skeleton loaders display during initial load
 
 #### Resident Form (AC3, AC4)
+
 - [ ] Form requires first name, last name, DOB, gender, household
 - [ ] Middle names field is optional
 - [ ] Phone and email fields are optional with validation
@@ -598,6 +638,7 @@ This document outlines all tests that need to be implemented for the Village Man
 - [ ] Save button disabled when no households exist
 
 #### Resident Creation (AC5, AC9)
+
 - [ ] Successful creation shows success toast notification
 - [ ] Residents list refreshes automatically after creation
 - [ ] New resident appears in the list
@@ -605,6 +646,7 @@ This document outlines all tests that need to be implemented for the Village Man
 - [ ] Dashboard widgets update with new resident count
 
 #### Resident Detail Page (AC6)
+
 - [ ] Personal information displays correctly
 - [ ] Household membership shows linked household
 - [ ] Click on household navigates to household detail page
@@ -614,6 +656,7 @@ This document outlines all tests that need to be implemented for the Village Man
 - [ ] Back button returns to residents list
 
 #### Resident Edit (AC7, AC9)
+
 - [ ] Edit form pre-populates with existing data
 - [ ] Date fields format correctly for editing
 - [ ] Household change updates occupant counts for both old and new households
@@ -622,6 +665,7 @@ This document outlines all tests that need to be implemented for the Village Man
 - [ ] List page reflects changes after edit
 
 #### Resident Delete (AC8, AC9)
+
 - [ ] Delete button shows confirmation dialog
 - [ ] Confirmation dialog displays resident name
 - [ ] Cancel button closes dialog without deleting
@@ -633,6 +677,7 @@ This document outlines all tests that need to be implemented for the Village Man
 - [ ] Dashboard widgets update with reduced resident count
 
 #### RBAC and Permissions (AC10)
+
 - [ ] Unauthenticated users redirected to /auth
 - [ ] Users without residents:read cannot access residents pages
 - [ ] Users with residents:read can view list and details
@@ -641,6 +686,7 @@ This document outlines all tests that need to be implemented for the Village Man
 - [ ] Contact information properly masked based on permissions
 
 #### Responsive Design (AC12)
+
 - [ ] Layout works correctly at 320px width (mobile)
 - [ ] Layout works correctly at 768px width (tablet)
 - [ ] Layout works correctly at 1024px+ width (desktop)
@@ -649,12 +695,14 @@ This document outlines all tests that need to be implemented for the Village Man
 - [ ] Form fields stack properly on mobile
 
 #### Performance (AC12)
+
 - [ ] Residents list loads in <2 seconds on 3G connection
 - [ ] Skeleton loaders provide good perceived performance
 - [ ] Search debounce prevents excessive API calls (500ms delay)
 - [ ] Pagination doesn't reload entire dataset
 
 #### Keyboard Navigation (AC12)
+
 - [ ] Tab key navigates through form fields in logical order
 - [ ] Enter key submits forms
 - [ ] Escape key closes dialogs
@@ -663,6 +711,7 @@ This document outlines all tests that need to be implemented for the Village Man
 ### Deferred Automated Tests
 
 #### Unit Tests (Post-MVP)
+
 - residents-store.js actions (CRUD operations)
 - residents-store.js getters (pagination, filtering)
 - residents-store.js household synchronization logic
@@ -670,18 +719,21 @@ This document outlines all tests that need to be implemented for the Village Man
 - Permission masking logic
 
 #### Component Tests (Post-MVP)
+
 - ResidentsListPage.vue rendering and interactions
 - ResidentForm.vue validation and submission
 - ResidentDetailPage.vue data display and actions
 - Search/filter toolbar functionality
 
 #### Integration Tests (Post-MVP)
+
 - Residents CRUD flow end-to-end
 - Household occupant synchronization
 - RBAC permission enforcement
 - Search and filter combinations
 
 #### E2E Tests (Post-MVP)
+
 - Complete resident lifecycle (create → view → edit → delete)
 - Household guard scenario (no households → create household → create resident)
 - Multi-user permission scenarios
@@ -692,12 +744,14 @@ This document outlines all tests that need to be implemented for the Village Man
 ## Testing Tools and Frameworks
 
 ### Recommended Setup
+
 - **Unit Tests:** Vitest (already configured with Vite)
 - **Component Tests:** @vue/test-utils + Vitest
 - **E2E Tests:** Playwright or Cypress
 - **Coverage:** Vitest coverage (c8 or istanbul)
 
 ### Test File Structure
+
 ```
 src/
   utils/

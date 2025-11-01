@@ -109,7 +109,7 @@ async function fetchHouseholds() {
   isLoading.value = true;
   try {
     const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
-    const householdsCollectionId = import.meta.env.VITE_APPWRITE_COLLECTION_HOUSEHOLDS;
+    const householdsCollectionId = import.meta.env.VITE_APPWRITE_TABLE_HOUSEHOLDS;
 
     const response = await tables.listRows({
       databaseId: dbId,

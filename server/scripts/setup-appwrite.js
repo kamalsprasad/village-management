@@ -31,22 +31,22 @@ dotenv.config({ path: join(__dirname, '..', '.env') });
 
 // Configuration
 const config = {
-  endpoint: process.env.VITE_APPWRITE_ENDPOINT || 'https://cloud.appwrite.io/v1',
-  projectId: process.env.VITE_APPWRITE_PROJECT_ID,
-  apiKey: process.env.VITE_APPWRITE_API_KEY,
+  endpoint: process.env.APPWRITE_ENDPOINT || 'https://cloud.appwrite.io/v1',
+  projectId: process.env.APPWRITE_PROJECT_ID,
+  apiKey: process.env.APPWRITE_API_KEY,
   databaseId: 'villageDB',
 };
 
 // Validate configuration
 if (!config.projectId) {
-  console.error('❌ Error: VITE_APPWRITE_PROJECT_ID not found in .env file');
+  console.error('❌ Error: APPWRITE_PROJECT_ID not found in .env file');
   process.exit(1);
 }
 
 if (!config.apiKey) {
-  console.error('❌ Error: VITE_APPWRITE_API_KEY not found in .env file');
+  console.error('❌ Error: APPWRITE_API_KEY not found in .env file');
   console.error('   Please create an API key in the Appwrite console with Database permissions');
-  console.error('   and add it to your .env file as: VITE_APPWRITE_API_KEY=your_api_key_here');
+  console.error('   and add it to your .env file as: APPWRITE_API_KEY=your_api_key_here');
   process.exit(1);
 }
 
@@ -154,12 +154,7 @@ async function createCollection(collectionId, schema) {
       config.databaseId,
       collectionId,
       schema.name,
-      [
-        'read("any")',
-        'create("any")',
-        'update("any")',
-        'delete("any")',
-      ], // Permissions for any authenticated user
+      ['read("any")', 'create("any")', 'update("any")', 'delete("any")'], // Permissions for any authenticated user
       true, // Enabled
       false, // Document security (false = collection-level permissions)
     );

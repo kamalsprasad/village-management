@@ -1,10 +1,60 @@
 import { defineStore } from 'pinia';
-import { tables } from 'src/boot/appwrite';
-import { useErrorHandler } from 'src/composables/useErrorHandler';
 import { format } from 'date-fns';
 import { formatInTimeZone } from 'date-fns-tz';
+import { tables } from 'src/boot/appwrite';
+import { useErrorHandler } from 'src/composables/useErrorHandler';
 
 const errorHandler = useErrorHandler();
+
+const DEFAULT_TIMEZONE = 'Africa/Lusaka';
+
+const TIMEZONE_ALIASES = {
+  cat: DEFAULT_TIMEZONE,
+  'central africa time': DEFAULT_TIMEZONE,
+  'central africa time-utc+02:00': DEFAULT_TIMEZONE,
+  'central african time': DEFAULT_TIMEZONE,
+  'central african time-utc+02:00': DEFAULT_TIMEZONE,
+  'utc+02:00': 'Etc/GMT-2',
+  'utc+2': 'Etc/GMT-2',
+  'utc-02:00': 'Etc/GMT+2',
+  'utc-2': 'Etc/GMT+2',
+};
+
+function normalizeTimezone(rawTz) {
+  if (!rawTz) {
+    return DEFAULT_TIMEZONE;
+  }
+
+  const trimmed = String(rawTz)
+    .replace(/[\u2010-\u2015]/g, '-')
+    .replace(/\u00A0/g, ' ')
+    .trim()
+    .replace(/\s*-\s*/g, '-')
+    .replace(/\s+/g, ' ');
+
+  const alias = TIMEZONE_ALIASES[trimmed.toLowerCase()];
+  if (alias) {
+    return alias;
+  }
+
+  const offsetMatch = trimmed.match(/UTC\s*([+-])\s*(\d{1,2})(?::?(\d{2}))?/i);
+  if (offsetMatch) {
+    const sign = offsetMatch[1] === '+' ? 1 : -1;
+    const hours = Number(offsetMatch[2]);
+    const minutes = offsetMatch[3] ? Number(offsetMatch[3]) : 0;
+    if (!Number.isNaN(hours) && minutes === 0) {
+      const offset = sign * hours;
+      if (offset === 0) {
+        return 'UTC';
+      }
+      const etcOffset = -offset;
+      const signPrefix = etcOffset > 0 ? '+' : '';
+      return `Etc/GMT${signPrefix}${etcOffset}`;
+    }
+  }
+
+  return trimmed;
+}
 
 export const useSettingsStore = defineStore('settings', {
   state: () => ({
@@ -28,7 +78,9 @@ export const useSettingsStore = defineStore('settings', {
     /**
      * Get established date
      */
-    establishedDate: (state) => state.settings?.established_date || null,
+    establishedDate: (state) => state.settings?.established_date
+      ? state.settings.established_date.slice(0, 10)
+      : null,
 
     /**
      * Get default currency code
@@ -95,16 +147,31 @@ export const useSettingsStore = defineStore('settings', {
      * Format date/time in configured timezone
      * @returns {Function} Function that takes date and format string
      */
-    formatDateTime: (state) => (date, formatStr = 'PPpp') => {
-      if (!date) return '';
-      const tz = state.settings?.timezone || 'Africa/Lusaka';
-      try {
-        return formatInTimeZone(new Date(date), tz, formatStr);
-      } catch (error) {
-        console.error('Error formatting date:', error);
-        return format(new Date(date), formatStr);
-      }
-    },
+    formatDateTime:
+      (state) =>
+      (date, formatStr = 'PPpp') => {
+        if (!date) return '';
+        const parsedDate = new Date(date);
+        if (Number.isNaN(parsedDate.getTime())) {
+          console.error('Error formatting date: Invalid date input', date);
+          return '';
+        }
+
+        const tz = normalizeTimezone(state.settings?.timezone || DEFAULT_TIMEZONE);
+
+        try {
+          return formatInTimeZone(parsedDate, tz, formatStr);
+        } catch (error) {
+          console.error('Error formatting date:', error);
+          try {
+            const fallbackTz = tz !== DEFAULT_TIMEZONE ? DEFAULT_TIMEZONE : 'UTC';
+            return formatInTimeZone(parsedDate, fallbackTz, formatStr);
+          } catch (fallbackError) {
+            console.error('Fallback timezone formatting failed:', fallbackError);
+            return format(parsedDate, formatStr);
+          }
+        }
+      },
 
     /**
      * Check if settings are loaded
@@ -121,11 +188,11 @@ export const useSettingsStore = defineStore('settings', {
       this.isLoading = true;
       try {
         const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
-        const collectionId = import.meta.env.VITE_APPWRITE_COLLECTION_VILLAGE_SETTINGS;
+        const tableId = import.meta.env.VITE_APPWRITE_TABLE_VILLAGE_SETTINGS;
 
         const result = await tables.getRow({
           databaseId: dbId,
-          tableId: collectionId,
+          tableId,
           rowId: 'settings_root',
         });
 
@@ -159,15 +226,18 @@ export const useSettingsStore = defineStore('settings', {
       this.isLoading = true;
       try {
         const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
-        const collectionId = import.meta.env.VITE_APPWRITE_COLLECTION_VILLAGE_SETTINGS;
+        const tableId = import.meta.env.VITE_APPWRITE_TABLE_VILLAGE_SETTINGS;
 
         // Validate required fields
         const validation = errorHandler.validateForm(updates, {
           village_name: { required: true, minLength: 1 },
-          default_currency: { required: true, minLength: 3, maxLength: 3 },
+          //default_currency: { required: true, minLength: 3, maxLength: 3 },
+          default_currency: { required: true },
           currency_symbol: { required: true, minLength: 1 },
           timezone: { required: true },
+          //country_code: { required: true, minLength: 2, maxLength: 2 },
           country_code: { required: true, minLength: 2, maxLength: 2 },
+          country_phone_code: { required: true, minLength: 1, maxLength: 4 },
         });
 
         if (!validation.isValid) {
@@ -175,15 +245,31 @@ export const useSettingsStore = defineStore('settings', {
           return { success: false, errors: validation.errors };
         }
 
-        // Stringify council_members if it's an array
         const processedUpdates = { ...updates };
+
+        // Normalize established_date to ISO string for Appwrite datetime attribute
+        if (processedUpdates.established_date === '') {
+          processedUpdates.established_date = null;
+        } else if (typeof processedUpdates.established_date === 'string') {
+          const dateOnlyMatch = processedUpdates.established_date.match(/^(\d{4}-\d{2}-\d{2})$/);
+          const isoString = dateOnlyMatch
+            ? new Date(`${processedUpdates.established_date}T00:00:00Z`).toISOString()
+            : new Date(processedUpdates.established_date).toISOString();
+          if (!Number.isNaN(new Date(isoString).getTime())) {
+            processedUpdates.established_date = isoString;
+          } else {
+            processedUpdates.established_date = null;
+          }
+        }
+
+        // Stringify council_members if it's an array
         if (Array.isArray(processedUpdates.council_members)) {
           processedUpdates.council_members = JSON.stringify(processedUpdates.council_members);
         }
 
         const result = await tables.updateRow({
           databaseId: dbId,
-          tableId: collectionId,
+          tableId,
           rowId: 'settings_root',
           data: processedUpdates,
         });
@@ -211,17 +297,32 @@ export const useSettingsStore = defineStore('settings', {
       this.isLoading = true;
       try {
         const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
-        const collectionId = import.meta.env.VITE_APPWRITE_COLLECTION_VILLAGE_SETTINGS;
+        const tableId = import.meta.env.VITE_APPWRITE_TABLE_VILLAGE_SETTINGS;
+
+        const processedSettings = { ...initialSettings };
+
+        if (processedSettings.established_date === '') {
+          processedSettings.established_date = null;
+        } else if (typeof processedSettings.established_date === 'string') {
+          const dateOnlyMatch = processedSettings.established_date.match(/^(\d{4}-\d{2}-\d{2})$/);
+          const isoString = dateOnlyMatch
+            ? new Date(`${processedSettings.established_date}T00:00:00Z`).toISOString()
+            : new Date(processedSettings.established_date).toISOString();
+          if (!Number.isNaN(new Date(isoString).getTime())) {
+            processedSettings.established_date = isoString;
+          } else {
+            processedSettings.established_date = null;
+          }
+        }
 
         // Stringify council_members if it's an array
-        const processedSettings = { ...initialSettings };
         if (Array.isArray(processedSettings.council_members)) {
           processedSettings.council_members = JSON.stringify(processedSettings.council_members);
         }
 
         const result = await tables.createRow({
           databaseId: dbId,
-          tableId: collectionId,
+          tableId,
           rowId: 'settings_root',
           data: processedSettings,
         });

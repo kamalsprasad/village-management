@@ -97,7 +97,7 @@ export const useResidentsStore = defineStore('residents', {
       this.isLoading = true;
       try {
         const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
-        const residentsCollectionId = import.meta.env.VITE_APPWRITE_COLLECTION_RESIDENTS;
+        const residentsCollectionId = import.meta.env.VITE_APPWRITE_TABLE_RESIDENTS;
 
         // Calculate offset for pagination
         const offset = (page - 1) * limit;
@@ -136,7 +136,7 @@ export const useResidentsStore = defineStore('residents', {
     async enrichResidentsWithHouseholdNames() {
       try {
         const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
-        const householdsCollectionId = import.meta.env.VITE_APPWRITE_COLLECTION_HOUSEHOLDS;
+        const householdsCollectionId = import.meta.env.VITE_APPWRITE_TABLE_HOUSEHOLDS;
 
         // Get unique household IDs
         const householdIds = [
@@ -178,7 +178,7 @@ export const useResidentsStore = defineStore('residents', {
       this.isLoading = true;
       try {
         const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
-        const residentsCollectionId = import.meta.env.VITE_APPWRITE_COLLECTION_RESIDENTS;
+        const residentsCollectionId = import.meta.env.VITE_APPWRITE_TABLE_RESIDENTS;
 
         const resident = await tables.getRow({
           databaseId: dbId,
@@ -188,7 +188,7 @@ export const useResidentsStore = defineStore('residents', {
 
         // Fetch household details
         if (resident.household_id) {
-          const householdsCollectionId = import.meta.env.VITE_APPWRITE_COLLECTION_HOUSEHOLDS;
+          const householdsCollectionId = import.meta.env.VITE_APPWRITE_TABLE_HOUSEHOLDS;
           const household = await tables.getRow({
             databaseId: dbId,
             tableId: householdsCollectionId,
@@ -221,7 +221,7 @@ export const useResidentsStore = defineStore('residents', {
       this.isLoading = true;
       try {
         const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
-        const residentsCollectionId = import.meta.env.VITE_APPWRITE_COLLECTION_RESIDENTS;
+        const residentsCollectionId = import.meta.env.VITE_APPWRITE_TABLE_RESIDENTS;
 
         const residentId = ID.unique();
         const now = new Date().toISOString();
@@ -272,7 +272,7 @@ export const useResidentsStore = defineStore('residents', {
       this.isLoading = true;
       try {
         const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
-        const residentsCollectionId = import.meta.env.VITE_APPWRITE_COLLECTION_RESIDENTS;
+        const residentsCollectionId = import.meta.env.VITE_APPWRITE_TABLE_RESIDENTS;
 
         // Get current resident to check if household changed
         const currentResident = await tables.getRow({
@@ -336,8 +336,8 @@ export const useResidentsStore = defineStore('residents', {
       this.isLoading = true;
       try {
         const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
-        const residentsCollectionId = import.meta.env.VITE_APPWRITE_COLLECTION_RESIDENTS;
-        const householdsCollectionId = import.meta.env.VITE_APPWRITE_COLLECTION_HOUSEHOLDS;
+        const residentsCollectionId = import.meta.env.VITE_APPWRITE_TABLE_RESIDENTS;
+        const householdsCollectionId = import.meta.env.VITE_APPWRITE_TABLE_HOUSEHOLDS;
 
         // Get resident to check household
         const resident = await tables.getRow({

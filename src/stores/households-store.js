@@ -58,7 +58,7 @@ export const useHouseholdsStore = defineStore('households', {
       this.isLoading = true;
       try {
         const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
-        const householdsCollectionId = import.meta.env.VITE_APPWRITE_COLLECTION_HOUSEHOLDS;
+        const householdsCollectionId = import.meta.env.VITE_APPWRITE_TABLE_HOUSEHOLDS;
 
         // Calculate offset for pagination
         const offset = (page - 1) * limit;
@@ -94,7 +94,7 @@ export const useHouseholdsStore = defineStore('households', {
     async enrichHouseholdsWithOccupantCounts() {
       try {
         const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
-        const residentsCollectionId = import.meta.env.VITE_APPWRITE_COLLECTION_RESIDENTS;
+        const residentsCollectionId = import.meta.env.VITE_APPWRITE_TABLE_RESIDENTS;
 
         // For each household, count residents
         const enrichedHouseholds = await Promise.all(
@@ -134,7 +134,7 @@ export const useHouseholdsStore = defineStore('households', {
       this.isLoading = true;
       try {
         const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
-        const householdsCollectionId = import.meta.env.VITE_APPWRITE_COLLECTION_HOUSEHOLDS;
+        const householdsCollectionId = import.meta.env.VITE_APPWRITE_TABLE_HOUSEHOLDS;
 
         const household = await tables.getRow({
           databaseId: dbId,
@@ -143,7 +143,7 @@ export const useHouseholdsStore = defineStore('households', {
         });
 
         // Fetch occupant count
-        const residentsCollectionId = import.meta.env.VITE_APPWRITE_COLLECTION_RESIDENTS;
+        const residentsCollectionId = import.meta.env.VITE_APPWRITE_TABLE_RESIDENTS;
         const residentsResponse = await tables.listRows({
           databaseId: dbId,
           tableId: residentsCollectionId,
@@ -174,7 +174,7 @@ export const useHouseholdsStore = defineStore('households', {
       this.isLoading = true;
       try {
         const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
-        const householdsCollectionId = import.meta.env.VITE_APPWRITE_COLLECTION_HOUSEHOLDS;
+        const householdsCollectionId = import.meta.env.VITE_APPWRITE_TABLE_HOUSEHOLDS;
 
         const householdId = ID.unique();
         const now = new Date().toISOString();
@@ -219,7 +219,7 @@ export const useHouseholdsStore = defineStore('households', {
       this.isLoading = true;
       try {
         const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
-        const householdsCollectionId = import.meta.env.VITE_APPWRITE_COLLECTION_HOUSEHOLDS;
+        const householdsCollectionId = import.meta.env.VITE_APPWRITE_TABLE_HOUSEHOLDS;
 
         const updatedHousehold = await tables.updateRow({
           databaseId: dbId,
@@ -264,8 +264,8 @@ export const useHouseholdsStore = defineStore('households', {
       this.isLoading = true;
       try {
         const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
-        const householdsCollectionId = import.meta.env.VITE_APPWRITE_COLLECTION_HOUSEHOLDS;
-        const residentsCollectionId = import.meta.env.VITE_APPWRITE_COLLECTION_RESIDENTS;
+        const householdsCollectionId = import.meta.env.VITE_APPWRITE_TABLE_HOUSEHOLDS;
+        const residentsCollectionId = import.meta.env.VITE_APPWRITE_TABLE_RESIDENTS;
 
         // Check if household has occupants (AC7)
         const residentsResponse = await tables.listRows({

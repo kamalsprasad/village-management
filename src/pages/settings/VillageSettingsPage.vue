@@ -104,10 +104,7 @@
                   :readonly="!isEditMode"
                   maxlength="3"
                   hint="ISO 4217 currency code (e.g., ZMW, USD)"
-                  :rules="[
-                    (val) => !!val || 'Currency code is required',
-                    (val) => val.length === 3 || 'Must be 3 characters',
-                  ]"
+                  :rules="[(val) => !!val || 'Currency code is required']"
                 >
                   <template #prepend>
                     <q-icon name="attach_money" />
@@ -215,7 +212,10 @@
             </div>
 
             <!-- Council Members List -->
-            <div v-if="formData.council_members.length === 0" class="text-grey-7 text-center q-pa-md">
+            <div
+              v-if="formData.council_members.length === 0"
+              class="text-grey-7 text-center q-pa-md"
+            >
               No council members added yet
             </div>
             <q-list v-else bordered separator>
@@ -315,13 +315,14 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue';
-import { useSettingsStore } from 'src/stores/settings-store';
-import { useAuthStore } from 'src/stores/auth-store';
 import { useQuasar } from 'quasar';
+import { hasPermission } from 'src/utils/permissions';
+import { useSettingsStore } from 'src/stores/settings-store';
+//import { useAuthStore } from 'src/stores/auth-store';
 
 const $q = useQuasar();
 const settingsStore = useSettingsStore();
-const authStore = useAuthStore();
+//const authStore = useAuthStore();
 
 // Form state
 const settingsForm = ref(null);
@@ -350,7 +351,7 @@ const memberForm = ref({
 
 // Permissions
 const canEdit = computed(() => {
-  return authStore.hasPermission('settings:write');
+  return hasPermission('settings:write');
 });
 
 // Timezone options (common African timezones)
@@ -389,7 +390,9 @@ function loadFormData() {
     formData.value = {
       village_name: settingsStore.settings.village_name || '',
       address: settingsStore.settings.address || '',
-      established_date: settingsStore.settings.established_date || null,
+      established_date: settingsStore.settings.established_date
+        ? settingsStore.settings.established_date.slice(0, 10)
+        : null,
       default_currency: settingsStore.settings.default_currency || 'ZMW',
       currency_symbol: settingsStore.settings.currency_symbol || 'K',
       timezone: settingsStore.settings.timezone || 'Africa/Lusaka',

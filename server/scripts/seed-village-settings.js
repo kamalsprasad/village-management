@@ -31,16 +31,16 @@ dotenv.config({ path: join(__dirname, '..', '.env') });
 
 // Configuration
 const config = {
-  endpoint: process.env.VITE_APPWRITE_ENDPOINT || 'https://cloud.appwrite.io/v1',
-  projectId: process.env.VITE_APPWRITE_PROJECT_ID,
+  endpoint: process.env.APPWRITE_ENDPOINT || 'https://cloud.appwrite.io/v1',
+  projectId: process.env.APPWRITE_PROJECT_ID,
   apiKey: process.env.APPWRITE_API_KEY,
-  databaseId: process.env.VITE_APPWRITE_DATABASE_ID || 'villageDB',
-  collectionId: process.env.VITE_APPWRITE_COLLECTION_VILLAGE_SETTINGS || 'village_settings',
+  databaseId: process.env.APPWRITE_DATABASE_ID || 'villageDB',
+  collectionId: process.env.APPWRITE_TABLE_VILLAGE_SETTINGS || 'village_settings',
 };
 
 // Validate configuration
 if (!config.projectId) {
-  console.error('❌ Error: VITE_APPWRITE_PROJECT_ID not found in .env file');
+  console.error('❌ Error: APPWRITE_PROJECT_ID not found in .env file');
   process.exit(1);
 }
 
