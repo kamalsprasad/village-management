@@ -287,12 +287,14 @@
         </q-card-section>
 
         <q-card-section>
-          <q-input
-            v-model="memberForm.name"
-            label="Name *"
+          <ResidentSearchInput
+            v-model="memberForm.residentId"
+            label="Council Member *"
             outlined
             class="q-mb-md"
-            :rules="[(val) => !!val || 'Name is required']"
+            :dense="true"
+            :rules="[(val) => !!val || 'Please select a resident']"
+            @select="handleResidentSelect"
           />
           <q-input
             v-model="memberForm.position"
@@ -318,6 +320,7 @@ import { ref, computed, onMounted } from 'vue';
 import { useQuasar } from 'quasar';
 import { usePermissions } from 'src/composables/usePermissions';
 import { useSettingsStore } from 'src/stores/settings-store';
+import ResidentSearchInput from 'src/components/inputs/ResidentSearchInput.vue';
 //import { useAuthStore } from 'src/stores/auth-store';
 
 const $q = useQuasar();
@@ -345,6 +348,7 @@ const formData = ref({
 const showMemberDialog = ref(false);
 const editingMemberIndex = ref(null);
 const memberForm = ref({
+  residentId: null,
   name: '',
   position: '',
   contact: '',
@@ -386,6 +390,24 @@ onMounted(async () => {
 });
 
 // Load form data from store
+function normalizeCouncilMember(member) {
+  if (!member) {
+    return {
+      residentId: null,
+      name: '',
+      position: '',
+      contact: '',
+    };
+  }
+
+  return {
+    residentId: member.residentId || null,
+    name: member.name || member.fullName || member.displayName || '',
+    position: member.position || '',
+    contact: member.contact || '',
+  };
+}
+
 function loadFormData() {
   if (settingsStore.settings) {
     formData.value = {
@@ -399,7 +421,7 @@ function loadFormData() {
       timezone: settingsStore.settings.timezone || 'Africa/Lusaka',
       country_code: settingsStore.settings.country_code || 'ZM',
       is_using_sample_data: settingsStore.settings.is_using_sample_data || false,
-      council_members: [...settingsStore.councilMembers],
+      council_members: settingsStore.councilMembers.map((member) => normalizeCouncilMember(member)),
       modules_enabled: [...(settingsStore.settings.modules_enabled || [])],
     };
   }
@@ -450,32 +472,39 @@ async function saveSettings() {
 // Council member management
 function addCouncilMember() {
   editingMemberIndex.value = null;
-  memberForm.value = { name: '', position: '', contact: '' };
+  memberForm.value = { residentId: null, name: '', position: '', contact: '' };
   showMemberDialog.value = true;
 }
 
 function editCouncilMember(index) {
   editingMemberIndex.value = index;
-  memberForm.value = { ...formData.value.council_members[index] };
+  memberForm.value = normalizeCouncilMember(formData.value.council_members[index]);
   showMemberDialog.value = true;
 }
 
 function saveMember() {
   // Validate
-  if (!memberForm.value.name || !memberForm.value.position) {
+  if (!memberForm.value.residentId || !memberForm.value.position) {
     $q.notify({
       type: 'warning',
-      message: 'Name and position are required',
+      message: 'Resident selection and position are required',
     });
     return;
   }
 
+  const entry = {
+    residentId: memberForm.value.residentId,
+    name: memberForm.value.name,
+    position: memberForm.value.position,
+    contact: memberForm.value.contact,
+  };
+
   if (editingMemberIndex.value !== null) {
     // Update existing member
-    formData.value.council_members[editingMemberIndex.value] = { ...memberForm.value };
+    formData.value.council_members[editingMemberIndex.value] = entry;
   } else {
     // Add new member
-    formData.value.council_members.push({ ...memberForm.value });
+    formData.value.council_members.push(entry);
   }
 
   closeMemberDialog();
@@ -495,6 +524,16 @@ function confirmDeleteMember(index) {
 function closeMemberDialog() {
   showMemberDialog.value = false;
   editingMemberIndex.value = null;
-  memberForm.value = { name: '', position: '', contact: '' };
+  memberForm.value = { residentId: null, name: '', position: '', contact: '' };
+}
+
+function handleResidentSelect(option) {
+  if (option) {
+    memberForm.value.residentId = option.id;
+    memberForm.value.name = option.fullName;
+  } else {
+    memberForm.value.residentId = null;
+    memberForm.value.name = '';
+  }
 }
 </script>
