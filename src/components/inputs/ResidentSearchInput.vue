@@ -1,5 +1,4 @@
 <template>
-  {{ options }}
   <q-select
     v-model="internalValue"
     :label="label"
@@ -162,7 +161,6 @@ async function fetchResidents(term) {
 
   const results = await Promise.allSettled([
     tables.listRows({ databaseId: dbId, tableId, queries: queriesForField('first_name') }),
-    // tables.listRows({ databaseId: dbId, tableId, queries: queriesForField('middle_names') || '' }),
     tables.listRows({ databaseId: dbId, tableId, queries: queriesForField('last_name') }),
   ]);
 
@@ -185,52 +183,70 @@ async function fetchResidents(term) {
     }
   });
 
-  const merged = Array.from(map.values())
+  let merged = Array.from(map.values())
     .sort((a, b) => a.weight - b.weight)
     .map((entry) => entry.option)
     .slice(0, MAX_RESULTS);
 
-  return merged;
-}
-
-async function performSearch(term, updateCb) {
-  const token = ++activeSearchToken;
-  isLoading.value = true;
-  try {
-    const fetched = await fetchResidents(term);
-    console.log(`fetched: ${JSON.stringify(fetched)}`);
-    if (token === activeSearchToken) {
-      options.value = fetched;
-      ensureOption(selectedOption.value);
-      updateCb();
-    }
-  } catch (error) {
-    console.error('ResidentSearchInput: search failed', error);
-    if (token === activeSearchToken) {
-      options.value = selectedOption.value ? [selectedOption.value] : [];
-      updateCb();
-    }
-  } finally {
-    if (token === activeSearchToken) {
-      isLoading.value = false;
-    }
+  // Client-side match on middle names when not already captured
+  if (merged.length < MAX_RESULTS) {
+    const lowerTerm = term.toLowerCase();
+    merged = merged
+      .concat(
+        Array.from(map.values())
+          .map((entry) => entry.option)
+          .filter((option) =>
+            option.raw?.middle_names ? option.raw.middle_names.toLowerCase().includes(lowerTerm) : false,
+          ),
+      )
+      .filter((option, index, array) => array.findIndex((o) => o.id === option.id) === index)
+      .slice(0, MAX_RESULTS);
   }
+
+  return merged;
 }
 
 function onFilter(val, update) {
   searchTerm.value = val;
   const trimmed = val ? val.trim() : '';
 
+  const token = ++activeSearchToken;
+
   if (!trimmed || trimmed.length < MIN_SEARCH_LENGTH) {
-    activeSearchToken++;
-    options.value = selectedOption.value ? [selectedOption.value] : [];
-    update(() => {});
+    isLoading.value = false;
+    update(() => {
+      if (token === activeSearchToken) {
+        options.value = selectedOption.value ? [selectedOption.value] : [];
+      }
+    });
     return;
   }
 
-  update(() => {
-    performSearch(trimmed, () => {});
-  });
+  isLoading.value = true;
+  fetchResidents(trimmed)
+    .then((fetched) => {
+      if (token !== activeSearchToken) {
+        return;
+      }
+      update(() => {
+        options.value = fetched;
+        ensureOption(selectedOption.value);
+      });
+    })
+    .catch((error) => {
+      console.error('ResidentSearchInput: search failed', error);
+      if (token !== activeSearchToken) {
+        return;
+      }
+      update(() => {
+        options.value = selectedOption.value ? [selectedOption.value] : [];
+      });
+    })
+    .finally(() => {
+      if (token === activeSearchToken) {
+        isLoading.value = false;
+      }
+    });
 }
 
 function handleUpdate(value) {
