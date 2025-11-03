@@ -313,12 +313,22 @@
             :rules="[(val) => !!val || 'Please select a resident']"
             @select="handleResidentSelect"
           />
-          <q-input
+          <q-select
             v-model="memberForm.position"
+            :options="councilRoleOptions"
             label="Position *"
             outlined
             class="q-mb-md"
             :rules="[(val) => !!val || 'Position is required']"
+            emit-value
+            map-options
+            option-label="label"
+            option-value="value"
+            :loading="isCouncilRoleLoading"
+            use-input
+            fill-input
+            input-debounce="200"
+            hint="Select a council role"
           />
           <q-input v-model="memberForm.contact" label="Contact" outlined hint="Phone or email" />
         </q-card-section>
@@ -333,11 +343,13 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, watch } from 'vue';
 import { useQuasar } from 'quasar';
 import { usePermissions } from 'src/composables/usePermissions';
 import { useSettingsStore } from 'src/stores/settings-store';
 import ResidentSearchInput from 'src/components/inputs/ResidentSearchInput.vue';
+import { tables } from 'src/boot/appwrite';
+import { Query } from 'appwrite';
 //import { useAuthStore } from 'src/stores/auth-store';
 
 const $q = useQuasar();
@@ -398,6 +410,9 @@ const moduleOptions = [
   { label: 'Calendar', value: 'calendar' },
   { label: 'Storage', value: 'storage' },
 ];
+
+const councilRoleOptions = ref([]);
+const isCouncilRoleLoading = ref(false);
 
 // Load settings on mount
 onMounted(async () => {
@@ -555,4 +570,44 @@ function handleResidentSelect(option) {
     memberForm.value.name = '';
   }
 }
+
+async function fetchCouncilRoles() {
+  if (councilRoleOptions.value.length > 0 || isCouncilRoleLoading.value) {
+    return;
+  }
+
+  isCouncilRoleLoading.value = true;
+  try {
+    const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
+    const rolesCollectionId = import.meta.env.VITE_APPWRITE_TABLE_ROLES;
+
+    const response = await tables.listRows({
+      databaseId: dbId,
+      tableId: rolesCollectionId,
+      queries: [Query.equal('category', 'council'), Query.orderAsc('name'), Query.limit(100)],
+    });
+
+    councilRoleOptions.value = response.rows
+      .filter((role) => role?.name)
+      .map((role) => ({ label: role.name, value: role.name }));
+
+    if (memberForm.value.position && !councilRoleOptions.value.some((opt) => opt.value === memberForm.value.position)) {
+      councilRoleOptions.value.push({ label: memberForm.value.position, value: memberForm.value.position });
+    }
+  } catch (error) {
+    console.error('Failed to load council roles:', error);
+    $q.notify({
+      type: 'negative',
+      message: 'Unable to load council roles. Please try again.',
+    });
+  } finally {
+    isCouncilRoleLoading.value = false;
+  }
+}
+
+watch(showMemberDialog, async (isOpen) => {
+  if (isOpen) {
+    await fetchCouncilRoles();
+  }
+});
 </script>
