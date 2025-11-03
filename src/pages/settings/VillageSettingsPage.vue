@@ -143,6 +143,23 @@
                   </template>
                 </q-input>
               </div>
+              <div class="col-12 col-md-4">
+                <q-input
+                  v-model="formData.country_phone_code"
+                  label="Country Phone Code *"
+                  outlined
+                  :readonly="!isEditMode"
+                  hint="International dialing code (e.g., 260)"
+                  :rules="[(val) => !!val || 'Country phone code is required']"
+                >
+                  <template #prepend>
+                    <q-icon name="call" />
+                  </template>
+                  <template #append>
+                    <span class="text-grey-6">+{{ formData.country_phone_code }}</span>
+                  </template>
+                </q-input>
+              </div>
             </div>
           </q-card-section>
         </q-card>
@@ -339,6 +356,7 @@ const formData = ref({
   currency_symbol: '',
   timezone: '',
   country_code: '',
+  country_phone_code: '',
   is_using_sample_data: false,
   council_members: [],
   modules_enabled: [],
@@ -420,6 +438,7 @@ function loadFormData() {
       currency_symbol: settingsStore.settings.currency_symbol || 'K',
       timezone: settingsStore.settings.timezone || 'Africa/Lusaka',
       country_code: settingsStore.settings.country_code || 'ZM',
+      country_phone_code: settingsStore.settings.country_phone_code || '',
       is_using_sample_data: settingsStore.settings.is_using_sample_data || false,
       council_members: settingsStore.councilMembers.map((member) => normalizeCouncilMember(member)),
       modules_enabled: [...(settingsStore.settings.modules_enabled || [])],

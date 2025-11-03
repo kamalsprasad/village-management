@@ -78,9 +78,8 @@ export const useSettingsStore = defineStore('settings', {
     /**
      * Get established date
      */
-    establishedDate: (state) => state.settings?.established_date
-      ? state.settings.established_date.slice(0, 10)
-      : null,
+    establishedDate: (state) =>
+      state.settings?.established_date ? state.settings.established_date.slice(0, 10) : null,
 
     /**
      * Get default currency code
@@ -263,9 +262,21 @@ export const useSettingsStore = defineStore('settings', {
         }
 
         // Stringify council_members if it's an array
-        if (Array.isArray(processedUpdates.council_members)) {
-          processedUpdates.council_members = JSON.stringify(processedUpdates.council_members);
-        }
+        // if (Array.isArray(processedUpdates.council_members)) {
+        //   processedUpdates.council_members = JSON.stringify(processedUpdates.council_members);
+        // }
+
+        const council_member_ids = processedUpdates.council_members.map(
+          (member) => member.residentId,
+        );
+
+        // Object.fromEntries(
+        //   processedUpdates.council_members.map((member) => [member.id]),
+        // );
+        processedUpdates.council_member_ids = council_member_ids;
+        delete processedUpdates.council_members;
+
+        console.log(`council_member_ids: ${JSON.stringify(processedUpdates)}`);
 
         const result = await tables.updateRow({
           databaseId: dbId,
