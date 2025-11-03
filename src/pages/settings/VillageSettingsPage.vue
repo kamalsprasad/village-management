@@ -574,7 +574,7 @@ async function fetchCouncilRoles() {
       tableId: rolesCollectionId,
       queries: [Query.equal('category', 'council'), Query.select(['$id', 'name'])],
     });
-    console.log(rolesResponse.rows);
+
     councilRoles.value = rolesResponse.rows
       .filter((role) => role?.name)
       .map((role) => ({ label: role.name, value: role.name }));
@@ -611,7 +611,10 @@ async function fetchCouncilMembers() {
     const usersResponse = await tables.listRows({
       databaseId: dbId,
       tableId: usersCollectionId,
-      queries: [Query.select(['$id', 'name', 'email', 'role_ids.*']), Query.limit(10)],
+      queries: [
+        Query.select(['$id', 'name', 'email', 'resident_id.*', 'role_ids.*']),
+        Query.limit(20),
+      ],
     });
 
     const rolesMap = new Map(rolesResponse.rows.map((role) => [role.$id, role]));
