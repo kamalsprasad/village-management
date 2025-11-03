@@ -110,9 +110,9 @@ export const useSettingsStore = defineStore('settings', {
      * Get council members (parsed from JSON string)
      */
     councilMembers: (state) => {
-      if (!state.settings?.council_members) return [];
+      if (!state.settings?.council_member_ids) return [];
       try {
-        return JSON.parse(state.settings.council_members);
+        return JSON.parse(state.settings.council_member_ids);
       } catch (error) {
         console.error('Error parsing council members:', error);
         return [];
@@ -276,8 +276,6 @@ export const useSettingsStore = defineStore('settings', {
         processedUpdates.council_member_ids = council_member_ids;
         delete processedUpdates.council_members;
 
-        console.log(`council_member_ids: ${JSON.stringify(processedUpdates)}`);
-
         const result = await tables.updateRow({
           databaseId: dbId,
           tableId,
@@ -327,9 +325,19 @@ export const useSettingsStore = defineStore('settings', {
         }
 
         // Stringify council_members if it's an array
-        if (Array.isArray(processedSettings.council_members)) {
-          processedSettings.council_members = JSON.stringify(processedSettings.council_members);
-        }
+        // if (Array.isArray(processedSettings.council_members)) {
+        //   processedSettings.council_members = JSON.stringify(processedSettings.council_members);
+        // }
+
+        const council_member_ids = processedSettings.council_members.map(
+          (member) => member.residentId,
+        );
+
+        // Object.fromEntries(
+        //   processedUpdates.council_members.map((member) => [member.id]),
+        // );
+        processedSettings.council_member_ids = council_member_ids;
+        delete processedSettings.council_members;
 
         const result = await tables.createRow({
           databaseId: dbId,

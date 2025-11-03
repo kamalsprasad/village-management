@@ -9,7 +9,7 @@
  * Prerequisites:
  * - Appwrite project created
  * - Database "villageDB" created in Appwrite console
- * - API key with appropriate permissions (Database, Collections)
+ * - API key with appropriate permissions (Database, tables)
  * - Environment variables set in .env file
  *
  * Usage:
@@ -224,7 +224,7 @@ const tableSchemas = {
 // Helper functions
 async function createTable(tableId, schema) {
   try {
-    console.log(`\n📦 Creating table: ${schema.name} (${collectionId})`);
+    console.log(`\n📦 Creating table: ${schema.name} (${tableId})`);
 
     await tables.createTable(
       config.databaseId,
@@ -397,7 +397,7 @@ async function setupDatabase() {
       throw error;
     }
 
-    // Create collections and attributes
+    // Create tables and columns
     for (const [tableId, schema] of Object.entries(tableSchemas)) {
       const isNew = await createTable(tableId, schema);
 
@@ -422,7 +422,7 @@ async function setupDatabase() {
 
     console.log('\n✅ Database setup complete!');
     console.log('\n📋 Summary:');
-    console.log('   - 5 collections created/verified');
+    console.log('   - 5 Tables created/verified');
     console.log('   - 32 columns created/verified');
     console.log('   - 4 indexes created/verified');
     console.log('   - Permissions configured');

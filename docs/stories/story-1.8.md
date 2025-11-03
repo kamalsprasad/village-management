@@ -19,11 +19,11 @@ so that **the platform reflects local realities, enforces correct financial meta
 
 ## Acceptance Criteria
 
-1. Appwrite `village_settings` collection exists with required fields: `village_name`, `address`, `established_date`, `default_currency`, `currency_symbol`, `timezone`, `country_code`, `is_using_sample_data`, `council_members[]`, `modules_enabled[]`, `$updatedAt`. [Source: docs/epics.md#194][Source: docs/tech-spec-epic-1.md#60-67]
+1. Appwrite `village_settings` table exists with required fields: `village_name`, `address`, `established_date`, `default_currency`, `currency_symbol`, `timezone`, `country_code`, `is_using_sample_data`, `council_member_ids[]`, `modules_enabled[]`, `$updatedAt`. [Source: docs/epics.md#194][Source: docs/tech-spec-epic-1.md#60-67]
 2. Village Settings page is reachable from the Admin menu and respects RBAC so only System Administrator can access edit mode; other roles see read-only view. [Source: docs/epics.md#195][Source: docs/architecture.md#295-321]
 3. UI sections are organized as Basic Information, Financial Settings, System Settings, and Council Members with inline validation using `validateForm`. [Source: docs/epics.md#196][Source: docs/architecture.md#575-730]
-4. Council Members subsection supports add/edit/remove operations storing `name`, `position`, and `contact` fields within `council_members[]`, preserving audit metadata. [Source: docs/epics.md#197]
-5. First-time setup wizard includes a village configuration step that populates defaults, toggles between sample and production modes, and writes the Appwrite record. [Source: docs/epics.md#198][Source: docs/PRD.md#253-258]
+4. Council Members subsection supports add/edit/remove operations while persisting resident references via `council_member_ids[]`; name, position, and contact are rendered dynamically from linked Residents/Users/Roles data to avoid duplication. [Source: docs/epics.md#197]
+5. *Deferred to Story 1.9:* First-time setup wizard will add the village configuration step (defaults, sample data toggle, initial record write). Current story ensures backend readiness for that flow. [Source: docs/epics.md#198][Source: docs/PRD.md#253-258]
 6. Village name surfaces in MainLayout header, dashboard hero, and exported reports by referencing the settings store. [Source: docs/epics.md#199][Source: docs/architecture.md#49-76]
 7. Financial modules consume `default_currency` and `currency_symbol` for formatting, ensuring consistency across finance dashboards and transactions. [Source: docs/epics.md#200][Source: docs/tech-spec-epic-1.md#140-154]
 8. Settings page shows "Last Updated" timestamp sourced from `$updatedAt`, adjusted to configured timezone using `date-fns`. [Source: docs/epics.md#201][Source: docs/architecture.md#969-1021]
@@ -33,7 +33,7 @@ so that **the platform reflects local realities, enforces correct financial meta
 ## Tasks / Subtasks
 
 - [x] **Task 1: Provision village settings backend (AC: 1,5)**
-  - [x] Create/verify Appwrite `village_settings` collection with field schema, indexes, and permissions restricting writes to System Administrator. [Source: docs/epics.md#194][Source: docs/tech-spec-epic-1.md#60-67]
+  - [x] Create/verify Appwrite `village_settings` table with field schema, indexes, and permissions restricting writes to System Administrator. [Source: docs/epics.md#194][Source: docs/tech-spec-epic-1.md#60-67]
   - [x] Seed single row $id=`settings_root` with defaults and sample flag for setup wizard integration. [Source: docs/PRD.md#253-258]
 - [x] **Task 2: Implement Pinia settings store (AC: 2,5,7,10)**
   - [x] Add `src/stores/settings-store.js` with load/update actions, caching, offline queue integration, and currency/timezone helpers. [Source: docs/tech-spec-epic-1.md#42-98]
@@ -45,7 +45,7 @@ so that **the platform reflects local realities, enforces correct financial meta
   - [x] Update `MainLayout.vue`, dashboard header, and finance formatting utilities to consume settings store values. [Source: docs/epics.md#199-200]
   - [x] Adjust export/report generators to include village name and currency symbol. [Source: docs/epics.md#199-200]
 - [x] **Task 5: Extend setup wizard and offline handling (AC: 5,10)**
-  - [ ] Add configuration step to `SetupWizard.vue` including sample data toggle and validation. [Source: docs/PRD.md#253-258] *Deferred to Story 1.9 - SetupWizard doesn't exist yet*
+  - [ ] Add configuration step to `SetupWizard.vue` including sample data toggle and validation. [Source: docs/PRD.md#253-258] *Deferred to Story 1.9 - SetupWizard doesn't exist yet; Story 1.8 ensures backend/table readiness only*
   - [x] Ensure offline mutation queue covers settings updates with useErrorHandler logging. [Source: docs/architecture.md#324-395]
 - [x] **Task 6: Verification & documentation (AC: 8-10)**
   - [x] Document manual test checklist (RBAC scenarios, timezone formatting, currency propagation, offline edit retry). [Source: docs/PRD.md#288-311]

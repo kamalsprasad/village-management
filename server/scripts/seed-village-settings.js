@@ -3,12 +3,12 @@
 /**
  * Village Settings Seed Script
  *
- * This script creates the default settings_root document in the village_settings collection.
+ * This script creates the default settings_root document in the village_settings table.
  * This document serves as the single source of truth for village configuration.
  *
  * Prerequisites:
  * - Appwrite project and database set up
- * - village_settings collection created (run setup-appwrite.js first)
+ * - village_settings table created (run setup-appwrite.js first)
  * - API key with appropriate permissions
  * - Environment variables set in .env file
  *
@@ -19,7 +19,7 @@
  *   npm run seed:settings
  */
 
-import { Client, Databases, ID } from 'node-appwrite';
+import { Client, TablesDB } from 'node-appwrite';
 import dotenv from 'dotenv';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
@@ -35,7 +35,7 @@ const config = {
   projectId: process.env.APPWRITE_PROJECT_ID,
   apiKey: process.env.APPWRITE_API_KEY,
   databaseId: process.env.APPWRITE_DATABASE_ID || 'villageDB',
-  collectionId: process.env.APPWRITE_TABLE_VILLAGE_SETTINGS || 'village_settings',
+  tableId: process.env.APPWRITE_TABLE_VILLAGE_SETTINGS || 'village_settings',
 };
 
 // Validate configuration
@@ -55,7 +55,7 @@ const client = new Client()
   .setProject(config.projectId)
   .setKey(config.apiKey);
 
-const databases = new Databases(client);
+const tables = new TablesDB(client);
 
 // Default village settings
 const defaultSettings = {
@@ -67,24 +67,20 @@ const defaultSettings = {
   timezone: 'Africa/Lusaka',
   country_code: 'ZM',
   is_using_sample_data: false,
-  council_members: JSON.stringify([]),
+  council_member_ids: null,
   modules_enabled: ['residents', 'households', 'dashboard'],
 };
 
 async function seedVillageSettings() {
   console.log('🌱 Seeding Village Settings');
   console.log(`   Database: ${config.databaseId}`);
-  console.log(`   Collection: ${config.collectionId}`);
+  console.log(`   Table: ${config.tableId}`);
 
   try {
     // Check if settings_root already exists
     console.log('\n🔍 Checking for existing settings...');
     try {
-      const existing = await databases.getDocument(
-        config.databaseId,
-        config.collectionId,
-        'settings_root',
-      );
+      const existing = await tables.getRow(config.databaseId, config.tableId, 'settings_root');
 
       console.log('   ⚠️  Settings already exist');
       console.log(`   Village: ${existing.village_name}`);
@@ -96,15 +92,15 @@ async function seedVillageSettings() {
       if (error.code !== 404) {
         throw error;
       }
-      // Document doesn't exist, proceed with creation
+      // Row doesn't exist, proceed with creation
       console.log('   ℹ️  No existing settings found, creating defaults...');
     }
 
-    // Create settings_root document
-    console.log('\n📝 Creating settings_root document...');
-    const result = await databases.createDocument(
+    // Create settings_root row
+    console.log('\n📝 Creating settings_root row...');
+    const result = await tables.createRow(
       config.databaseId,
-      config.collectionId,
+      config.tableId,
       'settings_root',
       defaultSettings,
     );
