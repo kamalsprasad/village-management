@@ -229,18 +229,17 @@
             </div>
 
             <!-- Council Members List -->
-            <div
-              v-if="formData.council_members.length === 0"
-              class="text-grey-7 text-center q-pa-md"
-            >
-              No council members added yet
+            <div v-if="isCouncilMembersLoading" class="flex flex-center q-pa-md">
+              <q-spinner color="primary" size="32px" />
+            </div>
+            <q-banner v-else-if="councilMembersError" class="bg-warning text-black q-mb-md" rounded>
+              {{ councilMembersError }}
+            </q-banner>
+            <div v-else-if="councilMembers.length === 0" class="text-grey-7 text-center q-pa-md">
+              No council members found
             </div>
             <q-list v-else bordered separator>
-              <q-item
-                v-for="(member, index) in formData.council_members"
-                :key="index"
-                class="q-pa-md"
-              >
+              <q-item v-for="member in councilMembers" :key="member.id" class="q-pa-md">
                 <q-item-section avatar>
                   <q-icon name="person" color="primary" size="md" />
                 </q-item-section>
@@ -315,7 +314,7 @@
           />
           <q-select
             v-model="memberForm.position"
-            :options="councilRoleOptions"
+            :options="councilRoles"
             label="Position *"
             outlined
             class="q-mb-md"
@@ -324,7 +323,7 @@
             map-options
             option-label="label"
             option-value="value"
-            :loading="isCouncilRoleLoading"
+            :loading="isCouncilRolesLoading"
             use-input
             fill-input
             input-debounce="200"
@@ -343,7 +342,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import { useQuasar } from 'quasar';
 import { usePermissions } from 'src/composables/usePermissions';
 import { useSettingsStore } from 'src/stores/settings-store';
@@ -411,8 +410,14 @@ const moduleOptions = [
   { label: 'Storage', value: 'storage' },
 ];
 
-const councilRoleOptions = ref([]);
-const isCouncilRoleLoading = ref(false);
+// Council roles
+const councilRoles = ref([]);
+const isCouncilRolesLoading = ref(false);
+const councilRolesError = ref(null);
+
+const councilMembers = ref([]);
+const isCouncilMembersLoading = ref(false);
+const councilMembersError = ref(null);
 
 // Load settings on mount
 onMounted(async () => {
@@ -420,6 +425,7 @@ onMounted(async () => {
     await settingsStore.loadSettings();
   }
   loadFormData();
+  await fetchCouncilMembers();
 });
 
 // Load form data from store
@@ -502,65 +508,50 @@ async function saveSettings() {
     });
   }
 }
-
-// Council member management
+//Council Member functions
 function addCouncilMember() {
   editingMemberIndex.value = null;
-  memberForm.value = { residentId: null, name: '', position: '', contact: '' };
+  fetchCouncilRoles();
+  memberForm.value = {
+    residentId: null,
+    name: '',
+    position: '',
+    contact: '',
+  };
   showMemberDialog.value = true;
 }
 
 function editCouncilMember(index) {
   editingMemberIndex.value = index;
-  memberForm.value = normalizeCouncilMember(formData.value.council_members[index]);
+  memberForm.value = { ...formData.value.council_members[index] };
   showMemberDialog.value = true;
 }
-
 function saveMember() {
-  // Validate
-  if (!memberForm.value.residentId || !memberForm.value.position) {
-    $q.notify({
-      type: 'warning',
-      message: 'Resident selection and position are required',
-    });
-    return;
-  }
-
-  const entry = {
-    residentId: memberForm.value.residentId,
-    name: memberForm.value.name,
-    position: memberForm.value.position,
-    contact: memberForm.value.contact,
-  };
-
-  if (editingMemberIndex.value !== null) {
-    // Update existing member
-    formData.value.council_members[editingMemberIndex.value] = entry;
+  if (editingMemberIndex.value === null) {
+    formData.value.council_members.push(memberForm.value);
   } else {
-    // Add new member
-    formData.value.council_members.push(entry);
+    formData.value.council_members[editingMemberIndex.value] = memberForm.value;
   }
-
-  closeMemberDialog();
-}
-
-function confirmDeleteMember(index) {
-  $q.dialog({
-    title: 'Confirm Delete',
-    message: `Are you sure you want to remove ${formData.value.council_members[index].name} from the council?`,
-    cancel: true,
-    persistent: true,
-  }).onOk(() => {
-    formData.value.council_members.splice(index, 1);
-  });
+  showMemberDialog.value = false;
+  editingMemberIndex.value = null;
+  memberForm.value = {
+    residentId: null,
+    name: '',
+    position: '',
+    contact: '',
+  };
 }
 
 function closeMemberDialog() {
   showMemberDialog.value = false;
   editingMemberIndex.value = null;
-  memberForm.value = { residentId: null, name: '', position: '', contact: '' };
+  memberForm.value = {
+    residentId: null,
+    name: '',
+    position: '',
+    contact: '',
+  };
 }
-
 function handleResidentSelect(option) {
   if (option) {
     memberForm.value.residentId = option.id;
@@ -570,44 +561,122 @@ function handleResidentSelect(option) {
     memberForm.value.name = '';
   }
 }
-
 async function fetchCouncilRoles() {
-  if (councilRoleOptions.value.length > 0 || isCouncilRoleLoading.value) {
-    return;
-  }
+  isCouncilRolesLoading.value = true;
+  councilRolesError.value = null;
 
-  isCouncilRoleLoading.value = true;
   try {
     const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
     const rolesCollectionId = import.meta.env.VITE_APPWRITE_TABLE_ROLES;
 
-    const response = await tables.listRows({
+    const rolesResponse = await tables.listRows({
       databaseId: dbId,
       tableId: rolesCollectionId,
-      queries: [Query.equal('category', 'council'), Query.orderAsc('name'), Query.limit(100)],
+      queries: [Query.equal('category', 'council'), Query.select(['$id', 'name'])],
     });
-
-    councilRoleOptions.value = response.rows
+    console.log(rolesResponse.rows);
+    councilRoles.value = rolesResponse.rows
       .filter((role) => role?.name)
       .map((role) => ({ label: role.name, value: role.name }));
-
-    if (memberForm.value.position && !councilRoleOptions.value.some((opt) => opt.value === memberForm.value.position)) {
-      councilRoleOptions.value.push({ label: memberForm.value.position, value: memberForm.value.position });
-    }
   } catch (error) {
-    console.error('Failed to load council roles:', error);
-    $q.notify({
-      type: 'negative',
-      message: 'Unable to load council roles. Please try again.',
-    });
+    console.error('Error fetching council roles:', error);
+    councilRolesError.value = error.message;
   } finally {
-    isCouncilRoleLoading.value = false;
+    isCouncilRolesLoading.value = false;
   }
 }
 
-watch(showMemberDialog, async (isOpen) => {
-  if (isOpen) {
-    await fetchCouncilRoles();
+async function fetchCouncilMembers() {
+  isCouncilMembersLoading.value = true;
+  councilMembersError.value = null;
+
+  try {
+    const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
+    const rolesCollectionId = import.meta.env.VITE_APPWRITE_TABLE_ROLES;
+    const usersCollectionId = import.meta.env.VITE_APPWRITE_TABLE_USERS;
+
+    const rolesResponse = await tables.listRows({
+      databaseId: dbId,
+      tableId: rolesCollectionId,
+      queries: [Query.equal('category', 'council'), Query.select(['$id', 'name'])],
+    });
+
+    const councilRoleIds = rolesResponse.rows.map((role) => role.$id);
+
+    if (councilRoleIds.length === 0) {
+      councilMembers.value = [];
+      return;
+    }
+
+    const usersResponse = await tables.listRows({
+      databaseId: dbId,
+      tableId: usersCollectionId,
+      queries: [Query.select(['$id', 'name', 'email', 'role_ids.*']), Query.limit(10)],
+    });
+
+    const rolesMap = new Map(rolesResponse.rows.map((role) => [role.$id, role]));
+
+    const filteredUsers = usersResponse.rows.filter((user) => {
+      const matchedRoleIds = (Array.isArray(user.role_ids) ? user.role_ids : [])
+        .map((roleEntry) => {
+          if (typeof roleEntry === 'string') {
+            return roleEntry;
+          }
+
+          if (roleEntry?.$id) {
+            return roleEntry.$id;
+          }
+
+          if (roleEntry?.role) {
+            return roleEntry.role?.$id;
+          }
+
+          if (roleEntry?.related) {
+            return roleEntry.related?.$id;
+          }
+
+          return null;
+        })
+        .filter((id) => typeof id === 'string');
+
+      return matchedRoleIds.some((roleId) => councilRoleIds.includes(roleId));
+    });
+
+    councilMembers.value = filteredUsers.map((user) => {
+      const matchedRoles = (Array.isArray(user.role_ids) ? user.role_ids : []).map((roleEntry) => {
+        if (typeof roleEntry === 'string') {
+          return rolesMap.get(roleEntry);
+        }
+
+        if (roleEntry?.$id) {
+          return roleEntry;
+        }
+
+        if (roleEntry?.role) {
+          return roleEntry.role;
+        }
+
+        if (roleEntry?.related) {
+          return roleEntry.related;
+        }
+
+        return null;
+      });
+
+      const councilRole = matchedRoles.find((role) => role && councilRoleIds.includes(role.$id));
+
+      return {
+        id: user.$id,
+        name: user.name || 'Unnamed Resident',
+        position: councilRole?.name || 'Council Member',
+        contact: user.phone || user.email || null,
+      };
+    });
+  } catch (error) {
+    console.error('Failed to load council members:', error);
+    councilMembersError.value = 'Unable to load council members. Please try again later.';
+  } finally {
+    isCouncilMembersLoading.value = false;
   }
-});
+}
 </script>
