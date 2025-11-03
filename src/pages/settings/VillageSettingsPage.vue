@@ -239,15 +239,28 @@
               No council members found
             </div>
             <q-list v-else bordered separator>
-              <q-item v-for="member in councilMembers" :key="member.id" class="q-pa-md">
+              <q-item
+                v-for="(member, index) in councilMembers"
+                :key="member.userId || member.residentId || index"
+                class="q-pa-md"
+              >
                 <q-item-section avatar>
                   <q-icon name="person" color="primary" size="md" />
                 </q-item-section>
                 <q-item-section>
-                  <q-item-label class="text-weight-medium">{{ member.name }}</q-item-label>
-                  <q-item-label caption>{{ member.position }}</q-item-label>
+                  <q-item-label class="text-weight-medium">
+                    {{ member.residentName || member.name || 'Unnamed Resident' }}
+                  </q-item-label>
+                  <q-item-label caption>
+                    {{
+                      councilRoleMap.get(member.roleId)?.name || member.position || 'Council Member'
+                    }}
+                  </q-item-label>
                   <q-item-label v-if="member.contact" caption class="text-grey-6">
                     {{ member.contact }}
+                  </q-item-label>
+                  <q-item-label v-if="member.requiresUserAccount" caption class="text-orange-8">
+                    User account not found — Add User to activate role
                   </q-item-label>
                 </q-item-section>
                 <q-item-section v-if="isEditMode" side>
@@ -313,8 +326,8 @@
             @select="handleResidentSelect"
           />
           <q-select
-            v-model="memberForm.position"
-            :options="councilRoles"
+            v-model="memberForm.roleId"
+            :options="councilRoleOptions"
             label="Position *"
             outlined
             class="q-mb-md"
@@ -324,12 +337,26 @@
             option-label="label"
             option-value="value"
             :loading="isCouncilRolesLoading"
-            use-input
-            fill-input
             input-debounce="200"
             hint="Select a council role"
           />
           <q-input v-model="memberForm.contact" label="Contact" outlined hint="Phone or email" />
+          <q-banner
+            v-if="memberForm.requiresUserAccount"
+            class="bg-warning text-black q-mt-sm"
+            rounded
+          >
+            No linked user account found for this resident. Once created, assign the council role in
+            the Users module.
+            <q-btn
+              flat
+              dense
+              color="primary"
+              class="q-ml-sm"
+              label="Add User"
+              @click="notifyAddUserPending"
+            />
+          </q-banner>
         </q-card-section>
 
         <q-card-actions align="right">
@@ -373,15 +400,22 @@ const formData = ref({
   modules_enabled: [],
 });
 
+const emptyMemberFormState = () => ({
+  residentId: null,
+  residentName: '',
+  userId: null,
+  roleId: null,
+  originalRoleId: null,
+  originalUserId: null,
+  name: '',
+  contact: '',
+  requiresUserAccount: false,
+});
+
 // Council member dialog state
 const showMemberDialog = ref(false);
 const editingMemberIndex = ref(null);
-const memberForm = ref({
-  residentId: null,
-  name: '',
-  position: '',
-  contact: '',
-});
+const memberForm = ref(emptyMemberFormState());
 
 // Permissions
 const canEdit = computed(() => {
@@ -411,13 +445,17 @@ const moduleOptions = [
 ];
 
 // Council roles
-const councilRoles = ref([]);
+const councilRoleOptions = ref([]);
 const isCouncilRolesLoading = ref(false);
 const councilRolesError = ref(null);
 
 const councilMembers = ref([]);
 const isCouncilMembersLoading = ref(false);
 const councilMembersError = ref(null);
+
+const councilRoleMap = new Map();
+const residentUserIndex = new Map();
+const userIndex = new Map();
 
 // Load settings on mount
 onMounted(async () => {
@@ -433,17 +471,35 @@ function normalizeCouncilMember(member) {
   if (!member) {
     return {
       residentId: null,
+      residentName: '',
+      userId: null,
+      roleId: null,
       name: '',
       position: '',
       contact: '',
+      requiresUserAccount: false,
     };
   }
 
+  const residentId = member.residentId || member.resident_id || null;
+  const userId = member.userId || member.user_id || null;
+  const roleId = member.roleId || member.role_id || null;
+  const roleName =
+    member.roleName ||
+    (roleId && councilRoleMap.has(roleId) ? councilRoleMap.get(roleId)?.name : null);
+  const position = roleName || member.position || '';
+  const name = member.name || member.residentName || member.fullName || member.displayName || '';
+
   return {
-    residentId: member.residentId || null,
-    name: member.name || member.fullName || member.displayName || '',
-    position: member.position || '',
+    residentId,
+    residentName: member.residentName || name,
+    userId,
+    roleId,
+    roleName: roleName || null,
+    name,
+    position,
     contact: member.contact || '',
+    requiresUserAccount: Boolean(member.requiresUserAccount),
   };
 }
 
@@ -506,62 +562,129 @@ async function saveSettings() {
       type: 'positive',
       message: 'Village settings updated successfully',
     });
+
+    await fetchCouncilMembers();
   }
 }
 //Council Member functions
-function addCouncilMember() {
+async function addCouncilMember() {
   editingMemberIndex.value = null;
-  fetchCouncilRoles();
+  await fetchCouncilRoles();
+  memberForm.value = emptyMemberFormState();
+  showMemberDialog.value = true;
+}
+
+async function editCouncilMember(index) {
+  await fetchCouncilRoles();
+  const member = councilMembers.value[index];
+  if (!member) {
+    return;
+  }
+
+  editingMemberIndex.value = index;
   memberForm.value = {
-    residentId: null,
-    name: '',
-    position: '',
-    contact: '',
+    ...emptyMemberFormState(),
+    ...member,
+    residentName: member.residentName || member.name,
+    name: member.name || member.residentName,
+    originalRoleId: member.roleId || null,
+    originalUserId: member.userId || null,
+    requiresUserAccount: member.requiresUserAccount || !member.userId,
+    contact: member.contact || '',
   };
   showMemberDialog.value = true;
 }
 
-function editCouncilMember(index) {
-  editingMemberIndex.value = index;
-  memberForm.value = { ...formData.value.council_members[index] };
-  showMemberDialog.value = true;
-}
-function saveMember() {
-  if (editingMemberIndex.value === null) {
-    formData.value.council_members.push(memberForm.value);
-  } else {
-    formData.value.council_members[editingMemberIndex.value] = memberForm.value;
+async function saveMember() {
+  if (!memberForm.value.residentId) {
+    $q.notify({ type: 'warning', message: 'Please select a resident.' });
+    return;
   }
-  showMemberDialog.value = false;
-  editingMemberIndex.value = null;
-  memberForm.value = {
-    residentId: null,
-    name: '',
-    position: '',
-    contact: '',
-  };
+
+  if (!memberForm.value.roleId) {
+    $q.notify({ type: 'warning', message: 'Please select a council role.' });
+    return;
+  }
+
+  try {
+    if (!memberForm.value.requiresUserAccount && memberForm.value.userId) {
+      await ensureUserHasCouncilRole(memberForm.value.userId, memberForm.value.roleId);
+
+      if (
+        memberForm.value.originalRoleId &&
+        memberForm.value.originalRoleId !== memberForm.value.roleId
+      ) {
+        await removeCouncilRoleFromUser(memberForm.value.userId, memberForm.value.originalRoleId);
+      }
+    }
+
+    const normalized = normalizeCouncilMember({ ...memberForm.value });
+
+    if (editingMemberIndex.value === null) {
+      formData.value.council_members = [...formData.value.council_members, normalized];
+    } else {
+      formData.value.council_members.splice(editingMemberIndex.value, 1, normalized);
+    }
+
+    await fetchCouncilMembers();
+    closeMemberDialog();
+    $q.notify({ type: 'positive', message: 'Council member saved.' });
+  } catch (error) {
+    console.error('Failed to save council member:', error);
+    $q.notify({
+      type: 'negative',
+      message: 'Unable to save council member. Please try again.',
+    });
+  }
 }
 
 function closeMemberDialog() {
   showMemberDialog.value = false;
   editingMemberIndex.value = null;
-  memberForm.value = {
-    residentId: null,
-    name: '',
-    position: '',
-    contact: '',
-  };
+  memberForm.value = emptyMemberFormState();
 }
+
 function handleResidentSelect(option) {
-  if (option) {
-    memberForm.value.residentId = option.id;
-    memberForm.value.name = option.fullName;
+  if (!option) {
+    memberForm.value = {
+      ...emptyMemberFormState(),
+      roleId: memberForm.value.roleId,
+    };
+    return;
+  }
+
+  const residentId = option.id;
+  const residentName = option.fullName || option.raw?.fullName || option.raw?.first_name;
+
+  memberForm.value.residentId = residentId;
+  memberForm.value.residentName = residentName;
+  memberForm.value.name = residentName;
+
+  const linkedUser = residentUserIndex.get(residentId);
+
+  if (linkedUser) {
+    const { userId, contact, roleId } = mapUserToMember(linkedUser);
+    memberForm.value.userId = userId;
+    memberForm.value.contact = contact;
+    memberForm.value.originalRoleId = roleId;
+    memberForm.value.originalUserId = userId;
+    memberForm.value.requiresUserAccount = false;
+    if (!memberForm.value.roleId && roleId) {
+      memberForm.value.roleId = roleId;
+    }
   } else {
-    memberForm.value.residentId = null;
-    memberForm.value.name = '';
+    memberForm.value.userId = null;
+    memberForm.value.contact = '';
+    memberForm.value.originalRoleId = null;
+    memberForm.value.originalUserId = null;
+    memberForm.value.requiresUserAccount = true;
   }
 }
-async function fetchCouncilRoles() {
+async function fetchCouncilRoles(forceReload = false) {
+  if (!forceReload && councilRoleOptions.value.length > 0) {
+    return;
+  }
+
   isCouncilRolesLoading.value = true;
   councilRolesError.value = null;
 
@@ -575,9 +698,17 @@ async function fetchCouncilRoles() {
       queries: [Query.equal('category', 'council'), Query.select(['$id', 'name'])],
     });
 
-    councilRoles.value = rolesResponse.rows
-      .filter((role) => role?.name)
-      .map((role) => ({ label: role.name, value: role.name }));
+    councilRoleMap.clear();
+    councilRoleOptions.value = rolesResponse.rows
+      .filter((role) => role?.$id && role?.name)
+      .map((role) => {
+        councilRoleMap.set(role.$id, role);
+        return {
+          label: role.name,
+          value: role.$id,
+        };
+      })
+      .sort((a, b) => a.label.localeCompare(b.label));
   } catch (error) {
     console.error('Error fetching council roles:', error);
     councilRolesError.value = error.message;
@@ -592,21 +723,10 @@ async function fetchCouncilMembers() {
 
   try {
     const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
-    const rolesCollectionId = import.meta.env.VITE_APPWRITE_TABLE_ROLES;
+    //const rolesCollectionId = import.meta.env.VITE_APPWRITE_TABLE_ROLES;
     const usersCollectionId = import.meta.env.VITE_APPWRITE_TABLE_USERS;
 
-    const rolesResponse = await tables.listRows({
-      databaseId: dbId,
-      tableId: rolesCollectionId,
-      queries: [Query.equal('category', 'council'), Query.select(['$id', 'name'])],
-    });
-
-    const councilRoleIds = rolesResponse.rows.map((role) => role.$id);
-
-    if (councilRoleIds.length === 0) {
-      councilMembers.value = [];
-      return;
-    }
+    await fetchCouncilRoles();
 
     const usersResponse = await tables.listRows({
       databaseId: dbId,
@@ -617,69 +737,230 @@ async function fetchCouncilMembers() {
       ],
     });
 
-    const rolesMap = new Map(rolesResponse.rows.map((role) => [role.$id, role]));
+    const normalizedUsers = usersResponse.rows.map((user) => normalizeUser(user));
 
-    const filteredUsers = usersResponse.rows.filter((user) => {
-      const matchedRoleIds = (Array.isArray(user.role_ids) ? user.role_ids : [])
-        .map((roleEntry) => {
-          if (typeof roleEntry === 'string') {
-            return roleEntry;
-          }
+    residentUserIndex.clear();
+    userIndex.clear();
 
-          if (roleEntry?.$id) {
-            return roleEntry.$id;
-          }
-
-          if (roleEntry?.role) {
-            return roleEntry.role?.$id;
-          }
-
-          if (roleEntry?.related) {
-            return roleEntry.related?.$id;
-          }
-
-          return null;
-        })
-        .filter((id) => typeof id === 'string');
-
-      return matchedRoleIds.some((roleId) => councilRoleIds.includes(roleId));
+    normalizedUsers.forEach((entry) => {
+      if (entry.residentId) {
+        residentUserIndex.set(entry.residentId, entry);
+      }
+      if (entry.userId) {
+        userIndex.set(entry.userId, entry);
+      }
     });
 
-    councilMembers.value = filteredUsers.map((user) => {
-      const matchedRoles = (Array.isArray(user.role_ids) ? user.role_ids : []).map((roleEntry) => {
-        if (typeof roleEntry === 'string') {
-          return rolesMap.get(roleEntry);
-        }
+    const mappedMembers = normalizedUsers
+      .filter((entry) => entry.roleId)
+      .map((entry) => ({
+        ...entry,
+        contact: entry.contact,
+      }));
 
-        if (roleEntry?.$id) {
-          return roleEntry;
-        }
+    const storedIds = new Set(mappedMembers.map((member) => member.residentId));
 
-        if (roleEntry?.role) {
-          return roleEntry.role;
-        }
+    const manualMembers = (
+      Array.isArray(formData.value.council_members) ? formData.value.council_members : []
+    )
+      .map((member) => normalizeCouncilMember(member))
+      .filter((member) => member.residentId && !storedIds.has(member.residentId))
+      .map((member) => ({ ...member, requiresUserAccount: true }));
 
-        if (roleEntry?.related) {
-          return roleEntry.related;
-        }
-
-        return null;
-      });
-
-      const councilRole = matchedRoles.find((role) => role && councilRoleIds.includes(role.$id));
-
-      return {
-        id: user.$id,
-        name: user.name || 'Unnamed Resident',
-        position: councilRole?.name || 'Council Member',
-        contact: user.phone || user.email || null,
-      };
-    });
+    councilMembers.value = [...mappedMembers, ...manualMembers];
+    formData.value.council_members = councilMembers.value.map((member) =>
+      normalizeCouncilMember(member),
+    );
   } catch (error) {
     console.error('Failed to load council members:', error);
     councilMembersError.value = 'Unable to load council members. Please try again later.';
   } finally {
     isCouncilMembersLoading.value = false;
   }
+}
+
+function normalizeUser(user) {
+  const userId = user.$id;
+  const resident = user.resident_id;
+  const residentId = typeof resident === 'string' ? resident : resident?.$id;
+  const residentName =
+    resident?.fullName ||
+    [resident?.first_name, resident?.middle_names, resident?.last_name].filter(Boolean).join(' ');
+
+  const roleIds = (Array.isArray(user.role_ids) ? user.role_ids : [])
+    .map((roleEntry) => {
+      if (typeof roleEntry === 'string') {
+        return roleEntry;
+      }
+
+      if (roleEntry?.$id) {
+        return roleEntry.$id;
+      }
+
+      if (roleEntry?.role) {
+        return roleEntry.role?.$id;
+      }
+
+      if (roleEntry?.related) {
+        return roleEntry.related?.$id;
+      }
+
+      return null;
+    })
+    .filter((id) => typeof id === 'string');
+
+  const councilRoleId = roleIds.find((roleId) => councilRoleMap.has(roleId)) || null;
+
+  return {
+    userId,
+    residentId,
+    residentName: residentName || user.name || 'Unnamed Resident',
+    name: user.name || residentName || 'Unnamed Resident',
+    contact: user.phone || user.email || '',
+    roleId: councilRoleId,
+    roleName: councilRoleId ? councilRoleMap.get(councilRoleId)?.name : null,
+    roleIds,
+  };
+}
+
+function mapUserToMember(entry) {
+  return {
+    userId: entry.userId,
+    residentId: entry.residentId,
+    residentName: entry.residentName,
+    roleId: entry.roleId,
+    roleName: entry.roleName,
+    contact: entry.contact,
+  };
+}
+
+async function ensureUserHasCouncilRole(userId, roleId) {
+  if (!userId || !roleId) {
+    return;
+  }
+
+  const user = await ensureUserEntry(userId);
+
+  const existingRoleIds = new Set(user?.roleIds || []);
+  if (existingRoleIds.has(roleId)) {
+    return;
+  }
+
+  const updatedRoleIds = [...existingRoleIds, roleId];
+  await updateUserRoles(userId, updatedRoleIds);
+}
+
+async function removeCouncilRoleFromUser(userId, roleId) {
+  if (!userId || !roleId) {
+    return;
+  }
+
+  const user = await ensureUserEntry(userId);
+  const existingRoleIds = new Set(user?.roleIds || []);
+
+  if (!existingRoleIds.has(roleId)) {
+    return;
+  }
+
+  existingRoleIds.delete(roleId);
+  await updateUserRoles(userId, Array.from(existingRoleIds));
+}
+
+async function updateUserRoles(userId, roleIds) {
+  const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
+  const usersCollectionId = import.meta.env.VITE_APPWRITE_TABLE_USERS;
+
+  await tables.updateRow({
+    databaseId: dbId,
+    tableId: usersCollectionId,
+    rowId: userId,
+    data: {
+      role_ids: roleIds,
+    },
+  });
+
+  const entry = userIndex.get(userId) || {};
+  const councilRoleId = roleIds.find((id) => councilRoleMap.has(id)) || null;
+  const updatedEntry = {
+    ...entry,
+    roleIds,
+    roleId: councilRoleId,
+    roleName: councilRoleId ? councilRoleMap.get(councilRoleId)?.name : null,
+  };
+  userIndex.set(userId, updatedEntry);
+
+  if (updatedEntry.residentId) {
+    residentUserIndex.set(updatedEntry.residentId, updatedEntry);
+  }
+}
+
+async function ensureUserEntry(userId) {
+  if (!userId) {
+    return null;
+  }
+
+  if (userIndex.has(userId)) {
+    return userIndex.get(userId);
+  }
+
+  try {
+    const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
+    const usersCollectionId = import.meta.env.VITE_APPWRITE_TABLE_USERS;
+    const user = await tables.getRow({
+      databaseId: dbId,
+      tableId: usersCollectionId,
+      rowId: userId,
+    });
+
+    const normalized = normalizeUser(user);
+    userIndex.set(userId, normalized);
+    if (normalized.residentId) {
+      residentUserIndex.set(normalized.residentId, normalized);
+    }
+    return normalized;
+  } catch (error) {
+    console.error('Failed to load user entry:', error);
+    return null;
+  }
+}
+
+function notifyAddUserPending() {
+  $q.notify({
+    type: 'info',
+    message: 'Add User flow will be available soon. Please create the user manually for now.',
+  });
+}
+
+function confirmDeleteMember(index) {
+  const member = councilMembers.value[index];
+  if (!member) {
+    return;
+  }
+
+  $q.dialog({
+    title: 'Remove Council Member',
+    message: `Remove ${member.residentName || member.name || 'this member'} from the council?`,
+    cancel: true,
+    persistent: true,
+  }).onOk(async () => {
+    try {
+      if (member.userId && member.roleId && !member.requiresUserAccount) {
+        await removeCouncilRoleFromUser(member.userId, member.roleId);
+      }
+
+      formData.value.council_members = formData.value.council_members.filter(
+        (entry) => entry.residentId !== member.residentId,
+      );
+
+      await fetchCouncilMembers();
+      $q.notify({ type: 'positive', message: 'Council member removed.' });
+    } catch (error) {
+      console.error('Failed to remove council member:', error);
+      $q.notify({
+        type: 'negative',
+        message: 'Unable to remove council member. Please try again.',
+      });
+    }
+  });
 }
 </script>
