@@ -19,7 +19,7 @@
  *   npm run setup:appwrite
  */
 
-import { Client, Databases } from 'node-appwrite';
+import { Client, Databases, TablesDB } from 'node-appwrite';
 import dotenv from 'dotenv';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
@@ -57,6 +57,7 @@ const client = new Client()
   .setKey(config.apiKey);
 
 const databases = new Databases(client);
+const tables = new TablesDB(client);
 
 // Table schemas
 const tableSchemas = {
@@ -65,28 +66,56 @@ const tableSchemas = {
     columns: [
       { key: 'email', type: 'string', size: 255, required: true },
       { key: 'name', type: 'string', size: 255, required: true },
-      { key: 'created_at', type: 'datetime', required: true },
-      { key: 'updated_at', type: 'datetime', required: true },
+      {
+        key: 'resident_id',
+        type: 'relationship',
+        relatedTable: 'residents',
+        relationType: 'oneToOne',
+        twoWay: false,
+        required: false,
+      },
+      {
+        key: 'role_ids',
+        type: 'relationship',
+        relatedTable: 'roles',
+        relationType: 'manyToMany',
+        twoWay: false,
+        required: false,
+      },
+      { key: 'storage_quota', type: 'integer', min: 0, max: 1000, default: 2, required: false },
+      { key: '$createdAt', type: 'datetime', required: true },
+      { key: '$updatedAt', type: 'datetime', required: true },
     ],
     indexes: [{ key: 'idx_users_email_unique', type: 'unique', attributes: ['email'] }],
   },
   residents: {
     name: 'Residents',
     columns: [
-      { key: 'name', type: 'string', size: 255, required: true },
+      { key: 'first_name', type: 'string', size: 50, required: true },
+      { key: 'middle_names', type: 'string', size: 255, required: false },
+      { key: 'last_name', type: 'string', size: 50, required: true },
       { key: 'dob', type: 'datetime', required: false },
       {
         key: 'gender',
         type: 'enum',
         elements: ['Male', 'Female', 'Other'],
-        default: 'Other',
+        required: true,
+      },
+      { key: 'phone', type: 'string', size: 20, required: false },
+      { key: 'email', type: 'email', required: false },
+      {
+        key: 'household_id',
+        type: 'relationship',
+        relatedTable: 'households',
+        relationType: 'manyToOne',
+        twoWay: true,
+        twoWayKey: 'resident_ids',
         required: false,
       },
-      { key: 'contact', type: 'string', size: 100, required: false },
-      { key: 'household_id', type: 'string', size: 36, required: false },
-      { key: 'role_ids', type: 'string', size: 36, array: true, required: false },
-      { key: 'created_at', type: 'datetime', required: true },
-      { key: 'updated_at', type: 'datetime', required: true },
+      { key: 'room_number', type: 'string', size: 25, required: false },
+      { key: 'notes', type: 'string', size: 500, required: false },
+      { key: '$createdAt', type: 'datetime', required: true },
+      { key: '$updatedAt', type: 'datetime', required: true },
     ],
     indexes: [
       {
@@ -102,10 +131,43 @@ const tableSchemas = {
     name: 'Households',
     columns: [
       { key: 'name', type: 'string', size: 255, required: true },
-      { key: 'head_resident_id', type: 'string', size: 36, required: false },
+      {
+        key: 'head_resident_id',
+        type: 'relationship',
+        relatedTable: 'residents',
+        relationType: 'oneToOne',
+        twoWay: false,
+        required: false,
+      },
+      {
+        key: 'resident_ids',
+        type: 'relationship',
+        relatedTable: 'residents',
+        relationType: 'manyToOne',
+        twoWay: true,
+        twoWayKey: 'household_id',
+        required: false,
+      },
       { key: 'address', type: 'string', size: 500, required: false },
-      { key: 'created_at', type: 'datetime', required: true },
-      { key: 'updated_at', type: 'datetime', required: true },
+      { key: 'construction_date', type: 'datetime', required: true },
+      {
+        key: 'household_type',
+        type: 'enum',
+        elements: [
+          'Single Family',
+          'Multi-Family',
+          'Dormitory',
+          'Guest House',
+          'Admin Building',
+          'Other',
+        ],
+        required: true,
+      },
+      { key: 'bedrooms', type: 'integer', min: 0, max: 50, required: false },
+      { key: 'bathrooms', type: 'integer', min: 0, max: 5, required: false },
+      { key: 'notes', type: 'string', size: 500, required: false },
+      { key: '$createdAt', type: 'datetime', required: true },
+      { key: '$updatedAt', type: 'datetime', required: true },
     ],
     indexes: [
       {
@@ -120,10 +182,16 @@ const tableSchemas = {
     name: 'Roles',
     columns: [
       { key: 'name', type: 'string', size: 100, required: true },
+      {
+        key: 'category',
+        type: 'enum',
+        elements: ['administration', 'council', 'farm', 'school'],
+        required: true,
+      },
       { key: 'permissions', type: 'string', size: 100, array: true, required: false },
       { key: 'storage_quota', type: 'integer', min: 0, max: 1000, default: 2, required: false },
-      { key: 'created_at', type: 'datetime', required: true },
-      { key: 'updated_at', type: 'datetime', required: true },
+      { key: '$createdAt', type: 'datetime', required: true },
+      { key: '$updatedAt', type: 'datetime', required: true },
     ],
     indexes: [],
   },
@@ -146,31 +214,31 @@ const tableSchemas = {
 };
 
 // Helper functions
-async function createCollection(collectionId, schema) {
+async function createTable(tableId, schema) {
   try {
-    console.log(`\n📦 Creating collection: ${schema.name} (${collectionId})`);
+    console.log(`\n📦 Creating table: ${schema.name} (${collectionId})`);
 
-    await databases.createCollection(
+    await tables.createTable(
       config.databaseId,
-      collectionId,
+      tableId,
       schema.name,
       ['read("any")', 'create("any")', 'update("any")', 'delete("any")'], // Permissions for any authenticated user
       true, // Enabled
-      false, // Document security (false = collection-level permissions)
+      false, // Document security (false = table-level permissions)
     );
 
-    console.log(`   ✅ Collection created: ${schema.name}`);
+    console.log(`   ✅ Table created: ${schema.name}`);
     return true;
   } catch (error) {
     if (error.code === 409) {
-      console.log(`   ⚠️  Collection already exists: ${schema.name}`);
+      console.log(`   ⚠️  Table already exists: ${schema.name}`);
       return false;
     }
     throw error;
   }
 }
 
-async function createAttribute(collectionId, column) {
+async function createColumn(tableId, column) {
   try {
     const { key, type, size, required, array, elements, default: defaultValue, min, max } = column;
 
@@ -178,22 +246,23 @@ async function createAttribute(collectionId, column) {
 
     switch (type) {
       case 'string':
-        await databases.createStringAttribute(
+        await tables.createColumn(
           config.databaseId,
-          collectionId,
+          tableId,
           key,
+          'string',
           size,
           required,
           defaultValue,
           array || false,
         );
         break;
-
       case 'integer':
-        await databases.createIntegerAttribute(
+        await tables.createColumn(
           config.databaseId,
-          collectionId,
+          tableId,
           key,
+          'integer',
           required,
           min,
           max,
@@ -203,10 +272,11 @@ async function createAttribute(collectionId, column) {
         break;
 
       case 'datetime':
-        await databases.createDatetimeAttribute(
+        await tables.createColumn(
           config.databaseId,
-          collectionId,
+          tableId,
           key,
+          'datetime',
           required,
           defaultValue,
           array || false,
@@ -214,10 +284,11 @@ async function createAttribute(collectionId, column) {
         break;
 
       case 'enum':
-        await databases.createEnumAttribute(
+        await tables.createColumn(
           config.databaseId,
-          collectionId,
+          tableId,
           key,
+          'enum',
           elements,
           required,
           defaultValue,
@@ -226,10 +297,11 @@ async function createAttribute(collectionId, column) {
         break;
 
       case 'boolean':
-        await databases.createBooleanAttribute(
+        await tables.createColumn(
           config.databaseId,
-          collectionId,
+          tableId,
           key,
+          'boolean',
           required,
           defaultValue,
           array || false,
@@ -251,13 +323,13 @@ async function createAttribute(collectionId, column) {
   }
 }
 
-async function createIndex(collectionId, index) {
+async function createIndex(tableId, index) {
   try {
     console.log(`   🔍 Creating index: ${index.key}`);
 
-    await databases.createIndex(
+    await tables.createIndex(
       config.databaseId,
-      collectionId,
+      tableId,
       index.key,
       index.type,
       index.attributes,
@@ -274,24 +346,24 @@ async function createIndex(collectionId, index) {
   }
 }
 
-async function waitForAttributeCreation(collectionId, attributeKey, maxAttempts = 10) {
+async function waitForColumnCreation(tableId, columnKey, maxAttempts = 10) {
   for (let i = 0; i < maxAttempts; i++) {
     try {
-      const collection = await databases.getCollection(config.databaseId, collectionId);
-      const attribute = collection.attributes.find((attr) => attr.key === attributeKey);
+      const table = await tables.getTable(config.databaseId, tableId);
+      const column = table.columns.find((attr) => attr.key === columnKey);
 
-      if (attribute && attribute.status === 'available') {
+      if (column && column.status === 'available') {
         return true;
       }
 
       // Wait 2 seconds before checking again
       await new Promise((resolve) => setTimeout(resolve, 2000));
     } catch (error) {
-      console.error(`      ⚠️  Error checking attribute status: ${error.message}`);
+      console.error(`      ⚠️  Error checking column status: ${error.message}`);
     }
   }
 
-  console.log(`      ⚠️  Timeout waiting for attribute: ${attributeKey}`);
+  console.log(`      ⚠️  Timeout waiting for column: ${columnKey}`);
   return false;
 }
 
@@ -306,7 +378,7 @@ async function setupDatabase() {
     // Verify database exists
     console.log('\n🔍 Verifying database exists...');
     try {
-      await databases.get(config.databaseId);
+      await tables.get({ databaseId: config.databaseId });
       console.log('   ✅ Database found');
     } catch (error) {
       if (error.code === 404) {
@@ -318,16 +390,16 @@ async function setupDatabase() {
     }
 
     // Create collections and attributes
-    for (const [collectionId, schema] of Object.entries(tableSchemas)) {
-      const isNew = await createCollection(collectionId, schema);
+    for (const [tableId, schema] of Object.entries(tableSchemas)) {
+      const isNew = await createTable(tableId, schema);
 
       // Create attributes
       for (const column of schema.columns) {
-        await createAttribute(collectionId, column);
+        await createColumn(tableId, column);
 
-        // Wait for attribute to be available before creating the next one
+        // Wait for column to be available before creating the next one
         if (isNew) {
-          await waitForAttributeCreation(collectionId, column.key);
+          await waitForColumnCreation(tableId, column.key);
         }
       }
 
@@ -335,7 +407,7 @@ async function setupDatabase() {
       if (schema.indexes.length > 0) {
         console.log(`   🔍 Creating indexes for ${schema.name}...`);
         for (const index of schema.indexes) {
-          await createIndex(collectionId, index);
+          await createIndex(tableId, index);
         }
       }
     }
