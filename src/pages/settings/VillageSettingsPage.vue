@@ -396,7 +396,7 @@ const formData = ref({
   country_code: '',
   country_phone_code: '',
   is_using_sample_data: false,
-  council_members: [],
+  council_member_ids: null,
   modules_enabled: [],
 });
 
@@ -517,7 +517,9 @@ function loadFormData() {
       country_code: settingsStore.settings.country_code || 'ZM',
       country_phone_code: settingsStore.settings.country_phone_code || '',
       is_using_sample_data: settingsStore.settings.is_using_sample_data || false,
-      council_members: settingsStore.councilMembers.map((member) => normalizeCouncilMember(member)),
+      council_member_ids: settingsStore.councilMembers.map((member) =>
+        normalizeCouncilMember(member),
+      ),
       modules_enabled: [...(settingsStore.settings.modules_enabled || [])],
     };
   }
@@ -558,10 +560,10 @@ async function saveSettings() {
 
   if (result.success) {
     isEditMode.value = false;
-    $q.notify({
-      type: 'positive',
-      message: 'Village settings updated successfully',
-    });
+    // $q.notify({
+    //   type: 'positive',
+    //   message: 'Village settings updated successfully',
+    // });
 
     await fetchCouncilMembers();
   }
@@ -621,9 +623,9 @@ async function saveMember() {
     const normalized = normalizeCouncilMember({ ...memberForm.value });
 
     if (editingMemberIndex.value === null) {
-      formData.value.council_members = [...formData.value.council_members, normalized];
+      formData.value.council_member_ids = [...formData.value.council_member_ids, normalized];
     } else {
-      formData.value.council_members.splice(editingMemberIndex.value, 1, normalized);
+      formData.value.council_member_ids.splice(editingMemberIndex.value, 1, normalized);
     }
 
     await fetchCouncilMembers();
@@ -724,13 +726,13 @@ async function fetchCouncilMembers() {
   try {
     const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
     //const rolesCollectionId = import.meta.env.VITE_APPWRITE_TABLE_ROLES;
-    const usersCollectionId = import.meta.env.VITE_APPWRITE_TABLE_USERS;
+    const usersTableId = import.meta.env.VITE_APPWRITE_TABLE_USERS;
 
     await fetchCouncilRoles();
 
     const usersResponse = await tables.listRows({
       databaseId: dbId,
-      tableId: usersCollectionId,
+      tableId: usersTableId,
       queries: [
         Query.select(['$id', 'name', 'email', 'resident_id.*', 'role_ids.*']),
         Query.limit(20),
@@ -761,14 +763,14 @@ async function fetchCouncilMembers() {
     const storedIds = new Set(mappedMembers.map((member) => member.residentId));
 
     const manualMembers = (
-      Array.isArray(formData.value.council_members) ? formData.value.council_members : []
+      Array.isArray(formData.value.council_member_ids) ? formData.value.council_member_ids : []
     )
       .map((member) => normalizeCouncilMember(member))
       .filter((member) => member.residentId && !storedIds.has(member.residentId))
       .map((member) => ({ ...member, requiresUserAccount: true }));
 
     councilMembers.value = [...mappedMembers, ...manualMembers];
-    formData.value.council_members = councilMembers.value.map((member) =>
+    formData.value.council_member_ids = councilMembers.value.map((member) =>
       normalizeCouncilMember(member),
     );
   } catch (error) {
@@ -948,7 +950,7 @@ function confirmDeleteMember(index) {
         await removeCouncilRoleFromUser(member.userId, member.roleId);
       }
 
-      formData.value.council_members = formData.value.council_members.filter(
+      formData.value.council_member_ids = formData.value.council_member_ids.filter(
         (entry) => entry.residentId !== member.residentId,
       );
 

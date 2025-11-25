@@ -1,6 +1,6 @@
 import { Notify } from 'quasar';
 
-const DEFAULT_POSITION = 'top';
+const DEFAULT_POSITION = 'bottom';
 
 export function useErrorHandler() {
   const notifyError = (message, options = {}) => {

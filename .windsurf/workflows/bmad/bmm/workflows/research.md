@@ -9,16 +9,27 @@ description: "Adaptive research workflow supporting multiple research types: mar
 author: "BMad"
 
 # Critical variables from config
-config_source: "{project-root}/bmad/bmm/config.yaml"
+config_source: "{project-root}/.bmad/bmm/config.yaml"
 output_folder: "{config_source}:output_folder"
 user_name: "{config_source}:user_name"
 communication_language: "{config_source}:communication_language"
 document_output_language: "{config_source}:document_output_language"
 user_skill_level: "{config_source}:user_skill_level"
 date: system-generated
+current_year: system-generated
+current_month: system-generated
+
+# Research behavior - WEB RESEARCH IS DEFAULT
+enable_web_research: true
+
+# Source tracking and verification - CRITICAL FOR ACCURACY
+require_citations: true
+require_source_urls: true
+minimum_sources_per_claim: 2
+fact_check_critical_data: true
 
 # Workflow components - ROUTER PATTERN
-installed_path: "{project-root}/bmad/bmm/workflows/1-analysis/research"
+installed_path: "{project-root}/.bmad/bmm/workflows/1-analysis/research"
 instructions: "{installed_path}/instructions-router.md" # Router loads specific instruction sets
 validation: "{installed_path}/checklist.md"
 
@@ -36,4 +47,3 @@ template_technical: "{installed_path}/template-technical.md"
 default_output_file: "{output_folder}/research-{{research_type}}-{{date}}.md"
 
 standalone: true
-

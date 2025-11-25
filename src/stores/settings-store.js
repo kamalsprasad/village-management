@@ -261,20 +261,12 @@ export const useSettingsStore = defineStore('settings', {
           }
         }
 
-        // Stringify council_members if it's an array
-        // if (Array.isArray(processedUpdates.council_members)) {
-        //   processedUpdates.council_members = JSON.stringify(processedUpdates.council_members);
-        // }
-
-        const council_member_ids = processedUpdates.council_members.map(
-          (member) => member.residentId,
-        );
-
-        // Object.fromEntries(
-        //   processedUpdates.council_members.map((member) => [member.id]),
-        // );
-        processedUpdates.council_member_ids = council_member_ids;
-        delete processedUpdates.council_members;
+        //processedUpdates.council_member_ids.map((member) => member.residentId);
+        if (Array.isArray(processedUpdates.council_member_ids)) {
+          processedUpdates.council_member_ids = processedUpdates.council_member_ids.map((member) =>
+            typeof member === 'string' ? member : member.residentId,
+          );
+        }
 
         const result = await tables.updateRow({
           databaseId: dbId,
