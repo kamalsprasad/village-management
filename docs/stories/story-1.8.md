@@ -1,6 +1,6 @@
 # Story 1.8: Village Configuration and Default Settings
 
-Status: review
+Status: done
 
 ## Story
 
@@ -23,7 +23,7 @@ so that **the platform reflects local realities, enforces correct financial meta
 2. Village Settings page is reachable from the Admin menu and respects RBAC so only System Administrator can access edit mode; other roles see read-only view. [Source: docs/epics.md#195][Source: docs/architecture.md#295-321]
 3. UI sections are organized as Basic Information, Financial Settings, System Settings, and Council Members with inline validation using `validateForm`. [Source: docs/epics.md#196][Source: docs/architecture.md#575-730]
 4. Council Members subsection supports add/edit/remove operations while persisting resident references via `council_member_ids[]`; name, position, and contact are rendered dynamically from linked Residents/Users/Roles data to avoid duplication. [Source: docs/epics.md#197]
-5. *Deferred to Story 1.9:* First-time setup wizard will add the village configuration step (defaults, sample data toggle, initial record write). Current story ensures backend readiness for that flow. [Source: docs/epics.md#198][Source: docs/PRD.md#253-258]
+5. _Deferred to Story 1.9:_ First-time setup wizard will add the village configuration step (defaults, sample data toggle, initial record write). Current story ensures backend readiness for that flow. [Source: docs/epics.md#198][Source: docs/PRD.md#253-258]
 6. Village name surfaces in MainLayout header, dashboard hero, and exported reports by referencing the settings store. [Source: docs/epics.md#199][Source: docs/architecture.md#49-76]
 7. Financial modules consume `default_currency` and `currency_symbol` for formatting, ensuring consistency across finance dashboards and transactions. [Source: docs/epics.md#200][Source: docs/tech-spec-epic-1.md#140-154]
 8. Settings page shows "Last Updated" timestamp sourced from `$updatedAt`, adjusted to configured timezone using `date-fns`. [Source: docs/epics.md#201][Source: docs/architecture.md#969-1021]
@@ -45,7 +45,7 @@ so that **the platform reflects local realities, enforces correct financial meta
   - [x] Update `MainLayout.vue`, dashboard header, and finance formatting utilities to consume settings store values. [Source: docs/epics.md#199-200]
   - [x] Adjust export/report generators to include village name and currency symbol. [Source: docs/epics.md#199-200]
 - [x] **Task 5: Extend setup wizard and offline handling (AC: 5,10)**
-  - [ ] Add configuration step to `SetupWizard.vue` including sample data toggle and validation. [Source: docs/PRD.md#253-258] *Deferred to Story 1.9 - SetupWizard doesn't exist yet; Story 1.8 ensures backend/table readiness only*
+  - [ ] Add configuration step to `SetupWizard.vue` including sample data toggle and validation. [Source: docs/PRD.md#253-258] _Deferred to Story 1.9 - SetupWizard doesn't exist yet; Story 1.8 ensures backend/table readiness only_
   - [x] Ensure offline mutation queue covers settings updates with useErrorHandler logging. [Source: docs/architecture.md#324-395]
 - [x] **Task 6: Verification & documentation (AC: 8-10)**
   - [x] Document manual test checklist (RBAC scenarios, timezone formatting, currency propagation, offline edit retry). [Source: docs/PRD.md#288-311]
@@ -104,6 +104,7 @@ Cascade SM (2025-10-31)
 
 **Implementation Summary:**
 All acceptance criteria satisfied except AC#5 (setup wizard integration) which is deferred to Story 1.9. The village settings system is fully functional with:
+
 - Backend: Appwrite collection with all required fields, seed script for initialization
 - Store: Singleton Pinia store with boot integration, currency/timezone helpers, first-run detection
 - UI: Complete settings page with RBAC, four sections, council member management
@@ -111,6 +112,28 @@ All acceptance criteria satisfied except AC#5 (setup wizard integration) which i
 - Documentation: Comprehensive test coverage documented
 
 Ready for code review and testing.
+
+### Definition of Done
+
+- [x] All acceptance criteria met (AC1-4, AC6-10 implemented; AC5 deferred to Story 1.9)
+- [x] Code follows architecture patterns (Vue 3 script setup, Pinia, useErrorHandler, date-fns-tz)
+- [x] ESLint passes with no errors
+- [x] Test documentation added to docs/testing.md
+- [x] Village name integrated into MainLayout header and Dashboard
+- [x] RBAC enforced for edit permissions
+- [x] Timezone-aware date formatting implemented
+- [x] Currency formatting getter available for financial modules
+- [x] Council member CRUD with resident search and role assignment
+- [x] Boot file loads settings on app startup
+- [x] First-run scenario handled gracefully
+
+### Senior Developer Review
+
+**Date:** 2025-11-25  
+**Status:** ✅ APPROVED  
+**Reviewer:** Senior Developer (Code Review Workflow)
+
+**Summary:** All 10 acceptance criteria verified (AC5 correctly deferred). Architecture compliance confirmed for Vue 3 script setup, Pinia stores, useErrorHandler, date-fns-tz, and normalized schema. Code quality is high with robust timezone handling, first-run detection, and comprehensive council member management. ESLint passes. No blocking issues found.
 
 ### File List
 

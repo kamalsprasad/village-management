@@ -25,19 +25,19 @@ READINESS_REPORT: docs/implementation-readiness-report-2025-10-25.md
 
 ## Development Queue
 
-STORIES_SEQUENCE: [1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 1.8]
+STORIES_SEQUENCE: [1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 1.8, 1.9]
 TODO_STORY: 1.9
 TODO_TITLE: Sample Data Mode - Katete Model Village Seed Data
 IN_PROGRESS_STORY:
 IN_PROGRESS_TITLE:
-STORIES_DONE: [1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7]
-STORIES_READY: [1.8]
+STORIES_DONE: [1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 1.8]
+STORIES_READY: []
 
 ## Next Action
 
-NEXT_ACTION: Implement Story 1.8 (Village Configuration and Default Settings)
-NEXT_COMMAND: dev-story
-NEXT_AGENT: Developer (dev)
+NEXT_ACTION: Draft Story 1.9 (Sample Data Mode - Katete Model Village Seed Data)
+NEXT_COMMAND: create-story
+NEXT_AGENT: Scrum Master (sm)
 
 ## Architecture Decisions Completed
 
@@ -98,6 +98,9 @@ See docs/epics.md for complete story breakdown
 - **Story 1.3:** Authentication System with Email/Password ✅ (Completed: 2025-10-27)
 - **Story 1.4:** Role-Based Access Control (RBAC) Foundation ✅ (Completed: 2025-10-28)
 - **Story 1.5:** Dashboard Framework and Layout ✅ (Completed: 2025-10-30)
+- **Story 1.6:** Households Management - CRUD Operations ✅ (Completed: 2025-10-31)
+- **Story 1.7:** Residents Management - CRUD Operations ✅ (Completed: 2025-10-31)
+- **Story 1.8:** Village Configuration and Default Settings ✅ (Completed: 2025-11-25)
 
 ## Stories in Progress
 
@@ -135,6 +138,13 @@ See docs/epics.md for complete story breakdown
 **Confidence Level:** High - Project ready to proceed to implementation
 
 ## Recent Activity
+
+**2025-11-25 12:30 UTC+11:**
+
+- ✅ Story 1.8 marked DONE after Senior Developer code review
+- 📄 Story file updated: `docs/stories/story-1.8.md` (status → done, DoD notes + review added)
+- 📊 `docs/sprint-status.yaml` updated: Story 1.8 marked done
+- ⏭️ Next: Run `create-story` to draft Story 1.9 (Sample Data Mode - Katete Model Village Seed Data)
 
 **2025-10-31 20:20 UTC+11:**
 
@@ -261,5 +271,5 @@ See docs/epics.md for complete story breakdown
 
 ---
 
-_Last Updated: 2025-10-31 20:20 UTC+11_
-_Status Version: 4.1_
+_Last Updated: 2025-11-25 12:30 UTC+11_
+_Status Version: 4.2_
