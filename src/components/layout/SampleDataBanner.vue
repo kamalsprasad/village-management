@@ -10,7 +10,7 @@
       <q-btn
         flat
         dense
-        color="white"
+        color="black"
         label="Start Fresh - Wipe All Data"
         icon="delete_forever"
         class="wipe-btn"
@@ -47,18 +47,19 @@ async function handleWipeConfirmed() {
 
 <style lang="scss" scoped>
 .sample-data-banner {
-  background: linear-gradient(90deg, #f9a825 0%, #fbc02d 100%);
+  background: linear-gradient(90deg, #ffc107 0%, #ffca28 100%);
   color: #000;
-  padding: 8px 16px;
+  padding: 6px 16px;
   position: relative;
-  z-index: 2000;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+  /* No fixed z-index needed as it is inside QHeader */
 }
 
 .banner-content {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  max-width: 1400px;
+  max-width: 100%;
   margin: 0 auto;
   flex-wrap: wrap;
   gap: 8px;
@@ -67,26 +68,29 @@ async function handleWipeConfirmed() {
 .banner-text {
   display: flex;
   align-items: center;
-  font-size: 14px;
+  font-size: 13px;
+  letter-spacing: 0.3px;
 }
 
 .wipe-btn {
-  background: rgba(0, 0, 0, 0.15);
+  background: rgba(0, 0, 0, 0.05);
   border-radius: 4px;
+  font-size: 12px;
+  padding: 4px 12px;
 
   &:hover {
-    background: rgba(0, 0, 0, 0.25);
+    background: rgba(0, 0, 0, 0.1);
   }
 }
 
 @media (max-width: 600px) {
   .banner-content {
-    flex-direction: column;
-    text-align: center;
+    justify-content: center;
   }
 
-  .banner-text {
-    justify-content: center;
+  .wipe-btn {
+    width: 100%;
+    margin-top: 4px;
   }
 }
 </style>

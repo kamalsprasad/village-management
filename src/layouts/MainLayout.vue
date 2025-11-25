@@ -1,8 +1,5 @@
 <template>
   <q-layout view="lHh Lpr lFf">
-    <!-- Sample Data Mode Banner - shown when using sample data -->
-    <SampleDataBanner v-if="settingsStore.isUsingSampleData" />
-
     <q-header elevated>
       <q-toolbar>
         <q-btn
@@ -111,6 +108,9 @@
           </q-menu>
         </q-btn>
       </q-toolbar>
+
+      <!-- Sample Data Mode Banner - shown when using sample data -->
+      <SampleDataBanner v-if="settingsStore.isUsingSampleData" />
     </q-header>
 
     <q-drawer v-model="leftDrawerOpen" show-if-above bordered>

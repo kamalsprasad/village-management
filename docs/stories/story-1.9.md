@@ -195,7 +195,8 @@ Implementation decisions confirmed with user:
 
 ## Change Log
 
-| Date       | Change                                                         | Author     |
-| ---------- | -------------------------------------------------------------- | ---------- |
-| 2025-11-25 | Story drafted from epics, PRD, tech-spec, and UX specification | Cascade SM |
-| 2025-11-25 | Story implementation completed - all 8 tasks done              | Cascade SM |
+| Date       | Change                                                                | Author     |
+| ---------- | --------------------------------------------------------------------- | ---------- |
+| 2025-11-25 | Story drafted from epics, PRD, tech-spec, and UX specification        | Cascade SM |
+| 2025-11-25 | Story implementation completed - all 8 tasks done                     | Cascade SM |
+| 2025-11-25 | UI Fix: Moved SampleDataBanner inside QHeader for correct positioning | Cascade SM |
