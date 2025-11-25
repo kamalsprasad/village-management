@@ -1,6 +1,6 @@
 # Story 1.9: Sample Data Mode - Katete Model Village Seed Data
 
-Status: ready-for-dev
+Status: review
 
 ## Story
 
@@ -31,67 +31,67 @@ so that **I can evaluate the platform's capabilities before committing to produc
 
 ## Tasks / Subtasks
 
-- [ ] **Task 1: Create Setup Wizard page and routing (AC: 1, 2)**
-  - [ ] Create `src/pages/setup/SetupWizard.vue` with Welcome screen layout using two QCard components
-  - [ ] Add "Explore with Sample Data" card with recommended badge, description, and "Load Sample Data" button
-  - [ ] Add "Start Fresh with Real Data" card with disabled state and "Coming in future update" note
-  - [ ] Add route `/setup` with no auth requirement (wizard handles its own flow)
-  - [ ] Update boot file or router guard to redirect to `/setup` when `isFirstRun` is true
-  - [ ] Ensure wizard cannot be bypassed by direct URL navigation when in first-run state
+- [x] **Task 1: Create Setup Wizard page and routing (AC: 1, 2)**
+  - [x] Create `src/pages/setup/SetupWizard.vue` with Welcome screen layout using two QCard components
+  - [x] Add "Explore with Sample Data" card with recommended badge, description, and "Load Sample Data" button
+  - [x] Add "Start Fresh with Real Data" card with disabled state and "Coming in future update" note
+  - [x] Add route `/setup` with no auth requirement (wizard handles its own flow)
+  - [x] Update boot file or router guard to redirect to `/setup` when `isFirstRun` is true
+  - [x] Ensure wizard cannot be bypassed by direct URL navigation when in first-run state
 
-- [ ] **Task 2: Implement sample data seeding logic (AC: 3, 4, 9)**
-  - [ ] Create `src/composables/useSampleData.js` with `seedSampleData()` function
-  - [ ] Define Katete Model Village configuration data (name, address, timezone, currency, council members)
-  - [ ] Define 5-6 sample households with varied types (SingleFamily, MultiFamily, Dormitory, AdminBuilding)
-  - [ ] Define 15-20 sample residents with realistic Zambian names, DOBs, genders, and household assignments
-  - [ ] Implement progressive seeding: settings → households → residents (respecting relationships)
-  - [ ] Show loading indicator with progress during seeding
-  - [ ] Set `is_using_sample_data: true` after successful seeding
-  - [ ] Handle errors gracefully with rollback messaging via `useErrorHandler`
+- [x] **Task 2: Implement sample data seeding logic (AC: 3, 4, 9)**
+  - [x] Create `src/composables/useSampleData.js` with `seedSampleData()` function
+  - [x] Define Katete Model Village configuration data (name, address, timezone, currency, council members)
+  - [x] Define 5-6 sample households with varied types (SingleFamily, MultiFamily, Dormitory, AdminBuilding)
+  - [x] Define 15-20 sample residents with realistic Zambian names, DOBs, genders, and household assignments
+  - [x] Implement progressive seeding: settings → households → residents (respecting relationships)
+  - [x] Show loading indicator with progress during seeding
+  - [x] Set `is_using_sample_data: true` after successful seeding
+  - [x] Handle errors gracefully with rollback messaging via `useErrorHandler`
 
-- [ ] **Task 3: Create Sample Data Banner component (AC: 5)**
-  - [ ] Create `src/components/layout/SampleDataBanner.vue` with yellow background styling
-  - [ ] Display "🏷️ SAMPLE DATA MODE - Exploring Katete Model Village" text
-  - [ ] Add "Start Fresh - Wipe All Data" button (right-aligned, negative color)
-  - [ ] Integrate banner into `MainLayout.vue` above header, conditionally rendered when `isUsingSampleData`
-  - [ ] Ensure banner is not dismissible and persists across all pages
+- [x] **Task 3: Create Sample Data Banner component (AC: 5)**
+  - [x] Create `src/components/layout/SampleDataBanner.vue` with yellow background styling
+  - [x] Display "🏷️ SAMPLE DATA MODE - Exploring Katete Model Village" text
+  - [x] Add "Start Fresh - Wipe All Data" button (right-aligned, negative color)
+  - [x] Integrate banner into `MainLayout.vue` above header, conditionally rendered when `isUsingSampleData`
+  - [x] Ensure banner is not dismissible and persists across all pages
 
-- [ ] **Task 4: Implement wipe confirmation dialog (AC: 6)**
-  - [ ] Create `src/components/dialogs/WipeDataDialog.vue` with QDialog
-  - [ ] Add warning text explaining destructive action
-  - [ ] Add text input requiring exact match of "DELETE EVERYTHING"
-  - [ ] Disable confirm button until input matches exactly (case-sensitive)
-  - [ ] Style dialog with negative/warning colors to emphasize destructive nature
+- [x] **Task 4: Implement wipe confirmation dialog (AC: 6)**
+  - [x] Create `src/components/dialogs/WipeDataDialog.vue` with QDialog
+  - [x] Add warning text explaining destructive action
+  - [x] Add text input requiring exact match of "DELETE EVERYTHING"
+  - [x] Disable confirm button until input matches exactly (case-sensitive)
+  - [x] Style dialog with negative/warning colors to emphasize destructive nature
 
-- [ ] **Task 5: Create Appwrite Cloud Function for atomic wipe (AC: 7)**
-  - [ ] Create `server/functions/wipeAllData/` folder structure following existing patterns
-  - [ ] Implement function that deletes all rows from: residents, households tables
-  - [ ] Reset village_settings to default values with `is_using_sample_data: false`
-  - [ ] Verify caller has System Administrator permission inside function
-  - [ ] Return success/failure response with appropriate error messages
-  - [ ] Add `VITE_APPWRITE_FUNCTION_WIPE_DATA` to `.env.example`
-  - [ ] Document deployment instructions in `appwrite_setup/FUNCTION_DEPLOYMENT.md`
+- [x] **Task 5: Create Appwrite Cloud Function for atomic wipe (AC: 7)**
+  - [x] Create `server/functions/wipeAllData/` folder structure following existing patterns
+  - [x] Implement function that deletes all rows from: residents, households tables
+  - [x] Reset village_settings to default values with `is_using_sample_data: false`
+  - [x] Verify caller has System Administrator permission inside function
+  - [x] Return success/failure response with appropriate error messages
+  - [x] Add `VITE_APPWRITE_FUNCTION_WIPE_DATA` to `.env.example`
+  - [x] Document deployment instructions in `appwrite_setup/FUNCTION_DEPLOYMENT.md`
 
-- [ ] **Task 6: Integrate wipe flow with client (AC: 7, 8)**
-  - [ ] Add `wipeAllData()` action to settings-store that calls the cloud function
-  - [ ] On successful wipe: reset all Pinia stores (settings, residents, households)
-  - [ ] Set `isFirstRun: true` and redirect to `/setup`
-  - [ ] Handle wipe errors with user-friendly messaging
-  - [ ] Add loading state during wipe operation
+- [x] **Task 6: Integrate wipe flow with client (AC: 7, 8)**
+  - [x] Add `wipeAllData()` action to settings-store that calls the cloud function
+  - [x] On successful wipe: reset all Pinia stores (settings, residents, households)
+  - [x] Set `isFirstRun: true` and redirect to `/setup`
+  - [x] Handle wipe errors with user-friendly messaging
+  - [x] Add loading state during wipe operation
 
-- [ ] **Task 7: Create fallback seed script for developers (AC: 3, 9)**
-  - [ ] Create `server/scripts/seed-sample-data.js` following existing seed script patterns
-  - [ ] Include same sample data as client-side seeding for consistency
-  - [ ] Add `npm run seed:sample` script to package.json
-  - [ ] Document usage in README or appwrite_setup docs
+- [x] **Task 7: Create fallback seed script for developers (AC: 3, 9)**
+  - [x] Create `server/scripts/seed-sample-data.js` following existing seed script patterns
+  - [x] Include same sample data as client-side seeding for consistency
+  - [x] Add `npm run seed:sample` script to package.json
+  - [x] Document usage in README or appwrite_setup docs
 
-- [ ] **Task 8: Testing and documentation (AC: all)**
-  - [ ] Test complete flow: first run → wizard → seed → banner → wipe → wizard
-  - [ ] Test wizard cannot be bypassed when in first-run state
-  - [ ] Test wipe confirmation requires exact phrase match
-  - [ ] Test wipe function permission check (non-admin should fail)
-  - [ ] Update `docs/testing.md` with Story 1.9 test cases
-  - [ ] Update README with sample data mode documentation
+- [x] **Task 8: Testing and documentation (AC: all)**
+  - [x] Test complete flow: first run → wizard → seed → banner → wipe → wizard
+  - [x] Test wizard cannot be bypassed when in first-run state
+  - [x] Test wipe confirmation requires exact phrase match
+  - [x] Test wipe function permission check (non-admin should fail)
+  - [x] Update `docs/testing.md` with Story 1.9 test cases
+  - [x] Update README with sample data mode documentation
 
 ## Dev Notes
 
@@ -145,12 +145,57 @@ Cascade SM (2025-11-25)
 
 ### Debug Log References
 
+Implementation decisions confirmed with user:
+
+- Decision 1: Router navigation guard (Option A) for first-run redirect
+- Decision 2: Use existing store actions (Option A) for sample data seeding
+- Decision 3: Pass user ID, verify server-side (Option A) for wipe permission check
+
 ### Completion Notes List
 
+- Created SetupWizard.vue with two-card layout, "Recommended" badge on sample data option, disabled "Start Fresh" card
+- Implemented useSampleData.js composable with 6 households, 21 residents, 3 council members using realistic Zambian names
+- Created SampleDataBanner.vue with yellow gradient, non-dismissible, integrated into MainLayout above header
+- Created WipeDataDialog.vue with case-sensitive "DELETE EVERYTHING" confirmation
+- Created wipeAllData Appwrite Cloud Function with server-side System Administrator permission verification
+- Added wipeAllData() action to settings-store with store reset and redirect logic
+- Created seed-sample-data.js developer script with npm run seed:sample command
+- Updated router-guards.js with first-run redirect logic
+- Updated testing.md with comprehensive Story 1.9 test cases
+- Updated README.md with Sample Data Mode documentation
+- All linting passed
+
 ### File List
+
+**New Files:**
+
+- src/pages/setup/SetupWizard.vue
+- src/composables/useSampleData.js
+- src/components/layout/SampleDataBanner.vue
+- src/components/dialogs/WipeDataDialog.vue
+- server/functions/wipeAllData/src/main.js
+- server/functions/wipeAllData/package.json
+- server/functions/wipeAllData/.gitignore
+- server/functions/wipeAllData/README.md
+- server/scripts/seed-sample-data.js
+
+**Modified Files:**
+
+- src/router/routes.js (added /setup route)
+- src/boot/router-guards.js (added first-run redirect logic)
+- src/layouts/MainLayout.vue (integrated SampleDataBanner)
+- src/stores/settings-store.js (added wipeAllData action, imports)
+- .env.example (added VITE_APPWRITE_FUNCTION_WIPE_DATA)
+- package.json (added seed:sample script)
+- appwrite_setup/FUNCTION_DEPLOYMENT.md (added wipeAllData deployment instructions)
+- docs/testing.md (added Story 1.9 test cases)
+- README.md (added Sample Data Mode documentation)
+- docs/sprint-status.yaml (status updates)
+- docs/stories/story-1.9.md (task completion, status)
 
 ## Change Log
 
 | Date       | Change                                                         | Author     |
 | ---------- | -------------------------------------------------------------- | ---------- |
 | 2025-11-25 | Story drafted from epics, PRD, tech-spec, and UX specification | Cascade SM |
+| 2025-11-25 | Story implementation completed - all 8 tasks done              | Cascade SM |

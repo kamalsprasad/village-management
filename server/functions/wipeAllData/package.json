@@ -1,0 +1,16 @@
+{
+  "name": "wipe-all-data",
+  "version": "1.0.0",
+  "description": "Appwrite Cloud Function to atomically wipe all village data (residents, households, settings)",
+  "main": "src/main.js",
+  "type": "module",
+  "scripts": {
+    "format": "prettier --write ."
+  },
+  "dependencies": {
+    "node-appwrite": "^14.1.0"
+  },
+  "devDependencies": {
+    "prettier": "^3.2.5"
+  }
+}

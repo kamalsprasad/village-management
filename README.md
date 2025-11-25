@@ -108,55 +108,55 @@ The Village Management System uses Appwrite's TablesDB for data storage with a n
 
 Stores authentication and user account information.
 
-| Column | Type | Constraints | Description |
-|--------|------|-------------|-------------|
-| `id` | string | Primary Key, Auto-generated | Unique user identifier |
-| `email` | string | Required, Unique, Indexed | User email address for authentication |
-| `name` | string | Required | User's display name |
-| `created_at` | datetime | Auto-generated | Account creation timestamp |
-| `updated_at` | datetime | Auto-updated | Last modification timestamp |
+| Column       | Type     | Constraints                 | Description                           |
+| ------------ | -------- | --------------------------- | ------------------------------------- |
+| `id`         | string   | Primary Key, Auto-generated | Unique user identifier                |
+| `email`      | string   | Required, Unique, Indexed   | User email address for authentication |
+| `name`       | string   | Required                    | User's display name                   |
+| `created_at` | datetime | Auto-generated              | Account creation timestamp            |
+| `updated_at` | datetime | Auto-updated                | Last modification timestamp           |
 
 #### residents
 
 Stores comprehensive resident profile information with multi-role support.
 
-| Column | Type | Constraints | Description |
-|--------|------|-------------|-------------|
-| `id` | string | Primary Key, Auto-generated | Unique resident identifier |
-| `name` | string | Required | Resident's full name |
-| `dob` | datetime | Optional | Date of birth |
-| `gender` | string | Optional, Enum: Male/Female/Other | Gender identity |
-| `contact` | string | Optional | Contact information (phone/email) |
-| `household_id` | string | Foreign Key → households.id, Indexed | Reference to household |
-| `role_ids` | string[] | Indexed | Array of role IDs for multi-role assignment |
-| `created_at` | datetime | Auto-generated | Record creation timestamp |
-| `updated_at` | datetime | Auto-updated | Last modification timestamp |
+| Column         | Type     | Constraints                          | Description                                 |
+| -------------- | -------- | ------------------------------------ | ------------------------------------------- |
+| `id`           | string   | Primary Key, Auto-generated          | Unique resident identifier                  |
+| `name`         | string   | Required                             | Resident's full name                        |
+| `dob`          | datetime | Optional                             | Date of birth                               |
+| `gender`       | string   | Optional, Enum: Male/Female/Other    | Gender identity                             |
+| `contact`      | string   | Optional                             | Contact information (phone/email)           |
+| `household_id` | string   | Foreign Key → households.id, Indexed | Reference to household                      |
+| `role_ids`     | string[] | Indexed                              | Array of role IDs for multi-role assignment |
+| `created_at`   | datetime | Auto-generated                       | Record creation timestamp                   |
+| `updated_at`   | datetime | Auto-updated                         | Last modification timestamp                 |
 
 #### households
 
 Stores household information and composition.
 
-| Column | Type | Constraints | Description |
-|--------|------|-------------|-------------|
-| `id` | string | Primary Key, Auto-generated | Unique household identifier |
-| `name` | string | Required | Household name or identifier |
-| `head_resident_id` | string | Foreign Key → residents.id, Indexed | Reference to household head |
-| `address` | string | Optional | Physical address or location |
-| `created_at` | datetime | Auto-generated | Record creation timestamp |
-| `updated_at` | datetime | Auto-updated | Last modification timestamp |
+| Column             | Type     | Constraints                         | Description                  |
+| ------------------ | -------- | ----------------------------------- | ---------------------------- |
+| `id`               | string   | Primary Key, Auto-generated         | Unique household identifier  |
+| `name`             | string   | Required                            | Household name or identifier |
+| `head_resident_id` | string   | Foreign Key → residents.id, Indexed | Reference to household head  |
+| `address`          | string   | Optional                            | Physical address or location |
+| `created_at`       | datetime | Auto-generated                      | Record creation timestamp    |
+| `updated_at`       | datetime | Auto-updated                        | Last modification timestamp  |
 
 #### roles
 
 Stores role definitions with permissions and storage quotas for RBAC.
 
-| Column | Type | Constraints | Description |
-|--------|------|-------------|-------------|
-| `id` | string | Primary Key, Auto-generated | Unique role identifier |
-| `name` | string | Required, Unique | Role name (e.g., Admin, Village Head, Teacher) |
-| `permissions` | string[] | Required | Array of permission strings |
-| `storage_quota` | integer | Required | Storage quota in GB |
-| `created_at` | datetime | Auto-generated | Record creation timestamp |
-| `updated_at` | datetime | Auto-updated | Last modification timestamp |
+| Column          | Type     | Constraints                 | Description                                    |
+| --------------- | -------- | --------------------------- | ---------------------------------------------- |
+| `id`            | string   | Primary Key, Auto-generated | Unique role identifier                         |
+| `name`          | string   | Required, Unique            | Role name (e.g., Admin, Village Head, Teacher) |
+| `permissions`   | string[] | Required                    | Array of permission strings                    |
+| `storage_quota` | integer  | Required                    | Storage quota in GB                            |
+| `created_at`    | datetime | Auto-generated              | Record creation timestamp                      |
+| `updated_at`    | datetime | Auto-updated                | Last modification timestamp                    |
 
 ### Relationships
 
@@ -170,12 +170,12 @@ The database uses a normalized schema with ID-based relationships:
 
 Indexes are created on frequently queried fields to optimize performance:
 
-| Table | Column | Purpose |
-|-------|--------|---------|
-| `users` | `email` | Fast user lookup during authentication |
-| `residents` | `household_id` | Efficient household member queries |
-| `residents` | `role_ids` | Role-based filtering and access control |
-| `households` | `head_resident_id` | Quick household head lookups |
+| Table        | Column             | Purpose                                 |
+| ------------ | ------------------ | --------------------------------------- |
+| `users`      | `email`            | Fast user lookup during authentication  |
+| `residents`  | `household_id`     | Efficient household member queries      |
+| `residents`  | `role_ids`         | Role-based filtering and access control |
+| `households` | `head_resident_id` | Quick household head lookups            |
 
 ### Permissions
 
@@ -196,7 +196,7 @@ import { Query } from 'appwrite';
 const householdResidents = await tables.listRows({
   databaseId: 'villageDB',
   tableId: 'residents',
-  queries: [Query.equal('household_id', 'household_123')]
+  queries: [Query.equal('household_id', 'household_123')],
 });
 ```
 
@@ -207,14 +207,14 @@ const householdResidents = await tables.listRows({
 const household = await tables.getRow({
   databaseId: 'villageDB',
   tableId: 'households',
-  rowId: 'household_123'
+  rowId: 'household_123',
 });
 
 // Then, get the head resident
 const headResident = await tables.getRow({
   databaseId: 'villageDB',
   tableId: 'residents',
-  rowId: household.head_resident_id
+  rowId: household.head_resident_id,
 });
 ```
 
@@ -224,7 +224,7 @@ const headResident = await tables.getRow({
 const teachers = await tables.listRows({
   databaseId: 'villageDB',
   tableId: 'residents',
-  queries: [Query.search('role_ids', 'teacher_role_id')]
+  queries: [Query.search('role_ids', 'teacher_role_id')],
 });
 ```
 
@@ -241,11 +241,56 @@ const newResident = await tables.createRow({
     gender: 'Male',
     contact: '+260-97-123-4567',
     household_id: 'household_123',
-    role_ids: ['resident_role_id']
-  }
+    role_ids: ['resident_role_id'],
+  },
 });
 ```
 
 ### Database Setup
 
 For detailed instructions on setting up the Appwrite database, see [appwrite_setup/README.md](appwrite_setup/README.md).
+
+## Sample Data Mode
+
+The Village Management System includes a **Sample Data Mode** that allows you to explore the platform with realistic demonstration data before committing to production use.
+
+### First-Time Setup
+
+When you first run the application (with no existing settings), you'll be presented with a setup wizard offering two options:
+
+1. **Explore with Sample Data** (Recommended) - Loads the Katete Model Village dataset
+2. **Start Fresh with Real Data** - Coming in a future update
+
+### Katete Model Village Dataset
+
+The sample data includes:
+
+- **6 Households**: Various types (SingleFamily, MultiFamily, Dormitory, AdminBuilding, GuestHouse)
+- **20+ Residents**: Realistic Zambian names from families including Banda, Phiri, Mwale, Tembo, Zulu, and Mulenga
+- **3 Council Members**: Village Head, Deputy Village Head, and Finance Manager
+- **Village Configuration**: Pre-configured settings for Katete District, Eastern Province, Zambia
+
+### Sample Data Banner
+
+When using sample data, a persistent yellow banner appears at the top of all pages indicating you're in **Sample Data Mode**. This banner includes a "Start Fresh - Wipe All Data" button to reset the system.
+
+### Wiping Sample Data
+
+To start fresh:
+
+1. Click "Start Fresh - Wipe All Data" in the banner
+2. Type "DELETE EVERYTHING" exactly in the confirmation dialog
+3. Click "Wipe All Data"
+4. You'll be redirected to the setup wizard
+
+**Note:** Only System Administrators can wipe data. The wipe operation is verified server-side.
+
+### Developer Seed Script
+
+For development and testing, you can also seed sample data via command line:
+
+```bash
+npm run seed:sample
+```
+
+This creates the same Katete Model Village dataset as the client-side seeding.

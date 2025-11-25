@@ -741,6 +741,111 @@ This document outlines all tests that need to be implemented for the Village Man
 
 ---
 
+## Story 1.9: Sample Data Mode - Katete Model Village Seed Data - Testing Requirements
+
+### Manual Verification Checklist
+
+#### First-Run Detection and Setup Wizard (AC1, AC2)
+
+- [ ] Delete settings_root from Appwrite to trigger first-run state
+- [ ] Reload app, verify redirect to /setup wizard
+- [ ] Verify wizard cannot be bypassed by direct URL navigation (e.g., navigating to / redirects back to /setup)
+- [ ] Verify "Explore with Sample Data" card is prominent with "Recommended" badge
+- [ ] Verify "Start Fresh with Real Data" card is disabled with "Coming in future update" note
+- [ ] Verify disabled card cannot be clicked or selected
+
+#### Sample Data Seeding (AC3, AC4, AC9)
+
+- [ ] Click "Load Sample Data" button
+- [ ] Verify loading indicator appears with progress
+- [ ] Verify seeding completes within 30 seconds
+- [ ] Verify redirect to dashboard after successful seeding
+- [ ] Verify success notification is shown
+- [ ] Navigate to Households page - verify 6 households created
+- [ ] Navigate to Residents page - verify 20+ residents created
+- [ ] Verify household-resident relationships are correct (residents assigned to correct households)
+- [ ] Verify household heads are set correctly
+- [ ] Verify council members are configured in village settings
+- [ ] Verify sample data uses realistic Zambian names (Banda, Phiri, Mwale, Tembo, Zulu, Mulenga)
+- [ ] Verify dates are within reasonable ranges (not future dates)
+
+#### Sample Data Banner (AC5)
+
+- [ ] Verify yellow banner appears at top of all pages when isUsingSampleData is true
+- [ ] Verify banner displays "🏷️ SAMPLE DATA MODE - Exploring Katete Model Village" text
+- [ ] Verify "Start Fresh - Wipe All Data" button is visible
+- [ ] Navigate to different pages - verify banner persists on all pages
+- [ ] Verify banner cannot be dismissed (no close button)
+- [ ] Verify banner does not appear when isUsingSampleData is false
+
+#### Wipe Confirmation Dialog (AC6)
+
+- [ ] Click "Start Fresh - Wipe All Data" button
+- [ ] Verify confirmation dialog appears with warning text
+- [ ] Verify dialog lists what will be deleted (residents, households, settings)
+- [ ] Verify confirm button is disabled initially
+- [ ] Type "delete everything" (lowercase) - verify button remains disabled
+- [ ] Type "DELETE EVERYTHING" exactly - verify button becomes enabled
+- [ ] Click Cancel - verify dialog closes without action
+- [ ] Verify dialog styling emphasizes destructive nature (red/negative colors)
+
+#### Data Wipe Function (AC7, AC8)
+
+- [ ] Complete the wipe confirmation dialog
+- [ ] Verify loading state during wipe operation
+- [ ] Verify success notification shows deleted counts
+- [ ] Verify redirect to /setup wizard after successful wipe
+- [ ] Verify all Pinia stores are reset (settings, residents, households)
+- [ ] Verify isFirstRun is set to true
+- [ ] Navigate to Households page - verify all households deleted
+- [ ] Navigate to Residents page - verify all residents deleted
+- [ ] Verify village settings are reset
+
+#### Permission Verification (AC7)
+
+- [ ] Log in as non-System Administrator user
+- [ ] Attempt to trigger wipe (if banner is visible)
+- [ ] Verify wipe function returns permission denied error
+- [ ] Log in as System Administrator
+- [ ] Verify wipe function executes successfully
+
+#### Developer Seed Script (AC3, AC9)
+
+- [ ] Run `npm run seed:sample` from command line
+- [ ] Verify script creates same data as client-side seeding
+- [ ] Verify script handles existing data gracefully (shows error if data exists)
+- [ ] Verify script output shows progress and summary
+
+### Integration Tests (Post-MVP)
+
+#### Setup Wizard Flow
+
+- [ ] Test complete flow: first run → wizard → seed → banner → wipe → wizard
+- [ ] Test wizard redirect when isFirstRun=true
+- [ ] Test wizard bypass prevention
+
+#### Sample Data Seeding
+
+- [ ] Test seedSampleData() creates correct number of households
+- [ ] Test seedSampleData() creates correct number of residents
+- [ ] Test seedSampleData() sets is_using_sample_data flag
+- [ ] Test seedSampleData() handles errors gracefully
+
+#### Wipe Function
+
+- [ ] Test wipeAllData() calls cloud function with correct parameters
+- [ ] Test wipeAllData() resets all stores on success
+- [ ] Test wipeAllData() handles permission denied error
+- [ ] Test wipeAllData() handles network errors
+
+### E2E Tests (Post-MVP)
+
+- [ ] Complete sample data mode lifecycle test
+- [ ] Permission-based wipe access test
+- [ ] Router guard first-run redirect test
+
+---
+
 ## Testing Tools and Frameworks
 
 ### Recommended Setup

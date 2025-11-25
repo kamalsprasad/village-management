@@ -1,8 +1,9 @@
 import { defineStore } from 'pinia';
 import { format } from 'date-fns';
 import { formatInTimeZone } from 'date-fns-tz';
-import { tables } from 'src/boot/appwrite';
+import { tables, functions } from 'src/boot/appwrite';
 import { useErrorHandler } from 'src/composables/useErrorHandler';
+import { useAuthStore } from 'src/stores/auth-store';
 
 const errorHandler = useErrorHandler();
 
@@ -368,6 +369,81 @@ export const useSettingsStore = defineStore('settings', {
       this.isLoading = false;
       this.isFirstRun = false;
       this.lastFetched = null;
+    },
+
+    /**
+     * Wipe all data via Appwrite Cloud Function
+     * Requires System Administrator permission (verified server-side)
+     * @returns {Promise<Object>} Result object with success flag
+     */
+    async wipeAllData() {
+      this.isLoading = true;
+      try {
+        const functionId = import.meta.env.VITE_APPWRITE_FUNCTION_WIPE_DATA;
+
+        if (!functionId) {
+          const message =
+            'Wipe function not configured: VITE_APPWRITE_FUNCTION_WIPE_DATA is not set. Please update your environment settings.';
+          console.error(message);
+          errorHandler.notifyError(message);
+          return { success: false, error: message };
+        }
+
+        // Get current user ID for server-side permission verification
+        const authStore = useAuthStore();
+        if (!authStore.user?.$id) {
+          errorHandler.notifyError('You must be logged in to perform this action.');
+          return { success: false, error: 'Not authenticated' };
+        }
+
+        // Call the wipe cloud function
+        const execution = await functions.createExecution(
+          functionId,
+          JSON.stringify({ userId: authStore.user.$id }),
+          false, // async = false, wait for result
+        );
+
+        // Parse response
+        let response;
+        try {
+          response = JSON.parse(execution.responseBody);
+        } catch (parseError) {
+          console.error('Failed to parse wipe function response:', parseError);
+          errorHandler.notifyError('Unexpected response from wipe function.');
+          return { success: false, error: 'Invalid response' };
+        }
+
+        if (!response.success) {
+          errorHandler.notifyError(response.error || 'Failed to wipe data.');
+          return { success: false, error: response.error };
+        }
+
+        // Reset all Pinia stores
+        this.resetStore();
+        this.isFirstRun = true; // Trigger first-run state
+
+        // Reset households store
+        const { useHouseholdsStore } = await import('src/stores/households-store');
+        const householdsStore = useHouseholdsStore();
+        householdsStore.$reset();
+
+        // Reset residents store
+        const { useResidentsStore } = await import('src/stores/residents-store');
+        const residentsStore = useResidentsStore();
+        residentsStore.$reset();
+
+        errorHandler.notifySuccess(
+          `Data wiped successfully. Deleted ${response.deletedResidents || 0} residents and ${response.deletedHouseholds || 0} households.`,
+        );
+
+        return { success: true, data: response };
+      } catch (error) {
+        console.error('Error wiping data:', error);
+        errorHandler.notifyError('Failed to wipe data. Please try again.');
+        return { success: false, error: error.message };
+      } finally {
+        this.isLoading = false;
+      }
     },
   },
 });

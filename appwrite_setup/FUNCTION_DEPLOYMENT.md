@@ -83,6 +83,7 @@ This function checks if any users exist in the Appwrite authentication system. I
    ```
 
 4. Deploy the function:
+
    ```bash
    appwrite push function
    ```
@@ -223,6 +224,126 @@ This function checks if any users exist in the Appwrite authentication system. I
 
 ---
 
-**Last Updated**: 2025-10-26  
+## Function: Wipe All Data
+
+This function atomically wipes all village data (residents, households, settings) when a user wants to start fresh after exploring with sample data.
+
+### Security
+
+- **Server-side permission verification**: The function verifies that the calling user has System Administrator permission (`*`) before executing any deletions.
+- **User ID verification**: The caller must provide their user ID, which is verified against the users table and their assigned roles.
+
+### Deployment Steps
+
+#### Step 1: Create the Function in Appwrite Console
+
+1. In Appwrite Console, navigate to **Functions**
+2. Click **Add Function**
+3. Configure the function:
+   - **Name**: `Wipe All Data`
+   - **Function ID**: `wipeAllData` (or auto-generate)
+   - **Runtime**: `Node.js 18.0` (or latest available)
+   - **Execute Access**: Add `role:users` (only authenticated users can call it)
+   - **Events**: Leave empty
+   - **Schedule**: Leave empty
+   - **Timeout**: 60 seconds (data deletion may take time)
+
+4. Click **Create**
+
+#### Step 2: Configure Environment Variables
+
+1. In the function details page, go to the **Settings** tab
+2. Scroll to **Environment Variables**
+3. Add the following variables:
+
+   | Variable Name            | Value                             |
+   | ------------------------ | --------------------------------- |
+   | `DATABASE_ID`            | `villageDB` (or your database ID) |
+   | `TABLE_RESIDENTS`        | `residents`                       |
+   | `TABLE_HOUSEHOLDS`       | `households`                      |
+   | `TABLE_VILLAGE_SETTINGS` | `village_settings`                |
+   | `TABLE_USERS`            | `users`                           |
+   | `TABLE_ROLES`            | `roles`                           |
+
+4. Click **Update** to save
+
+**Note**: `APPWRITE_FUNCTION_ENDPOINT`, `APPWRITE_FUNCTION_PROJECT_ID`, and `APPWRITE_FUNCTION_API_KEY` are automatically provided by Appwrite.
+
+#### Step 3: Deploy the Function Code
+
+##### Option A: Using Appwrite CLI (Recommended)
+
+1. Navigate to the function directory:
+
+   ```bash
+   cd server/functions/wipeAllData
+   ```
+
+2. Install dependencies:
+
+   ```bash
+   npm install
+   ```
+
+3. Deploy using Appwrite CLI:
+   ```bash
+   appwrite push function
+   ```
+
+##### Option B: Manual Upload via Console
+
+1. In the function details page, go to the **Deployments** tab
+2. Click **Create Deployment**
+3. Configure the deployment:
+   - **Entrypoint**: `src/main.js`
+   - **Code**: Upload the entire `server/functions/wipeAllData` folder as a zip
+   - **Activate deployment after build**: ✅ Check this
+4. Click **Create**
+5. Wait for the build to complete
+
+#### Step 4: Set Execute Permissions
+
+1. In the function details page, go to the **Settings** tab
+2. Scroll to **Execute Access**
+3. Click **Add Role**
+4. Select `role:users` from the dropdown
+5. Click **Update**
+
+**Why `role:users`?** Only authenticated users should be able to call this function. The function itself verifies System Administrator permission.
+
+#### Step 5: Update Client-Side Code
+
+1. Add the Function ID to your `.env` file:
+
+   ```env
+   VITE_APPWRITE_FUNCTION_WIPE_DATA=your-function-id-here
+   ```
+
+2. The client code in `src/stores/settings-store.js` will use this function
+
+### Testing the Function
+
+1. Log in as a System Administrator
+2. Navigate to any page with the sample data banner
+3. Click "Start Fresh - Wipe All Data"
+4. Type "DELETE EVERYTHING" in the confirmation dialog
+5. Click "Wipe All Data"
+6. You should be redirected to the setup wizard
+
+### What Gets Deleted
+
+- All resident records
+- All household records
+- Village settings (`settings_root` document)
+
+### What Is Preserved
+
+- User accounts (Appwrite Auth)
+- User profiles (users table)
+- Roles and permissions (roles table)
+
+---
+
+**Last Updated**: 2025-11-25  
 **Function Version**: 1.0.0  
 **Compatible with**: Appwrite 1.4+

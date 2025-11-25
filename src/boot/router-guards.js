@@ -1,10 +1,12 @@
 import { defineBoot } from '#q-app/wrappers';
 import { useAuthStore } from 'src/stores/auth-store';
+import { useSettingsStore } from 'src/stores/settings-store';
 import { hasPermission } from 'src/utils/permissions';
 
 export default defineBoot(({ router, store }) => {
   router.beforeEach(async (to, from, next) => {
     const authStore = useAuthStore(store);
+    const settingsStore = useSettingsStore(store);
 
     // Check if route requires authentication
     const requiresAuth = to.matched.some((record) => record.meta.requiresAuth);
@@ -26,10 +28,26 @@ export default defineBoot(({ router, store }) => {
       return;
     }
 
+    // First-run check: redirect to setup wizard if no settings exist
+    // Skip this check if already navigating to setup wizard
+    const isSetupWizard = to.matched.some((record) => record.meta.isSetupWizard);
+
+    if (!isSetupWizard && settingsStore.isFirstRun) {
+      // Redirect to setup wizard - user must complete setup first
+      next('/setup');
+      return;
+    }
+
+    // If on setup wizard but settings already exist (not first run), redirect to dashboard
+    if (isSetupWizard && !settingsStore.isFirstRun && settingsStore.isLoaded) {
+      next('/');
+      return;
+    }
+
     // Check if route requires specific permission
     if (to.meta.requiresPermission) {
       const permission = to.meta.requiresPermission;
-      
+
       if (!hasPermission(authStore.user, authStore.userRoles, permission)) {
         // User doesn't have required permission, redirect to unauthorized page
         next('/unauthorized');

@@ -1,5 +1,8 @@
 <template>
   <q-layout view="lHh Lpr lFf">
+    <!-- Sample Data Mode Banner - shown when using sample data -->
+    <SampleDataBanner v-if="settingsStore.isUsingSampleData" />
+
     <q-header elevated>
       <q-toolbar>
         <q-btn
@@ -282,6 +285,7 @@ import { useQuasar } from 'quasar';
 import { useAuthStore } from 'src/stores/auth-store';
 import { useSettingsStore } from 'src/stores/settings-store';
 import { usePermissions } from 'src/composables/usePermissions';
+import SampleDataBanner from 'src/components/layout/SampleDataBanner.vue';
 
 const router = useRouter();
 const $q = useQuasar();

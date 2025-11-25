@@ -54,6 +54,22 @@
       "commands": "npm install",
       "specification": "s-0.5vcpu-512mb",
       "path": "functions/Check Users Exist"
+    },
+    {
+      "$id": "wipeAllData",
+      "execute": ["team:village_administrators"],
+      "name": "Wipe All Data",
+      "enabled": true,
+      "logging": true,
+      "runtime": "node-16.0",
+      "scopes": ["users.read"],
+      "events": [],
+      "schedule": "",
+      "timeout": 60,
+      "entrypoint": "src/main.js",
+      "commands": "npm install",
+      "specification": "s-0.5vcpu-512mb",
+      "path": "functions/wipeAllData"
     }
   ],
   "tablesDB": [

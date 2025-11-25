@@ -11,6 +11,17 @@ const routes = [
     component: () => import('pages/UnauthorizedPage.vue'),
   },
 
+  // Setup wizard (no layout, shown on first run)
+  {
+    path: '/setup',
+    name: 'setup',
+    component: () => import('pages/setup/SetupWizard.vue'),
+    meta: {
+      requiresAuth: true, // User must be logged in
+      isSetupWizard: true, // Special flag to allow access during first-run
+    },
+  },
+
   {
     path: '/',
     component: () => import('layouts/MainLayout.vue'),
@@ -23,18 +34,18 @@ const routes = [
           // TODO(Story 1.10): Add dashboard-specific permission metadata once role matrix is finalized
         },
       },
-      { 
-        path: 'appwrite-test', 
-        component: () => import('pages/AppwriteTestPage.vue'), 
-        meta: { requiresAuth: true } 
+      {
+        path: 'appwrite-test',
+        component: () => import('pages/AppwriteTestPage.vue'),
+        meta: { requiresAuth: true },
       },
       {
         path: 'admin/users',
         component: () => import('pages/admin/UsersPage.vue'),
-        meta: { 
+        meta: {
           requiresAuth: true,
-          requiresPermission: '*' // System Administrator only
-        }
+          requiresPermission: '*', // System Administrator only
+        },
       },
       {
         path: 'households',
@@ -86,6 +97,6 @@ const routes = [
     path: '/:catchAll(.*)*',
     component: () => import('pages/ErrorNotFound.vue'),
   },
-]
+];
 
-export default routes
+export default routes;
