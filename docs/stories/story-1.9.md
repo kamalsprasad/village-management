@@ -1,6 +1,6 @@
 # Story 1.9: Sample Data Mode - Katete Model Village Seed Data
 
-Status: drafted
+Status: ready-for-dev
 
 ## Story
 
@@ -19,7 +19,7 @@ so that **I can evaluate the platform's capabilities before committing to produc
 
 ## Acceptance Criteria
 
-1. First-time setup wizard appears automatically when `settingsStore.isFirstRun` is true (no `settings_root` document exists). Wizard is shown before any authenticated content and cannot be bypassed. [Source: docs/epics.md#214][Source: docs/ux-specification.md#554-556]
+1. First-time setup wizard appears automatically when `settingsStore.isFirstRun` is true (no `settings_root` row exists). Wizard is shown before any authenticated content and cannot be bypassed. [Source: docs/epics.md#214][Source: docs/ux-specification.md#554-556]
 2. Wizard Welcome screen presents two large cards: "Explore with Sample Data" (prominent, recommended badge) and "Start Fresh with Real Data" (disabled with "Coming in future update" note). [Source: docs/epics.md#215-216][Source: docs/ux-specification.md#596-604]
 3. Selecting "Explore with Sample Data" triggers client-side seeding that creates: Katete Model Village configuration, 2-3 sample council members, 5-6 households (mixed types), 15-20 residents with realistic names and relationships. [Source: docs/epics.md#217][Source: docs/PRD.md#254]
 4. After successful seeding, `village_settings.is_using_sample_data` is set to `true` and user is redirected to dashboard. [Source: docs/epics.md#218][Source: docs/PRD.md#256]
@@ -65,7 +65,7 @@ so that **I can evaluate the platform's capabilities before committing to produc
 
 - [ ] **Task 5: Create Appwrite Cloud Function for atomic wipe (AC: 7)**
   - [ ] Create `server/functions/wipeAllData/` folder structure following existing patterns
-  - [ ] Implement function that deletes all documents from: residents, households collections
+  - [ ] Implement function that deletes all rows from: residents, households tables
   - [ ] Reset village_settings to default values with `is_using_sample_data: false`
   - [ ] Verify caller has System Administrator permission inside function
   - [ ] Return success/failure response with appropriate error messages
@@ -137,7 +137,7 @@ so that **I can evaluate the platform's capabilities before committing to produc
 
 ### Context Reference
 
-<!-- Path(s) to story context XML will be added here by context workflow -->
+- docs/stories/story-1.9.context.xml
 
 ### Agent Model Used
 

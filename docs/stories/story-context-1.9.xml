@@ -1,0 +1,390 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<story-context id="story-1.9-sample-data-mode" v="1.0">
+  <metadata>
+    <epicId>1</epicId>
+    <storyId>9</storyId>
+    <title>Sample Data Mode - Katete Model Village Seed Data</title>
+    <status>ready-for-dev</status>
+    <generatedAt>2025-11-25</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/stories/story-1.9.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>potential adopter</asA>
+    <iWant>explore the system with realistic sample data</iWant>
+    <soThat>I can evaluate the platform's capabilities before committing to production use</soThat>
+    <tasks>
+      <task id="1" ac="1,2">
+        <title>Create Setup Wizard page and routing</title>
+        <subtasks>
+          <subtask>Create src/pages/setup/SetupWizard.vue with Welcome screen layout using two QCard components</subtask>
+          <subtask>Add "Explore with Sample Data" card with recommended badge, description, and "Load Sample Data" button</subtask>
+          <subtask>Add "Start Fresh with Real Data" card with disabled state and "Coming in future update" note</subtask>
+          <subtask>Add route /setup with no auth requirement (wizard handles its own flow)</subtask>
+          <subtask>Update boot file or router guard to redirect to /setup when isFirstRun is true</subtask>
+          <subtask>Ensure wizard cannot be bypassed by direct URL navigation when in first-run state</subtask>
+        </subtasks>
+      </task>
+      <task id="2" ac="3,4,9">
+        <title>Implement sample data seeding logic</title>
+        <subtasks>
+          <subtask>Create src/composables/useSampleData.js with seedSampleData() function</subtask>
+          <subtask>Define Katete Model Village configuration data (name, address, timezone, currency, council members)</subtask>
+          <subtask>Define 5-6 sample households with varied types (SingleFamily, MultiFamily, Dormitory, AdminBuilding)</subtask>
+          <subtask>Define 15-20 sample residents with realistic Zambian names, DOBs, genders, and household assignments</subtask>
+          <subtask>Implement progressive seeding: settings → households → residents (respecting relationships)</subtask>
+          <subtask>Show loading indicator with progress during seeding</subtask>
+          <subtask>Set is_using_sample_data: true after successful seeding</subtask>
+          <subtask>Handle errors gracefully with rollback messaging via useErrorHandler</subtask>
+        </subtasks>
+      </task>
+      <task id="3" ac="5">
+        <title>Create Sample Data Banner component</title>
+        <subtasks>
+          <subtask>Create src/components/layout/SampleDataBanner.vue with yellow background styling</subtask>
+          <subtask>Display "🏷️ SAMPLE DATA MODE - Exploring Katete Model Village" text</subtask>
+          <subtask>Add "Start Fresh - Wipe All Data" button (right-aligned, negative color)</subtask>
+          <subtask>Integrate banner into MainLayout.vue above header, conditionally rendered when isUsingSampleData</subtask>
+          <subtask>Ensure banner is not dismissible and persists across all pages</subtask>
+        </subtasks>
+      </task>
+      <task id="4" ac="6">
+        <title>Implement wipe confirmation dialog</title>
+        <subtasks>
+          <subtask>Create src/components/dialogs/WipeDataDialog.vue with QDialog</subtask>
+          <subtask>Add warning text explaining destructive action</subtask>
+          <subtask>Add text input requiring exact match of "DELETE EVERYTHING"</subtask>
+          <subtask>Disable confirm button until input matches exactly (case-sensitive)</subtask>
+          <subtask>Style dialog with negative/warning colors to emphasize destructive nature</subtask>
+        </subtasks>
+      </task>
+      <task id="5" ac="7">
+        <title>Create Appwrite Cloud Function for atomic wipe</title>
+        <subtasks>
+          <subtask>Create server/functions/wipeAllData/ folder structure following existing patterns</subtask>
+          <subtask>Implement function that deletes all rows from: residents, households tables</subtask>
+          <subtask>Reset village_settings to default values with is_using_sample_data: false</subtask>
+          <subtask>Verify caller has System Administrator permission inside function</subtask>
+          <subtask>Return success/failure response with appropriate error messages</subtask>
+          <subtask>Add VITE_APPWRITE_FUNCTION_WIPE_DATA to .env.example</subtask>
+          <subtask>Document deployment instructions in appwrite_setup/FUNCTION_DEPLOYMENT.md</subtask>
+        </subtasks>
+      </task>
+      <task id="6" ac="7,8">
+        <title>Integrate wipe flow with client</title>
+        <subtasks>
+          <subtask>Add wipeAllData() action to settings-store that calls the cloud function</subtask>
+          <subtask>On successful wipe: reset all Pinia stores (settings, residents, households)</subtask>
+          <subtask>Set isFirstRun: true and redirect to /setup</subtask>
+          <subtask>Handle wipe errors with user-friendly messaging</subtask>
+          <subtask>Add loading state during wipe operation</subtask>
+        </subtasks>
+      </task>
+      <task id="7" ac="3,9">
+        <title>Create fallback seed script for developers</title>
+        <subtasks>
+          <subtask>Create server/scripts/seed-sample-data.js following existing seed script patterns</subtask>
+          <subtask>Include same sample data as client-side seeding for consistency</subtask>
+          <subtask>Add npm run seed:sample script to package.json</subtask>
+          <subtask>Document usage in README or appwrite_setup docs</subtask>
+        </subtasks>
+      </task>
+      <task id="8" ac="all">
+        <title>Testing and documentation</title>
+        <subtasks>
+          <subtask>Test complete flow: first run → wizard → seed → banner → wipe → wizard</subtask>
+          <subtask>Test wizard cannot be bypassed when in first-run state</subtask>
+          <subtask>Test wipe confirmation requires exact phrase match</subtask>
+          <subtask>Test wipe function permission check (non-admin should fail)</subtask>
+          <subtask>Update docs/testing.md with Story 1.9 test cases</subtask>
+          <subtask>Update README with sample data mode documentation</subtask>
+        </subtasks>
+      </task>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <criterion id="1">First-time setup wizard appears automatically when settingsStore.isFirstRun is true (no settings_root row exists). Wizard is shown before any authenticated content and cannot be bypassed.</criterion>
+    <criterion id="2">Wizard Welcome screen presents two large cards: "Explore with Sample Data" (prominent, recommended badge) and "Start Fresh with Real Data" (disabled with "Coming in future update" note).</criterion>
+    <criterion id="3">Selecting "Explore with Sample Data" triggers client-side seeding that creates: Katete Model Village configuration, 2-3 sample council members, 5-6 households (mixed types), 15-20 residents with realistic names and relationships.</criterion>
+    <criterion id="4">After successful seeding, village_settings.is_using_sample_data is set to true and user is redirected to dashboard.</criterion>
+    <criterion id="5">Persistent banner displays on all authenticated pages when isUsingSampleData is true: yellow background, "🏷️ SAMPLE DATA MODE - Exploring Katete Model Village" text, and "Start Fresh - Wipe All Data" button. Banner is not dismissible.</criterion>
+    <criterion id="6">Clicking "Start Fresh - Wipe All Data" opens confirmation dialog requiring user to type "DELETE EVERYTHING" exactly to enable the confirm button.</criterion>
+    <criterion id="7">Confirmed wipe triggers Appwrite Cloud Function that atomically deletes all residents, households, and resets village_settings to initial state. Function verifies caller has System Administrator permission.</criterion>
+    <criterion id="8">Successful wipe clears all Pinia stores, sets isFirstRun to true, and redirects to setup wizard.</criterion>
+    <criterion id="9">Sample data includes realistic Zambian names, dates spanning reasonable ranges, and proper household-resident relationships. Data should feel authentic for demonstration purposes.</criterion>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc>
+        <path>docs/epics.md</path>
+        <title>Epic Definitions</title>
+        <section>Story 1.9: Sample Data Mode - Katete Model Village Seed Data (lines 209-225)</section>
+        <snippet>Defines acceptance criteria for setup wizard, sample data loading (15-20 residents, 5-6 households), persistent banner, and wipe flow with "DELETE EVERYTHING" confirmation phrase.</snippet>
+      </doc>
+      <doc>
+        <path>docs/PRD.md</path>
+        <title>Product Requirements Document</title>
+        <section>FR-16: First-Time Setup Wizard (lines 251-258)</section>
+        <snippet>Mandates choice between "Explore with Sample Data" and "Start Fresh with Real Data", is_using_sample_data flag, persistent banner display, and data wipe with confirmation phrase.</snippet>
+      </doc>
+      <doc>
+        <path>docs/tech-spec-epic-1.md</path>
+        <title>Epic 1 Technical Specification</title>
+        <section>Sample Data Wizard component mapping (lines 53-54, 79, 94)</section>
+        <snippet>Maps SetupWizard.vue and SampleDataBanner.vue components, defines Appwrite functions seedSampleData and wipeSampleData, and documents village_settings.is_using_sample_data field.</snippet>
+      </doc>
+      <doc>
+        <path>docs/ux-specification.md</path>
+        <title>UX Specification</title>
+        <section>Flow 3: First-Time Setup Wizard (lines 550-639)</section>
+        <snippet>Details Welcome screen with two cards (sample data recommended), sample mode banner (yellow, non-dismissible, with wipe button), and success criteria including &lt;30 second load time.</snippet>
+      </doc>
+      <doc>
+        <path>docs/architecture.md</path>
+        <title>Architecture Document</title>
+        <section>Technology Stack and Mandatory Patterns (lines 63-200)</section>
+        <snippet>Defines Vue 3 script setup syntax requirement, Pinia stores, useErrorHandler composable, Appwrite Functions for server-side operations, and Quasar component patterns.</snippet>
+      </doc>
+      <doc>
+        <path>docs/stories/story-1.8.md</path>
+        <title>Story 1.8: Village Configuration and Default Settings</title>
+        <section>Implementation details and learnings (lines 88-114)</section>
+        <snippet>Implemented is_using_sample_data field, isUsingSampleData getter, isFirstRun detection in boot file, council_member_ids array pattern, and date normalization - all ready for Story 1.9 integration.</snippet>
+      </doc>
+      <doc>
+        <path>docs/testing.md</path>
+        <title>Testing Documentation</title>
+        <section>Testing patterns and requirements</section>
+        <snippet>Defines unit test patterns for permissions, integration test approaches, and manual testing checklists. Story 1.9 tests should follow established patterns.</snippet>
+      </doc>
+      <doc>
+        <path>appwrite_setup/FUNCTION_DEPLOYMENT.md</path>
+        <title>Function Deployment Guide</title>
+        <section>Cloud function deployment instructions</section>
+        <snippet>Documents how to deploy Appwrite Cloud Functions. wipeAllData function deployment instructions should be added here.</snippet>
+      </doc>
+    </docs>
+
+    <code>
+      <file>
+        <path>src/stores/settings-store.js</path>
+        <kind>store</kind>
+        <symbol>useSettingsStore</symbol>
+        <lines>1-374</lines>
+        <reason>Contains isUsingSampleData getter (line 107), isFirstRun state, loadSettings/updateSettings/createSettings actions. Must add wipeAllData action and resetStore enhancement.</reason>
+      </file>
+      <file>
+        <path>src/boot/settings.js</path>
+        <kind>boot</kind>
+        <symbol>settings boot file</symbol>
+        <lines>1-41</lines>
+        <reason>Handles first-run detection (isFirstRun flag). May need modification to redirect to setup wizard when isFirstRun is true.</reason>
+      </file>
+      <file>
+        <path>src/stores/households-store.js</path>
+        <kind>store</kind>
+        <symbol>useHouseholdsStore</symbol>
+        <lines>1-355</lines>
+        <reason>Contains createHousehold action (line 173) to be used by sample data seeding. Also needs resetStore method for wipe flow.</reason>
+      </file>
+      <file>
+        <path>src/stores/residents-store.js</path>
+        <kind>store</kind>
+        <symbol>useResidentsStore</symbol>
+        <lines>1-508</lines>
+        <reason>Contains createResident action (line 220) to be used by sample data seeding. Also needs resetStore method for wipe flow.</reason>
+      </file>
+      <file>
+        <path>src/layouts/MainLayout.vue</path>
+        <kind>layout</kind>
+        <symbol>MainLayout</symbol>
+        <lines>1-364</lines>
+        <reason>Must integrate SampleDataBanner component above q-header. Already imports settingsStore (line 16 uses villageName).</reason>
+      </file>
+      <file>
+        <path>src/router/routes.js</path>
+        <kind>router</kind>
+        <symbol>routes</symbol>
+        <lines>1-92</lines>
+        <reason>Must add /setup route for SetupWizard.vue. Route should not require auth as wizard handles its own flow.</reason>
+      </file>
+      <file>
+        <path>src/boot/appwrite.js</path>
+        <kind>boot</kind>
+        <symbol>appwrite services</symbol>
+        <lines>1-33</lines>
+        <reason>Exports functions service (line 17) needed to call wipeAllData cloud function via functions.createExecution().</reason>
+      </file>
+      <file>
+        <path>src/composables/useErrorHandler.js</path>
+        <kind>composable</kind>
+        <symbol>useErrorHandler</symbol>
+        <lines>1-99</lines>
+        <reason>Provides notifyError, notifySuccess, handleError for consistent error handling in seeding and wipe operations.</reason>
+      </file>
+      <file>
+        <path>server/functions/Check Users Exist/src/main.js</path>
+        <kind>cloud-function</kind>
+        <symbol>checkUsersExist</symbol>
+        <lines>1-56</lines>
+        <reason>Reference pattern for Appwrite Cloud Function structure. wipeAllData function should follow similar pattern with node-appwrite SDK.</reason>
+      </file>
+      <file>
+        <path>server/scripts/seed-village-settings.js</path>
+        <kind>script</kind>
+        <symbol>seed-village-settings</symbol>
+        <lines>1-129</lines>
+        <reason>Reference pattern for Node.js seed scripts. seed-sample-data.js should follow similar structure with dotenv, node-appwrite, and error handling.</reason>
+      </file>
+    </code>
+
+    <dependencies>
+      <node>
+        <package name="appwrite" version="^21.2.1">Appwrite SDK for client-side operations and Functions.createExecution()</package>
+        <package name="node-appwrite" version="^14.1.0">Server-side Appwrite SDK for cloud function and seed scripts</package>
+        <package name="pinia" version="^3.0.1">State management for stores (settings, residents, households)</package>
+        <package name="quasar" version="^2.16.0">UI components (QCard, QDialog, QBtn, QBanner, QLinearProgress)</package>
+        <package name="vue" version="^3.5.22">Vue 3 framework with Composition API</package>
+        <package name="vue-router" version="^4.0.0">Router for /setup route and navigation guards</package>
+        <package name="date-fns" version="^4.1.0">Date formatting for sample data dates</package>
+        <package name="dotenv" version="^16.4.5">Environment variable loading for seed scripts</package>
+      </node>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint type="syntax">All Vue components MUST use script setup syntax only. Never use export default with Options API.</constraint>
+    <constraint type="pattern">Use useErrorHandler composable for all error notifications and form validation.</constraint>
+    <constraint type="pattern">Use existing Pinia store actions (createResident, createHousehold, updateSettings) for client-side seeding to maintain consistency.</constraint>
+    <constraint type="security">Wipe cloud function MUST verify caller has System Administrator permission server-side. Do not trust client-side permission checks for destructive operations.</constraint>
+    <constraint type="naming">Components: PascalCase (SetupWizard.vue, SampleDataBanner.vue). Composables: camelCase with use prefix (useSampleData.js).</constraint>
+    <constraint type="data">Sample data must use realistic Zambian names (Banda, Phiri, Mwale, Tembo, Zulu, Mulenga) and Eastern Province context.</constraint>
+    <constraint type="ux">Banner must be non-dismissible and persist across all authenticated pages when isUsingSampleData is true.</constraint>
+    <constraint type="ux">"Start Fresh with Real Data" option must be disabled with "Coming in future update" note (deferred to Epic 5).</constraint>
+    <constraint type="routing">Setup wizard route /setup should not require authentication - wizard handles its own flow.</constraint>
+    <constraint type="routing">When isFirstRun is true, user must be redirected to /setup and cannot bypass to other routes.</constraint>
+  </constraints>
+
+  <interfaces>
+    <interface>
+      <name>Appwrite Functions.createExecution</name>
+      <kind>REST endpoint</kind>
+      <signature>functions.createExecution(functionId, body?, async?, path?, method?, headers?)</signature>
+      <path>src/boot/appwrite.js (functions export)</path>
+      <usage>Call wipeAllData cloud function: functions.createExecution(VITE_APPWRITE_FUNCTION_WIPE_DATA, JSON.stringify({ userId: currentUser.$id }))</usage>
+    </interface>
+    <interface>
+      <name>useSettingsStore.isUsingSampleData</name>
+      <kind>Pinia getter</kind>
+      <signature>isUsingSampleData: (state) => state.settings?.is_using_sample_data || false</signature>
+      <path>src/stores/settings-store.js#107</path>
+      <usage>Conditionally render SampleDataBanner in MainLayout when this getter returns true.</usage>
+    </interface>
+    <interface>
+      <name>useSettingsStore.isFirstRun</name>
+      <kind>Pinia state</kind>
+      <signature>isFirstRun: boolean (set to true when settings_root doesn't exist)</signature>
+      <path>src/stores/settings-store.js#63</path>
+      <usage>Check in router guard or boot file to redirect to /setup wizard.</usage>
+    </interface>
+    <interface>
+      <name>useHouseholdsStore.createHousehold</name>
+      <kind>Pinia action</kind>
+      <signature>async createHousehold(householdData: { name, household_type, construction_date?, bedrooms?, bathrooms?, notes?, head_resident_id? })</signature>
+      <path>src/stores/households-store.js#173</path>
+      <usage>Create sample households during seeding. Returns { success: boolean, data?: Household, error?: string }.</usage>
+    </interface>
+    <interface>
+      <name>useResidentsStore.createResident</name>
+      <kind>Pinia action</kind>
+      <signature>async createResident(residentData: { first_name, last_name, middle_names?, dob, gender, household_id, room_number?, phone?, email?, notes? })</signature>
+      <path>src/stores/residents-store.js#220</path>
+      <usage>Create sample residents during seeding. Returns { success: boolean, data?: Resident, error?: string }.</usage>
+    </interface>
+    <interface>
+      <name>useSettingsStore.updateSettings</name>
+      <kind>Pinia action</kind>
+      <signature>async updateSettings(updates: Partial&lt;VillageSettings&gt;)</signature>
+      <path>src/stores/settings-store.js#224</path>
+      <usage>Update village_settings with sample data configuration and set is_using_sample_data: true.</usage>
+    </interface>
+    <interface>
+      <name>useSettingsStore.createSettings</name>
+      <kind>Pinia action</kind>
+      <signature>async createSettings(initialSettings: VillageSettings)</signature>
+      <path>src/stores/settings-store.js#297</path>
+      <usage>Create initial settings_root document with Katete Model Village configuration during first-run seeding.</usage>
+    </interface>
+  </interfaces>
+
+  <tests>
+    <standards>
+      Tests follow patterns established in docs/testing.md. Unit tests verify individual functions and store actions. Integration tests verify component interactions. Manual testing checklist covers complete user flows. All tests should verify both success and error paths. Permission checks require testing with different user roles (System Administrator vs other roles).
+    </standards>
+    <locations>
+      <location>docs/testing.md - Manual test documentation and checklists</location>
+      <location>src/**/*.spec.js - Unit tests (when implemented)</location>
+      <location>tests/e2e/ - End-to-end tests (when implemented)</location>
+    </locations>
+    <ideas>
+      <idea ac="1">Test that navigating to any authenticated route when isFirstRun=true redirects to /setup</idea>
+      <idea ac="1">Test that /setup route is accessible without authentication</idea>
+      <idea ac="2">Test that "Start Fresh with Real Data" card is visually disabled and shows "Coming in future update" note</idea>
+      <idea ac="3">Test that clicking "Load Sample Data" creates exactly 5-6 households and 15-20 residents</idea>
+      <idea ac="3">Test that sample data includes proper household-resident relationships (household_id references valid household)</idea>
+      <idea ac="4">Test that is_using_sample_data is set to true after successful seeding</idea>
+      <idea ac="4">Test that user is redirected to dashboard after successful seeding</idea>
+      <idea ac="5">Test that SampleDataBanner appears on all pages when isUsingSampleData=true</idea>
+      <idea ac="5">Test that SampleDataBanner does not appear when isUsingSampleData=false</idea>
+      <idea ac="5">Test that banner cannot be dismissed (no close button, persists on navigation)</idea>
+      <idea ac="6">Test that wipe dialog confirm button is disabled until "DELETE EVERYTHING" is typed exactly</idea>
+      <idea ac="6">Test that "delete everything" (lowercase) does not enable confirm button (case-sensitive)</idea>
+      <idea ac="7">Test that wipe function returns error when called by non-System Administrator user</idea>
+      <idea ac="7">Test that wipe function deletes all residents and households atomically</idea>
+      <idea ac="8">Test that after successful wipe, all Pinia stores are reset to initial state</idea>
+      <idea ac="8">Test that after successful wipe, user is redirected to /setup</idea>
+      <idea ac="9">Test that sample resident names are realistic Zambian names (Banda, Phiri, Mwale, etc.)</idea>
+      <idea ac="9">Test that sample data dates are within reasonable ranges (not future dates, not impossibly old)</idea>
+    </ideas>
+  </tests>
+
+  <sampleData>
+    <description>Katete Model Village sample dataset for demonstration and evaluation purposes</description>
+    <villageSettings>
+      <villageName>Katete Model Village</villageName>
+      <address>Katete District, Eastern Province, Zambia</address>
+      <establishedDate>2020-03-15</establishedDate>
+      <defaultCurrency>ZMW</defaultCurrency>
+      <currencySymbol>K</currencySymbol>
+      <timezone>Africa/Lusaka</timezone>
+      <countryCode>ZM</countryCode>
+      <countryPhoneCode>+260</countryPhoneCode>
+      <isUsingSampleData>true</isUsingSampleData>
+      <modulesEnabled>["residents", "households", "dashboard", "finance", "inventory"]</modulesEnabled>
+    </villageSettings>
+    <households>
+      <household type="SingleFamily">Banda Family Home</household>
+      <household type="SingleFamily">Phiri Family Home</household>
+      <household type="MultiFamily">Mwale Extended Family Compound</household>
+      <household type="Dormitory">Staff Quarters</household>
+      <household type="AdminBuilding">Village Administration Office</household>
+      <household type="GuestHouse">Visitor Accommodation</household>
+    </households>
+    <residentNames>
+      <family surname="Banda">Joseph, Mary, Grace, Peter</family>
+      <family surname="Phiri">Emmanuel, Ruth, David, Sarah</family>
+      <family surname="Mwale">James, Elizabeth, John, Martha, Paul</family>
+      <family surname="Tembo">Michael, Rebecca</family>
+      <family surname="Zulu">Daniel, Esther, Samuel</family>
+      <family surname="Mulenga">Andrew, Priscilla</family>
+    </residentNames>
+    <councilMembers>
+      <member role="Village Head">Joseph Banda</member>
+      <member role="Deputy Village Head">Emmanuel Phiri</member>
+      <member role="Finance Manager">James Mwale</member>
+    </councilMembers>
+  </sampleData>
+</story-context>
