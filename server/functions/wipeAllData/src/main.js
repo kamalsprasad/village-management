@@ -78,8 +78,9 @@ export default async ({ req, res, log, error }) => {
     let hasAdminPermission = false;
     for (const roleId of roleIds) {
       try {
-        const role = await databases.getDocument(databaseId, rolesTableId, roleId);
-        const permissions = role.permissions || [];
+        // const role = await databases.getDocument(databaseId, rolesTableId, roleId);
+        // console.log(`role: ${role}`);
+        const permissions = roleId.permissions || [];
 
         if (permissions.includes('*')) {
           hasAdminPermission = true;
