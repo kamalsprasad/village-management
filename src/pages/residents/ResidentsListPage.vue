@@ -69,10 +69,7 @@
       </q-card>
 
       <!-- Loading State -->
-      <div
-        v-if="residentsStore.isLoading && residentsStore.residents.length === 0"
-        class="q-pa-md"
-      >
+      <div v-if="residentsStore.isLoading && residentsStore.residents.length === 0" class="q-pa-md">
         <q-skeleton type="rect" height="60px" class="q-mb-sm" />
         <q-skeleton type="rect" height="60px" class="q-mb-sm" />
         <q-skeleton type="rect" height="60px" class="q-mb-sm" />
@@ -87,6 +84,7 @@
           flat
           :loading="residentsStore.isLoading"
           hide-pagination
+          :pagination="{ rowsPerPage: 0 }"
         >
           <!-- Custom column: full_name -->
           <template #body-cell-full_name="props">

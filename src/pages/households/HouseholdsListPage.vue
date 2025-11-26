@@ -37,6 +37,7 @@
           flat
           :loading="householdsStore.isLoading"
           hide-pagination
+          :pagination="{ rowsPerPage: 0 }"
         >
           <!-- Custom column: household_type -->
           <template #body-cell-household_type="props">
