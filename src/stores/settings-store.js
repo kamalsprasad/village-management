@@ -439,6 +439,15 @@ export const useSettingsStore = defineStore('settings', {
         return { success: true, data: response };
       } catch (error) {
         console.error('Error wiping data:', error);
+
+        // Handle permission denied (401) specifically
+        if (error.code === 401) {
+          const message =
+            'Permission denied. You must be a System Administrator to wipe data. Please log in with an authorized account.';
+          errorHandler.notifyError(message);
+          return { success: false, error: message };
+        }
+
         errorHandler.notifyError('Failed to wipe data. Please try again.');
         return { success: false, error: error.message };
       } finally {

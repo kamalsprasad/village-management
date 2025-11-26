@@ -72,6 +72,10 @@ const props = defineProps({
     type: Boolean,
     default: false,
   },
+  loading: {
+    type: Boolean,
+    default: false,
+  },
 });
 
 const emit = defineEmits(['update:modelValue', 'confirmed', 'cancelled']);
@@ -82,7 +86,8 @@ const dialogVisible = computed({
 });
 
 const confirmationText = ref('');
-const isWiping = ref(false);
+// Internal state not needed if we trust parent's loading prop, but good for immediate feedback
+const isWiping = computed(() => props.loading);
 
 const CONFIRMATION_PHRASE = 'DELETE EVERYTHING';
 
@@ -96,7 +101,6 @@ watch(
   (newValue) => {
     if (newValue) {
       confirmationText.value = '';
-      isWiping.value = false;
     }
   },
 );
@@ -109,14 +113,10 @@ function handleCancel() {
 async function handleConfirm() {
   if (!isConfirmationValid.value) return;
 
-  isWiping.value = true;
-
   try {
     emit('confirmed');
-    // Dialog will be closed by parent after wipe completes
   } catch (error) {
     console.error('Error during wipe confirmation:', error);
-    isWiping.value = false;
   }
 }
 </script>

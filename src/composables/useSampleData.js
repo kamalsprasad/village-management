@@ -31,7 +31,7 @@ export function useSampleData() {
     village_name: 'Katete Model Village',
     address: 'Katete District, Eastern Province, Zambia',
     established_date: '2020-03-15',
-    default_currency: 'ZMW',
+    default_currency: 'Zambian Kwacha (ZMW)',
     currency_symbol: 'K',
     timezone: 'Africa/Lusaka',
     country_code: 'ZM',
@@ -47,7 +47,7 @@ export function useSampleData() {
   const sampleHouseholds = [
     {
       name: 'Banda Family Home',
-      household_type: 'SingleFamily',
+      household_type: 'Single Family',
       construction_date: '2019-06-15',
       bedrooms: 3,
       bathrooms: 1,
@@ -55,7 +55,7 @@ export function useSampleData() {
     },
     {
       name: 'Phiri Family Home',
-      household_type: 'SingleFamily',
+      household_type: 'Single Family',
       construction_date: '2020-02-20',
       bedrooms: 4,
       bathrooms: 2,
@@ -63,7 +63,7 @@ export function useSampleData() {
     },
     {
       name: 'Mwale Extended Family Compound',
-      household_type: 'MultiFamily',
+      household_type: 'Multi-Family',
       construction_date: '2018-11-10',
       bedrooms: 6,
       bathrooms: 3,
@@ -79,7 +79,7 @@ export function useSampleData() {
     },
     {
       name: 'Village Administration Office',
-      household_type: 'AdminBuilding',
+      household_type: 'Admin Building',
       construction_date: '2019-09-01',
       bedrooms: 0,
       bathrooms: 2,
@@ -87,7 +87,7 @@ export function useSampleData() {
     },
     {
       name: 'Visitor Accommodation',
-      household_type: 'GuestHouse',
+      household_type: 'Guest House',
       construction_date: '2021-08-20',
       bedrooms: 4,
       bathrooms: 2,

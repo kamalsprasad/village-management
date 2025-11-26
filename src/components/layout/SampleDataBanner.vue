@@ -19,7 +19,11 @@
     </div>
 
     <!-- Wipe Confirmation Dialog -->
-    <WipeDataDialog v-model="showWipeDialog" @confirmed="handleWipeConfirmed" />
+    <WipeDataDialog
+      v-model="showWipeDialog"
+      :loading="settingsStore.isLoading"
+      @confirmed="handleWipeConfirmed"
+    />
   </div>
 </template>
 
@@ -36,6 +40,9 @@ const showWipeDialog = ref(false);
 
 async function handleWipeConfirmed() {
   const result = await settingsStore.wipeAllData();
+
+  // Always close the dialog, even on error
+  showWipeDialog.value = false;
 
   if (result.success) {
     // Redirect to setup wizard after successful wipe
