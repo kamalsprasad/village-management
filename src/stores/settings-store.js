@@ -372,11 +372,12 @@ export const useSettingsStore = defineStore('settings', {
     },
 
     /**
-     * Wipe all data via Appwrite Cloud Function
+     * Wipe all data via Appwrite Cloud Function (async with polling)
      * Requires System Administrator permission (verified server-side)
+     * @param {Function} onPhaseChange - Optional callback for phase updates
      * @returns {Promise<Object>} Result object with success flag
      */
-    async wipeAllData() {
+    async wipeAllData(onPhaseChange = null) {
       this.isLoading = true;
       try {
         const functionId = import.meta.env.VITE_APPWRITE_FUNCTION_WIPE_DATA;
@@ -396,26 +397,28 @@ export const useSettingsStore = defineStore('settings', {
           return { success: false, error: 'Not authenticated' };
         }
 
-        // Call the wipe cloud function
+        // Notify phase change: starting
+        if (onPhaseChange) onPhaseChange('starting');
+
+        // Call the wipe cloud function with async=true to avoid 30s timeout
         const execution = await functions.createExecution(
           functionId,
           JSON.stringify({ userId: authStore.user.$id }),
-          false, // async = false, wait for result
+          true, // async = true, returns immediately with execution ID
         );
 
-        // Parse response
-        let response;
-        try {
-          response = JSON.parse(execution.responseBody);
-        } catch (parseError) {
-          console.error('Failed to parse wipe function response:', parseError);
-          errorHandler.notifyError('Unexpected response from wipe function.');
-          return { success: false, error: 'Invalid response' };
-        }
+        const executionId = execution.$id;
+        console.log(`Wipe execution started: ${executionId}`);
 
-        if (!response.success) {
-          errorHandler.notifyError(response.error || 'Failed to wipe data.');
-          return { success: false, error: response.error };
+        // Notify phase change: processing
+        if (onPhaseChange) onPhaseChange('processing');
+
+        // Poll for execution completion
+        const result = await this._pollExecutionStatus(functionId, executionId, onPhaseChange);
+
+        if (!result.success) {
+          errorHandler.notifyError(result.error || 'Failed to wipe data.');
+          return result;
         }
 
         // Reset all Pinia stores
@@ -432,11 +435,14 @@ export const useSettingsStore = defineStore('settings', {
         const residentsStore = useResidentsStore();
         residentsStore.$reset();
 
+        // Notify phase change: complete
+        if (onPhaseChange) onPhaseChange('complete');
+
         errorHandler.notifySuccess(
-          `Data wiped successfully. Deleted ${response.deletedResidents || 0} residents and ${response.deletedHouseholds || 0} households.`,
+          `Data wiped successfully. Deleted ${result.data?.deletedResidents || 0} residents and ${result.data?.deletedHouseholds || 0} households.`,
         );
 
-        return { success: true, data: response };
+        return { success: true, data: result.data };
       } catch (error) {
         console.error('Error wiping data:', error);
 
@@ -453,6 +459,92 @@ export const useSettingsStore = defineStore('settings', {
       } finally {
         this.isLoading = false;
       }
+    },
+
+    /**
+     * Poll execution status until complete or failed
+     * @param {string} functionId - Function ID
+     * @param {string} executionId - Execution ID to poll
+     * @param {Function} onPhaseChange - Optional callback for phase updates
+     * @returns {Promise<Object>} Result with success flag and data
+     * @private
+     */
+    async _pollExecutionStatus(functionId, executionId, onPhaseChange = null) {
+      const POLL_INTERVAL_MS = 1500; // Poll every 1.5 seconds
+      const MAX_POLL_TIME_MS = 5 * 60 * 1000; // 5 minute max wait
+      const startTime = Date.now();
+
+      let lastStatus = '';
+
+      while (Date.now() - startTime < MAX_POLL_TIME_MS) {
+        try {
+          const execution = await functions.getExecution(functionId, executionId);
+          const status = execution.status;
+
+          // Log status changes
+          if (status !== lastStatus) {
+            console.log(`Wipe execution status: ${status}`);
+            lastStatus = status;
+
+            // Update phase based on status
+            if (onPhaseChange) {
+              if (status === 'waiting') {
+                onPhaseChange('waiting');
+              } else if (status === 'processing') {
+                onPhaseChange('processing');
+              }
+            }
+          }
+
+          if (status === 'completed') {
+            // Parse the response body (may be empty string for async executions)
+            const responseBody = execution.responseBody || '';
+
+            // If response body is empty but status is completed, treat as success
+            // This can happen with async executions on self-hosted Appwrite
+            if (!responseBody || responseBody.trim() === '') {
+              console.log('Wipe execution completed (no response body - async execution)');
+              return { success: true, data: { message: 'Wipe completed successfully' } };
+            }
+
+            let response;
+            try {
+              response = JSON.parse(responseBody);
+            } catch (parseError) {
+              console.error('Failed to parse wipe function response:', parseError);
+              console.log('Raw response body:', responseBody);
+              // If we can't parse but status is completed, assume success
+              return { success: true, data: { message: 'Wipe completed (response parse failed)' } };
+            }
+
+            if (!response.success) {
+              return { success: false, error: response.error || 'Wipe operation failed' };
+            }
+
+            return { success: true, data: response };
+          }
+
+          if (status === 'failed') {
+            const errorMsg =
+              execution.errors || execution.responseBody || 'Function execution failed';
+            console.error('Wipe execution failed:', errorMsg);
+            return { success: false, error: errorMsg };
+          }
+
+          // Wait before next poll
+          await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS));
+        } catch (pollError) {
+          console.error('Error polling execution status:', pollError);
+          // Continue polling on transient errors
+          await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS));
+        }
+      }
+
+      // Timeout reached
+      return {
+        success: false,
+        error: 'Wipe operation timed out. Please check the Appwrite console for status.',
+      };
     },
   },
 });

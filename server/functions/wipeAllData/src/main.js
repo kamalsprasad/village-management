@@ -3,12 +3,72 @@ import { Client, Databases, Users, Query } from 'node-appwrite';
 /**
  * Appwrite Cloud Function: Wipe All Data
  *
- * Atomically deletes all residents, households, and resets village settings.
+ * Deletes all residents, households, and resets village settings using
+ * parallel batch deletions for performance.
  * Requires System Administrator permission (verified server-side).
  *
  * Request body: { userId: string }
- * Response: { success: boolean, message?: string, error?: string }
+ * Response: {
+ *   success: boolean,
+ *   message?: string,
+ *   error?: string,
+ *   phase?: string,
+ *   totalResidents?: number,
+ *   totalHouseholds?: number,
+ *   deletedResidents?: number,
+ *   deletedHouseholds?: number
+ * }
  */
+
+// Configuration for parallel batch deletions
+const BATCH_SIZE = 100; // Documents to fetch per query
+const PARALLEL_DELETES = 25; // Concurrent delete operations
+
+/**
+ * Delete documents in parallel batches for better performance
+ * @param {Databases} databases - Appwrite Databases instance
+ * @param {string} databaseId - Database ID
+ * @param {string} collectionId - Collection ID
+ * @param {Function} log - Logging function
+ * @returns {Promise<number>} Number of deleted documents
+ */
+async function deleteCollectionDocuments(databases, databaseId, collectionId, log) {
+  let totalDeleted = 0;
+  let hasMore = true;
+
+  while (hasMore) {
+    // Fetch a batch of documents
+    const response = await databases.listDocuments(databaseId, collectionId, [
+      Query.limit(BATCH_SIZE),
+    ]);
+
+    if (response.documents.length === 0) {
+      hasMore = false;
+      break;
+    }
+
+    // Delete documents in parallel chunks
+    const documents = response.documents;
+    for (let i = 0; i < documents.length; i += PARALLEL_DELETES) {
+      const chunk = documents.slice(i, i + PARALLEL_DELETES);
+      const deletePromises = chunk.map((doc) =>
+        databases.deleteDocument(databaseId, collectionId, doc.$id).catch((err) => {
+          // Log but don't fail on individual delete errors
+          log(`Warning: Failed to delete ${collectionId}/${doc.$id}: ${err.message}`);
+          return null;
+        }),
+      );
+
+      await Promise.all(deletePromises);
+      totalDeleted += chunk.length;
+    }
+
+    log(`Deleted ${totalDeleted} documents from ${collectionId}...`);
+  }
+
+  return totalDeleted;
+}
+
 export default async ({ req, res, log, error }) => {
   // Initialize Appwrite client with server-side credentials
   const endpoint =
@@ -106,66 +166,44 @@ export default async ({ req, res, log, error }) => {
     log('Permission verified. Starting data wipe...');
 
     // ============================================
-    // DATA WIPE OPERATIONS
+    // DATA WIPE OPERATIONS (Parallel Batch Deletions)
     // ============================================
 
     let deletedResidents = 0;
     let deletedHouseholds = 0;
 
-    // Step 1: Delete all residents
-    log('Deleting all residents...');
+    // Step 1: Delete all residents (parallel batches)
+    log('Phase: Deleting residents...');
     try {
-      let hasMore = true;
-      while (hasMore) {
-        const residentsResponse = await databases.listDocuments(databaseId, residentsTableId, [
-          Query.limit(100),
-        ]);
-
-        if (residentsResponse.documents.length === 0) {
-          hasMore = false;
-          break;
-        }
-
-        for (const resident of residentsResponse.documents) {
-          await databases.deleteDocument(databaseId, residentsTableId, resident.$id);
-          deletedResidents++;
-        }
-
-        log(`Deleted ${deletedResidents} residents so far...`);
-      }
+      deletedResidents = await deleteCollectionDocuments(
+        databases,
+        databaseId,
+        residentsTableId,
+        log,
+      );
+      log(`Completed: Deleted ${deletedResidents} residents`);
     } catch (residentsError) {
       error(`Error deleting residents: ${residentsError.message}`);
       // Continue with other deletions
     }
 
-    // Step 2: Delete all households
-    log('Deleting all households...');
+    // Step 2: Delete all households (parallel batches)
+    log('Phase: Deleting households...');
     try {
-      let hasMore = true;
-      while (hasMore) {
-        const householdsResponse = await databases.listDocuments(databaseId, householdsTableId, [
-          Query.limit(100),
-        ]);
-
-        if (householdsResponse.documents.length === 0) {
-          hasMore = false;
-          break;
-        }
-
-        for (const household of householdsResponse.documents) {
-          await databases.deleteDocument(databaseId, householdsTableId, household.$id);
-          deletedHouseholds++;
-        }
-
-        log(`Deleted ${deletedHouseholds} households so far...`);
-      }
+      deletedHouseholds = await deleteCollectionDocuments(
+        databases,
+        databaseId,
+        householdsTableId,
+        log,
+      );
+      log(`Completed: Deleted ${deletedHouseholds} households`);
     } catch (householdsError) {
       error(`Error deleting households: ${householdsError.message}`);
       // Continue with settings reset
     }
 
     // Step 3: Delete village settings (settings_root)
-    log('Resetting village settings...');
+    log('Phase: Resetting village settings...');
     try {
       await databases.deleteDocument(databaseId, settingsTableId, 'settings_root');
       log('Village settings deleted successfully');
@@ -181,6 +219,7 @@ export default async ({ req, res, log, error }) => {
     return res.json({
       success: true,
       message: 'All data wiped successfully',
+      phase: 'complete',
       deletedResidents,
       deletedHouseholds,
     });

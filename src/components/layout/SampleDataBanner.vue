@@ -21,7 +21,8 @@
     <!-- Wipe Confirmation Dialog -->
     <WipeDataDialog
       v-model="showWipeDialog"
-      :loading="settingsStore.isLoading"
+      :loading="isWiping"
+      :current-phase="currentPhase"
       @confirmed="handleWipeConfirmed"
     />
   </div>
@@ -37,18 +38,39 @@ const router = useRouter();
 const settingsStore = useSettingsStore();
 
 const showWipeDialog = ref(false);
+const isWiping = ref(false);
+const currentPhase = ref('');
+
+/**
+ * Handle phase changes from the wipe operation
+ * @param {string} phase - Current phase: 'starting' | 'waiting' | 'processing' | 'complete'
+ */
+function handlePhaseChange(phase) {
+  currentPhase.value = phase;
+  console.log(`Wipe phase: ${phase}`);
+}
 
 async function handleWipeConfirmed() {
-  const result = await settingsStore.wipeAllData();
+  isWiping.value = true;
+  currentPhase.value = 'starting';
 
-  // Always close the dialog, even on error
-  showWipeDialog.value = false;
+  try {
+    const result = await settingsStore.wipeAllData(handlePhaseChange);
 
-  if (result.success) {
-    // Redirect to setup wizard after successful wipe
-    router.push('/setup');
+    if (result.success) {
+      // Brief delay to show completion state before redirect
+      await new Promise((resolve) => setTimeout(resolve, 800));
+      showWipeDialog.value = false;
+      // Redirect to setup wizard after successful wipe
+      router.push('/setup');
+    } else {
+      // On error, close dialog (error notification handled by store)
+      showWipeDialog.value = false;
+    }
+  } finally {
+    isWiping.value = false;
+    currentPhase.value = '';
   }
-  // Error handling is done inside wipeAllData via useErrorHandler
 }
 </script>
 
