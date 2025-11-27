@@ -24,6 +24,15 @@ export default defineBoot(({ router, store }) => {
 
     // If not logged in and trying to access protected route, redirect to auth
     if (!authStore.isLoggedIn) {
+      // Fix for SSR Hydration Mismatch:
+      // On server, we can't verify auth (no cookies). If we redirect to /auth,
+      // Server renders AuthPage while Client renders TargetPage, causing mismatch.
+      // We allow navigation on Server and let Client handle the redirect.
+      if (process.env.SERVER) {
+        next();
+        return;
+      }
+
       next('/auth');
       return;
     }

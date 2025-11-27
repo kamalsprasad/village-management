@@ -1,8 +1,12 @@
 <template>
-  <q-layout view="lHh Lpr lFf">
+  <q-layout view="lHh Lpr lFf" key="setup-wizard-layout">
     <q-page-container>
-      <q-page class="setup-wizard-page flex flex-center">
-        <div class="setup-container q-pa-lg">
+      <q-page
+        class="setup-wizard-page flex flex-center"
+        style="background: linear-gradient(135deg, #f5f7fa 0%, #e4e8ec 100%)"
+        key="setup-wizard-page"
+      >
+        <div class="setup-container q-pa-lg" style="max-width: 900px; width: 100%">
           <!-- Welcome Header -->
           <div class="text-center q-mb-xl">
             <q-icon name="home_work" size="64px" color="primary" class="q-mb-md" />
@@ -123,7 +127,6 @@ async function handleLoadSampleData() {
 <style lang="scss" scoped>
 .setup-wizard-page {
   min-height: 100vh;
-  background: linear-gradient(135deg, #f5f7fa 0%, #e4e8ec 100%);
 }
 
 .setup-container {
