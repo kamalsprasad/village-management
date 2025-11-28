@@ -9,7 +9,7 @@
         </div>
         <div class="col-auto">
           <q-btn
-            v-if="hasPermission('residents:write')"
+            v-if="isClient && hasPermission('residents:write')"
             color="primary"
             icon="add"
             label="Add Resident"
@@ -282,6 +282,8 @@ const residentsStore = useResidentsStore();
 const householdsStore = useHouseholdsStore();
 const { hasPermission } = usePermissions();
 
+const isClient = ref(false); // Track client-side hydration for SSR
+
 const showAddDialog = ref(false);
 const showDeleteDialog = ref(false);
 const selectedResident = ref(null);
@@ -358,6 +360,7 @@ const allColumns = [
 
 // Check if user can view contact info (AC10)
 const canViewContactInfo = computed(() => {
+  if (!isClient.value) return false; // Default to hidden during SSR
   return hasPermission('residents:read') && hasPermission('residents:write');
 });
 
@@ -462,6 +465,7 @@ async function clearAllFilters() {
 }
 
 onMounted(async () => {
+  isClient.value = true; // Enable client-side rendering after hydration
   // Load households for filter dropdown
   await householdsStore.fetchHouseholds(1, 100);
   // Load residents
