@@ -162,6 +162,10 @@ No debug issues encountered.
 - Followed existing HouseholdsWidget pattern for consistency (QCard, QList, QChip, QBadge)
 - Integrated into DashboardPage with col-12 col-md-6 responsive classes
 - Widget is reactive to store changes, satisfying AC2 real-time update requirement
+- **Fixed SSR hydration mismatches**: Added client-only rendering pattern using `isClient` ref to prevent server/client HTML mismatch in both CommunityOverviewWidget and DashboardPage welcome message
+- **Hydration fix pattern**: Show loading skeleton during SSR and initial hydration (`v-if="!isClient || isLoading"`), then show dynamic content only after client mount (`v-else-if="isClient"`)
+- **DashboardPage fix**: Welcome message now shows "User" during SSR, then actual user name after hydration to prevent text content mismatch
+- **MainLayout fix**: Applied `isClient` pattern to User Avatar (initials) and Navigation Drawer (permission-based items) to resolve global hydration mismatches reported in browser console
 
 ### File List
 

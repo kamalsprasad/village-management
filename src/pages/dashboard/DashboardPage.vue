@@ -2,7 +2,7 @@
   <q-page class="dashboard-page q-pa-md">
     <!-- Welcome Banner -->
     <div class="welcome-banner q-mb-lg">
-      <h4 class="text-h4 q-my-none">Welcome back, {{ userName }}</h4>
+      <h4 class="text-h4 q-my-none">Welcome back, {{ isClient ? userName : 'User' }}</h4>
       <p class="text-subtitle1 text-grey-7 q-mt-sm q-mb-none">
         Here's what's happening in {{ settingsStore.villageName }} today
       </p>
@@ -58,6 +58,7 @@ const settingsStore = useSettingsStore();
 
 // Loading state for skeleton loaders
 const loading = ref(true);
+const isClient = ref(false); // Track client-side hydration for SSR
 
 // Widget data (using placeholder data for MVP)
 const upcomingEvents = ref([]);
@@ -71,6 +72,8 @@ const userName = computed(() => {
 
 // Simulate data loading on mount
 onMounted(async () => {
+  isClient.value = true; // Enable client-side rendering after hydration
+
   // Defer data loading to avoid blocking initial render
   await new Promise((resolve) => setTimeout(resolve, 300));
 

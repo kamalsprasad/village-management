@@ -3,14 +3,14 @@
     <q-card-section>
       <div class="text-h6 q-mb-md">Community Overview</div>
 
-      <!-- Loading State -->
-      <div v-if="isLoading" class="q-pa-md">
+      <!-- Loading State (SSR-safe) -->
+      <div v-if="!isClient || isLoading" class="q-pa-md">
         <q-skeleton type="rect" height="60px" class="q-mb-sm" />
         <q-skeleton type="rect" height="60px" class="q-mb-sm" />
         <q-skeleton type="rect" height="100px" />
       </div>
 
-      <div v-else>
+      <div v-else-if="isClient">
         <!-- Total Counts Row -->
         <div class="row q-col-gutter-md q-mb-md">
           <!-- Total Residents -->
@@ -144,6 +144,7 @@ const residentsStore = useResidentsStore();
 const householdsStore = useHouseholdsStore();
 
 const isLoading = ref(false);
+const isClient = ref(false); // Track client-side hydration for SSR
 
 // Total residents from store pagination
 const totalResidents = computed(() => residentsStore.pagination.total);
@@ -228,6 +229,7 @@ async function fetchData() {
 }
 
 onMounted(() => {
+  isClient.value = true; // Enable client-side rendering after hydration
   fetchData();
 });
 </script>

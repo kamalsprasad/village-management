@@ -28,7 +28,7 @@
           @click="toggleUserMenu"
         >
           <q-avatar size="32px" color="primary" text-color="white">
-            <span class="text-weight-bold">{{ userInitials }}</span>
+            <span class="text-weight-bold">{{ isClient ? userInitials : 'U' }}</span>
           </q-avatar>
           <q-menu
             ref="userMenu"
@@ -39,7 +39,9 @@
               <!-- User Info Section -->
               <q-item>
                 <q-item-section>
-                  <q-item-label class="text-weight-bold">{{ userName }}</q-item-label>
+                  <q-item-label class="text-weight-bold">{{
+                    isClient ? userName : 'User'
+                  }}</q-item-label>
                   <q-item-label caption>{{ userEmail }}</q-item-label>
                 </q-item-section>
               </q-item>
@@ -132,7 +134,7 @@
         <!-- Households & Residents Section -->
         <q-item-label header> Community </q-item-label>
 
-        <q-item v-if="hasPermission('households:read')" clickable to="/households">
+        <q-item v-if="isClient && hasPermission('households:read')" clickable to="/households">
           <q-item-section avatar>
             <q-icon name="home" />
           </q-item-section>
@@ -141,7 +143,7 @@
           </q-item-section>
         </q-item>
 
-        <q-item v-if="hasPermission('residents:read')" clickable to="/residents">
+        <q-item v-if="isClient && hasPermission('residents:read')" clickable to="/residents">
           <q-item-section avatar>
             <q-icon name="people" />
           </q-item-section>
@@ -151,7 +153,9 @@
         </q-item>
 
         <!-- Finance Section -->
-        <template v-if="hasAnyPermission(['finance:read', 'inventory:read', 'lending:read'])">
+        <template
+          v-if="isClient && hasAnyPermission(['finance:read', 'inventory:read', 'lending:read'])"
+        >
           <q-separator class="q-my-sm" />
           <q-item-label header> Finance </q-item-label>
 
@@ -184,7 +188,7 @@
         </template>
 
         <!-- Farm Section -->
-        <template v-if="hasPermission('farm:read')">
+        <template v-if="isClient && hasPermission('farm:read')">
           <q-separator class="q-my-sm" />
           <q-item-label header> Agriculture </q-item-label>
 
@@ -199,7 +203,7 @@
         </template>
 
         <!-- School Section -->
-        <template v-if="hasPermission('school:read')">
+        <template v-if="isClient && hasPermission('school:read')">
           <q-separator class="q-my-sm" />
           <q-item-label header> Education </q-item-label>
 
@@ -214,7 +218,11 @@
         </template>
 
         <!-- Community Services Section -->
-        <template v-if="hasAnyPermission(['calendar:read', 'communications:read', 'storage:read'])">
+        <template
+          v-if="
+            isClient && hasAnyPermission(['calendar:read', 'communications:read', 'storage:read'])
+          "
+        >
           <q-separator class="q-my-sm" />
           <q-item-label header> Services </q-item-label>
 
@@ -247,7 +255,7 @@
         </template>
 
         <!-- Admin Section - Only visible to System Administrators -->
-        <template v-if="hasPermission('*')">
+        <template v-if="isClient && hasPermission('*')">
           <q-separator class="q-my-md" />
           <q-item-label header> Administration </q-item-label>
 
@@ -279,7 +287,7 @@
 </template>
 
 <script setup>
-import { ref, computed, watch } from 'vue';
+import { ref, computed, watch, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { useQuasar } from 'quasar';
 import { useAuthStore } from 'src/stores/auth-store';
@@ -296,6 +304,11 @@ const { hasPermission, hasAnyPermission, userStorageQuota } = usePermissions();
 const leftDrawerOpen = ref(false);
 const userMenu = ref(null);
 const userMenuVisible = ref(false);
+const isClient = ref(false); // Track client-side hydration for SSR
+
+onMounted(() => {
+  isClient.value = true; // Enable client-side rendering after hydration
+});
 
 // User info computed properties
 const userName = computed(() => authStore.user?.name || 'User');
