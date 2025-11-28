@@ -287,7 +287,7 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, onMounted } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { useQuasar } from 'quasar';
 import { useAuthStore } from 'src/stores/auth-store';
@@ -370,12 +370,4 @@ function formatStorageQuota(bytes) {
   const gb = bytes / (1024 * 1024 * 1024);
   return `${gb.toFixed(1)} GB`;
 }
-
-watch(
-  () => $q.screen.gt.md,
-  (isDesktop) => {
-    leftDrawerOpen.value = isDesktop;
-  },
-  { immediate: true },
-);
 </script>
