@@ -1,0 +1,381 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<story-context id=".bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>1</epicId>
+    <storyId>11</storyId>
+    <title>User Profile and Storage Quota Display</title>
+    <status>drafted</status>
+    <generatedAt>2025-11-28</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/stories/story-1.11.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>village user</asA>
+    <iWant>view my profile information and storage quota</iWant>
+    <soThat>I understand my role and available storage space</soThat>
+    <tasks>
+      - Task 1: Create ProfilePage component (AC: 1, 5, 6)
+        - Create src/pages/profile/ProfilePage.vue using Vue 3 script setup syntax
+        - Add QPage wrapper with responsive layout (QCard for profile content)
+        - Integrate useAuthStore to access current user session and profile
+        - Implement loading state with QS keleton for profile card
+        - Add responsive layout using Quasar grid system (col-12 col-md-8 col-lg-6 centered)
+        - Add route to router: /profile (protected route requiring authentication)
+      - Task 2: Add "My Profile" link to user menu (AC: 1)
+        - Locate MainLayout.vue user menu component
+        - Add "My Profile" menu item with person icon
+        - Configure router-link navigation to /profile
+        - Position above "Settings" and "Logout" in menu
+      - Task 3: Display user profile information (AC: 2)
+        - Display full name from auth store: authStore.user.name with large text (text-h5)
+        - Display email from auth store: authStore.user.email with secondary text  (text-grey-7)
+        - Display assigned roles: loop through authStore.user.roles array
+        - Show roles as QChip components (color: secondary, size: small)
+        - Handle single role vs. multi-role display (flex wrap for multiple chips)
+        - Add section separator (QSeparator) between user info and storage section
+      - Task 4: Implement storage quota display with placeholder (AC: 2, 3)
+        - Create computed property storageQuota that returns role-based quota (11 role mappings defined)
+        - Display  storage quota with icon (cloud icon) and formatted text
+        - Show current usage as placeholder: "Calculating..." with QSpinner (size: xs, inline)
+        - Add QLinearProgress bar (value: 0, buffer: 0.1, color: info, rounded)
+        - Display storage info message: QBanner with message "Storage functionality coming soon. Full file management will be available in Epic 5."
+      - Task 5: Add "Change Password" button (disabled state) (AC: 4)
+        - Add "Change Password" button with QBtn (outline, color: primary, icon: lock)
+        - Set disabled attribute to true
+        - Add QTooltip to button: "Password change functionality will be available in Epic 2"
+        - Position button at bottom of profile card with proper spacing (q-mt-md)
+      - Task 6: Implement role-based quota logic (AC: 2)
+        - Create helper function getRoleQuota(roleName) that maps role to storage quota in GB
+        - Determine user's "primary role" logic: use highest quota role
+        - Format quota for display using helper function (convert bytes to GB/MB for readability)
+        - Add unit tests for quota calculation (deferred to Epic 2 testing framework)
+      - Task 7: Ensure responsive design compliance (AC: 6)
+        - Test layout on desktop (1920px): centered card with max-width constraint
+        - Test layout on tablet (768px): full-width card with padding
+        - Test layout on mobile (320px minimum): vertical stack, touch targets 44px minimum
+        - Verify QBtn, QChip, and interactive elements meet touch target size
+        - Ensure text remains readable on all screen sizes (no horizontal scrolling)
+      - Task 8: Optimize page load performance (AC: 5)
+        - Use computed properties instead of methods for reactive data (no unnecessary re-renders)
+        - Avoid heavy operations in template (pre-calculate in setup)
+        - Use Quasar's built-in loading states (QSkeleton) for perceived performance
+        - Test page load time: target \u003c1 second on fast connection, \u003c3 seconds on 3G (NFR-3)
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    1. User menu in top navigation includes "My Profile" link. [Source: docs/epics.md#252]
+    2. Profile page displays: full name, email, assigned roles (list format if multi-role), storage quota based on primary role, current storage usage (placeholder: "Calculating..."), storage usage progress bar (visual representation). [Source: docs/epics.md#253]
+    3. Profile page shows message: "Storage functionality coming soon" with informational styling (info color, icon). [Source: docs/epics.md#254]
+    4. Profile page includes "Change Password" button (disabled state with tooltip: "Functionality coming in Epic 2"). [Source: docs/epics.md#255]
+    5. Profile loads within 1 second (NFR-3 compliance). [Source: docs/epics.md#256]
+    6. Mobile-responsive layout with proper touch targets (44px minimum) and vertical stacking on mobile devices (320px+). [Source: docs/epics.md#257, docs/PRD.md#310-311]
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc>
+        <path>docs/PRD.md</path>
+        <title>Product Requirements Document</title>
+        <section>FR-1: Residents Management - RBAC</section>
+        <snippet>Role-based access control where permissions are the union of all assigned roles. Users can have multiple roles with cumulative permissions.</snippet>
+      </doc>
+      <doc>
+        <path>docs/PRD.md</path>
+        <title>Product Requirements Document</title>
+        <section>NFR-3: Performance on Low-End Devices</section>
+        <snippet>Page load times must not exceed 3 seconds on 3G connections. Responsive design must work on screens from 320px to 1920px.</snippet>
+      </doc>
+      <doc>
+        <path>docs/PRD.md</path>
+        <title>Product Requirements Document</title>
+        <section>NFR-11: Mobile-Responsive Design</section>
+        <snippet>Optimal experience across desktop (1920px+), tablet (768px-1024px), and mobile (320px-767px). Touch targets minimum 44px for mobile usability.</snippet>
+      </doc>
+      <doc>
+        <path>docs/ux-specification.md</path>
+        <title>UX Specification</title>
+        <section>1.3 Design Principles</section>
+        <snippet>Clarity over complexity, visual hierarchy over text, mobile-first responsive design. Components should be intuitive and forgiving for low digital literacy users.</snippet>
+      </doc>
+      <doc>
+        <path>docs/architecture.md</path>
+        <title>Architecture Document</title>
+        <section>2.1 Core Technologies</section>
+        <snippet>Vue 3 with script setup syntax, Quasar Framework components, Pinia for state management. All components must use Material Design 3 patterns.</snippet>
+      </doc>
+      <doc>
+        <path>docs/architecture.md</path>
+        <title>Architecture Document</title>
+        <section>5: Error Handling Architecture</section>
+        <snippet>useErrorHandler composable provides centralized error handling with user-friendly messages, Quasar notify integration, and context-aware logging.</snippet>
+      </doc>
+      <doc>
+        <path>docs/epics.md</path>
+        <title>Epics Document</title>
+        <section>Story 1.11: User Profile and Storage Quota Display</section>
+        <snippet>User profile page displaying name, email, roles, storage quota based on primary role. Change Password button disabled (deferred to Epic 2). Storage functionality coming soon message (Epic 5).</snippet>
+      </doc>
+      <doc>
+        <path>docs/epics.md</path>
+        <title>Epics Document</title>
+        <section>Story 1.4: RBAC Foundation</section>
+        <snippet>Multi-role assignment implemented with role-based permission checking. Permissions are union of all assigned roles. usePermissions composable provides hasPermission() and hasAnyPermission() helpers.</snippet>
+      </doc>
+      <doc>
+        <path>docs/epics.md</path>
+        <title>Epics Document</title>
+        <section>Story 1.5: Dashboard Framework</section>
+        <snippet>Dashboard framework established with role-appropriate navigation and user menu displaying current user name and roles. MainLayout.vue provides consistent navigation structure.</snippet>
+      </doc>
+      <doc>
+        <path>docs/stories/story-1.10.md</path>
+        <title>Story 1.10 (Previous Story)</title>
+        <section>SSR Hydration Learnings</section>
+        <snippet>Story 1.10 used isClient ref pattern for permission-based conditional rendering. However, Story 1.11 profile page does NOT require isClient checks because all data comes from auth store (available on both server and client for authenticated users).</snippet>
+      </doc>
+    </docs>
+    <code>
+      <artifact>
+        <path>src/stores/auth-store.js</path>
+        <kind>pinia-store</kind>
+        <symbol>useAuthStore</symbol>
+        <lines>1-323</lines>
+        <reason>Provides user authentication state, user profile (name, email, $id), and userRoles array. Story 1.11 relies on authStore.user and authStore.userRoles for profile display.</reason>
+      </artifact>
+      <artifact>
+        <path>src/stores/auth-store.js</path>
+        <kind>state</kind>
+        <symbol>state</symbol>
+        <lines>10-17</lines>
+        <reason>Auth store state structure: user object (name, email, $id), userRoles array containing role objects with name and permissions, isLoggedIn boolean.</reason>
+      </artifact>
+      <artifact>
+        <path>src/stores/auth-store.js</path>
+        <kind>action</kind>
+        <symbol>fetchUserRoles</symbol>
+        <lines>262-320</lines>
+        <reason>Fetches user roles from Appwrite users table, populates userRoles state with role objects including name and permissions properties. Called during authentication flow.</reason>
+      </artifact>
+      <artifact>
+        <path>src/layouts/MainLayout.vue</path>
+        <kind>vue-component</kind>
+        <symbol>MainLayout</symbol>
+        <lines>81-88</lines>
+        <reason>User menu "Profile" entry point (lines 81-88). Story 1.11 must add router-link to="/profile" here. Currently has placeholder without navigation.</reason>
+      </artifact>
+      <artifact>
+        <path>src/layouts/MainLayout.vue</path>
+        <kind>template</kind>
+        <symbol>userRolesDisplay</symbol>
+        <lines>50-65</lines>
+        <reason>Existing pattern for displaying user roles as QChip components in user menu. Story 1.11 should follow same pattern in ProfilePage: loop through userRoles, show role.name in QChip with color="primary" or "secondary".</reason>
+      </artifact>
+      <artifact>
+        <path>src/layouts/MainLayout.vue</path>
+        <kind>computed</kind>
+        <symbol>storageQuota + formatStorageQuota</symbol>
+        <lines>318-322, 368-372</lines>
+        <reason>MainLayout already uses userStorageQuota from usePermissions composable. Story 1.11 should use same approach. formatStorageQuota helper converts bytes to GB display format.</reason>
+      </artifact>
+      <artifact>
+        <path>src/router/routes.js</path>
+        <kind>router-config</kind>
+        <symbol>routes</symbol>
+        <lines>1-103</lines>
+        <reason>Router configuration for all pages. Story 1.11 must add /profile route as child of MainLayout (path '/') with { meta: { requiresAuth: true } } for authentication guard.</reason>
+      </artifact>
+      <artifact>
+        <path>src/router/routes.js</path>
+        <kind>route-pattern</kind>
+        <symbol>authenticatedRoutePattern</symbol>
+        <lines>28-42</lines>
+        <reason>Pattern for protected routes: lazy-loaded component with meta.requiresAuth: true. Profile route should follow this pattern. Example: { path: 'profile', component: () => import('pages/profile/ProfilePage.vue'), meta: { requiresAuth: true } }</reason>
+      </artifact>
+      <artifact>
+        <path>src/pages/dashboard/DashboardPage.vue</path>
+        <kind>vue-component</kind>
+        <symbol>DashboardPage</symbol>
+        <lines>1-105</lines>
+        <reason>Reference pattern for responsive page layout using QPage wrapper, responsive grid (col-12 col-md-8 col-lg-6), and isClient SSR hydration handling. Story 1.11 should follow similar structure.</reason>
+      </artifact>
+      <artifact>
+        <path>src/pages/dashboard/DashboardPage.vue</path>
+        <kind>pattern</kind>
+        <symbol>isClientSSRPattern</symbol>
+        <lines>63-75</lines>
+        <reason>isClient ref pattern for SSR hydration: ref(false) initially, set to true in onMounted. However, Story 1.11 does NOT need this for profile data (from auth store, available server-side).</reason>
+      </artifact>
+      <artifact>
+        <path>src/composables/usePermissions.js</path>
+        <kind>composable</kind>
+        <symbol>usePermissions</symbol>
+        <lines>estimated 1-100</lines>
+        <reason>Provides hasPermission(), hasAnyPermission(), and userStorageQuota computed. Story 1.11 should import and use userStorageQuota for role-based quota calculation.</reason>
+      </artifact>
+    </code>
+    <dependencies>
+      <framework name="Quasar Framework" version="^2.16.0" />
+      <framework name="Vue 3" version="^3.5.22" />
+      <package name="pinia" version="^3.0.1" purpose="state-management" />
+      <package name="vue-router" version="^4.0.0" purpose="routing" />
+      <package name="appwrite" version="^21.2.1" purpose="backend-auth-database" />
+      <package name="date-fns" version="^4.1.0" purpose="date-formatting" />
+      <package name="chart.js" version="^4.5.1" purpose="data-visualization" />
+      <package name="dexie" version="^4.2.1" purpose="offline-indexeddb" />
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    - MUST use Vue 3 script setup syntax - no Options API or export default
+    - MUST use Quasar Framework components only (QPage, QCard, QCardSection, QChip, QLinearProgress, QBanner, QTooltip, QBtn, QSeparator, QIcon, QSkeleton)
+    - MUST access user data via useAuthStore() - authStore.user (name, email, $id) and authStore.userRoles (array of role objects)
+    - MUST use Quasar grid system for responsive layout: col-12 (mobile), col-md-8 (tablet), col-lg-6 (desktop)
+    - MUST center page content horizontally using class="row justify-center"
+    - MUST use QSkeleton components for loading states (perceived performance)
+    - SSR CONSTRAINT: Profile data from auth store is available on both server and client (authenticated route), so NO isClient check needed
+    - MUST ensure touch targets are minimum 44px for mobile compliance (NFR-11)
+    - MUST test page load performance: target \u003c1 second (AC5, NFR-3)
+    - Router: MUST add /profile route with meta: { requiresAuth: true } as child of MainLayout
+    - MainLayout: MUST add "My Profile" menu item between user info and "Settings" (lines 81-88)
+    - Storage Quota Logic: MUST use highest quota role when user has multiple roles (user confirmed decision)
+    - Role Quota Mapping (11 roles):
+      * System Administrator: 10 GB
+      * Village Head: 5 GB
+      * Farm Manager: 3 GB
+      * Finance Manager: 5 GB
+      * Head Teacher: 3 GB
+      * Teacher: 2 GB
+      * Events Coordinator: 2 GB
+      * Crop Manager: 1 GB
+      * Resident: 1 GB
+      * Learner: 1 GB
+      * Guest: 500 MB
+    - MUST show placeholder usage: "Calculating..." with QSpinner (actual usage deferred to Epic 5)
+    - MUST show QBanner info message: "Storage functionality coming soon. Full file management will be available in Epic 5."
+    - MUST add "Change Password" button in disabled state with QTooltip: "Password change functionality will be available in Epic 2"
+    - Follow Material Design 3 principles via Quasar components
+    - Use responsive classes: q-pa-md for padding, q-gutter-md for grid gaps, q-mt-md for margins
+  </constraints>
+
+  <interfaces>
+    <interface>
+      <name>useAuthStore (Pinia Store)</name>
+      <kind>composable</kind>
+      <signature>
+        const authStore = useAuthStore()
+        // State:
+        authStore.user: { $id: string, name: string, email: string, ... } | null
+        authStore.userRoles: Array\u003c{ $id: string, name: string, permissions: string[] }\u003e
+        authStore.isLoggedIn: boolean
+        // Getters:
+        authStore.currentUser: User | null
+        authStore.isAuthenticated: boolean
+      </signature>
+      <path>src/stores/auth-store.js</path>
+    </interface>
+    <interface>
+      <name>usePermissions (Composable)</name>
+      <kind>composable</kind>
+      <signature>
+        const { hasPermission, hasAnyPermission, userStorageQuota } = usePermissions()
+        // Functions:
+        hasPermission(permission: string): boolean
+        hasAnyPermission(permissions: string[]): boolean
+        // Computed:
+        userStorageQuota.value: number (bytes, -1 for unlimited)
+      </signature>
+      <path>src/composables/usePermissions.js</path>
+    </interface>
+    <interface>
+      <name>Vue Router - Protected Route Meta</name>
+      <kind>router-meta</kind>
+      <signature>
+        {
+          path: 'profile',
+          component: () => import('pages/profile/ProfilePage.vue'),
+          meta: {
+            requiresAuth: true  // Enforces authentication guard
+          }
+        }
+      </signature>
+      <path>src/router/routes.js</path>
+    </interface>
+    <interface>
+      <name>Quasar Responsive Grid Classes</name>
+      <kind>css-framework</kind>
+      <signature>
+        // Responsive columns:
+        col-12 (100% width on all screens)
+        col-sm-{1-12} (Small 600px+)
+        col-md-{1-12} (Medium 1024px+)
+        col-lg-{1-12} (Large 1440px+)
+        col-xl-{1-12} (XL 1920px+)
+        
+        // Layout helpers:
+        row (flex row container)
+        justify-center (horizontal centering)
+        items-center (vertical centering)
+        q-pa-md (medium padding)
+        q-gutter-md (medium gap between grid items)
+        q-mt-md (medium margin top)
+      </signature>
+      <path>Quasar Framework Documentation</path>
+    </interface>
+  </interfaces>
+
+  <tests>
+    <standards>
+      No testing framework is currently implemented in the project (test script in package.json returns exit 0). Unit testing infrastructure is deferred to Epic 2. For Story 1.11, focus on manual testing and browser-based validation.
+    </standards>
+    <locations>
+      No test directories exist yet. Testing framework will be established in Epic 2.
+    </locations>
+    <ideas>
+      <idea ac="AC1">
+        MANUAL TEST: Navigate to application while logged in, click user avatar in top-right corner, verify "My Profile" menu item appears above "Settings" with person icon.
+      </idea>
+      <idea ac="AC2">
+        MANUAL TEST: Click "My Profile" link, verify profile page displays:
+        - Full name from auth store (large text, text-h5)
+        - Email address (secondary text, text-grey-7)
+        - All assigned roles as QChip components (color: secondary, size: small)
+        - Storage quota based on highest quota role (formatted as GB/MB)
+        - Placeholder "Calculating..." with QSpinner for current usage
+        - QLinearProgress bar showing 0% usage (value: 0, buffer: 0.1)
+      </idea>
+      <idea ac="AC3">
+        MANUAL TEST: Verify QBanner appears with info styling, message: "Storage functionality coming soon. Full file management will be available in Epic 5."
+      </idea>
+      <idea ac="AC4">
+        MANUAL TEST: Verify "Change Password" button exists, is disabled, has lock icon. Hover over button to verify QTooltip shows: "Password change functionality will be available in Epic 2".
+      </idea>
+      <idea ac="AC5">
+        BROWSER DEVTOOLS: Open Network tab, refresh profile page, verify total page load time \u003c1 second on fast connection. Throttle to "Fast 3G" preset, verify load time \u003c3 seconds.
+      </idea>
+      <idea ac="AC6">
+        RESPONSIVE TEST: Use Chrome DevTools responsive mode to test:
+        - Desktop (1920px): QCard centered with max-width, horizontal layout
+        - Tablet (768px): QCard full-width with padding, sections may stack
+        - Mobile (375px, 320px min): All sections stack vertically, text remains readable (no horizontal scroll)
+        TOUCH TARGET TEST: Use DevTools "Show rulers" to verify all QBtn and QChip components have minimum 44px touch targets (height and width).
+      </idea>
+      <idea ac="AC2-quota-logic">
+        ROLE QUOTA TEST: Create test users with different role combinations:
+        - Single role (System Administrator): verify 10 GB quota
+        - Multi-role (Teacher + Resident): verify 2 GB quota (highest of Teacher 2GB and Resident 1GB)
+        - Multi-role (Farm Manager + Finance Manager): verify 3 GB quota (both equal, either works)
+        EDGE CASE: User with no roles assigned - should have defensive handling (default to lowest quota or display "No roles assigned")
+      </idea>
+      <idea ac="general-ssr">
+        SSR VALIDATION: View page source (Ctrl+U or View Page Source) immediately after page load. Verify:
+        - User name appears in HTML source (server-rendered from auth store)
+        - Email appears in HTML source
+        - Roles appear in HTML source
+        - NO hydration mismatch errors in browser console
+        This validates that profile data is available server-side and doesn't require isClient checks.
+      </idea>
+    </ideas>
+  </tests>
+</story-context>
