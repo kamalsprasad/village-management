@@ -6,14 +6,14 @@
           <!-- User Profile Section -->
           <q-card-section>
             <div class="text-h5 text-weight-medium q-mb-sm">
-              {{ authStore.user?.name || 'User' }}
+              {{ isClient ? authStore.user?.name || 'User' : 'User' }}
             </div>
             <div class="text-body2 text-grey-7 q-mb-md">
-              {{ authStore.user?.email || '' }}
+              {{ isClient ? authStore.user?.email || '' : '' }}
             </div>
 
             <!-- Roles Section -->
-            <div v-if="userRoles.length > 0" class="q-mb-md">
+            <div v-if="isClient && userRoles.length > 0" class="q-mb-md">
               <div class="text-caption text-grey-7 q-mb-xs">Assigned Roles</div>
               <div class="row q-gutter-xs">
                 <q-chip
@@ -40,7 +40,9 @@
             </div>
 
             <div class="q-mb-sm">
-              <div class="text-body2 text-grey-7 q-mb-xs">{{ formattedQuota }} available</div>
+              <div class="text-body2 text-grey-7 q-mb-xs">
+                {{ isClient ? formattedQuota : 'Loading...' }} available
+              </div>
               <div class="text-body2 text-grey-7 q-mb-xs">
                 Current usage:
                 <span class="q-ml-xs">Calculating...</span>
@@ -82,12 +84,17 @@
 </template>
 
 <script setup>
-import { computed } from 'vue';
+import { computed, ref, onMounted } from 'vue';
 import { useAuthStore } from 'src/stores/auth-store';
 import { usePermissions } from 'src/composables/usePermissions';
 
 const authStore = useAuthStore();
 const { userStorageQuota } = usePermissions();
+const isClient = ref(false);
+
+onMounted(() => {
+  isClient.value = true;
+});
 
 // User roles from auth store
 const userRoles = computed(() => authStore.userRoles || []);
