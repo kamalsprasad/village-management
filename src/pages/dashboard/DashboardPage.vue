@@ -15,6 +15,11 @@
         <QuickStatsWidget :stats="quickStats" :loading="loading" />
       </div>
 
+      <!-- Community Overview Widget -->
+      <div class="col-12 col-md-6">
+        <CommunityOverviewWidget />
+      </div>
+
       <!-- Upcoming Events Widget -->
       <div class="col-12 col-md-6 col-lg-4">
         <UpcomingEventsWidget :events="upcomingEvents" :loading="loading" :max-display="5" />
@@ -41,6 +46,7 @@ import UpcomingEventsWidget from 'src/components/dashboard/UpcomingEventsWidget.
 import QuickStatsWidget from 'src/components/dashboard/QuickStatsWidget.vue';
 import RecentActivityWidget from 'src/components/dashboard/RecentActivityWidget.vue';
 import HouseholdsWidget from 'src/components/dashboard/HouseholdsWidget.vue';
+import CommunityOverviewWidget from 'src/components/dashboard/CommunityOverviewWidget.vue';
 import {
   upcomingEvents as placeholderEvents,
   quickStats as placeholderStats,
