@@ -9,7 +9,7 @@
         </div>
         <div class="col-auto">
           <q-btn
-            v-if="hasPermission('households:write')"
+            v-if="isClient && hasPermission('households:write')"
             color="primary"
             icon="add"
             label="Add Household"
@@ -78,7 +78,7 @@
               </q-btn>
               <span v-if="!props.row.occupant_count">
                 <q-btn
-                  v-if="hasPermission('households:write')"
+                  v-if="isClient && hasPermission('households:write')"
                   flat
                   dense
                   round
@@ -90,7 +90,7 @@
                   <q-tooltip>Edit</q-tooltip>
                 </q-btn>
                 <q-btn
-                  v-if="hasPermission('households:delete')"
+                  v-if="isClient && hasPermission('households:delete')"
                   flat
                   dense
                   round
@@ -198,6 +198,8 @@ import HouseholdForm from 'src/components/households/HouseholdForm.vue';
 const router = useRouter();
 const householdsStore = useHouseholdsStore();
 const { hasPermission } = usePermissions();
+
+const isClient = ref(false); // Track client-side hydration for SSR
 
 const showAddDialog = ref(false);
 const showDeleteDialog = ref(false);
@@ -328,6 +330,7 @@ function changeItemsPerPage(newValue) {
 }
 
 onMounted(async () => {
+  isClient.value = true; // Enable client-side rendering after hydration
   await householdsStore.fetchHouseholds(1, itemsPerPage.value);
 });
 </script>
