@@ -16,7 +16,7 @@
           {{ settingsStore.villageName }} - Village Management System
         </q-toolbar-title>
 
-        <div class="text-caption q-mr-md">v0.0.1</div>
+        <div class="text-caption q-mr-md">v{{ version }}</div>
 
         <!-- User Profile Dropdown -->
         <q-btn
@@ -294,6 +294,7 @@ import { useAuthStore } from 'src/stores/auth-store';
 import { useSettingsStore } from 'src/stores/settings-store';
 import { usePermissions } from 'src/composables/usePermissions';
 import SampleDataBanner from 'src/components/layout/SampleDataBanner.vue';
+import { version } from '../../package.json';
 
 const router = useRouter();
 const $q = useQuasar();
