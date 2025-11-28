@@ -9,7 +9,7 @@
             Configure core village information and default settings
           </p>
         </div>
-        <div v-if="!isEditMode && canEdit" class="col-auto">
+        <div v-if="isClient && !isEditMode && canEdit" class="col-auto">
           <q-btn color="primary" icon="edit" label="Edit Settings" @click="enableEditMode" />
         </div>
         <div v-if="isEditMode" class="col-auto">
@@ -25,7 +25,7 @@
       </div>
 
       <!-- Read-only Notice for Non-Admins -->
-      <q-banner v-if="!canEdit" class="bg-info text-white q-mb-md" rounded>
+      <q-banner v-if="isClient && !canEdit" class="bg-info text-white q-mb-md" rounded>
         <template #avatar>
           <q-icon name="info" />
         </template>
@@ -383,6 +383,8 @@ const settingsStore = useSettingsStore();
 const { hasPermission } = usePermissions();
 //const authStore = useAuthStore();
 
+const isClient = ref(false); // Track client-side hydration for SSR
+
 // Form state
 const settingsForm = ref(null);
 const isEditMode = ref(false);
@@ -419,6 +421,7 @@ const memberForm = ref(emptyMemberFormState());
 
 // Permissions
 const canEdit = computed(() => {
+  if (!isClient.value) return false; // Default to read-only during SSR
   return hasPermission('settings:write');
 });
 
@@ -459,6 +462,8 @@ const userIndex = new Map();
 
 // Load settings on mount
 onMounted(async () => {
+  isClient.value = true; // Enable client-side rendering after hydration
+
   if (!settingsStore.isLoaded) {
     await settingsStore.loadSettings();
   }
