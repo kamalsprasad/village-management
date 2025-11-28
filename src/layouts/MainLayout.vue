@@ -78,12 +78,12 @@
               <q-separator class="q-my-sm" />
 
               <!-- Quick Actions -->
-              <q-item clickable v-close-popup>
+              <q-item clickable v-close-popup to="/profile">
                 <q-item-section avatar>
                   <q-icon name="person" />
                 </q-item-section>
                 <q-item-section>
-                  <q-item-label>Profile</q-item-label>
+                  <q-item-label>My Profile</q-item-label>
                 </q-item-section>
               </q-item>
 

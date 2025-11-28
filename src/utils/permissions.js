@@ -10,6 +10,26 @@
  */
 
 /**
+ * Role-based storage quota mapping (GB)
+ * Used as fallback when database storage_quota field is not set
+ * Values from Epic 1 Story 1.11 requirements
+ * @type {Object<string, number>}
+ */
+const ROLE_QUOTA_FALLBACK = {
+  'System Administrator': 10,
+  'Village Head': 5,
+  'Finance Manager': 5,
+  'Farm Manager': 3,
+  'Head Teacher': 3,
+  Teacher: 2,
+  'Events Coordinator': 2,
+  'Crop Manager': 1,
+  Resident: 1,
+  Learner: 1,
+  Guest: 0.5, // 500 MB
+};
+
+/**
  * Check if user has a specific permission
  * @param {Object} user - Appwrite Auth user object
  * @param {Array} userRoles - Array of role objects with permissions
@@ -86,8 +106,12 @@ export function hasAllPermissions(user, userRoles, permissions) {
 
 /**
  * Get user's total storage quota from all assigned roles
- * Returns the maximum quota from all roles
+ * Returns the maximum quota from all roles (highest quota wins)
  * -1 indicates unlimited storage (System Administrator)
+ *
+ * Uses hybrid approach:
+ * 1. Tries to read storage_quota from database role object
+ * 2. Falls back to ROLE_QUOTA_FALLBACK mapping if database value not set
  *
  * @param {Array} userRoles - Array of role objects
  * @returns {number} - Storage quota in bytes (-1 for unlimited)
@@ -100,13 +124,23 @@ export function getUserStorageQuota(userRoles) {
   let maxQuota = 0;
 
   for (const role of userRoles) {
+    let quotaInGB = 0;
+
+    // Try database value first
     if (role && typeof role.storage_quota === 'number') {
-      // -1 means unlimited
       if (role.storage_quota === -1) {
-        return -1;
+        return -1; // Unlimited storage
       }
-      // Convert GB to bytes and track maximum
-      const quotaInBytes = role.storage_quota * 1024 * 1024 * 1024;
+      quotaInGB = role.storage_quota;
+    }
+    // Fallback to hardcoded mapping based on role name
+    else if (role && role.name && ROLE_QUOTA_FALLBACK[role.name]) {
+      quotaInGB = ROLE_QUOTA_FALLBACK[role.name];
+    }
+
+    // Convert GB to bytes and track maximum
+    if (quotaInGB > 0) {
+      const quotaInBytes = quotaInGB * 1024 * 1024 * 1024;
       maxQuota = Math.max(maxQuota, quotaInBytes);
     }
   }

@@ -88,6 +88,13 @@ const routes = [
           // Edit mode is controlled within the component based on settings:write permission
         },
       },
+      {
+        path: 'profile',
+        component: () => import('pages/profile/ProfilePage.vue'),
+        meta: {
+          requiresAuth: true,
+        },
+      },
     ],
   },
 
