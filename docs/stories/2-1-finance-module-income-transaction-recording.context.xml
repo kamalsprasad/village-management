@@ -1,0 +1,89 @@
+<story-context id="docs/stories/2-1-finance-module-income-transaction-recording.context.xml" v="1.0">
+  <metadata>
+    <epicId>2</epicId>
+    <storyId>2.1</storyId>
+    <title>Finance Module - Income Transaction Recording</title>
+    <status>ready-for-dev</status>
+    <generatedAt>2025-11-29</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/stories/story-2.1.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>Finance Manager</asA>
+    <iWant>record income transactions with detailed source tracking</iWant>
+    <soThat>I can maintain an accurate and auditable financial record of all village revenue</soThat>
+    <tasks>
+      <task>Implement Database Schema (AC: 1)</task>
+      <task>Initialize Finance Module Structure (AC: 2, 6)</task>
+      <task>Implement Finance Store (AC: 2)</task>
+      <task>Create Transactions List Page (AC: 3)</task>
+      <task>Create Transaction Form Component (AC: 3, 4)</task>
+      <task>Apply RBAC &amp; Error Handling (AC: 5)</task>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <criterion>Database Schema: finance_transactions and funding_sources collections are created in Appwrite with all required attributes and indexes using the latest TablesDB API patterns.</criterion>
+    <criterion>Module Infrastructure: Finance module structure is initialized at src/modules/finance with proper routing and state management setup.</criterion>
+    <criterion>Income Recording UI: Users can access a "Record Transaction" dialog from the Finance Transactions list. The form includes: Amount, Category, Source Module, Funding Source, Date, Description, and Payment Method.</criterion>
+    <criterion>Validation &amp; Logic: System validates that amount is positive and required fields are present. "Income" is set as the transaction type automatically.</criterion>
+    <criterion>RBAC Enforcement: Only users with finance:write permission (Finance Manager, Admin) can see the "Record Income" button and submit transactions.</criterion>
+    <criterion>Navigation: "Finance" item appears in the main navigation menu for authorized users only.</criterion>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc>docs/sprint-artifacts/tech-spec-epic-2.md</doc>
+      <doc>docs/PRD.md</doc>
+      <doc>docs/ux-specification.md</doc>
+      <doc>docs/architecture.md</doc>
+      <doc>docs/testing.md</doc>
+    </docs>
+    <code>
+      <file>server/scripts/validate-schema-epic-2.js</file>
+      <file>src/layouts/MainLayout.vue</file>
+      <file>src/router/routes.js</file>
+      <file>src/stores/auth-store.js</file>
+      <file>src/utils/permissions.js</file>
+    </code>
+    <dependencies>
+      <dependency>appwrite</dependency>
+      <dependency>pinia</dependency>
+      <dependency>quasar</dependency>
+      <dependency>date-fns</dependency>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint>Must use Appwrite TablesDB API for schema definitions.</constraint>
+    <constraint>Must follow modular architecture (src/modules/finance).</constraint>
+    <constraint>Must enforce RBAC (finance:read, finance:write).</constraint>
+    <constraint>Must use Quasar components and grid system for responsive design.</constraint>
+    <constraint>TransactionForm must be a dialog component, maximized on mobile.</constraint>
+  </constraints>
+
+  <interfaces>
+    <interface>Collection: finance_transactions (id, type, amount, category, source_module, funding_source_id, date, description, status)</interface>
+    <interface>Collection: funding_sources (id, name, total_allocated, current_balance, restrictions)</interface>
+    <interface>Store Action: createTransaction(data)</interface>
+    <interface>Store Action: fetchTransactions(filters)</interface>
+    <interface>Component Event: saved (payload: transaction)</interface>
+    <interface>Component Event: cancelled</interface>
+  </interfaces>
+
+  <tests>
+    <standards>Refer to docs/testing.md for detailed test cases.</standards>
+    <locations>
+      <location>src/modules/finance/stores/finance-store.js (Unit)</location>
+      <location>src/modules/finance/components/TransactionForm.vue (Component)</location>
+      <location>src/modules/finance/pages/FinanceTransactionsPage.vue (Integration)</location>
+    </locations>
+    <ideas>
+      <idea>Unit: Test finance-store actions for API success/failure handling.</idea>
+      <idea>Component: Test TransactionForm validation (required fields, positive amount).</idea>
+      <idea>Integration: Verify "Record Income" button visibility based on permissions.</idea>
+      <idea>E2E: Complete flow of recording an income transaction and verifying it appears in the list.</idea>
+    </ideas>
+  </tests>
+</story-context>

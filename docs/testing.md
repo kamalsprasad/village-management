@@ -846,6 +846,64 @@ This document outlines all tests that need to be implemented for the Village Man
 
 ---
 
+## Story 2.1: Finance Module - Income Transaction Recording - Testing Requirements
+
+### Unit Tests
+
+#### `src/modules/finance/stores/finance-store.js`
+
+**Test Suite: createTransaction()**
+
+1. **Test: Successfully creates income transaction**
+   - Action: Call `createTransaction({ type: 'income', amount: 100, ... })`
+   - Verify: API called with correct data, store state updated
+
+2. **Test: Validates required fields**
+   - Action: Call `createTransaction({ amount: -10 })`
+   - Verify: Returns error, API not called
+
+**Test Suite: fetchTransactions()**
+
+1. **Test: Fetches transactions with filters**
+   - Action: Call `fetchTransactions({ type: 'income' })`
+   - Verify: API called with query params, store state populated
+
+### Integration Tests
+
+#### `src/modules/finance/components/TransactionForm.vue`
+
+**Test Suite: Form Validation**
+
+1. **Test: Amount must be positive**
+   - Action: Enter -50, click Save
+   - Verify: Validation error shown
+
+2. **Test: Required fields check**
+   - Action: Leave Category empty, click Save
+   - Verify: Validation error shown
+
+**Test Suite: Submission Flow**
+
+1. **Test: Emits saved event on success**
+   - Action: Fill valid data, click Save
+   - Verify: Store action called, 'saved' event emitted
+
+### E2E Tests
+
+#### RBAC Enforcement
+
+1. **Test: Finance Manager can see Record button**
+   - Setup: Login as Finance Manager
+   - Action: Navigate to `/finance`
+   - Verify: "Record Income" button is visible
+
+2. **Test: Unauthorized user cannot see Record button**
+   - Setup: Login as Resident
+   - Action: Navigate to `/finance`
+   - Verify: "Record Income" button is NOT visible
+
+---
+
 ## Testing Tools and Frameworks
 
 ### Recommended Setup

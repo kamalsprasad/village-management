@@ -55,20 +55,20 @@ async function setupSchema() {
 
     // --- Funding Sources ---
     console.log('📦 Configuring Funding Sources...');
-    await createTableColumn(TABLES.FUNDING_SOURCES, 'string', 'name', 255, true);
-    await createTableColumn(TABLES.FUNDING_SOURCES, 'float', 'total_allocated', null, true);
-    await createTableColumn(TABLES.FUNDING_SOURCES, 'float', 'current_balance', null, true);
-    await createTableColumn(TABLES.FUNDING_SOURCES, 'string', 'restrictions', 1000, false);
+    await createColumn(TABLES.FUNDING_SOURCES, 'string', 'name', 255, true);
+    await createColumn(TABLES.FUNDING_SOURCES, 'float', 'total_allocated', null, true);
+    await createColumn(TABLES.FUNDING_SOURCES, 'float', 'current_balance', null, true);
+    await createColumn(TABLES.FUNDING_SOURCES, 'string', 'restrictions', 1000, false);
 
     // --- Finance Transactions ---
     console.log('💰 Configuring Finance Transactions...');
-    await createTableColumn(TABLES.TRANSACTIONS, 'enum', 'type', 20, true, false, [
+    await createColumn(TABLES.TRANSACTIONS, 'enum', 'type', 20, true, false, [
       'expense',
       'income',
       'transfer',
     ]);
-    await createTableColumn(TABLES.TRANSACTIONS, 'float', 'amount', null, true);
-    await createTableColumn(TABLES.TRANSACTIONS, 'enum', 'category', null, true, false, [
+    await createColumn(TABLES.TRANSACTIONS, 'float', 'amount', null, true);
+    await createColumn(TABLES.TRANSACTIONS, 'enum', 'category', null, true, false, [
       'Farm Inputs',
       'Farm Assets',
       'Village Assets',
@@ -76,10 +76,10 @@ async function setupSchema() {
       'Staff Reimbursements',
       'Other',
     ]);
-    await createTableColumn(TABLES.TRANSACTIONS, 'string', 'source_module', 50, true);
-    await createTableColumn(TABLES.TRANSACTIONS, 'datetime', 'date', null, true);
-    await createTableColumn(TABLES.TRANSACTIONS, 'string', 'description', 500, true);
-    await createTableColumn(TABLES.TRANSACTIONS, 'string', 'status', 20, true);
+    await createColumn(TABLES.TRANSACTIONS, 'string', 'source_module', 50, true);
+    await createColumn(TABLES.TRANSACTIONS, 'datetime', 'date', null, true);
+    await createColumn(TABLES.TRANSACTIONS, 'string', 'description', 500, true);
+    await createColumn(TABLES.TRANSACTIONS, 'string', 'status', 20, true);
     await createRelationshipColumn(
       TABLES.TRANSACTIONS,
       TABLES.FUNDING_SOURCES,
@@ -119,24 +119,24 @@ async function setupSchema() {
       'loans',
       'restrict',
     );
-    await createTableColumn(TABLES.LOANS, 'float', 'principal_amount', null, true);
-    await createTableColumn(TABLES.LOANS, 'float', 'interest_rate', null, true);
-    await createTableColumn(TABLES.LOANS, 'integer', 'term_months', null, true);
-    await createTableColumn(TABLES.LOANS, 'enum', 'status', null, true, false, [
+    await createColumn(TABLES.LOANS, 'float', 'principal_amount', null, true);
+    await createColumn(TABLES.LOANS, 'float', 'interest_rate', null, true);
+    await createColumn(TABLES.LOANS, 'integer', 'term_months', null, true);
+    await createColumn(TABLES.LOANS, 'enum', 'status', null, true, false, [
       'active',
       'overdue',
       'late',
       'defaulted',
       'paid_off',
     ]);
-    await createTableColumn(TABLES.LOANS, 'float', 'outstanding_balance', null, true);
+    await createColumn(TABLES.LOANS, 'float', 'outstanding_balance', null, true);
 
     // --- Inventory ---
     console.log('📦 Configuring Inventory...');
-    await createTableColumn(TABLES.INVENTORY, 'string', 'item_name', 255, true);
-    await createTableColumn(TABLES.INVENTORY, 'integer', 'quantity', null, true);
-    await createTableColumn(TABLES.INVENTORY, 'string', 'unit', 20, true);
-    await createTableColumn(TABLES.INVENTORY, 'integer', 'reorder_threshold', null, true);
+    await createColumn(TABLES.INVENTORY, 'string', 'item_name', 255, true);
+    await createColumn(TABLES.INVENTORY, 'integer', 'quantity', null, true);
+    await createColumn(TABLES.INVENTORY, 'string', 'unit', 20, true);
+    await createColumn(TABLES.INVENTORY, 'integer', 'reorder_threshold', null, true);
     await createRelationshipColumn(
       TABLES.INVENTORY,
       TABLES.TRANSACTIONS,
@@ -235,12 +235,17 @@ async function validateWorkflows() {
 
     // Workflow 3: Auto-create Inventory
     if (expense.category === 'Farm Inputs') {
-      const inventory = await tables.createRow(config.databaseId, TABLES.INVENTORY, ID.unique(), {
-        item_name: 'Maize Seeds',
-        quantity: 50,
-        unit: 'kg',
-        reorder_threshold: 10,
-        transaction_id: expense.$id,
+      const inventory = await tables.createRow({
+        databaseId: config.databaseId,
+        tableId: TABLES.INVENTORY,
+        rowId: ID.unique(),
+        data: {
+          item_name: 'Maize Seeds',
+          quantity: 50,
+          unit: 'kg',
+          reorder_threshold: 10,
+          transaction_id: expense.$id,
+        },
       });
       console.log(
         `✅ [Workflow 3] Auto-created Inventory: ${inventory.item_name} (${inventory.quantity} ${inventory.unit})`,
@@ -256,32 +261,27 @@ async function validateWorkflows() {
 // Helpers
 async function createTableIfNotExists(tableId, name) {
   try {
-    await tables.getTable(config.databaseId, tableId);
+    await tables.getTable({
+      databaseId: config.databaseId,
+      tableId,
+    });
     console.log(`   - Table ${name} already exists.`);
   } catch (e) {
-    await tables.createTable(
-      config.databaseId,
+    await tables.createTable({
+      databaseId: config.databaseId,
       tableId,
       name,
-      ['read("any")', 'create("any")', 'update("any")', 'delete("any")'],
-      true,
-      false,
-    );
+      permissions: ['read("any")', 'create("any")', 'update("any")', 'delete("any")'],
+      isSystem: true,
+      isPrivate: false,
+    });
     console.log(`   + Created Table: ${name}`);
   }
 }
 
-//await createTableColumn(TABLES.TRANSACTIONS, 'float', 'amount', null, true);
+//await createColumn(TABLES.TRANSACTIONS, 'float', 'amount', null, true);
 let ii = 0;
-async function createTableColumn(
-  tableId,
-  type,
-  key,
-  size,
-  required,
-  array = false,
-  enumValues = [],
-) {
+async function createColumn(tableId, type, key, size, required, array = false, enumValues = []) {
   try {
     if (type === 'string') {
       await tables.createStringColumn({
