@@ -62,18 +62,32 @@ async function setupSchema() {
 
     // --- Finance Transactions ---
     console.log('💰 Configuring Finance Transactions...');
-    await createColumn(TABLES.TRANSACTIONS, 'enum', 'type', 20, true, false, [
+    await createColumn(TABLES.TRANSACTIONS, 'enum', 'type', null, true, false, [
       'expense',
       'income',
       'transfer',
     ]);
     await createColumn(TABLES.TRANSACTIONS, 'float', 'amount', null, true);
     await createColumn(TABLES.TRANSACTIONS, 'enum', 'category', null, true, false, [
-      'Farm Inputs',
+      'Donations',
       'Farm Assets',
-      'Village Assets',
+      'Farm Inputs',
+      'Farm Sales',
+      'Grants',
+      'Room Rental',
       'School Assets',
+      'School Fees',
       'Staff Reimbursements',
+      'Training Fees',
+      'Village Assets',
+      'Other Expenses',
+      'Other Income',
+    ]);
+    await createColumn(TABLES.TRANSACTIONS, 'enum', 'payment_method', null, true, false, [
+      'Bank Transfer',
+      'Cash',
+      'Cheque',
+      'Mobile Money',
       'Other',
     ]);
     await createColumn(TABLES.TRANSACTIONS, 'string', 'source_module', 50, true);
@@ -213,6 +227,7 @@ async function validateWorkflows() {
         amount: expenseAmount,
         category: 'Farm Inputs',
         source_module: 'Farm',
+        payment_method: 'Cash',
         funding_source_id: donor.$id,
         date: new Date().toISOString(),
         description: 'Purchase of Maize Seeds',

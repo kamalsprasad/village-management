@@ -44,6 +44,20 @@ development_status:
   1-5-dashboard-framework-and-layout: done
   1-6-households-management-crud-operations: done
   1-7-residents-management-crud-operations: done
+  1-8-village-configuration-and-default-settings: done
+  1-9-sample-data-mode-katete-model-village-seed-data: done
+  1-10-dashboard-widgets-residents-and-households-summary: done
+  1-11-user-profile-and-storage-quota-display: done
+  epic-1-retrospective: optional
+  epic-2: contexted
+  2-1-finance-module-income-transaction-recording: ready-for-dev
+  2-2-finance-module-expense-transaction-recording: backlog
+  2-3-finance-module-admin-configurable-categories: backlog
+  2-4-finance-module-funding-source-tracking-for-donor-accountability: backlog
+  2-5-village-lending-loan-management: backlog
+  2-6-inventory-module-core-inventory-management: backlog
+  2-7-inventory-module-automatic-inventory-from-finance-purchases: backlog
+  2-8-financial-reports-basic-reports-suite: backlog
   2-9-finance-dashboard-comprehensive-financial-overview: backlog
   epic-2-retrospective: optional
   epic-3: backlog

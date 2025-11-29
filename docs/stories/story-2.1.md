@@ -19,10 +19,10 @@ so that **I can maintain an accurate and auditable financial record of all villa
 
 ## Tasks / Subtasks
 
-- [ ] **Task 1: Implement Database Schema (AC: 1)**
-  - [ ] Review and finalize `server/scripts/validate-schema-epic-2.js` to ensure `finance_transactions` and `funding_sources` definitions match Tech Spec.
-  - [ ] Execute schema validation script to create tables and columns in Appwrite.
-  - [ ] Verify indexes are correctly created for querying by date, type, and category.
+- [x] **Task 1: Implement Database Schema (AC: 1)**
+  - [x] Review and finalize `server/scripts/validate-schema-epic-2.js` to ensure `finance_transactions` and `funding_sources` definitions match Tech Spec.
+  - [x] Execute schema validation script to create tables and columns in Appwrite.
+  - [x] Verify indexes are correctly created for querying by date, type, and category.
 
 - [ ] **Task 2: Initialize Finance Module Structure (AC: 2, 6)**
   - [ ] Create `src/modules/finance` directory structure (pages, components, stores, router).
@@ -56,10 +56,43 @@ so that **I can maintain an accurate and auditable financial record of all villa
 ## Dev Notes
 
 - **Appwrite TablesDB API**: Ensure we are using the latest `node-appwrite` SDK methods for schema definitions. The `validate-schema-epic-2.js` script is the source of truth for this.
-- **Modular Architecture**: This is the first distinct "Module" implementation (Epic 2). Follow the pattern of keeping module-specific code within `src/modules/finance` to maintain separation of concerns.
+- **Modular Architecture**: This is the first distinct "Module" implementation (Epic 2). Follow the pattern of keeping module-specific code within `src/modules/finance` to maintain separation of concerns. This establishes the pattern for all future modules (Farm, School, etc.).
 - **RBAC**: Re-use the `hasPermission` logic from Story 1.4. Finance Manager role should have `finance:*` or specific `finance:write` permissions.
 - **State Management**: `finance-store.js` should handle all async API calls. Avoid direct API calls from components.
 - **Dialog Pattern**: Follow the pattern from Story 1.7 (Residents) for the `TransactionForm` dialog. Use `v-model` for visibility control and emit events for success/cancel. Ensure the dialog is maximized on mobile for better UX.
+
+### Schema Details (Updated 2025-11-29)
+
+The `finance_transactions` collection includes:
+
+- **type**: enum (`expense`, `income`, `transfer`)
+- **amount**: float (required)
+- **category**: enum - Combined income/expense categories:
+  - Income: `Donations`, `Farm Sales`, `Grants`, `Room Rental`, `School Fees`, `Training Fees`, `Other Income`
+  - Expense: `Farm Assets`, `Farm Inputs`, `School Assets`, `Staff Reimbursements`, `Village Assets`, `Other Expenses`
+- **payment_method**: enum (`Bank Transfer`, `Cash`, `Cheque`, `Mobile Money`, `Other`) - required
+- **source_module**: string (e.g., 'Farm', 'School', 'Village')
+- **funding_source_id**: relationship to `funding_sources` (optional)
+- **date**: datetime
+- **description**: string
+- **status**: string (`pending`, `completed`, `cancelled`)
+
+### Module Structure Pattern
+
+This story establishes the modular architecture pattern:
+
+```
+src/modules/finance/
+  ├── components/
+  │   └── TransactionForm.vue
+  ├── pages/
+  │   └── FinanceTransactionsPage.vue
+  ├── stores/
+  │   └── finance-store.js
+  └── router.js
+```
+
+The module router is imported into `src/router/routes.js` to keep routes co-located with their module.
 
 ### Learnings from Previous Story
 
