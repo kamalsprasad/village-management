@@ -48,8 +48,8 @@ development_status:
   1-9-sample-data-mode-katete-model-village-seed-data: done
   1-10-dashboard-widgets-residents-and-households-summary: done
   1-11-user-profile-and-storage-quota-display: done
-  epic-1-retrospective: optional
-  epic-2: backlog
+  epic-1-retrospective: done
+  epic-2: contexted
   2-1-finance-module-income-transaction-recording: backlog
   2-2-finance-module-expense-transaction-recording: backlog
   2-3-finance-module-admin-configurable-categories: backlog
