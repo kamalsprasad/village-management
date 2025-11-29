@@ -94,6 +94,17 @@ async function setupSchema() {
     await createColumn(TABLES.TRANSACTIONS, 'datetime', 'date', null, true);
     await createColumn(TABLES.TRANSACTIONS, 'string', 'description', 500, true);
     await createColumn(TABLES.TRANSACTIONS, 'string', 'status', 20, true);
+
+    // Story 2.2: Expense-specific fields
+    await createColumn(TABLES.TRANSACTIONS, 'string', 'subcategory', 100, false); // Optional free text
+    await createColumn(TABLES.TRANSACTIONS, 'string', 'vendor', 255, false); // Vendor/Supplier name
+    await createColumn(TABLES.TRANSACTIONS, 'string', 'receipt_number', 100, false); // Receipt/Invoice number
+    await createColumn(TABLES.TRANSACTIONS, 'enum', 'payment_status', null, false, false, [
+      'paid',
+      'unpaid',
+      'partial',
+    ]);
+
     await createRelationshipColumn(
       TABLES.TRANSACTIONS,
       TABLES.FUNDING_SOURCES,

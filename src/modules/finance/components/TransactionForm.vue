@@ -99,12 +99,70 @@
           emit-value
           map-options
           class="q-mb-md"
-          hint="Select if this income is associated with a specific fund"
+          :hint="fundingSourceHint"
         >
           <template #prepend>
             <q-icon name="account_balance" />
           </template>
         </q-select>
+
+        <!-- Expense-specific fields -->
+        <template v-if="props.type === 'expense'">
+          <!-- Subcategory (optional free text) -->
+          <q-input
+            v-model="formData.subcategory"
+            label="Subcategory (Optional)"
+            outlined
+            dense
+            class="q-mb-md"
+            hint="Additional categorization detail"
+          >
+            <template #prepend>
+              <q-icon name="label" />
+            </template>
+          </q-input>
+
+          <!-- Vendor/Supplier -->
+          <q-input
+            v-model="formData.vendor"
+            label="Vendor/Supplier (Optional)"
+            outlined
+            dense
+            class="q-mb-md"
+          >
+            <template #prepend>
+              <q-icon name="store" />
+            </template>
+          </q-input>
+
+          <!-- Receipt/Invoice Number -->
+          <q-input
+            v-model="formData.receipt_number"
+            label="Receipt/Invoice Number (Optional)"
+            outlined
+            dense
+            class="q-mb-md"
+          >
+            <template #prepend>
+              <q-icon name="receipt" />
+            </template>
+          </q-input>
+
+          <!-- Payment Status -->
+          <q-select
+            v-model="formData.payment_status"
+            :options="paymentStatusOptions"
+            label="Payment Status *"
+            outlined
+            dense
+            :rules="[(val) => !!val || 'Payment status is required for expenses']"
+            class="q-mb-md"
+          >
+            <template #prepend>
+              <q-icon name="paid" />
+            </template>
+          </q-select>
+        </template>
 
         <!-- Description -->
         <q-input
@@ -184,6 +242,11 @@ const formData = ref({
   funding_source_id: null,
   description: '',
   status: 'completed',
+  // Expense-specific fields
+  subcategory: '',
+  vendor: '',
+  receipt_number: '',
+  payment_status: 'paid',
 });
 
 // Computed properties
@@ -220,6 +283,20 @@ const fundingSourceOptions = computed(() => {
 // Status options
 const statusOptions = ['pending', 'completed', 'cancelled'];
 
+// Payment status options (for expenses)
+const paymentStatusOptions = [
+  { label: 'Paid', value: 'paid' },
+  { label: 'Unpaid', value: 'unpaid' },
+  { label: 'Partial', value: 'partial' },
+];
+
+// Funding source hint based on transaction type
+const fundingSourceHint = computed(() => {
+  return props.type === 'expense'
+    ? 'Select the fund this expense will be deducted from'
+    : 'Select if this income is associated with a specific fund';
+});
+
 // Format currency for display
 function formatCurrency(amount) {
   return new Intl.NumberFormat('en-ZM', {
@@ -243,6 +320,11 @@ watch(
         funding_source_id: newData.funding_source_id || null,
         description: newData.description,
         status: newData.status || 'completed',
+        // Expense-specific fields
+        subcategory: newData.subcategory || '',
+        vendor: newData.vendor || '',
+        receipt_number: newData.receipt_number || '',
+        payment_status: newData.payment_status || 'paid',
       };
     } else {
       resetForm();
@@ -262,6 +344,11 @@ function resetForm() {
     funding_source_id: null,
     description: '',
     status: 'completed',
+    // Expense-specific fields
+    subcategory: '',
+    vendor: '',
+    receipt_number: '',
+    payment_status: 'paid',
   };
 }
 
@@ -280,10 +367,17 @@ async function handleSubmit() {
     status: formData.value.status,
   };
 
+  // Add expense-specific fields only for expenses
+  if (props.type === 'expense') {
+    submitData.subcategory = formData.value.subcategory || null;
+    submitData.vendor = formData.value.vendor || null;
+    submitData.receipt_number = formData.value.receipt_number || null;
+    submitData.payment_status = formData.value.payment_status;
+  }
+
   let result;
   if (isEditMode.value) {
-    // TODO: Implement update in future story
-    result = { success: false, error: 'Edit not implemented yet' };
+    result = await financeStore.updateTransaction(props.initialData.$id, submitData);
   } else {
     result = await financeStore.createTransaction(submitData);
   }

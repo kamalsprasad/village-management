@@ -34,6 +34,11 @@
       <div class="col-12 col-md-6 col-lg-4">
         <HouseholdsWidget />
       </div>
+
+      <!-- Finance Summary Widget (only for users with finance:read permission) -->
+      <div v-if="isClient && hasPermission('finance:read')" class="col-12 col-md-6 col-lg-4">
+        <FinanceSummaryWidget />
+      </div>
     </div>
   </q-page>
 </template>
@@ -47,6 +52,8 @@ import QuickStatsWidget from 'src/components/dashboard/QuickStatsWidget.vue';
 import RecentActivityWidget from 'src/components/dashboard/RecentActivityWidget.vue';
 import HouseholdsWidget from 'src/components/dashboard/HouseholdsWidget.vue';
 import CommunityOverviewWidget from 'src/components/dashboard/CommunityOverviewWidget.vue';
+import FinanceSummaryWidget from 'src/components/dashboard/FinanceSummaryWidget.vue';
+import { usePermissions } from 'src/composables/usePermissions';
 import {
   upcomingEvents as placeholderEvents,
   quickStats as placeholderStats,
@@ -55,6 +62,7 @@ import {
 
 const authStore = useAuthStore();
 const settingsStore = useSettingsStore();
+const { hasPermission } = usePermissions();
 
 // Loading state for skeleton loaders
 const loading = ref(true);

@@ -1,6 +1,6 @@
 # Story 2.2: Finance Module - Expense Transaction Recording
 
-Status: ready-for-dev
+Status: review
 
 <!-- ... -->
 
@@ -27,35 +27,41 @@ so that **I can monitor spending and identify cost optimization opportunities**.
 
 ## Tasks / Subtasks
 
-- [ ] **Task 1: Update Transaction Form for Expenses (AC: 1, 2)**
-  - [ ] Modify `TransactionForm.vue` to handle `type="expense"` specific fields.
-  - [ ] Add fields: `subcategory` (text), `vendor` (text), `receipt_number` (text), `payment_status` (select).
-  - [ ] Ensure validation logic adapts to expense fields.
-  - [ ] Update `finance-store.js` to handle new fields in `createTransaction`.
+- [x] **Task 1: Update Transaction Form for Expenses (AC: 1, 2)**
+  - [x] Modify `TransactionForm.vue` to handle `type="expense"` specific fields.
+  - [x] Add fields: `subcategory` (text), `vendor` (text), `receipt_number` (text), `payment_status` (select).
+  - [x] Ensure validation logic adapts to expense fields.
+  - [x] Update `finance-store.js` to handle new fields in `createTransaction`.
+  - [x] Update schema script with new columns (user to run manually).
 
-- [ ] **Task 2: Implement Expense List Filters (AC: 4)**
-  - [ ] Update `FinanceTransactionsPage.vue` to support filtering by 'expense' type.
-  - [ ] Ensure category filter shows expense categories when expense type is selected.
+- [x] **Task 2: Implement Expense List Filters (AC: 4)**
+  - [x] Update `FinanceTransactionsPage.vue` to support filtering by 'expense' type.
+  - [x] Ensure category filter shows expense categories when expense type is selected.
+  - [x] Added status filter to hide/show cancelled transactions.
 
-- [ ] **Task 3: Implement Dashboard Summary Widgets (AC: 5)**
-  - [ ] Create `FinanceSummary.vue` widget for the dashboard.
-  - [ ] Implement `Total Expenses` calculation in `finance-store.js`.
-  - [ ] Implement `Top Categories` calculation in `finance-store.js`.
+- [x] **Task 3: Implement Dashboard Summary Widgets (AC: 5)**
+  - [x] Create `FinanceSummaryWidget.vue` widget for the dashboard.
+  - [x] Implement `Total Expenses` calculation in `finance-store.js` (`fetchSummary` action).
+  - [x] Implement `Top Categories` calculation in `finance-store.js`.
+  - [x] Added widget to `DashboardPage.vue` with `finance:read` permission guard.
 
-- [ ] **Task 4: Implement Edit/Delete Functionality (AC: 6)**
-  - [ ] Update `TransactionForm.vue` to support edit mode (populate `initialData`).
-  - [ ] Implement `updateTransaction` action in `finance-store.js`.
-  - [ ] Implement `deleteTransaction` action in `finance-store.js` (soft delete or status='cancelled').
-  - [ ] Add Edit/Delete buttons to `FinanceTransactionsPage.vue` table rows.
+- [x] **Task 4: Implement Edit/Delete Functionality (AC: 6)**
+  - [x] Update `TransactionForm.vue` to support edit mode (populate `initialData`).
+  - [x] Implement `updateTransaction` action in `finance-store.js`.
+  - [x] Implement `deleteTransaction` action in `finance-store.js` (soft delete via status='cancelled').
+  - [x] Add Edit/Delete buttons to `FinanceTransactionsPage.vue` table rows.
+  - [x] Added confirmation dialog for delete action.
 
-- [ ] **Task 5: Funding Source Integration (AC: 8)**
-  - [ ] Ensure `funding_source_id` is correctly saved for expenses.
-  - [ ] Verify backend/store logic decrements funding source balance (if applicable, or just link).
+- [x] **Task 5: Funding Source Integration (AC: 8)**
+  - [x] Ensure `funding_source_id` is correctly saved for expenses.
+  - [x] Implemented `decrementFundingSourceBalance` action in store (client-side for MVP).
+  - [x] Created technical debt documentation for future Cloud Function implementation.
 
 - [ ] **Task 6: Testing & Verification**
   - [ ] Manual test: Record expense, verify in list, verify dashboard summary.
   - [ ] Manual test: Edit expense, verify updates.
   - [ ] Manual test: Delete expense, verify removal/status change.
+  - [ ] Manual test: Verify funding source balance decrements after expense.
 
 ## Dev Notes
 
@@ -90,14 +96,73 @@ so that **I can monitor spending and identify cost optimization opportunities**.
 
 ### Context Reference
 
-<!-- Path(s) to story context XML will be added here by context workflow -->
+[story-2.2.context.xml](docs/stories/story-2.2.context.xml)
 
 ### Agent Model Used
 
-{{agent_model_name_version}}
+Claude Sonnet 4 (Cascade)
 
 ### Debug Log References
 
+- 2025-11-29: Analyzed story requirements and identified 5 key design decisions
+- 2025-11-29: Confirmed all decisions with user before implementation
+
 ### Completion Notes List
 
+- 2025-11-29: Implemented expense-specific fields in TransactionForm.vue (subcategory, vendor, receipt_number, payment_status)
+- 2025-11-29: Updated schema script with new columns (user to run manually)
+- 2025-11-29: Added "Record Expense" button alongside "Record Income" in transactions page
+- 2025-11-29: Added status filter to transaction list (pending/completed/cancelled)
+- 2025-11-29: Created FinanceSummaryWidget.vue for dashboard with permission guard
+- 2025-11-29: Implemented fetchSummary action for total income/expenses/balance and top categories
+- 2025-11-29: Implemented updateTransaction and deleteTransaction (soft delete) in store
+- 2025-11-29: Added Edit/Delete buttons to table rows with confirmation dialog
+- 2025-11-29: Implemented decrementFundingSourceBalance for expense-funding source linking
+- 2025-11-29: Created comprehensive technical debt documentation for Cloud Function migration
+- 2025-11-29: All linting passed
+
 ### File List
+
+**New Files:**
+
+- `src/components/dashboard/FinanceSummaryWidget.vue` - Dashboard widget for finance summary
+- `docs/technical-debt/funding-source-balance-cloud-function.md` - Cloud Function migration docs
+
+**Modified Files:**
+
+- `server/scripts/validate-schema-epic-2.js` - Added expense-specific columns
+- `src/modules/finance/components/TransactionForm.vue` - Added expense fields and edit support
+- `src/modules/finance/stores/finance-store.js` - Added update/delete/summary/balance actions
+- `src/modules/finance/pages/FinanceTransactionsPage.vue` - Added expense button, edit/delete, status filter
+- `src/pages/dashboard/DashboardPage.vue` - Added FinanceSummaryWidget
+
+### Technical Debt
+
+**[HIGH PRIORITY] Funding Source Balance - Cloud Function Migration**
+
+The current implementation updates funding source balances client-side, which is not atomic and could lead to race conditions in concurrent environments. A detailed migration plan has been documented at:
+
+`docs/technical-debt/funding-source-balance-cloud-function.md`
+
+This includes:
+
+- Complete Appwrite Cloud Function implementation
+- Event triggers for create/update/delete
+- Reconciliation script for fixing discrepancies
+- Step-by-step deployment instructions
+
+### Schema Changes Required
+
+Before testing, run the schema validation script to add new columns:
+
+```bash
+cd server
+node scripts/validate-schema-epic-2.js
+```
+
+New columns added to `finance_transactions`:
+
+- `subcategory` (string, optional)
+- `vendor` (string, optional)
+- `receipt_number` (string, optional)
+- `payment_status` (enum: paid/unpaid/partial, optional)

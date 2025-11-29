@@ -17,6 +17,14 @@ export const useFinanceStore = defineStore('finance', {
     fundingSources: [],
     currentTransaction: null,
     isLoading: false,
+    // Summary data for dashboard widget
+    summary: {
+      totalIncome: 0,
+      totalExpenses: 0,
+      netBalance: 0,
+      topExpenseCategories: [],
+      isLoaded: false,
+    },
     pagination: {
       currentPage: 1,
       itemsPerPage: 10,
@@ -27,6 +35,7 @@ export const useFinanceStore = defineStore('finance', {
       category: null,
       dateFrom: null,
       dateTo: null,
+      status: null, // 'pending', 'completed', 'cancelled', or null for all
     },
   }),
 
@@ -126,6 +135,11 @@ export const useFinanceStore = defineStore('finance', {
         queries.push(Query.lessThanEqual('date', this.filters.dateTo));
       }
 
+      // Filter by status
+      if (this.filters.status) {
+        queries.push(Query.equal('status', this.filters.status));
+      }
+
       return queries;
     },
 
@@ -214,6 +228,56 @@ export const useFinanceStore = defineStore('finance', {
     },
 
     /**
+     * Decrement funding source balance
+     * WARNING: This is a client-side operation and is NOT atomic.
+     * In a concurrent environment, this could lead to race conditions.
+     * TODO: [FUTURE] Replace with Appwrite Cloud Function for atomic operations.
+     * See: docs/technical-debt/funding-source-balance-cloud-function.md
+     *
+     * @param {string} fundingSourceId - Funding source ID
+     * @param {number} amount - Amount to decrement
+     */
+    async decrementFundingSourceBalance(fundingSourceId, amount) {
+      try {
+        const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
+        const fundingSourcesTableId = 'funding_sources';
+
+        // Fetch current balance
+        const fundingSource = await tables.getRow({
+          databaseId: dbId,
+          tableId: fundingSourcesTableId,
+          rowId: fundingSourceId,
+        });
+
+        const newBalance = fundingSource.current_balance - amount;
+
+        // Update balance
+        await tables.updateRow({
+          databaseId: dbId,
+          tableId: fundingSourcesTableId,
+          rowId: fundingSourceId,
+          data: {
+            current_balance: newBalance,
+          },
+        });
+
+        // Refresh funding sources cache
+        await this.fetchFundingSources();
+
+        console.log(
+          `Funding source ${fundingSource.name} balance updated: ${fundingSource.current_balance} -> ${newBalance}`,
+        );
+      } catch (error) {
+        console.error('Error updating funding source balance:', error);
+        // Don't throw - the transaction was already created
+        // Log for manual reconciliation
+        errorHandler.notifyError(
+          'Transaction saved, but funding source balance update failed. Please update manually.',
+        );
+      }
+    },
+
+    /**
      * Fetch funding sources for dropdown
      */
     async fetchFundingSources() {
@@ -247,22 +311,47 @@ export const useFinanceStore = defineStore('finance', {
 
         const transactionId = ID.unique();
 
+        // Build transaction data object
+        const data = {
+          type: transactionData.type,
+          amount: parseFloat(transactionData.amount),
+          category: transactionData.category,
+          source_module: transactionData.source_module,
+          payment_method: transactionData.payment_method,
+          funding_source_id: transactionData.funding_source_id || null,
+          date: transactionData.date,
+          description: transactionData.description,
+          status: transactionData.status || 'completed',
+        };
+
+        // Add expense-specific fields if present
+        if (transactionData.type === 'expense') {
+          data.subcategory = transactionData.subcategory || null;
+          data.vendor = transactionData.vendor || null;
+          data.receipt_number = transactionData.receipt_number || null;
+          data.payment_status = transactionData.payment_status || 'paid';
+        }
+
         const newTransaction = await tables.createRow({
           databaseId: dbId,
           tableId: transactionsTableId,
           rowId: transactionId,
-          data: {
-            type: transactionData.type,
-            amount: parseFloat(transactionData.amount),
-            category: transactionData.category,
-            source_module: transactionData.source_module,
-            payment_method: transactionData.payment_method,
-            funding_source_id: transactionData.funding_source_id || null,
-            date: transactionData.date,
-            description: transactionData.description,
-            status: transactionData.status || 'completed',
-          },
+          data,
         });
+
+        // IMPORTANT: Update funding source balance for expenses
+        // TODO: [FUTURE] Replace with Appwrite Cloud Function for atomic operations
+        // See: docs/technical-debt/funding-source-balance-cloud-function.md
+        if (
+          transactionData.type === 'expense' &&
+          transactionData.funding_source_id &&
+          transactionData.status === 'completed'
+        ) {
+          await this.decrementFundingSourceBalance(
+            transactionData.funding_source_id,
+            parseFloat(transactionData.amount),
+          );
+        }
 
         // Refresh the current page to include new transaction
         await this.fetchTransactions(this.pagination.currentPage, this.pagination.itemsPerPage);
@@ -272,6 +361,93 @@ export const useFinanceStore = defineStore('finance', {
       } catch (error) {
         console.error('Error creating transaction:', error);
         errorHandler.notifyError('Failed to record transaction. Please try again.');
+        return { success: false, error: error.message };
+      } finally {
+        this.isLoading = false;
+      }
+    },
+
+    /**
+     * Update an existing transaction
+     * @param {string} transactionId - Transaction ID to update
+     * @param {Object} transactionData - Updated transaction data
+     */
+    async updateTransaction(transactionId, transactionData) {
+      this.isLoading = true;
+      try {
+        const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
+        const transactionsTableId = 'finance_transactions';
+
+        // Build update data object
+        const data = {
+          type: transactionData.type,
+          amount: parseFloat(transactionData.amount),
+          category: transactionData.category,
+          source_module: transactionData.source_module,
+          payment_method: transactionData.payment_method,
+          funding_source_id: transactionData.funding_source_id || null,
+          date: transactionData.date,
+          description: transactionData.description,
+          status: transactionData.status || 'completed',
+        };
+
+        // Add expense-specific fields if present
+        if (transactionData.type === 'expense') {
+          data.subcategory = transactionData.subcategory || null;
+          data.vendor = transactionData.vendor || null;
+          data.receipt_number = transactionData.receipt_number || null;
+          data.payment_status = transactionData.payment_status || 'paid';
+        }
+
+        const updatedTransaction = await tables.updateRow({
+          databaseId: dbId,
+          tableId: transactionsTableId,
+          rowId: transactionId,
+          data,
+        });
+
+        // Refresh the current page
+        await this.fetchTransactions(this.pagination.currentPage, this.pagination.itemsPerPage);
+
+        errorHandler.notifySuccess('Transaction updated successfully');
+        return { success: true, data: updatedTransaction };
+      } catch (error) {
+        console.error('Error updating transaction:', error);
+        errorHandler.notifyError('Failed to update transaction. Please try again.');
+        return { success: false, error: error.message };
+      } finally {
+        this.isLoading = false;
+      }
+    },
+
+    /**
+     * Delete a transaction (soft delete by setting status to 'cancelled')
+     * @param {string} transactionId - Transaction ID to delete
+     */
+    async deleteTransaction(transactionId) {
+      this.isLoading = true;
+      try {
+        const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
+        const transactionsTableId = 'finance_transactions';
+
+        // Soft delete: set status to 'cancelled'
+        await tables.updateRow({
+          databaseId: dbId,
+          tableId: transactionsTableId,
+          rowId: transactionId,
+          data: {
+            status: 'cancelled',
+          },
+        });
+
+        // Refresh the current page
+        await this.fetchTransactions(this.pagination.currentPage, this.pagination.itemsPerPage);
+
+        errorHandler.notifySuccess('Transaction deleted successfully');
+        return { success: true };
+      } catch (error) {
+        console.error('Error deleting transaction:', error);
+        errorHandler.notifyError('Failed to delete transaction. Please try again.');
         return { success: false, error: error.message };
       } finally {
         this.isLoading = false;
@@ -305,6 +481,14 @@ export const useFinanceStore = defineStore('finance', {
     },
 
     /**
+     * Set status filter
+     * @param {string|null} status - 'pending', 'completed', 'cancelled', or null
+     */
+    setStatusFilter(status) {
+      this.filters.status = status;
+    },
+
+    /**
      * Clear all filters
      */
     clearFilters() {
@@ -312,6 +496,7 @@ export const useFinanceStore = defineStore('finance', {
       this.filters.category = null;
       this.filters.dateFrom = null;
       this.filters.dateTo = null;
+      this.filters.status = null;
     },
 
     /**
@@ -365,6 +550,63 @@ export const useFinanceStore = defineStore('finance', {
      */
     clearCurrentTransaction() {
       this.currentTransaction = null;
+    },
+
+    /**
+     * Fetch summary data for dashboard widget
+     * Calculates total income, total expenses, net balance, and top expense categories
+     */
+    async fetchSummary() {
+      try {
+        const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
+        const transactionsTableId = 'finance_transactions';
+
+        // Fetch all completed transactions (not cancelled)
+        const response = await tables.listRows({
+          databaseId: dbId,
+          tableId: transactionsTableId,
+          queries: [Query.equal('status', 'completed'), Query.limit(1000)],
+        });
+
+        const transactions = response.rows;
+
+        // Calculate totals
+        let totalIncome = 0;
+        let totalExpenses = 0;
+        const categoryTotals = {};
+
+        transactions.forEach((t) => {
+          if (t.type === 'income') {
+            totalIncome += t.amount;
+          } else if (t.type === 'expense') {
+            totalExpenses += t.amount;
+            // Track expense categories
+            if (!categoryTotals[t.category]) {
+              categoryTotals[t.category] = 0;
+            }
+            categoryTotals[t.category] += t.amount;
+          }
+        });
+
+        // Get top 5 expense categories
+        const topExpenseCategories = Object.entries(categoryTotals)
+          .map(([category, amount]) => ({ category, amount }))
+          .sort((a, b) => b.amount - a.amount)
+          .slice(0, 5);
+
+        this.summary = {
+          totalIncome,
+          totalExpenses,
+          netBalance: totalIncome - totalExpenses,
+          topExpenseCategories,
+          isLoaded: true,
+        };
+
+        return { success: true, data: this.summary };
+      } catch (error) {
+        console.error('Error fetching finance summary:', error);
+        return { success: false, error: error.message };
+      }
     },
   },
 });

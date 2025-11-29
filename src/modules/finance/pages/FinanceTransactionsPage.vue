@@ -7,13 +7,20 @@
           <h4 class="q-my-none">Finance Transactions</h4>
           <p class="text-grey-7 q-mb-none">Record and manage village income and expenses</p>
         </div>
-        <div class="col-auto">
+        <div class="col-auto q-gutter-sm">
           <q-btn
             v-if="isClient && hasPermission('finance:write')"
-            color="primary"
+            color="positive"
             icon="add"
             label="Record Income"
-            @click="showAddDialog = true"
+            @click="openAddDialog('income')"
+          />
+          <q-btn
+            v-if="isClient && hasPermission('finance:write')"
+            color="negative"
+            icon="remove"
+            label="Record Expense"
+            @click="openAddDialog('expense')"
           />
         </div>
       </div>
@@ -74,8 +81,27 @@
               </q-input>
             </div>
 
-            <!-- Clear Filters -->
+            <!-- Status Filter -->
             <div class="col-12 col-md-2">
+              <q-select
+                v-model="selectedStatus"
+                :options="statusFilterOptions"
+                outlined
+                dense
+                clearable
+                placeholder="Status..."
+                emit-value
+                map-options
+                @update:model-value="applyFilters"
+              >
+                <template #prepend>
+                  <q-icon name="flag" />
+                </template>
+              </q-select>
+            </div>
+
+            <!-- Clear Filters -->
+            <div class="col-auto">
               <q-btn outline color="primary" label="Clear" icon="clear" @click="clearAllFilters" />
             </div>
           </div>
@@ -155,6 +181,30 @@
               >
                 <q-tooltip>View Details</q-tooltip>
               </q-btn>
+              <q-btn
+                v-if="hasPermission('finance:write') && props.row.status !== 'cancelled'"
+                flat
+                dense
+                round
+                icon="edit"
+                color="secondary"
+                size="sm"
+                @click="editTransaction(props.row)"
+              >
+                <q-tooltip>Edit</q-tooltip>
+              </q-btn>
+              <q-btn
+                v-if="hasPermission('finance:write') && props.row.status !== 'cancelled'"
+                flat
+                dense
+                round
+                icon="delete"
+                color="negative"
+                size="sm"
+                @click="confirmDelete(props.row)"
+              >
+                <q-tooltip>Delete</q-tooltip>
+              </q-btn>
             </q-td>
           </template>
 
@@ -222,7 +272,11 @@
         transition-show="slide-up"
         transition-hide="slide-down"
       >
-        <transaction-form type="income" @saved="handleSaved" @cancelled="handleCancelled" />
+        <transaction-form
+          :type="dialogTransactionType"
+          @saved="handleSaved"
+          @cancelled="handleCancelled"
+        />
       </q-dialog>
 
       <!-- View Transaction Dialog -->
@@ -307,6 +361,42 @@
                 </q-item-section>
               </q-item>
 
+              <!-- Expense-specific fields -->
+              <template v-if="selectedTransaction.type === 'expense'">
+                <q-item v-if="selectedTransaction.vendor">
+                  <q-item-section>
+                    <q-item-label caption>Vendor/Supplier</q-item-label>
+                    <q-item-label>{{ selectedTransaction.vendor }}</q-item-label>
+                  </q-item-section>
+                </q-item>
+
+                <q-item v-if="selectedTransaction.subcategory">
+                  <q-item-section>
+                    <q-item-label caption>Subcategory</q-item-label>
+                    <q-item-label>{{ selectedTransaction.subcategory }}</q-item-label>
+                  </q-item-section>
+                </q-item>
+
+                <q-item v-if="selectedTransaction.receipt_number">
+                  <q-item-section>
+                    <q-item-label caption>Receipt/Invoice Number</q-item-label>
+                    <q-item-label>{{ selectedTransaction.receipt_number }}</q-item-label>
+                  </q-item-section>
+                </q-item>
+
+                <q-item v-if="selectedTransaction.payment_status">
+                  <q-item-section>
+                    <q-item-label caption>Payment Status</q-item-label>
+                    <q-item-label>
+                      <q-badge
+                        :color="getPaymentStatusColor(selectedTransaction.payment_status)"
+                        :label="capitalizeFirst(selectedTransaction.payment_status)"
+                      />
+                    </q-item-label>
+                  </q-item-section>
+                </q-item>
+              </template>
+
               <q-item>
                 <q-item-section>
                   <q-item-label caption>Status</q-item-label>
@@ -325,6 +415,23 @@
             <q-btn flat label="Close" color="primary" v-close-popup />
           </q-card-actions>
         </q-card>
+      </q-dialog>
+
+      <!-- Edit Transaction Dialog -->
+      <q-dialog
+        v-model="showEditDialog"
+        persistent
+        :maximized="$q.screen.lt.sm"
+        transition-show="slide-up"
+        transition-hide="slide-down"
+      >
+        <transaction-form
+          v-if="editingTransaction"
+          :type="editingTransaction.type"
+          :initial-data="editingTransaction"
+          @saved="handleEditSaved"
+          @cancelled="handleEditCancelled"
+        />
       </q-dialog>
     </div>
   </q-page>
@@ -351,6 +458,17 @@ const itemsPerPage = ref(10);
 const selectedType = ref(null);
 const selectedCategory = ref(null);
 const dateRangeModel = ref(null);
+const dialogTransactionType = ref('income'); // Type for add dialog
+const selectedStatus = ref(null);
+const showEditDialog = ref(false);
+const editingTransaction = ref(null);
+
+// Status filter options
+const statusFilterOptions = [
+  { label: 'Pending', value: 'pending' },
+  { label: 'Completed', value: 'completed' },
+  { label: 'Cancelled', value: 'cancelled' },
+];
 
 // Table columns definition
 const columns = [
@@ -429,7 +547,9 @@ const dateRange = computed(() => {
 
 // Check if any filters are active
 const hasActiveFilters = computed(() => {
-  return selectedType.value || selectedCategory.value || dateRangeModel.value;
+  return (
+    selectedType.value || selectedCategory.value || dateRangeModel.value || selectedStatus.value
+  );
 });
 
 // Pagination label
@@ -495,10 +615,55 @@ function getStatusColor(status) {
   }
 }
 
+// Get payment status color (for expenses)
+function getPaymentStatusColor(status) {
+  switch (status) {
+    case 'paid':
+      return 'positive';
+    case 'unpaid':
+      return 'negative';
+    case 'partial':
+      return 'warning';
+    default:
+      return 'grey';
+  }
+}
+
 // View transaction details
 function viewTransaction(transaction) {
   selectedTransaction.value = transaction;
   showViewDialog.value = true;
+}
+
+// Edit transaction
+function editTransaction(transaction) {
+  editingTransaction.value = transaction;
+  showEditDialog.value = true;
+}
+
+// Handle edit saved
+function handleEditSaved() {
+  showEditDialog.value = false;
+  editingTransaction.value = null;
+}
+
+// Handle edit cancelled
+function handleEditCancelled() {
+  showEditDialog.value = false;
+  editingTransaction.value = null;
+}
+
+// Confirm delete transaction
+function confirmDelete(transaction) {
+  $q.dialog({
+    title: 'Delete Transaction',
+    message: `Are you sure you want to delete this ${transaction.type} transaction of ${formatCurrency(transaction.amount)}? This action will mark the transaction as cancelled.`,
+    cancel: true,
+    persistent: true,
+    color: 'negative',
+  }).onOk(async () => {
+    await financeStore.deleteTransaction(transaction.$id);
+  });
 }
 
 // Handle date range change
@@ -523,6 +688,7 @@ function clearDateRange() {
 async function applyFilters() {
   financeStore.setTypeFilter(selectedType.value);
   financeStore.setCategoryFilter(selectedCategory.value);
+  financeStore.setStatusFilter(selectedStatus.value);
   await financeStore.applyFilters();
 }
 
@@ -531,6 +697,7 @@ async function clearAllFilters() {
   selectedType.value = null;
   selectedCategory.value = null;
   dateRangeModel.value = null;
+  selectedStatus.value = null;
   financeStore.clearFilters();
   await financeStore.fetchTransactions(1, itemsPerPage.value);
 }
@@ -538,6 +705,12 @@ async function clearAllFilters() {
 // Change items per page
 function changeItemsPerPage(newValue) {
   financeStore.changeItemsPerPage(newValue);
+}
+
+// Open add dialog with specific transaction type
+function openAddDialog(type) {
+  dialogTransactionType.value = type;
+  showAddDialog.value = true;
 }
 
 // Handle form saved
