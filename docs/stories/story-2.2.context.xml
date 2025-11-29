@@ -1,0 +1,83 @@
+<story-context id="village-app/stories/2.2" v="1.0">
+  <metadata>
+    <epicId>2</epicId>
+    <storyId>2.2</storyId>
+    <title>Finance Module - Expense Transaction Recording</title>
+    <status>ready-for-dev</status>
+    <generatedAt>2025-11-29</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/stories/story-2.2.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>Finance Manager</asA>
+    <iWant>to record expense transactions with category tracking</iWant>
+    <soThat>I can monitor spending and identify cost optimization opportunities</soThat>
+    <tasks>
+      <task>Update Transaction Form for Expenses (AC: 1, 2)</task>
+      <task>Implement Expense List Filters (AC: 4)</task>
+      <task>Implement Dashboard Summary Widgets (AC: 5)</task>
+      <task>Implement Edit/Delete Functionality (AC: 6)</task>
+      <task>Funding Source Integration (AC: 8)</task>
+      <task>Testing &amp; Verification</task>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <criterion>1. Expense Recording UI: Users can access a "Record Expense" dialog (or toggle in existing form). The form includes: Date, Amount (ZMW), Category, Subcategory (optional/free text for now), Payment Method, Payment Status, Vendor/Supplier, Description, and Receipt/Invoice Number.</criterion>
+    <criterion>2. Validation: System prevents negative amounts. Required fields (Amount, Category, Date, Payment Method) must be populated.</criterion>
+    <criterion>3. Data Persistence: Successful save creates an `expense` transaction in `finance_transactions` collection.</criterion>
+    <criterion>4. Expense List: Finance Transactions list supports filtering by 'expense' type, date range, category, and status.</criterion>
+    <criterion>5. Dashboard Summary: Finance dashboard displays expense summary (Total Expenses, Top Categories).</criterion>
+    <criterion>6. Edit/Delete: Users can edit and delete expense transactions (audit logging deferred to system logs, but soft delete or status change supported).</criterion>
+    <criterion>7. Category Management: Admin can add custom categories. (Note: Full management UI is Story 2.3, but basic support for custom categories in dropdown or store is needed).</criterion>
+    <criterion>8. Funding Source Link: Expenses can be linked to a Funding Source (decrementing its balance is handled in backend/store).</criterion>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc path="docs/epics.md">Epic 2 Requirements</doc>
+      <doc path="docs/PRD.md">Product Requirements</doc>
+      <doc path="docs/sprint-artifacts/tech-spec-epic-2.md">Epic 2 Technical Specification</doc>
+      <doc path="docs/architecture.md">System Architecture</doc>
+      <doc path="docs/ux-specification.md">UX Specification</doc>
+      <doc path="docs/stories/story-2.1.md">Previous Story (Context)</doc>
+    </docs>
+    <code>
+      <file path="src/modules/finance/components/TransactionForm.vue">Existing Transaction Form</file>
+      <file path="src/modules/finance/stores/finance-store.js">Finance Store</file>
+      <file path="src/modules/finance/pages/FinanceTransactionsPage.vue">Transactions List Page</file>
+    </code>
+    <dependencies>
+      <dep>Appwrite Database (finance_transactions, funding_sources)</dep>
+      <dep>Pinia Store (FinanceStore)</dep>
+      <dep>Quasar UI Components</dep>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint>LAN-first architecture: Must support offline data entry and sync.</constraint>
+    <constraint>RBAC: Only 'Finance Manager' and 'Admin' roles can access.</constraint>
+    <constraint>Data Integrity: Transaction totals must match individual records.</constraint>
+    <constraint>Performance: Dashboard load &lt; 2 seconds.</constraint>
+  </constraints>
+
+  <interfaces>
+    <interface>createTransaction(data: TransactionDTO): Promise&lt;Transaction&gt;</interface>
+    <interface>updateTransaction(id: string, data: Partial&lt;TransactionDTO&gt;): Promise&lt;Transaction&gt;</interface>
+    <interface>deleteTransaction(id: string): Promise&lt;void&gt;</interface>
+    <interface>funding_sources collection: Update balance on expense creation</interface>
+  </interfaces>
+
+  <tests>
+    <standards>Manual testing as per tech-spec-epic-2.md. Unit tests for store logic recommended.</standards>
+    <locations>docs/testing.md (to be updated)</locations>
+    <ideas>
+      <test>Record expense with all fields and verify persistence.</test>
+      <test>Verify funding source balance decrements after expense.</test>
+      <test>Test offline recording and sync (if offline mode implemented).</test>
+      <test>Verify RBAC: Resident cannot access expense form.</test>
+      <test>Verify validation prevents negative amounts.</test>
+    </ideas>
+  </tests>
+</story-context>
