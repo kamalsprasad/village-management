@@ -1,3 +1,6 @@
+// Module routes
+import financeRoutes from 'src/modules/finance/router';
+
 const routes = [
   // Auth page (no layout)
   {
@@ -95,6 +98,8 @@ const routes = [
           requiresAuth: true,
         },
       },
+      // Finance Module routes
+      ...financeRoutes,
     ],
   },
 

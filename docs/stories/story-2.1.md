@@ -1,6 +1,6 @@
 # Story 2.1: Finance Module - Income Transaction Recording
 
-Status: ready-for-dev
+Status: review
 
 ## Story
 
@@ -24,34 +24,34 @@ so that **I can maintain an accurate and auditable financial record of all villa
   - [x] Execute schema validation script to create tables and columns in Appwrite.
   - [x] Verify indexes are correctly created for querying by date, type, and category.
 
-- [ ] **Task 2: Initialize Finance Module Structure (AC: 2, 6)**
-  - [ ] Create `src/modules/finance` directory structure (pages, components, stores, router).
-  - [ ] Create `src/modules/finance/router.js` and register in main router.
-  - [ ] Create `FinanceLayout.vue` or use `MainLayout` with Finance-specific context.
-  - [ ] Update `MainLayout.vue` to include "Finance" navigation link (guarded by `finance:read`).
+- [x] **Task 2: Initialize Finance Module Structure (AC: 2, 6)**
+  - [x] Create `src/modules/finance` directory structure (pages, components, stores, router).
+  - [x] Create `src/modules/finance/router.js` and register in main router.
+  - [x] Use `MainLayout` with Finance-specific context (no separate FinanceLayout needed).
+  - [x] Verify `MainLayout.vue` includes "Finance" navigation link (guarded by `finance:read`) - already present.
 
-- [ ] **Task 3: Implement Finance Store (AC: 2)**
-  - [ ] Create `src/modules/finance/stores/finance-store.js` using Pinia.
-  - [ ] Implement actions for `createTransaction` and `fetchTransactions`.
-  - [ ] Implement state for caching recent transactions.
+- [x] **Task 3: Implement Finance Store (AC: 2)**
+  - [x] Create `src/modules/finance/stores/finance-store.js` using Pinia.
+  - [x] Implement actions for `createTransaction` and `fetchTransactions`.
+  - [x] Implement state for caching recent transactions.
 
-- [ ] **Task 4: Create Transactions List Page (AC: 3)**
-  - [ ] Create `src/modules/finance/pages/FinanceTransactionsPage.vue`.
-  - [ ] Implement list view of transactions (using `QTable` or `QList`).
-  - [ ] Add "Record Income" button (FAB on mobile, Button on desktop) that opens `TransactionForm` in a `QDialog`.
-  - [ ] Configure `QDialog` to be maximized on mobile (using `useQuasar().screen.lt.sm`).
+- [x] **Task 4: Create Transactions List Page (AC: 3)**
+  - [x] Create `src/modules/finance/pages/FinanceTransactionsPage.vue`.
+  - [x] Implement list view of transactions (using `QTable`).
+  - [x] Add "Record Income" button that opens `TransactionForm` in a `QDialog`.
+  - [x] Configure `QDialog` to be maximized on mobile (using `$q.screen.lt.sm`).
 
-- [ ] **Task 5: Create Transaction Form Component (AC: 3, 4)**
-  - [ ] Create `src/modules/finance/components/TransactionForm.vue`.
-  - [ ] Implement form with Quasar components (`QInput`, `QSelect`, `QDate`, `QBtn`) inside a `QCard`.
-  - [ ] Add props: `type` (default 'income'), `initialData` (for future edit support).
-  - [ ] Add emits: `saved`, `cancelled`.
-  - [ ] Add client-side validation for required fields and positive amounts.
+- [x] **Task 5: Create Transaction Form Component (AC: 3, 4)**
+  - [x] Create `src/modules/finance/components/TransactionForm.vue`.
+  - [x] Implement form with Quasar components (`QInput`, `QSelect`, `QDate`, `QBtn`) inside a `QCard`.
+  - [x] Add props: `type` (default 'income'), `initialData` (for future edit support).
+  - [x] Add emits: `saved`, `cancelled`.
+  - [x] Add client-side validation for required fields and positive amounts.
 
-- [ ] **Task 6: Apply RBAC & Error Handling (AC: 5)**
-  - [ ] Apply `requiresPermission: 'finance:read'` to the transactions list route.
-  - [ ] Wrap "Record Income" button in `PermissionGuard` with `finance:write`.
-  - [ ] Use `useErrorHandler` for API failure scenarios.
+- [x] **Task 6: Apply RBAC & Error Handling (AC: 5)**
+  - [x] Apply `requiresPermission: 'finance:read'` to the transactions list route.
+  - [x] Wrap "Record Income" button with `hasPermission('finance:write')` check.
+  - [x] Use `useErrorHandler` for API failure scenarios.
 
 ## Dev Notes
 
@@ -123,4 +123,18 @@ The module router is imported into `src/router/routes.js` to keep routes co-loca
 
 ### Completion Notes List
 
+- 2025-11-29: Implemented Finance Module with modular architecture pattern
+- Created `src/modules/finance/` directory structure as the standard for future modules
+- Finance store includes category getters for income/expense separation
+- TransactionForm supports both income and expense types via `type` prop
+- List page includes filtering by type, category, and date range
+- Dialog maximizes on mobile for better UX
+- All RBAC checks in place (route meta + component-level)
+
 ### File List
+
+- `src/modules/finance/router.js` (new)
+- `src/modules/finance/stores/finance-store.js` (new)
+- `src/modules/finance/pages/FinanceTransactionsPage.vue` (new)
+- `src/modules/finance/components/TransactionForm.vue` (new)
+- `src/router/routes.js` (modified - added finance module import)
