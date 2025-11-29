@@ -1,4 +1,4 @@
-import { Client, Databases, TablesDB, ID } from 'node-appwrite';
+import { Client, RelationshipType, TablesDB, ID } from 'node-appwrite';
 import dotenv from 'dotenv';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
@@ -66,16 +66,52 @@ async function setupSchema() {
     await createTableColumn(TABLES.TRANSACTIONS, 'float', 'amount', null, true);
     await createTableColumn(TABLES.TRANSACTIONS, 'string', 'category', 100, true);
     await createTableColumn(TABLES.TRANSACTIONS, 'string', 'source_module', 50, true);
-    await createTableColumn(TABLES.TRANSACTIONS, 'string', 'funding_source_id', 36, false);
+    //await createTableColumn(TABLES.TRANSACTIONS, 'string', 'funding_source_id', 36, false);
     await createTableColumn(TABLES.TRANSACTIONS, 'datetime', 'date', null, true);
     await createTableColumn(TABLES.TRANSACTIONS, 'string', 'description', 500, true);
     await createTableColumn(TABLES.TRANSACTIONS, 'string', 'status', 20, true);
-    await createTableColumn(TABLES.TRANSACTIONS, 'string', 'related_reference_id', 36, false);
-    await createTableColumn(TABLES.TRANSACTIONS, 'string', 'related_reference_type', 50, false);
+    // await createTableColumn(TABLES.TRANSACTIONS, 'string', 'related_reference_id', 36, false);
+    // await createTableColumn(TABLES.TRANSACTIONS, 'string', 'related_reference_type', 50, false);
+    await createRelationshipColumn(
+      TABLES.TRANSACTIONS,
+      TABLES.FUNDING_SOURCES,
+      RelationshipType.ManyToOne,
+      true,
+      'funding_source_id',
+      'transactions',
+      'restrict',
+    );
+    await createRelationshipColumn(
+      TABLES.TRANSACTIONS,
+      TABLES.LOANS,
+      RelationshipType.ManyToOne,
+      true,
+      'loan_id',
+      'transactions',
+      'restrict',
+    );
+    await createRelationshipColumn(
+      TABLES.TRANSACTIONS,
+      TABLES.INVENTORY,
+      RelationshipType.OneToMany,
+      true,
+      'inventory_ids',
+      'transaction',
+      'restrict',
+    );
 
     // --- Loans ---
     console.log('💸 Configuring Loans...');
-    await createTableColumn(TABLES.LOANS, 'string', 'borrower_id', 36, true);
+    //await createTableColumn(TABLES.LOANS, 'string', 'borrower_id', 36, true);
+    await createRelationshipColumn(
+      TABLES.LOANS,
+      TABLES.RESIDENTS,
+      RelationshipType.ManyToOne,
+      true,
+      'borrower_id',
+      'loans',
+      'restrict',
+    );
     await createTableColumn(TABLES.LOANS, 'float', 'principal_amount', null, true);
     await createTableColumn(TABLES.LOANS, 'float', 'interest_rate', null, true);
     await createTableColumn(TABLES.LOANS, 'integer', 'term_months', null, true);
@@ -88,7 +124,15 @@ async function setupSchema() {
     await createTableColumn(TABLES.INVENTORY, 'integer', 'quantity', null, true);
     await createTableColumn(TABLES.INVENTORY, 'string', 'unit', 20, true);
     await createTableColumn(TABLES.INVENTORY, 'integer', 'reorder_threshold', null, true);
-    await createTableColumn(TABLES.INVENTORY, 'string', 'linked_expense_id', 36, false);
+    await createRelationshipColumn(
+      TABLES.INVENTORY,
+      TABLES.TRANSACTIONS,
+      RelationshipType.ManyToOne,
+      false,
+      'transaction_id',
+      'inventory_items',
+      'restrict',
+    );
 
     console.log('✅ Schema Setup Complete. Waiting for columns to be available...');
 
@@ -168,7 +212,7 @@ async function validateWorkflows() {
         quantity: 50,
         unit: 'kg',
         reorder_threshold: 10,
-        linked_expense_id: expense.$id,
+        transaction_id: expense.$id,
       });
       console.log(
         `✅ [Workflow 3] Auto-created Inventory: ${inventory.item_name} (${inventory.quantity} ${inventory.unit})`,
@@ -252,6 +296,34 @@ async function createTableColumn(tableId, type, key, size, required, array = fal
   } catch (e) {
     console.log(e.message);
     // Column likely exists
+  }
+}
+
+async function createRelationshipColumn(
+  tableId,
+  relatedTableId,
+  relationshipType,
+  twoWay,
+  key,
+  relatedKey,
+  onDelete,
+) {
+  //await createRelationshipColumn(TABLES.LOANS,TABLES.RESIDENTS,RelationshipType.ManyToOne,true,'borrower_id','loans','restrict');
+  try {
+    await tables.createRelationshipColumn({
+      databaseId: config.databaseId,
+      tableId,
+      relatedTableId,
+      type: relationshipType,
+      twoWay,
+      key,
+      twoWayKey: relatedKey,
+      onDelete,
+    });
+    console.log(`   + Created Relationship Column: ${key} in table: ${tableId}`);
+  } catch (e) {
+    console.log(e.message);
+    // Relationship column likely exists
   }
 }
 
