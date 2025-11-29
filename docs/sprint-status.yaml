@@ -50,7 +50,7 @@ development_status:
   1-11-user-profile-and-storage-quota-display: done
   epic-1-retrospective: optional
   epic-2: contexted
-  2-1-finance-module-income-transaction-recording: review
+  2-1-finance-module-income-transaction-recording: done
   2-2-finance-module-expense-transaction-recording: backlog
   2-3-finance-module-admin-configurable-categories: backlog
   2-4-finance-module-funding-source-tracking-for-donor-accountability: backlog

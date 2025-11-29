@@ -154,6 +154,7 @@
 <script setup>
 import { ref, computed, watch } from 'vue';
 import { useQuasar } from 'quasar';
+import { format } from 'date-fns';
 import { useFinanceStore } from '../stores/finance-store';
 
 const props = defineProps({
@@ -179,7 +180,7 @@ const formData = ref({
   category: '',
   source_module: '',
   payment_method: '',
-  date: new Date().toISOString().split('T')[0], // Default to today
+  date: format(new Date(), 'yyyy-MM-dd'), // Default to today (Local Time)
   funding_source_id: null,
   description: '',
   status: 'completed',
@@ -257,7 +258,7 @@ function resetForm() {
     category: '',
     source_module: '',
     payment_method: '',
-    date: new Date().toISOString().split('T')[0],
+    date: format(new Date(), 'yyyy-MM-dd'),
     funding_source_id: null,
     description: '',
     status: 'completed',
