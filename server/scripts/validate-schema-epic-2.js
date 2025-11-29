@@ -62,23 +62,31 @@ async function setupSchema() {
 
     // --- Finance Transactions ---
     console.log('💰 Configuring Finance Transactions...');
-    await createTableColumn(TABLES.TRANSACTIONS, 'string', 'type', 20, true);
+    await createTableColumn(TABLES.TRANSACTIONS, 'enum', 'type', 20, true, false, [
+      'expense',
+      'income',
+      'transfer',
+    ]);
     await createTableColumn(TABLES.TRANSACTIONS, 'float', 'amount', null, true);
-    await createTableColumn(TABLES.TRANSACTIONS, 'string', 'category', 100, true);
+    await createTableColumn(TABLES.TRANSACTIONS, 'enum', 'category', null, true, false, [
+      'Farm Inputs',
+      'Farm Assets',
+      'Village Assets',
+      'School Assets',
+      'Staff Reimbursements',
+      'Other',
+    ]);
     await createTableColumn(TABLES.TRANSACTIONS, 'string', 'source_module', 50, true);
-    //await createTableColumn(TABLES.TRANSACTIONS, 'string', 'funding_source_id', 36, false);
     await createTableColumn(TABLES.TRANSACTIONS, 'datetime', 'date', null, true);
     await createTableColumn(TABLES.TRANSACTIONS, 'string', 'description', 500, true);
     await createTableColumn(TABLES.TRANSACTIONS, 'string', 'status', 20, true);
-    // await createTableColumn(TABLES.TRANSACTIONS, 'string', 'related_reference_id', 36, false);
-    // await createTableColumn(TABLES.TRANSACTIONS, 'string', 'related_reference_type', 50, false);
     await createRelationshipColumn(
       TABLES.TRANSACTIONS,
       TABLES.FUNDING_SOURCES,
       RelationshipType.ManyToOne,
       true,
       'funding_source_id',
-      'transactions',
+      'transaction_ids',
       'restrict',
     );
     await createRelationshipColumn(
@@ -87,22 +95,21 @@ async function setupSchema() {
       RelationshipType.ManyToOne,
       true,
       'loan_id',
-      'transactions',
+      'transaction_ids',
       'restrict',
     );
     await createRelationshipColumn(
       TABLES.TRANSACTIONS,
       TABLES.INVENTORY,
       RelationshipType.OneToMany,
-      true,
+      false,
       'inventory_ids',
-      'transaction',
+      null,
       'restrict',
     );
 
     // --- Loans ---
     console.log('💸 Configuring Loans...');
-    //await createTableColumn(TABLES.LOANS, 'string', 'borrower_id', 36, true);
     await createRelationshipColumn(
       TABLES.LOANS,
       TABLES.RESIDENTS,
@@ -115,7 +122,13 @@ async function setupSchema() {
     await createTableColumn(TABLES.LOANS, 'float', 'principal_amount', null, true);
     await createTableColumn(TABLES.LOANS, 'float', 'interest_rate', null, true);
     await createTableColumn(TABLES.LOANS, 'integer', 'term_months', null, true);
-    await createTableColumn(TABLES.LOANS, 'string', 'status', 20, true);
+    await createTableColumn(TABLES.LOANS, 'enum', 'status', null, true, false, [
+      'active',
+      'overdue',
+      'late',
+      'defaulted',
+      'paid_off',
+    ]);
     await createTableColumn(TABLES.LOANS, 'float', 'outstanding_balance', null, true);
 
     // --- Inventory ---
@@ -174,11 +187,16 @@ async function validateWorkflows() {
 
   try {
     // Workflow 1: Create Funding Source
-    const donor = await tables.createRow(config.databaseId, TABLES.FUNDING_SOURCES, ID.unique(), {
-      name: 'Global Giving Grant 2025',
-      total_allocated: 10000.0,
-      current_balance: 10000.0,
-      restrictions: 'For agricultural inputs only',
+    const donor = await tables.createRow({
+      databaseId: config.databaseId,
+      tableId: TABLES.FUNDING_SOURCES,
+      rowId: ID.unique(),
+      data: {
+        name: 'Global Giving Grant 2025',
+        total_allocated: 10000.0,
+        current_balance: 10000.0,
+        restrictions: 'For agricultural inputs only',
+      },
     });
     console.log(
       `✅ [Workflow 1] Created Funding Source: ${donor.name} (Balance: ${donor.current_balance})`,
@@ -186,22 +204,32 @@ async function validateWorkflows() {
 
     // Workflow 2: Record Expense
     const expenseAmount = 500.0;
-    const expense = await tables.createRow(config.databaseId, TABLES.TRANSACTIONS, ID.unique(), {
-      type: 'expense',
-      amount: expenseAmount,
-      category: 'Farm Inputs',
-      source_module: 'Farm',
-      funding_source_id: donor.$id,
-      date: new Date().toISOString(),
-      description: 'Purchase of Maize Seeds',
-      status: 'completed',
+    const expense = await tables.createRow({
+      databaseId: config.databaseId,
+      tableId: TABLES.TRANSACTIONS,
+      rowId: ID.unique(),
+      data: {
+        type: 'expense',
+        amount: expenseAmount,
+        category: 'Farm Inputs',
+        source_module: 'Farm',
+        funding_source_id: donor.$id,
+        date: new Date().toISOString(),
+        description: 'Purchase of Maize Seeds',
+        status: 'completed',
+      },
     });
     console.log(`✅ [Workflow 2] Recorded Expense: ${expense.description} (-${expense.amount})`);
 
     // Update Balance
     const newBalance = donor.current_balance - expenseAmount;
-    await tables.updateRow(config.databaseId, TABLES.FUNDING_SOURCES, donor.$id, {
-      current_balance: newBalance,
+    await tables.updateRow({
+      databaseId: config.databaseId,
+      tableId: TABLES.FUNDING_SOURCES,
+      rowId: donor.$id,
+      data: {
+        current_balance: newBalance,
+      },
     });
     console.log(`✅ [Workflow 2] Updated Funding Source Balance to: ${newBalance}`);
 
@@ -245,51 +273,75 @@ async function createTableIfNotExists(tableId, name) {
 
 //await createTableColumn(TABLES.TRANSACTIONS, 'float', 'amount', null, true);
 let ii = 0;
-async function createTableColumn(tableId, type, key, size, required, array = false) {
+async function createTableColumn(
+  tableId,
+  type,
+  key,
+  size,
+  required,
+  array = false,
+  enumValues = [],
+) {
   try {
     if (type === 'string') {
-      await tables.createStringColumn(
-        config.databaseId,
+      await tables.createStringColumn({
+        databaseId: config.databaseId,
         tableId,
         key,
         size,
         required,
-        undefined,
         array,
-      );
+      });
     } else if (type === 'integer') {
-      await tables.createIntegerColumn(
-        config.databaseId,
+      await tables.createIntegerColumn({
+        databaseId: config.databaseId,
         tableId,
         key,
         required,
-        0 || null,
-        0 || null,
-        0 || null,
+        min: 0 || null,
+        max: 0 || null,
+        xdefault: 0 || null,
         array,
-      );
+      });
     } else if (type === 'float') {
-      await tables.createFloatColumn(
-        config.databaseId,
+      await tables.createFloatColumn({
+        databaseId: config.databaseId,
         tableId,
         key,
         required,
-        0 || null,
-        0 || null,
-        0 || null,
+        min: 0 || null,
+        max: 0 || null,
+        xdefault: 0 || null,
         array,
-      );
+      });
     } else if (type === 'boolean') {
-      await tables.createBooleanColumn(config.databaseId, tableId, key, required, false, array);
-    } else if (type === 'datetime') {
-      await tables.createDatetimeColumn(
-        config.databaseId,
+      await tables.createBooleanColumn({
+        databaseId: config.databaseId,
         tableId,
         key,
         required,
-        undefined,
+        default: false,
         array,
-      );
+      });
+    } else if (type === 'datetime') {
+      await tables.createDatetimeColumn({
+        databaseId: config.databaseId,
+        tableId,
+        key,
+        required,
+        xdefault: undefined,
+        array,
+      });
+    } else if (type === 'enum') {
+      await tables.createEnumColumn({
+        databaseId: config.databaseId,
+        tableId,
+        key,
+        elements: enumValues,
+        required,
+        xdefault: undefined,
+        array,
+      });
     }
 
     console.log(`     ${++ii}: Added column: ${key} in table: ${tableId}`);
