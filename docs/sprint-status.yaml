@@ -52,7 +52,7 @@ development_status:
   epic-2: contexted
   2-1-finance-module-income-transaction-recording: done
   2-2-finance-module-expense-transaction-recording: done
-  2-3-finance-module-admin-configurable-categories: review
+  2-3-finance-module-admin-configurable-categories: done
   2-4-finance-module-funding-source-tracking-for-donor-accountability: backlog
   2-5-village-lending-loan-management: backlog
   2-6-inventory-module-core-inventory-management: backlog

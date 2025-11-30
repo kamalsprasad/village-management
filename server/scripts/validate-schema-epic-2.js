@@ -47,7 +47,17 @@ async function setupSchema() {
 
   try {
     // 1. Create Tables
-    await createTableIfNotExists(TABLES.FINANCE_CATEGORIES, 'Finance Categories');
+    // 1. Create Tables
+    // Story 2.3: Finance Categories - Read-only for Finance Team, Full Access for Admins
+    await createTableIfNotExists(TABLES.FINANCE_CATEGORIES, 'Finance Categories', [
+      'read("team:finance")',
+      'read("team:village_administrators")',
+      'create("team:village_administrators")',
+      'update("team:village_administrators")',
+      'delete("team:village_administrators")',
+    ]);
+
+    // Other tables - Standard Finance permissions (Read/Create/Update/Delete for Finance & Admins)
     await createTableIfNotExists(TABLES.TRANSACTIONS, 'Finance Transactions');
     await createTableIfNotExists(TABLES.FUNDING_SOURCES, 'Funding Sources');
     await createTableIfNotExists(TABLES.LOANS, 'Loans');
@@ -304,19 +314,21 @@ async function validateWorkflows() {
 }
 
 // Helpers
-async function createTableIfNotExists(tableId, name) {
-  // Define secure permissions for Finance module
-  // Restrict access to Finance Team and Village Administrators
-  const permissions = [
-    'read("team:finance")',
-    'read("team:village_administrators")',
-    'create("team:finance")',
-    'create("team:village_administrators")',
-    'update("team:finance")',
-    'update("team:village_administrators")',
-    'delete("team:finance")',
-    'delete("team:village_administrators")',
-  ];
+async function createTableIfNotExists(tableId, name, permissions = null) {
+  // Define default secure permissions if not provided
+  // Default: Full access for Finance Team and Village Administrators (e.g. for Transactions)
+  if (!permissions) {
+    permissions = [
+      'read("team:finance")',
+      'read("team:village_administrators")',
+      'create("team:finance")',
+      'create("team:village_administrators")',
+      'update("team:finance")',
+      'update("team:village_administrators")',
+      'delete("team:finance")',
+      'delete("team:village_administrators")',
+    ];
+  }
 
   try {
     await tables.getTable({
