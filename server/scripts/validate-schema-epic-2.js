@@ -37,6 +37,7 @@ const TABLES = {
   LOANS: 'loans',
   INVENTORY: 'inventory',
   RESIDENTS: 'residents',
+  FINANCE_CATEGORIES: 'finance_categories',
 };
 
 async function setupSchema() {
@@ -46,6 +47,7 @@ async function setupSchema() {
 
   try {
     // 1. Create Tables
+    await createTableIfNotExists(TABLES.FINANCE_CATEGORIES, 'Finance Categories');
     await createTableIfNotExists(TABLES.TRANSACTIONS, 'Finance Transactions');
     await createTableIfNotExists(TABLES.FUNDING_SOURCES, 'Funding Sources');
     await createTableIfNotExists(TABLES.LOANS, 'Loans');
@@ -60,6 +62,15 @@ async function setupSchema() {
     await createColumn(TABLES.FUNDING_SOURCES, 'float', 'current_balance', null, true);
     await createColumn(TABLES.FUNDING_SOURCES, 'string', 'restrictions', 1000, false);
 
+    // --- Finance Categories (Story 2.3) ---
+    console.log('📂 Configuring Finance Categories...');
+    await createColumn(TABLES.FINANCE_CATEGORIES, 'string', 'name', 100, true);
+    await createColumn(TABLES.FINANCE_CATEGORIES, 'enum', 'type', null, true, false, [
+      'income',
+      'expense',
+    ]);
+    await createColumn(TABLES.FINANCE_CATEGORIES, 'string', 'subcategories', 2000, false, true); // Array of strings
+
     // --- Finance Transactions ---
     console.log('💰 Configuring Finance Transactions...');
     await createColumn(TABLES.TRANSACTIONS, 'enum', 'type', null, true, false, [
@@ -68,21 +79,16 @@ async function setupSchema() {
       'transfer',
     ]);
     await createColumn(TABLES.TRANSACTIONS, 'float', 'amount', null, true);
-    await createColumn(TABLES.TRANSACTIONS, 'enum', 'category', null, true, false, [
-      'Donations',
-      'Farm Assets',
-      'Farm Inputs',
-      'Farm Sales',
-      'Grants',
-      'Room Rental',
-      'School Assets',
-      'School Fees',
-      'Staff Reimbursements',
-      'Training Fees',
-      'Village Assets',
-      'Other Expenses',
-      'Other Income',
-    ]);
+    // Story 2.3: category_id relationship replaces the old category enum
+    await createRelationshipColumn(
+      TABLES.TRANSACTIONS,
+      TABLES.FINANCE_CATEGORIES,
+      RelationshipType.ManyToOne,
+      true,
+      'category_id',
+      'transaction_ids',
+      'restrict',
+    );
     await createColumn(TABLES.TRANSACTIONS, 'enum', 'payment_method', null, true, false, [
       'Bank Transfer',
       'Cash',
@@ -227,7 +233,20 @@ async function validateWorkflows() {
       `✅ [Workflow 1] Created Funding Source: ${donor.name} (Balance: ${donor.current_balance})`,
     );
 
-    // Workflow 2: Record Expense
+    // Workflow 2: Create a test category (Story 2.3)
+    const testCategory = await tables.createRow({
+      databaseId: config.databaseId,
+      tableId: TABLES.FINANCE_CATEGORIES,
+      rowId: ID.unique(),
+      data: {
+        name: 'Farm Inputs',
+        type: 'expense',
+        subcategories: ['Seeds', 'Fertilizer', 'Tools'],
+      },
+    });
+    console.log(`✅ [Workflow 2] Created Category: ${testCategory.name} (${testCategory.type})`);
+
+    // Workflow 3: Record Expense with category_id relationship
     const expenseAmount = 500.0;
     const expense = await tables.createRow({
       databaseId: config.databaseId,
@@ -236,7 +255,7 @@ async function validateWorkflows() {
       data: {
         type: 'expense',
         amount: expenseAmount,
-        category: 'Farm Inputs',
+        category_id: testCategory.$id, // Story 2.3: Use relationship instead of enum
         source_module: 'Farm',
         payment_method: 'Cash',
         funding_source_id: donor.$id,
@@ -245,7 +264,7 @@ async function validateWorkflows() {
         status: 'completed',
       },
     });
-    console.log(`✅ [Workflow 2] Recorded Expense: ${expense.description} (-${expense.amount})`);
+    console.log(`✅ [Workflow 3] Recorded Expense: ${expense.description} (-${expense.amount})`);
 
     // Update Balance
     const newBalance = donor.current_balance - expenseAmount;
@@ -257,10 +276,10 @@ async function validateWorkflows() {
         current_balance: newBalance,
       },
     });
-    console.log(`✅ [Workflow 2] Updated Funding Source Balance to: ${newBalance}`);
+    console.log(`✅ [Workflow 3] Updated Funding Source Balance to: ${newBalance}`);
 
-    // Workflow 3: Auto-create Inventory
-    if (expense.category === 'Farm Inputs') {
+    // Workflow 4: Auto-create Inventory (checking category name from relationship)
+    if (testCategory.name === 'Farm Inputs') {
       const inventory = await tables.createRow({
         databaseId: config.databaseId,
         tableId: TABLES.INVENTORY,
@@ -274,7 +293,7 @@ async function validateWorkflows() {
         },
       });
       console.log(
-        `✅ [Workflow 3] Auto-created Inventory: ${inventory.item_name} (${inventory.quantity} ${inventory.unit})`,
+        `✅ [Workflow 4] Auto-created Inventory: ${inventory.item_name} (${inventory.quantity} ${inventory.unit})`,
       );
     }
 

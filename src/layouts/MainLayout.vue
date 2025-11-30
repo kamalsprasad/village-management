@@ -276,6 +276,15 @@
               <q-item-label>Village Settings</q-item-label>
             </q-item-section>
           </q-item>
+
+          <q-item clickable to="/admin/finance-settings">
+            <q-item-section avatar>
+              <q-icon name="account_balance_wallet" />
+            </q-item-section>
+            <q-item-section>
+              <q-item-label>Finance Settings</q-item-label>
+            </q-item-section>
+          </q-item>
         </template>
       </q-list>
     </q-drawer>

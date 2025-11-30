@@ -98,6 +98,15 @@ const routes = [
           requiresAuth: true,
         },
       },
+      // Admin Settings routes (Story 2.3)
+      {
+        path: 'admin/finance-settings',
+        component: () => import('pages/admin/FinanceSettingsPage.vue'),
+        meta: {
+          requiresAuth: true,
+          requiresPermission: '*', // System Administrator only
+        },
+      },
       // Finance Module routes
       ...financeRoutes,
     ],

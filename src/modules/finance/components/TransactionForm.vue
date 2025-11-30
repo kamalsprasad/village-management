@@ -26,20 +26,63 @@
           </template>
         </q-input>
 
-        <!-- Category -->
+        <!-- Category (Story 2.3: Dynamic from database) -->
         <q-select
-          v-model="formData.category"
+          v-model="formData.category_id"
           :options="categoryOptions"
           label="Category *"
           outlined
           dense
+          option-value="value"
+          option-label="label"
+          emit-value
+          map-options
+          :loading="financeStore.isCategoriesLoading"
           :rules="[(val) => !!val || 'Category is required']"
           class="q-mb-md"
+          @update:model-value="onCategoryChange"
         >
           <template #prepend>
             <q-icon name="category" />
           </template>
         </q-select>
+
+        <!-- Subcategory (Story 2.3: Dropdown + Other option) -->
+        <q-select
+          v-if="subcategoryOptions.length > 0 || formData.category_id"
+          v-model="formData.subcategory"
+          :options="subcategoryOptionsWithOther"
+          label="Subcategory (Optional)"
+          outlined
+          dense
+          clearable
+          option-value="value"
+          option-label="label"
+          emit-value
+          map-options
+          class="q-mb-md"
+          @update:model-value="onSubcategoryChange"
+        >
+          <template #prepend>
+            <q-icon name="label" />
+          </template>
+        </q-select>
+
+        <!-- Custom Subcategory Input (shown when "Other" is selected) -->
+        <q-input
+          v-if="showCustomSubcategory"
+          v-model="formData.customSubcategory"
+          label="Custom Subcategory *"
+          outlined
+          dense
+          class="q-mb-md"
+          hint="Enter a custom subcategory name"
+          :rules="[(val) => !!val || 'Please enter a custom subcategory']"
+        >
+          <template #prepend>
+            <q-icon name="edit" />
+          </template>
+        </q-input>
 
         <!-- Source Module -->
         <q-select
@@ -108,20 +151,6 @@
 
         <!-- Expense-specific fields -->
         <template v-if="props.type === 'expense'">
-          <!-- Subcategory (optional free text) -->
-          <q-input
-            v-model="formData.subcategory"
-            label="Subcategory (Optional)"
-            outlined
-            dense
-            class="q-mb-md"
-            hint="Additional categorization detail"
-          >
-            <template #prepend>
-              <q-icon name="label" />
-            </template>
-          </q-input>
-
           <!-- Vendor/Supplier -->
           <q-input
             v-model="formData.vendor"
@@ -210,10 +239,13 @@
 </template>
 
 <script setup>
-import { ref, computed, watch } from 'vue';
+import { ref, computed, watch, onMounted } from 'vue';
 import { useQuasar } from 'quasar';
 import { format } from 'date-fns';
 import { useFinanceStore } from '../stores/finance-store';
+
+// Special value for "Other" option
+const OTHER_SUBCATEGORY_VALUE = '__OTHER__';
 
 const props = defineProps({
   type: {
@@ -232,21 +264,33 @@ const emit = defineEmits(['saved', 'cancelled']);
 const $q = useQuasar();
 const financeStore = useFinanceStore();
 
-// Form data
+// Form data (Story 2.3: Updated to use category_id)
 const formData = ref({
   amount: null,
-  category: '',
+  category_id: null, // Story 2.3: Changed from category string to category_id
   source_module: '',
   payment_method: '',
   date: format(new Date(), 'yyyy-MM-dd'), // Default to today (Local Time)
   funding_source_id: null,
   description: '',
   status: 'completed',
-  // Expense-specific fields
+  // Subcategory fields (Story 2.3: Dropdown + Other)
   subcategory: '',
+  customSubcategory: '', // For "Other" option
+  // Expense-specific fields
   vendor: '',
   receipt_number: '',
   payment_status: 'paid',
+});
+
+// Track if "Other" subcategory is selected
+const showCustomSubcategory = computed(
+  () => formData.value.subcategory === OTHER_SUBCATEGORY_VALUE,
+);
+
+// Load categories on mount
+onMounted(async () => {
+  await financeStore.fetchCategories();
 });
 
 // Computed properties
@@ -267,10 +311,51 @@ const cardStyle = computed(() => {
   return 'min-width: 500px; max-width: 600px;';
 });
 
-// Category options based on transaction type
+// Category options based on transaction type (Story 2.3: Dynamic from database)
 const categoryOptions = computed(() => {
-  return props.type === 'income' ? financeStore.incomeCategories : financeStore.expenseCategories;
+  const categories =
+    props.type === 'income' ? financeStore.incomeCategories : financeStore.expenseCategories;
+
+  return categories.map((cat) => ({
+    label: cat.name,
+    value: cat.$id,
+  }));
 });
+
+// Subcategory options based on selected category
+const subcategoryOptions = computed(() => {
+  if (!formData.value.category_id) return [];
+
+  const category = financeStore.getCategoryById(formData.value.category_id);
+  if (!category || !category.subcategories) return [];
+
+  return category.subcategories.map((sub) => ({
+    label: sub,
+    value: sub,
+  }));
+});
+
+// Subcategory options with "Other" option appended
+const subcategoryOptionsWithOther = computed(() => {
+  const options = [...subcategoryOptions.value];
+  if (options.length > 0) {
+    options.push({ label: 'Other (Custom)', value: OTHER_SUBCATEGORY_VALUE });
+  }
+  return options;
+});
+
+// Handle category change - reset subcategory
+function onCategoryChange() {
+  formData.value.subcategory = '';
+  formData.value.customSubcategory = '';
+}
+
+// Handle subcategory change
+function onSubcategoryChange(value) {
+  if (value !== OTHER_SUBCATEGORY_VALUE) {
+    formData.value.customSubcategory = '';
+  }
+}
 
 // Funding source options for dropdown
 const fundingSourceOptions = computed(() => {
@@ -306,22 +391,32 @@ function formatCurrency(amount) {
   }).format(amount);
 }
 
-// Watch for initialData changes (edit mode)
+// Watch for initialData changes (edit mode) - Story 2.3: Updated for category_id
 watch(
   () => props.initialData,
   (newData) => {
     if (newData) {
+      // Determine if subcategory is a predefined one or custom
+      const category = newData.category_id
+        ? financeStore.getCategoryById(newData.category_id)
+        : null;
+      const predefinedSubcategories = category?.subcategories || [];
+      const isCustomSubcategory =
+        newData.subcategory && !predefinedSubcategories.includes(newData.subcategory);
+
       formData.value = {
         amount: newData.amount,
-        category: newData.category,
+        category_id: newData.category_id || null, // Story 2.3: Use category_id
         source_module: newData.source_module,
         payment_method: newData.payment_method,
         date: newData.date ? newData.date.split('T')[0] : '',
         funding_source_id: newData.funding_source_id || null,
         description: newData.description,
         status: newData.status || 'completed',
+        // Subcategory handling
+        subcategory: isCustomSubcategory ? OTHER_SUBCATEGORY_VALUE : newData.subcategory || '',
+        customSubcategory: isCustomSubcategory ? newData.subcategory : '',
         // Expense-specific fields
-        subcategory: newData.subcategory || '',
         vendor: newData.vendor || '',
         receipt_number: newData.receipt_number || '',
         payment_status: newData.payment_status || 'paid',
@@ -333,43 +428,51 @@ watch(
   { immediate: true },
 );
 
-// Reset form to defaults
+// Reset form to defaults (Story 2.3: Updated for category_id)
 function resetForm() {
   formData.value = {
     amount: null,
-    category: '',
+    category_id: null, // Story 2.3: Use category_id
     source_module: '',
     payment_method: '',
     date: format(new Date(), 'yyyy-MM-dd'),
     funding_source_id: null,
     description: '',
     status: 'completed',
-    // Expense-specific fields
+    // Subcategory fields
     subcategory: '',
+    customSubcategory: '',
+    // Expense-specific fields
     vendor: '',
     receipt_number: '',
     payment_status: 'paid',
   };
 }
 
-// Handle form submission
+// Handle form submission (Story 2.3: Updated for category_id and subcategory)
 async function handleSubmit() {
+  // Determine final subcategory value
+  let finalSubcategory = formData.value.subcategory;
+  if (formData.value.subcategory === OTHER_SUBCATEGORY_VALUE) {
+    finalSubcategory = formData.value.customSubcategory;
+  }
+
   // Prepare data for submission
   const submitData = {
     type: props.type,
     amount: formData.value.amount,
-    category: formData.value.category,
+    category_id: formData.value.category_id, // Story 2.3: Use category_id relationship
     source_module: formData.value.source_module,
     payment_method: formData.value.payment_method,
     date: new Date(formData.value.date).toISOString(),
     funding_source_id: formData.value.funding_source_id || null,
     description: formData.value.description,
     status: formData.value.status,
+    subcategory: finalSubcategory || null, // Story 2.3: Subcategory for all transaction types
   };
 
   // Add expense-specific fields only for expenses
   if (props.type === 'expense') {
-    submitData.subcategory = formData.value.subcategory || null;
     submitData.vendor = formData.value.vendor || null;
     submitData.receipt_number = formData.value.receipt_number || null;
     submitData.payment_status = formData.value.payment_status;

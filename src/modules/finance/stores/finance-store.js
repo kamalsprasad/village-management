@@ -15,8 +15,11 @@ export const useFinanceStore = defineStore('finance', {
   state: () => ({
     transactions: [],
     fundingSources: [],
+    categories: [], // Story 2.3: Dynamic categories from database
+    categoriesLoaded: false, // Track if categories have been fetched
     currentTransaction: null,
     isLoading: false,
+    isCategoriesLoading: false, // Separate loading state for categories
     // Summary data for dashboard widget
     summary: {
       totalIncome: 0,
@@ -32,7 +35,7 @@ export const useFinanceStore = defineStore('finance', {
     },
     filters: {
       type: null, // 'income', 'expense', or null for all
-      category: null,
+      categoryId: null, // Story 2.3: Changed from category string to categoryId
       dateFrom: null,
       dateTo: null,
       status: null, // 'pending', 'completed', 'cancelled', or null for all
@@ -70,29 +73,33 @@ export const useFinanceStore = defineStore('finance', {
     },
 
     /**
-     * Get income-specific categories
+     * Get income-specific categories (Story 2.3: Dynamic from database)
      */
-    incomeCategories: () => [
-      'Donations',
-      'Farm Sales',
-      'Grants',
-      'Room Rental',
-      'School Fees',
-      'Training Fees',
-      'Other Income',
-    ],
+    incomeCategories: (state) => {
+      return state.categories.filter((cat) => cat.type === 'income');
+    },
 
     /**
-     * Get expense-specific categories
+     * Get expense-specific categories (Story 2.3: Dynamic from database)
      */
-    expenseCategories: () => [
-      'Farm Assets',
-      'Farm Inputs',
-      'School Assets',
-      'Staff Reimbursements',
-      'Village Assets',
-      'Other Expenses',
-    ],
+    expenseCategories: (state) => {
+      return state.categories.filter((cat) => cat.type === 'expense');
+    },
+
+    /**
+     * Get category by ID
+     */
+    getCategoryById: (state) => (categoryId) => {
+      return state.categories.find((cat) => cat.$id === categoryId);
+    },
+
+    /**
+     * Get category name by ID (for display purposes)
+     */
+    getCategoryName: (state) => (categoryId) => {
+      const category = state.categories.find((cat) => cat.$id === categoryId);
+      return category ? category.name : 'Unknown';
+    },
 
     /**
      * Get payment methods
@@ -122,9 +129,9 @@ export const useFinanceStore = defineStore('finance', {
         queries.push(Query.equal('type', this.filters.type));
       }
 
-      // Filter by category
-      if (this.filters.category) {
-        queries.push(Query.equal('category', this.filters.category));
+      // Filter by category (Story 2.3: Use category_id relationship)
+      if (this.filters.categoryId) {
+        queries.push(Query.equal('category_id', this.filters.categoryId));
       }
 
       // Filter by date range
@@ -299,6 +306,225 @@ export const useFinanceStore = defineStore('finance', {
       }
     },
 
+    // ========================================
+    // Story 2.3: Category Management Actions
+    // ========================================
+
+    /**
+     * Fetch all finance categories from database
+     * Categories are cached and only fetched once unless force refresh
+     * @param {boolean} forceRefresh - Force refresh even if already loaded
+     */
+    async fetchCategories(forceRefresh = false) {
+      // Skip if already loaded and not forcing refresh
+      if (this.categoriesLoaded && !forceRefresh) {
+        return { success: true, data: this.categories };
+      }
+
+      this.isCategoriesLoading = true;
+      try {
+        const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
+        const categoriesTableId = 'finance_categories';
+
+        const response = await tables.listRows({
+          databaseId: dbId,
+          tableId: categoriesTableId,
+          queries: [Query.limit(100), Query.orderAsc('name')],
+        });
+
+        this.categories = response.rows;
+        this.categoriesLoaded = true;
+        return { success: true, data: response.rows };
+      } catch (error) {
+        console.error('Error fetching categories:', error);
+        errorHandler.notifyError('Failed to load categories. Please try again.');
+        return { success: false, error: error.message };
+      } finally {
+        this.isCategoriesLoading = false;
+      }
+    },
+
+    /**
+     * Add a new category
+     * @param {Object} categoryData - { name: string, type: 'income'|'expense', subcategories?: string[] }
+     */
+    async addCategory(categoryData) {
+      this.isCategoriesLoading = true;
+      try {
+        const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
+        const categoriesTableId = 'finance_categories';
+
+        const newCategory = await tables.createRow({
+          databaseId: dbId,
+          tableId: categoriesTableId,
+          rowId: ID.unique(),
+          data: {
+            name: categoryData.name,
+            type: categoryData.type,
+            subcategories: categoryData.subcategories || [],
+          },
+        });
+
+        // Add to local state
+        this.categories.push(newCategory);
+
+        errorHandler.notifySuccess(`Category "${categoryData.name}" created successfully`);
+        return { success: true, data: newCategory };
+      } catch (error) {
+        console.error('Error creating category:', error);
+        errorHandler.notifyError('Failed to create category. Please try again.');
+        return { success: false, error: error.message };
+      } finally {
+        this.isCategoriesLoading = false;
+      }
+    },
+
+    /**
+     * Update an existing category
+     * @param {string} categoryId - Category ID to update
+     * @param {Object} categoryData - { name?: string, type?: string, subcategories?: string[] }
+     */
+    async updateCategory(categoryId, categoryData) {
+      this.isCategoriesLoading = true;
+      try {
+        const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
+        const categoriesTableId = 'finance_categories';
+
+        const updatedCategory = await tables.updateRow({
+          databaseId: dbId,
+          tableId: categoriesTableId,
+          rowId: categoryId,
+          data: categoryData,
+        });
+
+        // Update local state
+        const index = this.categories.findIndex((cat) => cat.$id === categoryId);
+        if (index !== -1) {
+          this.categories[index] = updatedCategory;
+        }
+
+        errorHandler.notifySuccess('Category updated successfully');
+        return { success: true, data: updatedCategory };
+      } catch (error) {
+        console.error('Error updating category:', error);
+        errorHandler.notifyError('Failed to update category. Please try again.');
+        return { success: false, error: error.message };
+      } finally {
+        this.isCategoriesLoading = false;
+      }
+    },
+
+    /**
+     * Delete a category
+     * @param {string} categoryId - Category ID to delete
+     * @returns {Object} - { success: boolean, hasTransactions?: boolean, error?: string }
+     */
+    async deleteCategory(categoryId) {
+      this.isCategoriesLoading = true;
+      try {
+        const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
+        const categoriesTableId = 'finance_categories';
+
+        // Check if category has transactions (AC#5: Deletion Safeguards)
+        const transactionsCheck = await tables.listRows({
+          databaseId: dbId,
+          tableId: 'finance_transactions',
+          queries: [Query.equal('category_id', categoryId), Query.limit(1)],
+        });
+
+        if (transactionsCheck.total > 0) {
+          return {
+            success: false,
+            hasTransactions: true,
+            transactionCount: transactionsCheck.total,
+            error: 'Category has existing transactions',
+          };
+        }
+
+        // Safe to delete
+        await tables.deleteRow({
+          databaseId: dbId,
+          tableId: categoriesTableId,
+          rowId: categoryId,
+        });
+
+        // Remove from local state
+        this.categories = this.categories.filter((cat) => cat.$id !== categoryId);
+
+        errorHandler.notifySuccess('Category deleted successfully');
+        return { success: true };
+      } catch (error) {
+        console.error('Error deleting category:', error);
+        errorHandler.notifyError('Failed to delete category. Please try again.');
+        return { success: false, error: error.message };
+      } finally {
+        this.isCategoriesLoading = false;
+      }
+    },
+
+    /**
+     * Add a subcategory to an existing category
+     * @param {string} categoryId - Category ID
+     * @param {string} subcategoryName - Subcategory name to add
+     */
+    async addSubcategory(categoryId, subcategoryName) {
+      const category = this.categories.find((cat) => cat.$id === categoryId);
+      if (!category) {
+        errorHandler.notifyError('Category not found');
+        return { success: false, error: 'Category not found' };
+      }
+
+      // Check for duplicate
+      const subcategories = category.subcategories || [];
+      if (subcategories.includes(subcategoryName)) {
+        errorHandler.notifyError('Subcategory already exists');
+        return { success: false, error: 'Subcategory already exists' };
+      }
+
+      // Add subcategory
+      const updatedSubcategories = [...subcategories, subcategoryName];
+      return this.updateCategory(categoryId, { subcategories: updatedSubcategories });
+    },
+
+    /**
+     * Remove a subcategory from an existing category
+     * @param {string} categoryId - Category ID
+     * @param {string} subcategoryName - Subcategory name to remove
+     */
+    async removeSubcategory(categoryId, subcategoryName) {
+      const category = this.categories.find((cat) => cat.$id === categoryId);
+      if (!category) {
+        errorHandler.notifyError('Category not found');
+        return { success: false, error: 'Category not found' };
+      }
+
+      const subcategories = category.subcategories || [];
+      const updatedSubcategories = subcategories.filter((sub) => sub !== subcategoryName);
+
+      return this.updateCategory(categoryId, { subcategories: updatedSubcategories });
+    },
+
+    /**
+     * Check if a category has any transactions (for deletion safeguard)
+     * @param {string} categoryId - Category ID to check
+     */
+    async checkCategoryHasTransactions(categoryId) {
+      try {
+        const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
+
+        const response = await tables.listRows({
+          databaseId: dbId,
+          tableId: 'finance_transactions',
+          queries: [Query.equal('category_id', categoryId), Query.limit(1)],
+        });
+
+        return { success: true, hasTransactions: response.total > 0, count: response.total };
+      } catch (error) {
+        console.error('Error checking category transactions:', error);
+        return { success: false, error: error.message };
+      }
+    },
+
     /**
      * Create a new transaction
      * @param {Object} transactionData - Transaction data
@@ -311,11 +537,11 @@ export const useFinanceStore = defineStore('finance', {
 
         const transactionId = ID.unique();
 
-        // Build transaction data object
+        // Build transaction data object (Story 2.3: Use category_id relationship)
         const data = {
           type: transactionData.type,
           amount: parseFloat(transactionData.amount),
-          category: transactionData.category,
+          category_id: transactionData.category_id, // Story 2.3: Relationship to finance_categories
           source_module: transactionData.source_module,
           payment_method: transactionData.payment_method,
           funding_source_id: transactionData.funding_source_id || null,
@@ -378,11 +604,11 @@ export const useFinanceStore = defineStore('finance', {
         const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
         const transactionsTableId = 'finance_transactions';
 
-        // Build update data object
+        // Build update data object (Story 2.3: Use category_id relationship)
         const data = {
           type: transactionData.type,
           amount: parseFloat(transactionData.amount),
-          category: transactionData.category,
+          category_id: transactionData.category_id, // Story 2.3: Relationship to finance_categories
           source_module: transactionData.source_module,
           payment_method: transactionData.payment_method,
           funding_source_id: transactionData.funding_source_id || null,
@@ -463,11 +689,11 @@ export const useFinanceStore = defineStore('finance', {
     },
 
     /**
-     * Set category filter
-     * @param {string|null} category - Category name or null
+     * Set category filter (Story 2.3: Use category ID)
+     * @param {string|null} categoryId - Category ID or null
      */
-    setCategoryFilter(category) {
-      this.filters.category = category;
+    setCategoryFilter(categoryId) {
+      this.filters.categoryId = categoryId;
     },
 
     /**
@@ -493,7 +719,7 @@ export const useFinanceStore = defineStore('finance', {
      */
     clearFilters() {
       this.filters.type = null;
-      this.filters.category = null;
+      this.filters.categoryId = null; // Story 2.3: Use categoryId
       this.filters.dateFrom = null;
       this.filters.dateTo = null;
       this.filters.status = null;
