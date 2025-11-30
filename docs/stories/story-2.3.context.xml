@@ -1,0 +1,161 @@
+<story-context id=".bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>2</epicId>
+    <storyId>2.3</storyId>
+    <title>Finance Module - Admin-Configurable Categories</title>
+    <status>drafted</status>
+    <generatedAt>2025-11-30</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/stories/story-2.3.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>System Administrator</asA>
+    <iWant>configure finance categories and subcategories</iWant>
+    <soThat>the system adapts to our village's specific financial structure</soThat>
+    <tasks>
+- [ ] **Task 1: Database Schema Updates (AC: 7)**
+  - [ ] Create `finance_categories` table (columns: name, type, subcategories).
+  - [ ] Update `finance_transactions` table: Change `category` column from Enum to Relationship (Many-to-One) with `finance_categories` table.
+  - [ ] Create migration/seeding script `seed-finance-categories.js` to populate default categories.
+  - [ ] Run seeding script to initialize defaults.
+
+- [ ] **Task 2: Finance Store Updates (AC: 6)**
+  - [ ] Update `finance-store.js` to fetch categories from `finance_categories` table (replace static arrays).
+  - [ ] Implement `addCategory`, `updateCategory`, `deleteCategory` actions.
+  - [ ] Implement `addSubcategory`, `removeSubcategory` actions.
+  - [ ] Ensure `finance_categories` are cached/loaded on app init or module load.
+
+- [ ] **Task 3: Finance Settings Page (AC: 1, 2, 3)**
+  - [ ] Create `FinanceSettingsPage.vue` in `src/modules/finance/pages`.
+  - [ ] Add "Finance Settings" link to Admin menu (or Finance menu for Admin role).
+  - [ ] Implement UI for Income and Expense category lists (expandable for subcategories).
+  - [ ] Implement "Add Category" dialog.
+  - [ ] Implement "Add Subcategory" dialog.
+
+- [ ] **Task 4: Edit/Delete Logic & Safeguards (AC: 4, 5)**
+  - [ ] Implement Edit dialog for categories.
+  - [ ] Implement Delete logic: Check for existing transactions before deleting.
+  - [ ] Show warning/confirmation if transactions exist (or block deletion if strict).
+
+- [ ] **Task 5: Integration with Transaction Forms (AC: 6)**
+  - [ ] Update `TransactionForm.vue` to use the dynamic category list from store.
+  - [ ] Ensure subcategory selection is available and filtered by selected category.
+  - [ ] Verify that new categories appear immediately after addition.
+
+- [ ] **Task 6: Testing & Verification**
+  - [ ] Manual test: Add new category, verify in Transaction Form.
+  - [ ] Manual test: Add subcategory, verify in Transaction Form.
+  - [ ] Manual test: Try to delete category with transactions (should warn).
+  - [ ] Manual test: Verify default categories are present.
+</tasks>
+  </story>
+
+  <acceptanceCriteria>
+1. **Finance Settings Access**: Admin menu includes "Finance Settings" option. [Source: docs/epics.md#319]
+2. **Category Management UI**: Finance Settings page shows two sections: Income Categories, Expense Categories. Each section displays current categories with subcategories in expandable list. [Source: docs/epics.md#320-321]
+3. **Add Functionality**: "Add Category" and "Add Subcategory" buttons with forms. [Source: docs/epics.md#322]
+4. **Edit/Delete Custom Categories**: Categories can be edited or deleted (with confirmation if transactions exist). [Source: docs/epics.md#324]
+5. **Deletion Safeguards**: Attempting to delete category with transactions shows warning. [Source: docs/epics.md#325]
+6. **Real-time Updates**: Changes reflect immediately in income/expense recording forms. [Source: docs/epics.md#326]
+7. **Default Seeding**: Seeded default categories include Income (Farm Sales, Guest Payments, Donations, Grants, Loan Repayments) and Expense (Farm Inputs, School Supplies, Equipment, Utilities, Salaries, Maintenance). [Source: docs/epics.md#327]
+</acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc>
+        <path>docs/epics.md</path>
+        <title>Epics</title>
+        <section>Story 2.3</section>
+        <snippet>Admin-Configurable Categories: Admin interface to manage income and expense categories, including system defaults and custom category management.</snippet>
+      </doc>
+      <doc>
+        <path>docs/sprint-artifacts/tech-spec-epic-2.md</path>
+        <title>Epic 2 Technical Specification</title>
+        <section>Detailed Design</section>
+        <snippet>Defines the `finance_transactions` collection and mentions `category` as a string (initially). This story updates it to a relationship.</snippet>
+      </doc>
+      <doc>
+        <path>docs/architecture.md</path>
+        <title>Architecture Document</title>
+        <section>Technology Stack</section>
+        <snippet>Defines Quasar, Appwrite, and Pinia as core technologies. Specifies offline-first architecture using Dexie.js.</snippet>
+      </doc>
+    </docs>
+    <code>
+      <item>
+        <path>src/modules/finance/stores/finance-store.js</path>
+        <kind>store</kind>
+        <symbol>useFinanceStore</symbol>
+        <lines>14-613</lines>
+        <reason>Manages finance state. Needs updates to fetch categories from DB instead of static arrays.</reason>
+      </item>
+      <item>
+        <path>src/modules/finance/components/TransactionForm.vue</path>
+        <kind>component</kind>
+        <symbol>TransactionForm</symbol>
+        <lines>1-397</lines>
+        <reason>Main form for recording transactions. Needs to consume dynamic categories from store.</reason>
+      </item>
+      <item>
+        <path>server/scripts/validate-schema-epic-2.js</path>
+        <kind>script</kind>
+        <symbol>setupSchema</symbol>
+        <lines>42-187</lines>
+        <reason>Existing schema setup script. Will be reference for creating the new seeding script.</reason>
+      </item>
+    </code>
+    <dependencies>
+      <dependency>
+        <name>appwrite</name>
+        <description>Backend-as-a-Service SDK for database interactions.</description>
+      </dependency>
+      <dependency>
+        <name>pinia</name>
+        <description>State management for caching categories.</description>
+      </dependency>
+      <dependency>
+        <name>quasar</name>
+        <description>UI framework for the Settings page and forms.</description>
+      </dependency>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint>
+      <description>RBAC: Only Admin can manage categories. Finance Manager can only view them.</description>
+    </constraint>
+    <constraint>
+      <description>Hydration: Ensure server-side rendered initial state matches client-side state for categories.</description>
+    </constraint>
+    <constraint>
+      <description>Schema: `category` field in `finance_transactions` must be a Relationship to `finance_categories`.</description>
+    </constraint>
+  </constraints>
+
+  <interfaces>
+    <interface>
+      <name>FinanceCategory</name>
+      <kind>Data Model</kind>
+      <signature>
+{
+  id: string,
+  name: string,
+  type: 'income' | 'expense',
+  subcategories: string[] // Array of strings
+}
+      </signature>
+      <path>src/modules/finance/stores/finance-store.js</path>
+    </interface>
+  </interfaces>
+
+  <tests>
+    <standards>Manual testing only as per user request. Focus on RBAC and data integrity.</standards>
+    <locations>docs/testing.md</locations>
+    <ideas>
+      <idea>Verify Admin can add a new category and it appears in TransactionForm immediately.</idea>
+      <idea>Verify Finance Manager cannot access Finance Settings page.</idea>
+      <idea>Verify deleting a category with existing transactions triggers a warning.</idea>
+    </ideas>
+  </tests>
+</story-context>
