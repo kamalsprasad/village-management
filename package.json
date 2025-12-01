@@ -26,6 +26,8 @@
     "date-fns": "^4.1.0",
     "date-fns-tz": "^3.2.0",
     "dexie": "^4.2.1",
+    "jspdf": "^3.0.4",
+    "jspdf-autotable": "^5.0.2",
     "pinia": "^3.0.1",
     "quasar": "^2.16.0",
     "vue": "^3.5.22",

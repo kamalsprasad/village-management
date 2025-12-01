@@ -6,19 +6,6 @@
 
 # STATUS DEFINITIONS:
 # ==================
-# Epic Status:
-#   - backlog: Epic exists in epic file but not contexted
-#   - contexted: Epic tech context created (required before drafting stories)
-#
-# Story Status:
-#   - backlog: Story only exists in epic file
-#   - drafted: Story file created in stories folder
-#   - ready-for-dev: Draft approved and story context created
-#   - in-progress: Developer actively working on implementation
-#   - review: Under SM review (via review-story workflow)
-#   - done: Story completed
-#
-# Retrospective Status:
 #   - optional: Can be completed but not required
 #   - completed: Retrospective has been done
 #
@@ -53,7 +40,7 @@ development_status:
   2-1-finance-module-income-transaction-recording: done
   2-2-finance-module-expense-transaction-recording: done
   2-3-finance-module-admin-configurable-categories: done
-  2-4-finance-module-funding-source-tracking-for-donor-accountability: backlog
+  2-4-finance-module-funding-source-tracking-for-donor-accountability: ready-for-dev
   2-5-village-lending-loan-management: backlog
   2-6-inventory-module-core-inventory-management: backlog
   2-7-inventory-module-automatic-inventory-from-finance-purchases: backlog

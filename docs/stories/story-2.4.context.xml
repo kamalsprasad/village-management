@@ -1,0 +1,146 @@
+<story-context>
+  <metadata>
+    <generated_at>2025-11-30T00:00:00Z</generated_at> <!-- Timestamp will be approximate -->
+    <workflow>bmad-bmm-workflows-story-context</workflow>
+    <agent_version>1.0.0</agent_version>
+  </metadata>
+
+  <story>
+    <id>2.4</id>
+    <epic_id>2</epic_id>
+    <title>Finance Module - Funding Source Tracking for Donor Accountability</title>
+    <status>ready-for-dev</status>
+    <summary>
+      Enable Finance Managers to track transactions against specific funding sources (donors, grants) to ensure accountability and generate donor-specific reports. This involves creating a funding sources management UI, linking transactions to these sources, validating spending against allocated amounts, and generating PDF reports.
+    </summary>
+    <as_a>Finance Manager</as_a>
+    <i_want>to track income and expenses against specific funding sources and generate donor reports</i_want>
+    <so_that>I can ensure we are spending funds according to donor restrictions and provide accurate accountability reports.</so_that>
+  </story>
+
+  <acceptance_criteria>
+    <criterion id="1">
+      <description>Funding Source Management (CRUD)</description>
+      <details>
+        - Admin can create, read, update, and delete funding sources.
+        - Required fields: Name, Type (Grant, Donation, etc.), Amount Allocated, Date Received.
+        - Optional fields: Donor Name, Start/End Dates, Restrictions, Status.
+        - System tracks 'Current Balance' automatically based on transactions.
+      </details>
+    </criterion>
+    <criterion id="2">
+      <description>Transaction Linking</description>
+      <details>
+        - When recording an Income, user can select a Funding Source (increasing balance).
+        - When recording an Expense, user can select a Funding Source (decreasing balance).
+        - UI shows current balance of the selected source.
+      </details>
+    </criterion>
+    <criterion id="3">
+      <description>Funding Source Detail View</description>
+      <details>
+        - View details of a specific funding source.
+        - List all transactions associated with this source (paginated, sortable).
+        - Show progress bar of Spent vs. Allocated.
+      </details>
+    </criterion>
+    <criterion id="4">
+      <description>Dashboard Widget</description>
+      <details>
+        - "Funding Overview" widget on Finance Dashboard.
+        - Shows top 5 active funding sources with their remaining balances.
+      </details>
+    </criterion>
+    <criterion id="5">
+      <description>Spending Validation</description>
+      <details>
+        - If an expense exceeds the funding source's remaining balance, show a Warning Dialog.
+        - Allow user to cancel or proceed (with explicit confirmation).
+        - Do not strictly block, but warn.
+      </details>
+    </criterion>
+    <criterion id="6">
+      <description>Donor Report Generation</description>
+      <details>
+        - Button to "Export Report" on Funding Source Detail page.
+        - Generates a PDF including: Source Details, Summary (Allocated, Spent, Remaining), and Transaction List.
+        - Uses client-side generation (jspdf).
+      </details>
+    </criterion>
+  </acceptance_criteria>
+
+  <artifacts>
+    <docs>
+      <doc>
+        <path>docs/stories/story-2.4.md</path>
+        <title>Story 2.4 Definition</title>
+        <section>Full Content</section>
+      </doc>
+      <doc>
+        <path>docs/sprint-artifacts/tech-spec-epic-2.md</path>
+        <title>Epic 2 Technical Specification</title>
+        <section>Data Models, APIs</section>
+      </doc>
+      <doc>
+        <path>docs/architecture.md</path>
+        <title>System Architecture</title>
+        <section>Finance Module, RBAC</section>
+      </doc>
+    </docs>
+
+    <code>
+      <file>
+        <path>server/scripts/validate-schema-epic-2.js</path>
+        <description>Schema definition script. Needs update to match Funding Source fields in Story 2.4.</description>
+        <snippet>
+    // --- Funding Sources ---
+    console.log('📦 Configuring Funding Sources...');
+    await createColumn(TABLES.FUNDING_SOURCES, 'string', 'name', 255, true);
+    await createColumn(TABLES.FUNDING_SOURCES, 'float', 'total_allocated', null, true);
+    await createColumn(TABLES.FUNDING_SOURCES, 'float', 'current_balance', null, true);
+    await createColumn(TABLES.FUNDING_SOURCES, 'string', 'restrictions', 1000, false);
+        </snippet>
+      </file>
+      <file>
+        <path>src/modules/finance/stores/finance-store.js</path>
+        <description>Finance Store. Contains logic for fetching transactions and updating balances. Needs new actions for Funding Source CRUD and Reporting.</description>
+        <snippet>
+    /**
+     * Decrement funding source balance
+     * WARNING: This is a client-side operation and is NOT atomic.
+     */
+    async decrementFundingSourceBalance(fundingSourceId, amount) {
+        </snippet>
+      </file>
+      <file>
+        <path>src/modules/finance/components/TransactionForm.vue</path>
+        <description>Transaction Form. Needs validation logic for overspending warning.</description>
+        <snippet>
+        <!-- Funding Source (Optional) -->
+        <q-select
+          v-model="formData.funding_source_id"
+          :options="fundingSourceOptions"
+          label="Funding Source (Optional)"
+        </snippet>
+      </file>
+    </code>
+
+    <dependencies>
+      <package name="jspdf" version="latest" type="production" />
+      <package name="jspdf-autotable" version="latest" type="production" />
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint type="security">
+      <description>RBAC: Only 'Finance Managers' and 'Admins' can manage Funding Sources. 'Finance Viewers' can only view.</description>
+    </constraint>
+    <constraint type="technical">
+      <description>PDF generation must happen client-side to support offline capability (eventually) and reduce server load.</description>
+    </constraint>
+    <constraint type="technical">
+      <description>Schema Update: The existing schema script must be updated to include all fields defined in Story 2.4 (donor_name, dates, status, etc.).</description>
+    </constraint>
+  </constraints>
+
+</story-context>
