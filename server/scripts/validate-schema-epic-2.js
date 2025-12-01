@@ -166,6 +166,8 @@ async function setupSchema() {
     // Story 2.4: Self-referential relationship for supporting transactions
     // A supporting transaction points to its parent transaction
     // Appwrite auto-creates child_transaction_ids on the inverse side
+
+    // SELF REFERRING RELATIONSHIP IS BROKEN IN APPWRITE
     await createRelationshipColumn(
       TABLES.TRANSACTIONS,
       TABLES.TRANSACTIONS,
