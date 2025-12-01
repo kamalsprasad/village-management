@@ -1,6 +1,6 @@
 # Story 2.4: Finance Module - Funding Source Tracking for Donor Accountability
 
-Status: ready-for-dev
+Status: in-progress
 
 ## Story
 
@@ -10,95 +10,240 @@ so that **I can generate donor-specific reports showing how their funds were use
 
 ## Acceptance Criteria
 
-1. **Funding Sources Collection**: Create `funding_sources` collection with fields: name, type, donor_name, amount_allocated, date_received, restrictions. [Source: docs/epics.md#339]
+1. **Funding Sources Collection**: Create `funding_sources` collection with fields: name, type, total_received, current_balance, date_received, restrictions, status. [Source: docs/epics.md#339]
 2. **Management UI**: Admin can add/edit funding sources via Finance Settings page. [Source: docs/epics.md#340]
-3. **Income Integration**: Income transaction form includes "Funding Source" dropdown to attribute incoming funds. [Source: docs/epics.md#341]
-4. **Expense Integration**: Expense transaction form includes "Funded By" dropdown to link expenses to a source. [Source: docs/epics.md#342]
-5. **Detail View**: Funding source detail page shows total allocated, total spent, remaining balance, and transaction list. [Source: docs/epics.md#343]
-6. **Dashboard Widget**: "Funding Sources Overview" widget on Finance Dashboard showing balance bars. [Source: docs/epics.md#344]
-7. **Spending Validation**: Prevent/Warn when spending exceeds allocated amount (allow override with Admin approval). [Source: docs/epics.md#345]
+3. **Income Integration**: Income transaction form includes "Funding Source" dropdown to attribute incoming funds. When income is recorded, both `total_received` and `current_balance` increase. [Source: docs/epics.md#341]
+4. **Expense Integration**: Expense transaction form includes "Funded By" dropdown to link expenses to a source. Supports partial funding with `amount_needed` and `amount_funded` fields. [Source: docs/epics.md#342]
+5. **Detail View**: Funding source detail page shows total received, total spent, remaining balance (current_balance), restrictions, and transaction list. [Source: docs/epics.md#343]
+6. **Settings Widget**: "Funding Sources Overview" widget on Finance Settings page showing balance bars for active sources. [Source: docs/epics.md#344]
+7. **Spending Validation**: Hard block when `amount_funded` exceeds `current_balance` of selected funding source. No override allowed - user must reduce amount or choose different source. [Source: docs/epics.md#345]
 8. **Donor Reporting**: Generate PDF report for specific funding source showing all related income/expenses. [Source: docs/epics.md#346]
+9. **Partial Funding System**: Support expenses where `amount_needed > amount_funded`. Supporting transactions can be created later to fulfill remaining amount. Visual indicators show underfunded transactions.
 
 ## Tasks / Subtasks
 
-- [ ] **Task 1: Database Schema & Seeding (AC: 1)**
-  - [ ] Create `funding_sources` table in `validate-schema-epic-2.js`.
-  - [ ] Update `finance_transactions` table to include `funding_source` relationship (Many-to-One).
-  - [ ] Create seeding script `seed-funding-sources.js` with default sources (e.g., "General Village Fund", "Global Village Grant").
+- [ ] **Task 1: Database Schema & Seeding (AC: 1, 4, 9)**
+  - [ ] Update `funding_sources` table in `validate-schema-epic-2.js`:
+    - `name`: String (required, existing)
+    - `type`: Enum (grant, donation, income, loan) - NEW
+    - `total_received`: Float (renamed from `total_allocated`) - tracks lifetime funds
+    - `current_balance`: Float (existing) - tracks available funds
+    - `date_received`: DateTime - NEW
+    - `restrictions`: Text (existing)
+    - `status`: Enum (active, inactive, depleted) - NEW
+  - [ ] Update `finance_transactions` table in `validate-schema-epic-2.js`:
+    - Replace `amount` with `amount_needed` (Float) and `amount_funded` (Float)
+    - Add `parent_transaction_id`: Relationship (Many-to-One, self-referential) - for supporting transactions
+    - Appwrite auto-creates `child_transaction_ids` (One-to-Many) on the inverse side
+    - Keep existing `funding_source_id`: Relationship (Many-to-One) to `funding_sources`
+  - [ ] Create seeding script `seed-funding-sources.js` with default sources.
   - [ ] Run seeding script.
 
-- [ ] **Task 2: Store Updates (AC: 7)**
-  - [ ] Update `finance-store.js` to fetch and manage funding sources.
-  - [ ] Implement `addFundingSource`, `updateFundingSource`, `deleteFundingSource` actions.
-  - [ ] Implement getters for funding source balances (allocated vs spent).
-  - [ ] Implement validation logic to check balance before expense recording.
+- [ ] **Task 2: Store Updates (AC: 3, 4, 7, 9)**
+  - [ ] Update `finance-store.js` to manage funding sources:
+    - `fetchFundingSources()` - load all sources
+    - `addFundingSource(data)` - create new source
+    - `updateFundingSource(id, data)` - update source
+    - `deleteFundingSource(id)` - delete source (if no linked transactions)
+  - [ ] Update transaction actions for new amount fields:
+    - `createTransaction()` - handle `amount_needed`, `amount_funded`, parent linking
+    - `updateTransaction()` - cascade updates to parent if supporting transaction
+    - `deleteTransaction()` - cascade updates to parent if supporting transaction
+  - [ ] Implement balance update logic:
+    - Income: `total_received += amount`, `current_balance += amount`
+    - Expense: `current_balance -= amount_funded`
+    - Supporting: `current_balance -= amount_funded`, parent's `amount_funded += amount`
+  - [ ] Implement validation: hard block if `amount_funded > current_balance`
+  - [ ] Add getter: `isSupportingTransaction(tx)` = `tx.parent_transaction_id !== null`
+  - [ ] Add getter: `underfundedTransactions` = transactions where `amount_funded < amount_needed`
 
-- [ ] **Task 3: Settings UI (AC: 2)**
-  - [ ] Add "Funding Sources" tab to `FinanceSettingsPage.vue`.
-  - [ ] Implement Add/Edit dialogs for funding sources.
-  - [ ] Ensure only Admin can access this tab.
+- [ ] **Task 3: Settings UI (AC: 2, 6)**
+  - [ ] Add "Funding Sources" section to `FinanceSettingsPage.vue`:
+    - List all funding sources with status indicators
+    - Add/Edit dialog with all fields
+    - Delete with confirmation (blocked if has transactions)
+  - [ ] Create `FundingSourcesOverviewWidget.vue` for Settings page:
+    - Bar charts showing utilization (current_balance / total_received)
+    - Color coding: green (>50%), yellow (20-50%), red (<20%)
+  - [ ] Ensure only Admin can add/edit/delete (Finance Manager has read-only view)
 
-- [ ] **Task 4: Transaction Form Integration (AC: 3, 4)**
-  - [ ] Update `TransactionForm.vue` to include "Funding Source" dropdown.
-  - [ ] For Income: Selection attributes funds to the source.
-  - [ ] For Expense: Selection deducts funds from the source.
-  - [ ] Add visual warning if selected source has insufficient balance (for expenses).
+- [ ] **Task 4: Transaction Form Integration (AC: 3, 4, 7, 9)**
+  - [ ] Update `TransactionForm.vue` for income transactions:
+    - Show "Funding Source" dropdown
+    - Hide `amount_needed` field (auto-equals `amount_funded`)
+    - Hide supporting transaction options
+  - [ ] Update `TransactionForm.vue` for expense transactions:
+    - Show "Funding Source" dropdown
+    - Show `amount_funded` field (primary input)
+    - Show `amount_needed` field (disabled by default, auto-equals `amount_funded`)
+    - Add checkbox "Different amount needed" to enable `amount_needed` editing
+    - `amount_needed` must be >= `amount_funded` when checkbox enabled
+    - Hard block if `amount_funded > current_balance` of selected source
+  - [ ] Add supporting transaction flow:
+    - Add checkbox "This funds another transaction"
+    - When checked, show searchable dropdown of underfunded transactions (filter by `amount_funded < amount_needed`)
+    - Search by transaction description
+    - When supporting, enforce `amount_needed == amount_funded` (no partial on supporting)
+    - On save, update parent transaction's `amount_funded`
 
-- [ ] **Task 5: Funding Source Detail & Dashboard (AC: 5, 6)**
-  - [ ] Create `FundingSourceDetailPage.vue` (route: `/finance/funding/:id`).
-  - [ ] Display key metrics: Allocated, Spent, Remaining, Restrictions.
-  - [ ] Display transaction history table filtered by this source.
-  - [ ] Create `FundingSourcesWidget.vue` for Finance Dashboard (bar charts of utilization).
+- [ ] **Task 5: Funding Source Detail Page (AC: 5)**
+  - [ ] Create `FundingSourceDetailPage.vue` (route: `/finance/funding/:id`)
+  - [ ] Display key metrics card:
+    - Total Received (lifetime)
+    - Total Spent (sum of linked expense amount_funded)
+    - Current Balance
+    - Status (active/inactive/depleted)
+    - Restrictions (if any)
+  - [ ] Display transaction history table filtered by this source
+  - [ ] Add "Generate Report" button (links to Task 6)
+  - [ ] Add route to `src/modules/finance/router.js`
 
 - [ ] **Task 6: Reporting (AC: 8)**
   - [x] Install `jspdf` and `jspdf-autotable` packages.
-  - [ ] Create `DonorReportService.js` to generate PDF reports.
-  - [ ] Add "Generate Report" button on Funding Source Detail page.
-  - [ ] Implement report layout: Header, Financial Summary, Transaction Table, Footer.
+  - [ ] Create `src/services/DonorReportService.js`:
+    - `generateFundingSourceReport(fundingSource, transactions, options)`
+    - Report layout: Header (Village Name, Report Date), Source Info, Financial Summary, Transaction Table, Footer
+  - [ ] Add "Generate Report" button on Funding Source Detail page
+  - [ ] Support date range filtering for report
 
-- [ ] **Task 7: Testing & Verification**
-  - [ ] Manual Test: Create Funding Source.
-  - [ ] Manual Test: Record Income to Source (verify balance increase).
-  - [ ] Manual Test: Record Expense from Source (verify balance decrease).
-  - [ ] Manual Test: Verify Overdraft Warning.
-  - [ ] Manual Test: Generate PDF Report.
+- [ ] **Task 7: Visual Indicators & Polish (AC: 9)**
+  - [ ] Add row highlighting in transaction tables for underfunded transactions (`amount_funded < amount_needed`)
+  - [ ] Add badge/chip showing funding status on transaction rows
+  - [ ] Add tooltip showing funding breakdown on hover
+
+- [ ] **Task 8: Testing & Verification**
+  - [ ] Manual Test: Create Funding Source (all field types)
+  - [ ] Manual Test: Record Income to Source (verify `total_received` and `current_balance` increase)
+  - [ ] Manual Test: Record Expense from Source (verify `current_balance` decrease)
+  - [ ] Manual Test: Verify Hard Block when exceeding balance
+  - [ ] Manual Test: Create partially funded expense (`amount_needed > amount_funded`)
+  - [ ] Manual Test: Create supporting transaction (verify parent's `amount_funded` updates)
+  - [ ] Manual Test: Delete supporting transaction (verify parent's `amount_funded` decrements)
+  - [ ] Manual Test: Verify underfunded transaction highlighting
+  - [ ] Manual Test: Generate PDF Report
 
 ## Dev Notes
 
-- **Schema Strategy**:
-  - `funding_sources` table:
-    - `name`: String (required)
-    - `type`: Enum (grant, donation, income, loan)
-    - `donor_name`: String
-    - `amount_allocated`: Float (default 0)
-    - `date_received`: Date
-    - `restrictions`: Text (optional)
-  - `finance_transactions` table:
-    - `funding_source`: Relationship (Many-to-One) to `funding_sources`.
-- **RBAC**:
-  - `funding_sources` table:
-    - Read: `team:finance`, `role:admin`
-    - Write: `role:admin`
-  - Finance Manager needs Read access to select sources in forms, but should not Create/Edit sources (Admin only).
-- **Validation Logic**:
-  - When recording expense, calculate `remaining = allocated - spent`.
-  - If `amount > remaining`, show warning.
-  - AC mentions "allow override with Admin approval". For MVP, we will implement a "Soft Block" (Warning dialog with "Proceed Anyway" button logged in audit trail) or require an Admin override code. Given the complexity, we'll start with a **Warning Dialog** that requires explicit confirmation.
-- **Reporting**:
-  - Use `jspdf` for client-side generation to avoid server overhead.
-  - Ensure report includes Village Name and Date Range.
+### Schema Strategy
+
+**`funding_sources` table:**
+| Column | Type | Required | Notes |
+|--------|------|----------|-------|
+| `name` | String(255) | Yes | Donor/source name |
+| `type` | Enum | Yes | Values: `grant`, `donation`, `income`, `loan` |
+| `total_received` | Float | Yes | Lifetime total funds received (only increases) |
+| `current_balance` | Float | Yes | Available funds (increases with income, decreases with expenses) |
+| `date_received` | DateTime | No | When funds were first received |
+| `restrictions` | String(1000) | No | Usage restrictions text |
+| `status` | Enum | Yes | Values: `active`, `inactive`, `depleted` |
+
+**`finance_transactions` table updates:**
+| Column | Type | Required | Notes |
+|--------|------|----------|-------|
+| `amount_needed` | Float | Yes | Total expense amount required |
+| `amount_funded` | Float | Yes | Amount currently funded from source |
+| `parent_transaction_id` | Relationship (Many-to-One, self) | No | Points to transaction this supports |
+| `child_transaction_ids` | Relationship (One-to-Many) | Auto | Appwrite auto-creates inverse |
+| `funding_source_id` | Relationship (Many-to-One) | No | Existing - links to funding source |
+
+**Note:** `amount` column is replaced by `amount_needed` and `amount_funded`. For income and fully-funded expenses, these values are equal.
+
+**Derived field:** `is_supporting_transaction` = `parent_transaction_id !== null` (computed, not stored)
+
+### Balance Update Logic
+
+```
+INCOME TRANSACTION:
+  funding_source.total_received += amount_funded
+  funding_source.current_balance += amount_funded
+
+EXPENSE TRANSACTION (standard):
+  funding_source.current_balance -= amount_funded
+
+EXPENSE TRANSACTION (supporting):
+  funding_source.current_balance -= amount_funded
+  parent_transaction.amount_funded += this.amount_funded
+
+DELETE SUPPORTING TRANSACTION:
+  funding_source.current_balance += deleted.amount_funded
+  parent_transaction.amount_funded -= deleted.amount_funded
+
+EDIT SUPPORTING TRANSACTION:
+  # Reverse old, apply new
+  funding_source.current_balance += old.amount_funded
+  parent_transaction.amount_funded -= old.amount_funded
+  funding_source.current_balance -= new.amount_funded
+  parent_transaction.amount_funded += new.amount_funded
+```
+
+### RBAC
+
+| Collection        | Read                         | Write             |
+| ----------------- | ---------------------------- | ----------------- |
+| `funding_sources` | `team:finance`, `role:admin` | `role:admin` only |
+
+Finance Manager needs Read access to select sources in forms, but cannot Create/Edit/Delete sources.
+
+### Validation Rules
+
+1. **Hard block on overspend**: `amount_funded > funding_source.current_balance` → Block, show error
+2. **Amount needed >= Amount funded**: When "Different amount needed" is checked
+3. **Supporting transaction amount equality**: When supporting another transaction, `amount_needed == amount_funded` (enforced)
+4. **No nested supporting**: Supporting transactions cannot have children (flat structure)
+
+### Reporting
+
+- Use `jspdf` + `jspdf-autotable` for client-side PDF generation
+- Report includes: Village Name, Funding Source details, Date Range, Transaction Table, Totals
+
+### UI/UX Notes
+
+- **Income form**: Simple - just funding source dropdown and single amount field
+- **Expense form**:
+  - Default: `amount_funded` input, `amount_needed` auto-equals (disabled)
+  - Checkbox enables `amount_needed` editing for partial funding
+  - Checkbox for "funds another transaction" shows searchable dropdown
+- **Visual indicators**:
+  - Underfunded rows highlighted (yellow/orange background)
+  - Badge showing "Partially Funded" or "Fully Funded"
+  - Funding source balance shown in dropdown hint
 
 ### Project Structure Notes
 
-- New Page: `src/modules/finance/pages/FundingSourceDetailPage.vue`
-- New Component: `src/modules/finance/components/FundingSourcesWidget.vue`
-- New Service: `src/services/DonorReportService.js`
-- Script: `server/scripts/seed-funding-sources.js`
+**New Files:**
+
+- `src/modules/finance/pages/FundingSourceDetailPage.vue` - Detail view for funding source
+- `src/modules/finance/components/FundingSourcesOverviewWidget.vue` - Widget for Settings page
+- `src/services/DonorReportService.js` - PDF report generation
+- `server/scripts/seed-funding-sources.js` - Default funding sources
+
+**Modified Files:**
+
+- `server/scripts/validate-schema-epic-2.js` - Schema updates
+- `src/modules/finance/stores/finance-store.js` - CRUD and balance logic
+- `src/modules/finance/components/TransactionForm.vue` - Partial funding UI
+- `src/pages/admin/FinanceSettingsPage.vue` - Funding sources management
+- `src/modules/finance/pages/FinanceTransactionsPage.vue` - Visual indicators
+- `src/modules/finance/router.js` - New routes
+
+### Impact on Future Stories
+
+**Story 2.8 (Financial Reports):**
+
+- Reports must use `amount_funded` for expense totals
+- Exclude supporting transactions from top-level expense counts (already counted in parent's `amount_funded`)
+- Consider adding "Funding Source" filter to reports
+
+**Story 2.9 (Finance Dashboard):**
+
+- Consider moving `FundingSourcesOverviewWidget` to dashboard
+- Dashboard totals must use corrected amount calculations
 
 ### References
 
 - [Source: docs/epics.md#333] (Story 2.4 Requirements)
 - [Source: docs/sprint-artifacts/tech-spec-epic-2.md#53] (Data Models)
+- [Source: docs/technical-debt/funding-source-balance-cloud-function.md] (Future: Atomic balance updates)
 
 ## Dev Agent Record
 

@@ -15,6 +15,8 @@ export const useFinanceStore = defineStore('finance', {
   state: () => ({
     transactions: [],
     fundingSources: [],
+    fundingSourcesLoaded: false, // Story 2.4: Track if funding sources have been fetched
+    isFundingSourcesLoading: false, // Story 2.4: Separate loading state for funding sources
     categories: [], // Story 2.3: Dynamic categories from database
     categoriesLoaded: false, // Track if categories have been fetched
     currentTransaction: null,
@@ -115,6 +117,79 @@ export const useFinanceStore = defineStore('finance', {
      * Get transaction statuses
      */
     transactionStatuses: () => ['pending', 'completed', 'cancelled'],
+
+    // ========================================
+    // Story 2.4: Funding Source Getters
+    // ========================================
+
+    /**
+     * Get active funding sources only
+     */
+    activeFundingSources: (state) => {
+      return state.fundingSources.filter((source) => source.status === 'active');
+    },
+
+    /**
+     * Get funding source by ID
+     */
+    getFundingSourceById: (state) => (sourceId) => {
+      return state.fundingSources.find((source) => source.$id === sourceId);
+    },
+
+    /**
+     * Get funding source name by ID
+     */
+    getFundingSourceName: (state) => (sourceId) => {
+      const source = state.fundingSources.find((s) => s.$id === sourceId);
+      return source ? source.name : 'Unknown';
+    },
+
+    /**
+     * Check if a transaction is a supporting transaction
+     * (derived from parent_transaction_id !== null)
+     */
+    isSupportingTransaction: () => (transaction) => {
+      return transaction && transaction.parent_transaction_id !== null;
+    },
+
+    /**
+     * Get underfunded transactions (amount_funded < amount_needed)
+     * Excludes supporting transactions
+     */
+    underfundedTransactions: (state) => {
+      return state.transactions.filter(
+        (tx) =>
+          tx.type === 'expense' &&
+          tx.amount_funded < tx.amount_needed &&
+          !tx.parent_transaction_id &&
+          tx.status !== 'cancelled',
+      );
+    },
+
+    /**
+     * Get funding sources formatted for dropdown options
+     * Includes balance info in label
+     */
+    fundingSourceOptions: (state) => {
+      return state.fundingSources
+        .filter((source) => source.status === 'active')
+        .map((source) => ({
+          label: `${source.name} (ZMW ${source.current_balance.toLocaleString()} available)`,
+          value: source.$id,
+          balance: source.current_balance,
+          source: source,
+        }));
+    },
+
+    /**
+     * Get funding source types
+     */
+    fundingSourceTypes: () => ['grant', 'donation', 'income', 'loan'],
+
+    /**
+     * Get funding source statuses
+     */
+    fundingSourceStatuses: () => ['active', 'inactive', 'depleted'],
   },
 
   actions: {
@@ -235,9 +310,9 @@ export const useFinanceStore = defineStore('finance', {
     },
 
     /**
-     * Decrement funding source balance
+     * Decrement funding source balance (for expense transactions)
+     * Story 2.4: Only decrements current_balance (not total_received)
      * WARNING: This is a client-side operation and is NOT atomic.
-     * In a concurrent environment, this could lead to race conditions.
      * TODO: [FUTURE] Replace with Appwrite Cloud Function for atomic operations.
      * See: docs/technical-debt/funding-source-balance-cloud-function.md
      *
@@ -258,26 +333,32 @@ export const useFinanceStore = defineStore('finance', {
 
         const newBalance = fundingSource.current_balance - amount;
 
-        // Update balance
+        // Update only current_balance (not total_received)
         await tables.updateRow({
           databaseId: dbId,
           tableId: fundingSourcesTableId,
           rowId: fundingSourceId,
           data: {
             current_balance: newBalance,
+            // Auto-update status to depleted if balance hits zero
+            ...(newBalance <= 0 ? { status: 'depleted' } : {}),
           },
         });
 
-        // Refresh funding sources cache
-        await this.fetchFundingSources();
+        // Update local state
+        const index = this.fundingSources.findIndex((s) => s.$id === fundingSourceId);
+        if (index !== -1) {
+          this.fundingSources[index].current_balance = newBalance;
+          if (newBalance <= 0) {
+            this.fundingSources[index].status = 'depleted';
+          }
+        }
 
         console.log(
-          `Funding source ${fundingSource.name} balance updated: ${fundingSource.current_balance} -> ${newBalance}`,
+          `Funding source ${fundingSource.name} balance decremented: ${fundingSource.current_balance} -> ${newBalance}`,
         );
       } catch (error) {
         console.error('Error updating funding source balance:', error);
-        // Don't throw - the transaction was already created
-        // Log for manual reconciliation
         errorHandler.notifyError(
           'Transaction saved, but funding source balance update failed. Please update manually.',
         );
@@ -285,9 +366,130 @@ export const useFinanceStore = defineStore('finance', {
     },
 
     /**
-     * Fetch funding sources for dropdown
+     * Validate if funding source has sufficient balance for expense
+     * Story 2.4: Hard block validation
+     * @param {string} fundingSourceId - Funding source ID
+     * @param {number} amount - Amount to check
+     * @returns {Object} - { valid, currentBalance, shortfall }
      */
-    async fetchFundingSources() {
+    validateFundingSourceBalance(fundingSourceId, amount) {
+      const source = this.fundingSources.find((s) => s.$id === fundingSourceId);
+      if (!source) {
+        return { valid: false, error: 'Funding source not found' };
+      }
+
+      const currentBalance = source.current_balance;
+      const valid = currentBalance >= amount;
+
+      return {
+        valid,
+        currentBalance,
+        shortfall: valid ? 0 : amount - currentBalance,
+        sourceName: source.name,
+      };
+    },
+
+    /**
+     * Update parent transaction's amount_funded when a supporting transaction is created/modified
+     * Story 2.4: Cascading update for supporting transactions
+     * @param {string} parentTransactionId - Parent transaction ID
+     * @param {number} amountDelta - Amount to add (positive) or subtract (negative)
+     */
+    async updateParentTransactionFunding(parentTransactionId, amountDelta) {
+      try {
+        const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
+        const transactionsTableId = 'finance_transactions';
+
+        // Fetch parent transaction
+        const parentTx = await tables.getRow({
+          databaseId: dbId,
+          tableId: transactionsTableId,
+          rowId: parentTransactionId,
+        });
+
+        const newAmountFunded = parentTx.amount_funded + amountDelta;
+
+        // Determine if fully funded now
+        const isFullyFunded = newAmountFunded >= parentTx.amount_needed;
+
+        // Update parent
+        await tables.updateRow({
+          databaseId: dbId,
+          tableId: transactionsTableId,
+          rowId: parentTransactionId,
+          data: {
+            amount_funded: newAmountFunded,
+            // Auto-update status when fully funded
+            ...(isFullyFunded && parentTx.status === 'pending' ? { status: 'completed' } : {}),
+          },
+        });
+
+        console.log(
+          `Parent transaction ${parentTransactionId} amount_funded updated: ${parentTx.amount_funded} -> ${newAmountFunded}`,
+        );
+
+        // Update local state if transaction is in the list
+        const index = this.transactions.findIndex((t) => t.$id === parentTransactionId);
+        if (index !== -1) {
+          this.transactions[index].amount_funded = newAmountFunded;
+          if (isFullyFunded && this.transactions[index].status === 'pending') {
+            this.transactions[index].status = 'completed';
+          }
+        }
+      } catch (error) {
+        console.error('Error updating parent transaction funding:', error);
+        errorHandler.notifyError(
+          'Supporting transaction saved, but parent update failed. Please update manually.',
+        );
+      }
+    },
+
+    /**
+     * Fetch underfunded transactions for supporting transaction dropdown
+     * Story 2.4: Get transactions where amount_funded < amount_needed
+     * @returns {Array} - List of underfunded transactions
+     */
+    async fetchUnderfundedTransactions() {
+      try {
+        const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
+        const transactionsTableId = 'finance_transactions';
+
+        // Fetch all expense transactions that are not cancelled
+        const response = await tables.listRows({
+          databaseId: dbId,
+          tableId: transactionsTableId,
+          queries: [
+            Query.equal('type', 'expense'),
+            Query.notEqual('status', 'cancelled'),
+            Query.limit(100),
+            Query.orderDesc('date'),
+          ],
+        });
+
+        // Filter for underfunded (amount_funded < amount_needed) and not supporting transactions
+        const underfunded = response.rows.filter(
+          (tx) => tx.amount_funded < tx.amount_needed && !tx.parent_transaction_id,
+        );
+
+        return { success: true, data: underfunded };
+      } catch (error) {
+        console.error('Error fetching underfunded transactions:', error);
+        return { success: false, error: error.message };
+      }
+    },
+
+    /**
+     * Fetch funding sources
+     * Story 2.4: Enhanced with caching and loading state
+     * @param {boolean} forceRefresh - Force refresh even if already loaded
+     */
+    async fetchFundingSources(forceRefresh = false) {
+      // Skip if already loaded and not forcing refresh
+      if (this.fundingSourcesLoaded && !forceRefresh) {
+        return { success: true, data: this.fundingSources };
+      }
+
+      this.isFundingSourcesLoading = true;
       try {
         const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
         const fundingSourcesTableId = 'funding_sources';
@@ -299,10 +501,201 @@ export const useFinanceStore = defineStore('finance', {
         });
 
         this.fundingSources = response.rows;
+        this.fundingSourcesLoaded = true;
         return { success: true, data: response.rows };
       } catch (error) {
         console.error('Error fetching funding sources:', error);
         return { success: false, error: error.message };
+      } finally {
+        this.isFundingSourcesLoading = false;
+      }
+    },
+
+    // ========================================
+    // Story 2.4: Funding Source CRUD Actions
+    // ========================================
+
+    /**
+     * Add a new funding source
+     * @param {Object} sourceData - { name, type, total_received, current_balance, date_received, restrictions, status }
+     */
+    async addFundingSource(sourceData) {
+      this.isFundingSourcesLoading = true;
+      try {
+        const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
+        const fundingSourcesTableId = 'funding_sources';
+
+        const newSource = await tables.createRow({
+          databaseId: dbId,
+          tableId: fundingSourcesTableId,
+          rowId: ID.unique(),
+          data: {
+            name: sourceData.name,
+            type: sourceData.type,
+            total_received: parseFloat(sourceData.total_received) || 0,
+            current_balance: parseFloat(sourceData.current_balance) || 0,
+            date_received: sourceData.date_received || null,
+            restrictions: sourceData.restrictions || null,
+            status: sourceData.status || 'active',
+          },
+        });
+
+        // Add to local state
+        this.fundingSources.push(newSource);
+
+        errorHandler.notifySuccess(`Funding source "${sourceData.name}" created successfully`);
+        return { success: true, data: newSource };
+      } catch (error) {
+        console.error('Error creating funding source:', error);
+        errorHandler.notifyError('Failed to create funding source. Please try again.');
+        return { success: false, error: error.message };
+      } finally {
+        this.isFundingSourcesLoading = false;
+      }
+    },
+
+    /**
+     * Update an existing funding source
+     * @param {string} sourceId - Funding source ID to update
+     * @param {Object} sourceData - Updated data
+     */
+    async updateFundingSource(sourceId, sourceData) {
+      this.isFundingSourcesLoading = true;
+      try {
+        const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
+        const fundingSourcesTableId = 'funding_sources';
+
+        // Build update data - only include provided fields
+        const data = {};
+        if (sourceData.name !== undefined) data.name = sourceData.name;
+        if (sourceData.type !== undefined) data.type = sourceData.type;
+        if (sourceData.total_received !== undefined)
+          data.total_received = parseFloat(sourceData.total_received);
+        if (sourceData.current_balance !== undefined)
+          data.current_balance = parseFloat(sourceData.current_balance);
+        if (sourceData.date_received !== undefined) data.date_received = sourceData.date_received;
+        if (sourceData.restrictions !== undefined) data.restrictions = sourceData.restrictions;
+        if (sourceData.status !== undefined) data.status = sourceData.status;
+
+        const updatedSource = await tables.updateRow({
+          databaseId: dbId,
+          tableId: fundingSourcesTableId,
+          rowId: sourceId,
+          data,
+        });
+
+        // Update local state
+        const index = this.fundingSources.findIndex((s) => s.$id === sourceId);
+        if (index !== -1) {
+          this.fundingSources[index] = updatedSource;
+        }
+
+        errorHandler.notifySuccess('Funding source updated successfully');
+        return { success: true, data: updatedSource };
+      } catch (error) {
+        console.error('Error updating funding source:', error);
+        errorHandler.notifyError('Failed to update funding source. Please try again.');
+        return { success: false, error: error.message };
+      } finally {
+        this.isFundingSourcesLoading = false;
+      }
+    },
+
+    /**
+     * Delete a funding source
+     * @param {string} sourceId - Funding source ID to delete
+     * @returns {Object} - { success, hasTransactions?, error? }
+     */
+    async deleteFundingSource(sourceId) {
+      this.isFundingSourcesLoading = true;
+      try {
+        const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
+        const fundingSourcesTableId = 'funding_sources';
+
+        // Check if source has transactions (deletion safeguard)
+        const transactionsCheck = await tables.listRows({
+          databaseId: dbId,
+          tableId: 'finance_transactions',
+          queries: [Query.equal('funding_source_id', sourceId), Query.limit(1)],
+        });
+
+        if (transactionsCheck.total > 0) {
+          return {
+            success: false,
+            hasTransactions: true,
+            transactionCount: transactionsCheck.total,
+            error: 'Funding source has existing transactions',
+          };
+        }
+
+        // Safe to delete
+        await tables.deleteRow({
+          databaseId: dbId,
+          tableId: fundingSourcesTableId,
+          rowId: sourceId,
+        });
+
+        // Remove from local state
+        this.fundingSources = this.fundingSources.filter((s) => s.$id !== sourceId);
+
+        errorHandler.notifySuccess('Funding source deleted successfully');
+        return { success: true };
+      } catch (error) {
+        console.error('Error deleting funding source:', error);
+        errorHandler.notifyError('Failed to delete funding source. Please try again.');
+        return { success: false, error: error.message };
+      } finally {
+        this.isFundingSourcesLoading = false;
+      }
+    },
+
+    /**
+     * Increment funding source balance (for income transactions)
+     * Story 2.4: Increases both total_received and current_balance
+     * @param {string} fundingSourceId - Funding source ID
+     * @param {number} amount - Amount to increment
+     */
+    async incrementFundingSourceBalance(fundingSourceId, amount) {
+      try {
+        const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
+        const fundingSourcesTableId = 'funding_sources';
+
+        // Fetch current values
+        const fundingSource = await tables.getRow({
+          databaseId: dbId,
+          tableId: fundingSourcesTableId,
+          rowId: fundingSourceId,
+        });
+
+        const newTotalReceived = fundingSource.total_received + amount;
+        const newBalance = fundingSource.current_balance + amount;
+
+        // Update both total_received and current_balance
+        await tables.updateRow({
+          databaseId: dbId,
+          tableId: fundingSourcesTableId,
+          rowId: fundingSourceId,
+          data: {
+            total_received: newTotalReceived,
+            current_balance: newBalance,
+          },
+        });
+
+        // Update local state
+        const index = this.fundingSources.findIndex((s) => s.$id === fundingSourceId);
+        if (index !== -1) {
+          this.fundingSources[index].total_received = newTotalReceived;
+          this.fundingSources[index].current_balance = newBalance;
+        }
+
+        console.log(
+          `Funding source ${fundingSource.name} balance incremented: ${fundingSource.current_balance} -> ${newBalance}`,
+        );
+      } catch (error) {
+        console.error('Error incrementing funding source balance:', error);
+        errorHandler.notifyError(
+          'Transaction saved, but funding source balance update failed. Please update manually.',
+        );
       }
     },
 
@@ -527,6 +920,7 @@ export const useFinanceStore = defineStore('finance', {
 
     /**
      * Create a new transaction
+     * Story 2.4: Updated to handle amount_needed/amount_funded and supporting transactions
      * @param {Object} transactionData - Transaction data
      */
     async createTransaction(transactionData) {
@@ -537,14 +931,42 @@ export const useFinanceStore = defineStore('finance', {
 
         const transactionId = ID.unique();
 
-        // Build transaction data object (Story 2.3: Use category_id relationship)
+        // Story 2.4: Parse amount fields
+        const amountFunded = parseFloat(transactionData.amount_funded) || 0;
+        const amountNeeded = parseFloat(transactionData.amount_needed) || amountFunded;
+
+        // Story 2.4: Validate funding source balance for expenses (hard block)
+        if (
+          transactionData.type === 'expense' &&
+          transactionData.funding_source_id &&
+          amountFunded > 0
+        ) {
+          const validation = this.validateFundingSourceBalance(
+            transactionData.funding_source_id,
+            amountFunded,
+          );
+          if (!validation.valid) {
+            errorHandler.notifyError(
+              `Insufficient funds in ${validation.sourceName}. Available: ZMW ${validation.currentBalance.toLocaleString()}, Required: ZMW ${amountFunded.toLocaleString()}`,
+            );
+            return {
+              success: false,
+              error: 'Insufficient funds',
+              validation,
+            };
+          }
+        }
+
+        // Build transaction data object
         const data = {
           type: transactionData.type,
-          amount: parseFloat(transactionData.amount),
-          category_id: transactionData.category_id, // Story 2.3: Relationship to finance_categories
+          amount_needed: amountNeeded, // Story 2.4: Total amount required
+          amount_funded: amountFunded, // Story 2.4: Amount currently funded
+          category_id: transactionData.category_id,
           source_module: transactionData.source_module,
           payment_method: transactionData.payment_method,
           funding_source_id: transactionData.funding_source_id || null,
+          parent_transaction_id: transactionData.parent_transaction_id || null, // Story 2.4: Supporting transaction
           date: transactionData.date,
           description: transactionData.description,
           status: transactionData.status || 'completed',
@@ -565,17 +987,30 @@ export const useFinanceStore = defineStore('finance', {
           data,
         });
 
-        // IMPORTANT: Update funding source balance for expenses
+        // Story 2.4: Update funding source balance
         // TODO: [FUTURE] Replace with Appwrite Cloud Function for atomic operations
         // See: docs/technical-debt/funding-source-balance-cloud-function.md
-        if (
-          transactionData.type === 'expense' &&
-          transactionData.funding_source_id &&
-          transactionData.status === 'completed'
-        ) {
-          await this.decrementFundingSourceBalance(
-            transactionData.funding_source_id,
-            parseFloat(transactionData.amount),
+        if (transactionData.funding_source_id && amountFunded > 0) {
+          if (transactionData.type === 'income') {
+            // Income: increment both total_received and current_balance
+            await this.incrementFundingSourceBalance(
+              transactionData.funding_source_id,
+              amountFunded,
+            );
+          } else if (transactionData.type === 'expense' && transactionData.status === 'completed') {
+            // Expense: decrement current_balance only
+            await this.decrementFundingSourceBalance(
+              transactionData.funding_source_id,
+              amountFunded,
+            );
+          }
+        }
+
+        // Story 2.4: If this is a supporting transaction, update parent's amount_funded
+        if (transactionData.parent_transaction_id && amountFunded > 0) {
+          await this.updateParentTransactionFunding(
+            transactionData.parent_transaction_id,
+            amountFunded,
           );
         }
 
@@ -595,20 +1030,27 @@ export const useFinanceStore = defineStore('finance', {
 
     /**
      * Update an existing transaction
+     * Story 2.4: Updated to handle amount_needed/amount_funded and supporting transaction cascading
      * @param {string} transactionId - Transaction ID to update
      * @param {Object} transactionData - Updated transaction data
+     * @param {Object} originalTransaction - Original transaction data for comparison (for cascading)
      */
-    async updateTransaction(transactionId, transactionData) {
+    async updateTransaction(transactionId, transactionData, originalTransaction = null) {
       this.isLoading = true;
       try {
         const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
         const transactionsTableId = 'finance_transactions';
 
-        // Build update data object (Story 2.3: Use category_id relationship)
+        // Story 2.4: Parse amount fields
+        const amountFunded = parseFloat(transactionData.amount_funded) || 0;
+        const amountNeeded = parseFloat(transactionData.amount_needed) || amountFunded;
+
+        // Build update data object
         const data = {
           type: transactionData.type,
-          amount: parseFloat(transactionData.amount),
-          category_id: transactionData.category_id, // Story 2.3: Relationship to finance_categories
+          amount_needed: amountNeeded,
+          amount_funded: amountFunded,
+          category_id: transactionData.category_id,
           source_module: transactionData.source_module,
           payment_method: transactionData.payment_method,
           funding_source_id: transactionData.funding_source_id || null,
@@ -632,6 +1074,19 @@ export const useFinanceStore = defineStore('finance', {
           data,
         });
 
+        // Story 2.4: Handle cascading updates for supporting transactions
+        if (originalTransaction && originalTransaction.parent_transaction_id) {
+          const oldAmountFunded = parseFloat(originalTransaction.amount_funded) || 0;
+          const amountDelta = amountFunded - oldAmountFunded;
+
+          if (amountDelta !== 0) {
+            await this.updateParentTransactionFunding(
+              originalTransaction.parent_transaction_id,
+              amountDelta,
+            );
+          }
+        }
+
         // Refresh the current page
         await this.fetchTransactions(this.pagination.currentPage, this.pagination.itemsPerPage);
 
@@ -648,13 +1103,25 @@ export const useFinanceStore = defineStore('finance', {
 
     /**
      * Delete a transaction (soft delete by setting status to 'cancelled')
+     * Story 2.4: Updated to handle cascading updates for supporting transactions
      * @param {string} transactionId - Transaction ID to delete
+     * @param {Object} transaction - The transaction object being deleted (for cascading)
      */
-    async deleteTransaction(transactionId) {
+    async deleteTransaction(transactionId, transaction = null) {
       this.isLoading = true;
       try {
         const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
         const transactionsTableId = 'finance_transactions';
+
+        // If transaction not provided, fetch it for cascading logic
+        let txToDelete = transaction;
+        if (!txToDelete) {
+          txToDelete = await tables.getRow({
+            databaseId: dbId,
+            tableId: transactionsTableId,
+            rowId: transactionId,
+          });
+        }
 
         // Soft delete: set status to 'cancelled'
         await tables.updateRow({
@@ -665,6 +1132,29 @@ export const useFinanceStore = defineStore('finance', {
             status: 'cancelled',
           },
         });
+
+        // Story 2.4: If this is a supporting transaction, update parent's amount_funded
+        if (txToDelete && txToDelete.parent_transaction_id && txToDelete.amount_funded > 0) {
+          await this.updateParentTransactionFunding(
+            txToDelete.parent_transaction_id,
+            -txToDelete.amount_funded, // Negative to decrement
+          );
+        }
+
+        // Story 2.4: Restore funding source balance for expenses
+        if (
+          txToDelete &&
+          txToDelete.type === 'expense' &&
+          txToDelete.funding_source_id &&
+          txToDelete.amount_funded > 0 &&
+          txToDelete.status === 'completed'
+        ) {
+          // Restore the balance that was decremented when the transaction was created
+          await this.incrementFundingSourceBalance(
+            txToDelete.funding_source_id,
+            txToDelete.amount_funded,
+          );
+        }
 
         // Refresh the current page
         await this.fetchTransactions(this.pagination.currentPage, this.pagination.itemsPerPage);
@@ -780,6 +1270,7 @@ export const useFinanceStore = defineStore('finance', {
 
     /**
      * Fetch summary data for dashboard widget
+     * Story 2.4: Uses amount_funded and excludes supporting transactions from expense totals
      * Calculates total income, total expenses, net balance, and top expense categories
      */
     async fetchSummary() {
@@ -797,26 +1288,36 @@ export const useFinanceStore = defineStore('finance', {
         const transactions = response.rows;
 
         // Calculate totals
+        // Story 2.4: Use amount_funded instead of amount
+        // Exclude supporting transactions from expense totals (they're already counted in parent's amount_funded)
         let totalIncome = 0;
         let totalExpenses = 0;
         const categoryTotals = {};
 
         transactions.forEach((t) => {
           if (t.type === 'income') {
-            totalIncome += t.amount;
+            totalIncome += t.amount_funded || 0;
           } else if (t.type === 'expense') {
-            totalExpenses += t.amount;
-            // Track expense categories
-            if (!categoryTotals[t.category]) {
-              categoryTotals[t.category] = 0;
+            // Story 2.4: Skip supporting transactions to avoid double-counting
+            if (!t.parent_transaction_id) {
+              totalExpenses += t.amount_funded || 0;
+              // Track expense categories using category_id
+              const categoryKey = t.category_id || 'Uncategorized';
+              if (!categoryTotals[categoryKey]) {
+                categoryTotals[categoryKey] = 0;
+              }
+              categoryTotals[categoryKey] += t.amount_funded || 0;
             }
-            categoryTotals[t.category] += t.amount;
           }
         });
 
-        // Get top 5 expense categories
+        // Get top 5 expense categories (by category_id)
         const topExpenseCategories = Object.entries(categoryTotals)
-          .map(([category, amount]) => ({ category, amount }))
+          .map(([categoryId, amount]) => ({
+            category: this.getCategoryName(categoryId),
+            categoryId,
+            amount,
+          }))
           .sort((a, b) => b.amount - a.amount)
           .slice(0, 5);
 

@@ -6,25 +6,116 @@
 
     <q-card-section class="q-pt-none">
       <q-form @submit="handleSubmit">
-        <!-- Amount -->
+        <!-- Story 2.4: Amount Funded (primary input for all transactions) -->
         <q-input
-          v-model.number="formData.amount"
-          label="Amount (ZMW) *"
+          v-model.number="formData.amount_funded"
+          :label="props.type === 'income' ? 'Amount (ZMW) *' : 'Amount Funded (ZMW) *'"
           type="number"
           step="0.01"
           min="0.01"
           outlined
           dense
-          :rules="[
-            (val) => !!val || 'Amount is required',
-            (val) => val > 0 || 'Amount must be positive',
-          ]"
+          :rules="amountFundedRules"
+          :error="hasInsufficientFunds"
+          :error-message="insufficientFundsMessage"
           class="q-mb-md"
+          @update:model-value="onAmountFundedChange"
         >
           <template #prepend>
             <q-icon name="payments" />
           </template>
+          <template v-if="props.type === 'expense' && formData.funding_source_id" #hint>
+            <span :class="hasInsufficientFunds ? 'text-negative' : 'text-grey-7'">
+              Available: {{ formatCurrency(selectedFundingSourceBalance) }}
+            </span>
+          </template>
         </q-input>
+
+        <!-- Story 2.4: Partial Funding (Expense only) -->
+        <template v-if="props.type === 'expense'">
+          <!-- Checkbox to enable different amount needed -->
+          <q-checkbox
+            v-model="formData.differentAmountNeeded"
+            label="Different amount needed (partial funding)"
+            dense
+            class="q-mb-sm"
+          />
+
+          <!-- Amount Needed (shown when checkbox is checked) -->
+          <q-input
+            v-if="formData.differentAmountNeeded"
+            v-model.number="formData.amount_needed"
+            label="Total Amount Needed (ZMW) *"
+            type="number"
+            step="0.01"
+            :min="formData.amount_funded || 0.01"
+            outlined
+            dense
+            :rules="[
+              (val) => !!val || 'Amount needed is required',
+              (val) => val >= formData.amount_funded || 'Must be >= amount funded',
+            ]"
+            class="q-mb-md"
+            hint="Total expense amount. You can fund the remaining later."
+          >
+            <template #prepend>
+              <q-icon name="shopping_cart" />
+            </template>
+          </q-input>
+
+          <!-- Supporting Transaction Checkbox -->
+          <q-checkbox
+            v-model="formData.isSupportingTransaction"
+            label="This funds another transaction"
+            dense
+            class="q-mb-sm"
+            :disable="formData.differentAmountNeeded"
+          />
+
+          <!-- Parent Transaction Selector (shown when supporting checkbox is checked) -->
+          <q-select
+            v-if="formData.isSupportingTransaction"
+            v-model="formData.parent_transaction_id"
+            :options="underfundedTransactionOptions"
+            label="Select transaction to fund *"
+            outlined
+            dense
+            use-input
+            input-debounce="300"
+            option-value="value"
+            option-label="label"
+            emit-value
+            map-options
+            :loading="loadingUnderfunded"
+            :rules="[(val) => !!val || 'Please select a transaction']"
+            class="q-mb-md"
+            @filter="filterUnderfundedTransactions"
+          >
+            <template #prepend>
+              <q-icon name="link" />
+            </template>
+            <template #option="scope">
+              <q-item v-bind="scope.itemProps">
+                <q-item-section>
+                  <q-item-label>{{ scope.opt.description }}</q-item-label>
+                  <q-item-label caption>
+                    Needs: {{ formatCurrency(scope.opt.remaining) }} more ({{
+                      formatCurrency(scope.opt.funded)
+                    }}
+                    of {{ formatCurrency(scope.opt.needed) }})
+                  </q-item-label>
+                </q-item-section>
+              </q-item>
+            </template>
+            <template #no-option>
+              <q-item>
+                <q-item-section class="text-grey">
+                  No underfunded transactions found
+                </q-item-section>
+              </q-item>
+            </template>
+          </q-select>
+        </template>
 
         <!-- Category (Story 2.3: Dynamic from database) -->
         <q-select
@@ -264,9 +355,13 @@ const emit = defineEmits(['saved', 'cancelled']);
 const $q = useQuasar();
 const financeStore = useFinanceStore();
 
-// Form data (Story 2.3: Updated to use category_id)
+// Form data (Story 2.4: Updated for partial funding)
 const formData = ref({
-  amount: null,
+  amount_funded: null, // Story 2.4: Primary amount input
+  amount_needed: null, // Story 2.4: Total amount needed (for partial funding)
+  differentAmountNeeded: false, // Story 2.4: Checkbox for partial funding
+  isSupportingTransaction: false, // Story 2.4: Checkbox for supporting transactions
+  parent_transaction_id: null, // Story 2.4: Parent transaction for supporting tx
   category_id: null, // Story 2.3: Changed from category string to category_id
   source_module: '',
   payment_method: '',
@@ -283,15 +378,88 @@ const formData = ref({
   payment_status: 'paid',
 });
 
+// Story 2.4: Underfunded transactions for supporting transaction dropdown
+const underfundedTransactions = ref([]);
+const loadingUnderfunded = ref(false);
+
 // Track if "Other" subcategory is selected
 const showCustomSubcategory = computed(
   () => formData.value.subcategory === OTHER_SUBCATEGORY_VALUE,
 );
 
-// Load categories on mount
+// Load categories and funding sources on mount
 onMounted(async () => {
-  await financeStore.fetchCategories();
+  await Promise.all([financeStore.fetchCategories(), financeStore.fetchFundingSources()]);
 });
+
+// Story 2.4: Selected funding source balance
+const selectedFundingSourceBalance = computed(() => {
+  if (!formData.value.funding_source_id) return 0;
+  const source = financeStore.getFundingSourceById(formData.value.funding_source_id);
+  return source ? source.current_balance : 0;
+});
+
+// Story 2.4: Check if amount exceeds funding source balance (hard block)
+const hasInsufficientFunds = computed(() => {
+  if (props.type !== 'expense') return false;
+  if (!formData.value.funding_source_id) return false;
+  if (!formData.value.amount_funded) return false;
+
+  return formData.value.amount_funded > selectedFundingSourceBalance.value;
+});
+
+// Story 2.4: Insufficient funds error message
+const insufficientFundsMessage = computed(() => {
+  if (!hasInsufficientFunds.value) return '';
+  const shortfall = formData.value.amount_funded - selectedFundingSourceBalance.value;
+  return `Insufficient funds. Short by ${formatCurrency(shortfall)}`;
+});
+
+// Story 2.4: Amount funded validation rules
+const amountFundedRules = computed(() => [
+  (val) => !!val || 'Amount is required',
+  (val) => val > 0 || 'Amount must be positive',
+  () => !hasInsufficientFunds.value || insufficientFundsMessage.value,
+]);
+
+// Story 2.4: Underfunded transaction options for dropdown
+const underfundedTransactionOptions = computed(() => {
+  return underfundedTransactions.value.map((tx) => ({
+    label: tx.description,
+    value: tx.$id,
+    description: tx.description,
+    needed: tx.amount_needed,
+    funded: tx.amount_funded,
+    remaining: tx.amount_needed - tx.amount_funded,
+  }));
+});
+
+// Story 2.4: Handle amount funded change - sync amount_needed if not different
+function onAmountFundedChange(value) {
+  if (!formData.value.differentAmountNeeded) {
+    formData.value.amount_needed = value;
+  }
+}
+
+// Story 2.4: Filter underfunded transactions for searchable dropdown
+async function filterUnderfundedTransactions(val, update) {
+  if (underfundedTransactions.value.length === 0) {
+    loadingUnderfunded.value = true;
+    const result = await financeStore.fetchUnderfundedTransactions();
+    loadingUnderfunded.value = false;
+    if (result.success) {
+      underfundedTransactions.value = result.data;
+    }
+  }
+
+  update(() => {
+    if (!val) return;
+    const needle = val.toLowerCase();
+    underfundedTransactions.value = underfundedTransactions.value.filter((tx) =>
+      tx.description.toLowerCase().includes(needle),
+    );
+  });
+}
 
 // Computed properties
 const isEditMode = computed(() => !!props.initialData?.$id);
@@ -391,7 +559,7 @@ function formatCurrency(amount) {
   }).format(amount);
 }
 
-// Watch for initialData changes (edit mode) - Story 2.3: Updated for category_id
+// Watch for initialData changes (edit mode) - Story 2.4: Updated for amount_funded/amount_needed
 watch(
   () => props.initialData,
   (newData) => {
@@ -404,9 +572,18 @@ watch(
       const isCustomSubcategory =
         newData.subcategory && !predefinedSubcategories.includes(newData.subcategory);
 
+      // Story 2.4: Check if this has different amount needed
+      const amountFunded = newData.amount_funded || newData.amount || 0;
+      const amountNeeded = newData.amount_needed || amountFunded;
+      const hasDifferentAmount = amountNeeded > amountFunded;
+
       formData.value = {
-        amount: newData.amount,
-        category_id: newData.category_id || null, // Story 2.3: Use category_id
+        amount_funded: amountFunded, // Story 2.4: Use amount_funded
+        amount_needed: amountNeeded, // Story 2.4: Use amount_needed
+        differentAmountNeeded: hasDifferentAmount,
+        isSupportingTransaction: !!newData.parent_transaction_id,
+        parent_transaction_id: newData.parent_transaction_id || null,
+        category_id: newData.category_id || null,
         source_module: newData.source_module,
         payment_method: newData.payment_method,
         date: newData.date ? newData.date.split('T')[0] : '',
@@ -428,11 +605,15 @@ watch(
   { immediate: true },
 );
 
-// Reset form to defaults (Story 2.3: Updated for category_id)
+// Reset form to defaults (Story 2.4: Updated for partial funding)
 function resetForm() {
   formData.value = {
-    amount: null,
-    category_id: null, // Story 2.3: Use category_id
+    amount_funded: null, // Story 2.4: Use amount_funded
+    amount_needed: null, // Story 2.4: Use amount_needed
+    differentAmountNeeded: false,
+    isSupportingTransaction: false,
+    parent_transaction_id: null,
+    category_id: null,
     source_module: '',
     payment_method: '',
     date: format(new Date(), 'yyyy-MM-dd'),
@@ -447,28 +628,54 @@ function resetForm() {
     receipt_number: '',
     payment_status: 'paid',
   };
+  // Reset underfunded transactions cache
+  underfundedTransactions.value = [];
 }
 
-// Handle form submission (Story 2.3: Updated for category_id and subcategory)
+// Handle form submission (Story 2.4: Updated for partial funding)
 async function handleSubmit() {
+  // Story 2.4: Block submission if insufficient funds
+  if (hasInsufficientFunds.value) {
+    $q.notify({
+      type: 'negative',
+      message: insufficientFundsMessage.value,
+    });
+    return;
+  }
+
   // Determine final subcategory value
   let finalSubcategory = formData.value.subcategory;
   if (formData.value.subcategory === OTHER_SUBCATEGORY_VALUE) {
     finalSubcategory = formData.value.customSubcategory;
   }
 
+  // Story 2.4: Calculate amount_needed
+  // If differentAmountNeeded is checked, use the entered amount_needed
+  // Otherwise, amount_needed equals amount_funded
+  const amountFunded = formData.value.amount_funded;
+  const amountNeeded = formData.value.differentAmountNeeded
+    ? formData.value.amount_needed
+    : amountFunded;
+
+  // Story 2.4: Determine parent_transaction_id for supporting transactions
+  const parentTransactionId = formData.value.isSupportingTransaction
+    ? formData.value.parent_transaction_id
+    : null;
+
   // Prepare data for submission
   const submitData = {
     type: props.type,
-    amount: formData.value.amount,
-    category_id: formData.value.category_id, // Story 2.3: Use category_id relationship
+    amount_funded: amountFunded, // Story 2.4: Use amount_funded
+    amount_needed: amountNeeded, // Story 2.4: Use amount_needed
+    category_id: formData.value.category_id,
     source_module: formData.value.source_module,
     payment_method: formData.value.payment_method,
     date: new Date(formData.value.date).toISOString(),
     funding_source_id: formData.value.funding_source_id || null,
+    parent_transaction_id: parentTransactionId, // Story 2.4: Supporting transaction
     description: formData.value.description,
     status: formData.value.status,
-    subcategory: finalSubcategory || null, // Story 2.3: Subcategory for all transaction types
+    subcategory: finalSubcategory || null,
   };
 
   // Add expense-specific fields only for expenses
@@ -480,7 +687,12 @@ async function handleSubmit() {
 
   let result;
   if (isEditMode.value) {
-    result = await financeStore.updateTransaction(props.initialData.$id, submitData);
+    // Story 2.4: Pass original transaction for cascading updates
+    result = await financeStore.updateTransaction(
+      props.initialData.$id,
+      submitData,
+      props.initialData,
+    );
   } else {
     result = await financeStore.createTransaction(submitData);
   }

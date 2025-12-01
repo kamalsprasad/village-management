@@ -125,31 +125,48 @@
           :loading="financeStore.isLoading"
           hide-pagination
           :pagination="{ rowsPerPage: 0 }"
+          :row-class="getRowClass"
         >
-          <!-- Custom column: type -->
+          <!-- Custom column: type (Story 2.4: Add supporting transaction badge) -->
           <template #body-cell-type="props">
             <q-td :props="props">
-              <q-chip
-                :color="props.value === 'income' ? 'positive' : 'negative'"
-                text-color="white"
-                dense
-                size="sm"
-              >
-                {{ props.value === 'income' ? 'Income' : 'Expense' }}
-              </q-chip>
+              <div class="row items-center no-wrap q-gutter-xs">
+                <q-chip
+                  :color="props.value === 'income' ? 'positive' : 'negative'"
+                  text-color="white"
+                  dense
+                  size="sm"
+                >
+                  {{ props.value === 'income' ? 'Income' : 'Expense' }}
+                </q-chip>
+                <!-- Story 2.4: Supporting transaction badge -->
+                <q-badge
+                  v-if="props.row.parent_transaction_id"
+                  color="info"
+                  label="supporting"
+                  class="q-ml-xs"
+                />
+              </div>
             </q-td>
           </template>
 
-          <!-- Custom column: amount -->
+          <!-- Custom column: amount (Story 2.4: Show amount_funded vs amount_needed) -->
           <template #body-cell-amount="props">
             <q-td :props="props">
-              <span
-                :class="props.row.type === 'income' ? 'text-positive' : 'text-negative'"
-                class="text-weight-medium"
-              >
-                {{ props.row.type === 'income' ? '+' : '-' }}
-                {{ formatCurrency(props.value) }}
-              </span>
+              <div>
+                <span
+                  :class="props.row.type === 'income' ? 'text-positive' : 'text-negative'"
+                  class="text-weight-medium"
+                >
+                  {{ props.row.type === 'income' ? '+' : '-' }}
+                  {{ formatCurrency(props.row.amount_funded || props.row.amount) }}
+                </span>
+                <!-- Story 2.4: Underfunded indicator -->
+                <div v-if="isUnderfunded(props.row)" class="text-caption text-warning">
+                  <q-icon name="warning" size="xs" />
+                  of {{ formatCurrency(props.row.amount_needed) }}
+                </div>
+              </div>
             </q-td>
           </template>
 
@@ -470,7 +487,7 @@ const statusFilterOptions = [
   { label: 'Cancelled', value: 'cancelled' },
 ];
 
-// Table columns definition
+// Table columns definition (Story 2.4: Updated to use amount_funded)
 const columns = [
   {
     name: 'date',
@@ -505,7 +522,7 @@ const columns = [
     name: 'amount',
     label: 'Amount',
     align: 'right',
-    field: 'amount',
+    field: (row) => row.amount_funded || row.amount, // Story 2.4: Use amount_funded
     sortable: true,
   },
   {
@@ -521,6 +538,27 @@ const columns = [
     field: 'actions',
   },
 ];
+
+// Story 2.4: Check if a transaction is underfunded
+function isUnderfunded(row) {
+  if (row.type !== 'expense') return false;
+  if (row.parent_transaction_id) return false; // Supporting transactions are not shown as underfunded
+  if (row.status === 'cancelled') return false;
+  const amountFunded = row.amount_funded || 0;
+  const amountNeeded = row.amount_needed || amountFunded;
+  return amountFunded < amountNeeded;
+}
+
+// Story 2.4: Get row class for table styling
+function getRowClass(row) {
+  if (isUnderfunded(row)) {
+    return 'bg-warning-1'; // Light yellow/warning background for underfunded
+  }
+  if (row.parent_transaction_id) {
+    return 'bg-info-1'; // Light blue background for supporting transactions
+  }
+  return '';
+}
 
 // Category options based on selected type
 const categoryOptions = computed(() => {
@@ -731,3 +769,14 @@ onMounted(async () => {
   await financeStore.fetchFundingSources();
 });
 </script>
+
+<style scoped>
+/* Story 2.4: Row highlighting for underfunded and supporting transactions */
+:deep(.bg-warning-1) {
+  background-color: rgba(255, 193, 7, 0.08) !important;
+}
+
+:deep(.bg-info-1) {
+  background-color: rgba(33, 150, 243, 0.08) !important;
+}
+</style>

@@ -14,9 +14,18 @@ const financeRoutes = [
       requiresPermission: 'finance:read',
     },
   },
+  // Story 2.4: Funding Source Detail Page
+  {
+    path: 'finance/funding/:id',
+    name: 'funding-source-detail',
+    component: () => import('./pages/FundingSourceDetailPage.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresPermission: 'finance:read',
+    },
+  },
   // Future routes for Finance module:
   // - /finance/transactions/:id (Transaction detail)
-  // - /finance/funding-sources (Funding sources management)
   // - /finance/reports (Financial reports)
 ];
 

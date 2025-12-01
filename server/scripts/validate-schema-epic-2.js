@@ -65,12 +65,24 @@ async function setupSchema() {
 
     // 2. Define Columns (Schema)
 
-    // --- Funding Sources ---
+    // --- Funding Sources (Story 2.4) ---
     console.log('📦 Configuring Funding Sources...');
     await createColumn(TABLES.FUNDING_SOURCES, 'string', 'name', 255, true);
-    await createColumn(TABLES.FUNDING_SOURCES, 'float', 'total_allocated', null, true);
-    await createColumn(TABLES.FUNDING_SOURCES, 'float', 'current_balance', null, true);
+    await createColumn(TABLES.FUNDING_SOURCES, 'enum', 'type', null, true, false, [
+      'grant',
+      'donation',
+      'income',
+      'loan',
+    ]);
+    await createColumn(TABLES.FUNDING_SOURCES, 'float', 'total_received', null, true); // Lifetime total funds received
+    await createColumn(TABLES.FUNDING_SOURCES, 'float', 'current_balance', null, true); // Available funds
+    await createColumn(TABLES.FUNDING_SOURCES, 'datetime', 'date_received', null, false);
     await createColumn(TABLES.FUNDING_SOURCES, 'string', 'restrictions', 1000, false);
+    await createColumn(TABLES.FUNDING_SOURCES, 'enum', 'status', null, true, false, [
+      'active',
+      'inactive',
+      'depleted',
+    ]);
 
     // --- Finance Categories (Story 2.3) ---
     console.log('📂 Configuring Finance Categories...');
@@ -88,7 +100,9 @@ async function setupSchema() {
       'income',
       'transfer',
     ]);
-    await createColumn(TABLES.TRANSACTIONS, 'float', 'amount', null, true);
+    // Story 2.4: Partial funding support - amount_needed and amount_funded replace amount
+    await createColumn(TABLES.TRANSACTIONS, 'float', 'amount_needed', null, true); // Total expense amount required
+    await createColumn(TABLES.TRANSACTIONS, 'float', 'amount_funded', null, true); // Amount currently funded from source
     // Story 2.3: category_id relationship replaces the old category enum
     await createRelationshipColumn(
       TABLES.TRANSACTIONS,
@@ -149,6 +163,19 @@ async function setupSchema() {
       'restrict',
     );
 
+    // Story 2.4: Self-referential relationship for supporting transactions
+    // A supporting transaction points to its parent transaction
+    // Appwrite auto-creates child_transaction_ids on the inverse side
+    await createRelationshipColumn(
+      TABLES.TRANSACTIONS,
+      TABLES.TRANSACTIONS,
+      RelationshipType.ManyToOne,
+      true,
+      'parent_transaction_id',
+      'child_transaction_ids',
+      'setNull', // If parent is deleted, children become orphaned (not deleted)
+    );
+
     // --- Loans ---
     console.log('💸 Configuring Loans...');
     await createRelationshipColumn(
@@ -192,7 +219,9 @@ async function setupSchema() {
 
     // Wait for key columns to be ready
     await waitForColumn(TABLES.FUNDING_SOURCES, 'name');
-    await waitForColumn(TABLES.TRANSACTIONS, 'amount');
+    await waitForColumn(TABLES.FUNDING_SOURCES, 'total_received');
+    await waitForColumn(TABLES.TRANSACTIONS, 'amount_needed');
+    await waitForColumn(TABLES.TRANSACTIONS, 'amount_funded');
     await waitForColumn(TABLES.INVENTORY, 'item_name');
 
     // 3. Validate Workflows
@@ -227,20 +256,23 @@ async function validateWorkflows() {
   console.log('\n🧪 Validating Workflows...');
 
   try {
-    // Workflow 1: Create Funding Source
+    // Workflow 1: Create Funding Source (Story 2.4 schema)
     const donor = await tables.createRow({
       databaseId: config.databaseId,
       tableId: TABLES.FUNDING_SOURCES,
       rowId: ID.unique(),
       data: {
         name: 'Global Giving Grant 2025',
-        total_allocated: 10000.0,
+        type: 'grant',
+        total_received: 10000.0,
         current_balance: 10000.0,
+        date_received: new Date().toISOString(),
         restrictions: 'For agricultural inputs only',
+        status: 'active',
       },
     });
     console.log(
-      `✅ [Workflow 1] Created Funding Source: ${donor.name} (Balance: ${donor.current_balance})`,
+      `✅ [Workflow 1] Created Funding Source: ${donor.name} (Type: ${donor.type}, Balance: ${donor.current_balance})`,
     );
 
     // Workflow 2: Create a test category (Story 2.3)
@@ -256,28 +288,36 @@ async function validateWorkflows() {
     });
     console.log(`✅ [Workflow 2] Created Category: ${testCategory.name} (${testCategory.type})`);
 
-    // Workflow 3: Record Expense with category_id relationship
-    const expenseAmount = 500.0;
-    const expense = await tables.createRow({
-      databaseId: config.databaseId,
-      tableId: TABLES.TRANSACTIONS,
-      rowId: ID.unique(),
-      data: {
-        type: 'expense',
-        amount: expenseAmount,
-        category_id: testCategory.$id, // Story 2.3: Use relationship instead of enum
-        source_module: 'Farm',
-        payment_method: 'Cash',
-        funding_source_id: donor.$id,
-        date: new Date().toISOString(),
-        description: 'Purchase of Maize Seeds',
-        status: 'completed',
-      },
-    });
-    console.log(`✅ [Workflow 3] Recorded Expense: ${expense.description} (-${expense.amount})`);
+    // Workflow 3: Record Expense with category_id relationship (Story 2.4: amount_needed/amount_funded)
+    const expenseAmountFunded = 500.0;
 
-    // Update Balance
-    const newBalance = donor.current_balance - expenseAmount;
+    try {
+      const expense = await tables.createRow({
+        databaseId: config.databaseId,
+        tableId: TABLES.TRANSACTIONS,
+        rowId: ID.unique(),
+        data: {
+          type: 'expense',
+          amount_needed: expenseAmountFunded, // For fully funded expense, these are equal
+          amount_funded: expenseAmountFunded,
+          category_id: testCategory.$id, // Story 2.3: Use relationship instead of enum
+          source_module: 'Farm',
+          payment_method: 'Cash',
+          funding_source_id: donor.$id,
+          date: new Date().toISOString(),
+          description: 'Purchase of Maize Seeds',
+          status: 'completed',
+        },
+      });
+      console.log(
+        `✅ [Workflow 3] Recorded Expense: ${expense.description} (Funded: ${expense.amount_funded} of ${expense.amount_needed})`,
+      );
+    } catch (e) {
+      console.log(`error: ${e.message}`);
+    }
+
+    // Update Balance (decrement current_balance by amount_funded)
+    const newBalance = donor.current_balance - expenseAmountFunded;
     await tables.updateRow({
       databaseId: config.databaseId,
       tableId: TABLES.FUNDING_SOURCES,
@@ -287,6 +327,88 @@ async function validateWorkflows() {
       },
     });
     console.log(`✅ [Workflow 3] Updated Funding Source Balance to: ${newBalance}`);
+
+    // Workflow 5: Create a partially funded expense (Story 2.4)
+    const partialExpense = await tables.createRow({
+      databaseId: config.databaseId,
+      tableId: TABLES.TRANSACTIONS,
+      rowId: ID.unique(),
+      data: {
+        type: 'expense',
+        amount_needed: 2000.0, // Need 2000 total
+        amount_funded: 1500.0, // Only funded 1500 so far
+        category_id: testCategory.$id,
+        source_module: 'Farm',
+        payment_method: 'Cash',
+        funding_source_id: donor.$id,
+        date: new Date().toISOString(),
+        description: 'Purchase of Tractor Parts (Partial)',
+        status: 'pending', // Pending because not fully funded
+      },
+    });
+    console.log(
+      `✅ [Workflow 5] Created Partially Funded Expense: ${partialExpense.description} (Funded: ${partialExpense.amount_funded} of ${partialExpense.amount_needed})`,
+    );
+
+    // Update balance for partial expense
+    const balanceAfterPartial = newBalance - 1500.0;
+    await tables.updateRow({
+      databaseId: config.databaseId,
+      tableId: TABLES.FUNDING_SOURCES,
+      rowId: donor.$id,
+      data: {
+        current_balance: balanceAfterPartial,
+      },
+    });
+    console.log(`✅ [Workflow 5] Updated Funding Source Balance to: ${balanceAfterPartial}`);
+
+    // Workflow 6: Create a supporting transaction (Story 2.4)
+    // This transaction funds the remaining 500 of the partial expense
+    const supportingTx = await tables.createRow({
+      databaseId: config.databaseId,
+      tableId: TABLES.TRANSACTIONS,
+      rowId: ID.unique(),
+      data: {
+        type: 'expense',
+        amount_needed: 500.0, // For supporting tx, amount_needed == amount_funded
+        amount_funded: 500.0,
+        category_id: testCategory.$id,
+        source_module: 'Farm',
+        payment_method: 'Bank Transfer',
+        funding_source_id: donor.$id, // Could be a different funding source
+        parent_transaction_id: partialExpense.$id, // Links to parent
+        date: new Date().toISOString(),
+        description: 'Additional Funding for Tractor Parts',
+        status: 'completed',
+      },
+    });
+    console.log(
+      `✅ [Workflow 6] Created Supporting Transaction: ${supportingTx.description} (Funds parent: ${partialExpense.$id})`,
+    );
+
+    // Update parent's amount_funded
+    await tables.updateRow({
+      databaseId: config.databaseId,
+      tableId: TABLES.TRANSACTIONS,
+      rowId: partialExpense.$id,
+      data: {
+        amount_funded: partialExpense.amount_funded + supportingTx.amount_funded, // 1500 + 500 = 2000
+        status: 'completed', // Now fully funded
+      },
+    });
+    console.log(`✅ [Workflow 6] Updated Parent Transaction: Now fully funded (2000 of 2000)`);
+
+    // Update funding source balance for supporting tx
+    const finalBalance = balanceAfterPartial - 500.0;
+    await tables.updateRow({
+      databaseId: config.databaseId,
+      tableId: TABLES.FUNDING_SOURCES,
+      rowId: donor.$id,
+      data: {
+        current_balance: finalBalance,
+      },
+    });
+    console.log(`✅ [Workflow 6] Final Funding Source Balance: ${finalBalance}`);
 
     // Workflow 4: Auto-create Inventory (checking category name from relationship)
     if (testCategory.name === 'Farm Inputs') {
