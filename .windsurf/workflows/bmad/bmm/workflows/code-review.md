@@ -5,37 +5,31 @@ auto_execution_mode: 1
 
 # Review Story Workflow
 name: code-review
-description: "Perform a Senior Developer code review on a completed story flagged Ready for Review, leveraging story-context, epic tech-spec, repo docs, MCP servers for latest best-practices, and web search as fallback. Appends structured review notes to the story."
+description: "Perform an ADVERSARIAL Senior Developer code review that finds 3-10 specific problems in every story. Challenges everything: code quality, test coverage, architecture compliance, security, performance. NEVER accepts `looks good` - must find minimum issues and can auto-fix with user approval."
 author: "BMad"
 
 # Critical variables from config
-config_source: "{project-root}/.bmad/bmm/config.yaml"
-output_folder: "{config_source}:output_folder"
+config_source: "{project-root}/_bmad/bmm/config.yaml"
 user_name: "{config_source}:user_name"
 communication_language: "{config_source}:communication_language"
 user_skill_level: "{config_source}:user_skill_level"
 document_output_language: "{config_source}:document_output_language"
 date: system-generated
-sprint_artifacts: "{config_source}:sprint_artifacts"
-sprint_status: "{sprint_artifacts}/sprint-status.yaml || {output_folder}/sprint-status.yaml"
+planning_artifacts: "{config_source}:planning_artifacts"
+implementation_artifacts: "{config_source}:implementation_artifacts"
+output_folder: "{implementation_artifacts}"
+sprint_status: "{implementation_artifacts}/sprint-status.yaml"
 
 # Workflow components
-installed_path: "{project-root}/.bmad/bmm/workflows/4-implementation/code-review"
-instructions: "{installed_path}/instructions.md"
+installed_path: "{project-root}/_bmad/bmm/workflows/4-implementation/code-review"
+instructions: "{installed_path}/instructions.xml"
 validation: "{installed_path}/checklist.md"
 template: false
 
 variables:
-  story_dir: "{sprint_artifacts}"
-  tech_spec_search_dir: "{output_folder}"
-  tech_spec_glob_template: "tech-spec-epic-{{epic_num}}*.md"
-  arch_docs_search_dirs: |
-    - "{output_folder}"
-  arch_docs_file_names: |
-    - architecture.md
-  backlog_file: "{output_folder}/backlog.md"
-  update_epic_followups: true
-  epic_followups_section_title: "Post-Review Follow-ups"
+  # Project context
+  project_context: "**/project-context.md"
+  story_dir: "{implementation_artifacts}"
 
 # Smart input file references - handles both whole docs and sharded docs
 # Priority: Whole document first, then sharded version
@@ -43,23 +37,19 @@ variables:
 input_file_patterns:
   architecture:
     description: "System architecture for review context"
-    whole: "{output_folder}/*architecture*.md"
-    sharded: "{output_folder}/*architecture*/*.md"
+    whole: "{planning_artifacts}/*architecture*.md"
+    sharded: "{planning_artifacts}/*architecture*/*.md"
     load_strategy: "FULL_LOAD"
   ux_design:
     description: "UX design specification (if UI review)"
-    whole: "{output_folder}/*ux*.md"
-    sharded: "{output_folder}/*ux*/*.md"
+    whole: "{planning_artifacts}/*ux*.md"
+    sharded: "{planning_artifacts}/*ux*/*.md"
     load_strategy: "FULL_LOAD"
   epics:
     description: "Epic containing story being reviewed"
-    whole: "{output_folder}/*epic*.md"
-    sharded_index: "{output_folder}/*epic*/index.md"
-    sharded_single: "{output_folder}/*epic*/epic-{{epic_num}}.md"
+    whole: "{planning_artifacts}/*epic*.md"
+    sharded_index: "{planning_artifacts}/*epic*/index.md"
+    sharded_single: "{planning_artifacts}/*epic*/epic-{{epic_num}}.md"
     load_strategy: "SELECTIVE_LOAD"
-  document_project:
-    description: "Brownfield project documentation (optional)"
-    sharded: "{output_folder}/index.md"
-    load_strategy: "INDEX_GUIDED"
 
 standalone: true

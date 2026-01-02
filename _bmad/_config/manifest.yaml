@@ -1,0 +1,10 @@
+installation:
+  version: 6.0.0-alpha.22
+  installDate: 2026-01-02T21:31:23.896Z
+  lastUpdated: 2026-01-02T21:31:23.896Z
+modules:
+  - core
+  - bmm
+ides:
+  - antigravity
+  - windsurf
