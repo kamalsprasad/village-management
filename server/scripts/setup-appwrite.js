@@ -19,7 +19,7 @@
  *   npm run setup:appwrite
  */
 
-import { Client, Databases, TablesDB } from 'node-appwrite';
+import { Client, TablesDB, RelationshipType, RelationMutate } from 'node-appwrite';
 import dotenv from 'dotenv';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
@@ -56,7 +56,7 @@ const client = new Client()
   .setProject(config.projectId)
   .setKey(config.apiKey);
 
-const databases = new Databases(client);
+//const databases = new Databases(client);
 const tables = new TablesDB(client);
 
 // Table schemas
@@ -83,8 +83,6 @@ const tableSchemas = {
         required: false,
       },
       { key: 'storage_quota', type: 'integer', min: 0, max: 1000, default: 2, required: false },
-      { key: '$createdAt', type: 'datetime', required: true },
-      { key: '$updatedAt', type: 'datetime', required: true },
     ],
     indexes: [{ key: 'idx_users_email_unique', type: 'unique', attributes: ['email'] }],
   },
@@ -114,17 +112,14 @@ const tableSchemas = {
       },
       { key: 'room_number', type: 'string', size: 25, required: false },
       { key: 'notes', type: 'string', size: 500, required: false },
-      { key: '$createdAt', type: 'datetime', required: true },
-      { key: '$updatedAt', type: 'datetime', required: true },
     ],
     indexes: [
       {
         key: 'idx_residents_household_id',
         type: 'key',
-        attributes: ['household_id'],
-        orders: ['ASC'],
+        attributes: ['first_name', 'last_name'],
+        orders: ['ASC', 'ASC'],
       },
-      { key: 'idx_residents_role_ids', type: 'key', attributes: ['role_ids'], orders: ['ASC'] },
     ],
   },
   households: {
@@ -166,14 +161,12 @@ const tableSchemas = {
       { key: 'bedrooms', type: 'integer', min: 0, max: 50, required: false },
       { key: 'bathrooms', type: 'integer', min: 0, max: 5, required: false },
       { key: 'notes', type: 'string', size: 500, required: false },
-      { key: '$createdAt', type: 'datetime', required: true },
-      { key: '$updatedAt', type: 'datetime', required: true },
     ],
     indexes: [
       {
-        key: 'idx_households_head_resident_id',
+        key: 'idx_households_name',
         type: 'key',
-        attributes: ['head_resident_id'],
+        attributes: ['name'],
         orders: ['ASC'],
       },
     ],
@@ -190,8 +183,6 @@ const tableSchemas = {
       },
       { key: 'permissions', type: 'string', size: 100, array: true, required: false },
       { key: 'storage_quota', type: 'integer', min: 0, max: 1000, default: 2, required: false },
-      { key: '$createdAt', type: 'datetime', required: true },
-      { key: '$updatedAt', type: 'datetime', required: true },
     ],
     indexes: [],
   },
@@ -254,66 +245,92 @@ async function createColumn(tableId, column) {
 
     switch (type) {
       case 'string':
-        await tables.createColumn(
-          config.databaseId,
-          tableId,
-          key,
-          'string',
-          size,
-          required,
-          defaultValue,
-          array || false,
-        );
+        await tables.createStringColumn({
+          databaseId: config.databaseId,
+          tableId: tableId,
+          key: key,
+          size: size,
+          required: required,
+          default: defaultValue,
+          array: array || false,
+        });
         break;
       case 'integer':
-        await tables.createColumn(
-          config.databaseId,
-          tableId,
-          key,
-          'integer',
-          required,
-          min,
-          max,
-          defaultValue,
-          array || false,
-        );
+        await tables.createIntegerColumn({
+          databaseId: config.databaseId,
+          tableId: tableId,
+          key: key,
+          required: required,
+          min: min,
+          max: max,
+          default: defaultValue,
+          array: array || false,
+        });
         break;
 
       case 'datetime':
-        await tables.createColumn(
-          config.databaseId,
-          tableId,
-          key,
-          'datetime',
-          required,
-          defaultValue,
-          array || false,
-        );
+        await tables.createDatetimeColumn({
+          databaseId: config.databaseId,
+          tableId: tableId,
+          key: key,
+          required: required,
+          default: defaultValue,
+          array: array || false,
+        });
         break;
 
       case 'enum':
-        await tables.createColumn(
-          config.databaseId,
-          tableId,
-          key,
-          'enum',
-          elements,
-          required,
-          defaultValue,
-          array || false,
-        );
+        await tables.createEnumColumn({
+          databaseId: config.databaseId,
+          tableId: tableId,
+          key: key,
+          elements: elements,
+          required: required,
+          default: defaultValue,
+          array: array || false,
+        });
         break;
 
       case 'boolean':
-        await tables.createColumn(
-          config.databaseId,
-          tableId,
-          key,
-          'boolean',
-          required,
-          defaultValue,
-          array || false,
-        );
+        await tables.createBooleanColumn({
+          databaseId: config.databaseId,
+          tableId: tableId,
+          key: key,
+          required: required,
+          default: defaultValue,
+          array: array || false,
+        });
+        break;
+
+      case 'relationship':
+        await tables.createRelationshipColumn({
+          databaseId: config.databaseId,
+          tableId: tableId,
+          relatedTableId: column.relatedTable,
+          type:
+            column.relationType === 'oneToOne'
+              ? RelationshipType.OneToOne
+              : column.relationType === 'oneToMany'
+                ? RelationshipType.OneToMany
+                : column.relationType === 'manyToOne'
+                  ? RelationshipType.ManyToOne
+                  : RelationshipType.ManyToMany,
+          twoWay: column.twoWay || false,
+          key: key,
+          twoWayKey: column.twoWayKey,
+          onDelete: RelationMutate.Cascade,
+        });
+        break;
+
+      case 'email':
+        await tables.createEmailColumn({
+          databaseId: config.databaseId,
+          tableId: tableId,
+          key: key,
+          required: required,
+          default: defaultValue,
+          array: array || false,
+        });
         break;
 
       default:
@@ -397,21 +414,43 @@ async function setupDatabase() {
       throw error;
     }
 
-    // Create tables and columns
+    // Create all tables first
+    console.log('\n📦 Creating all tables...');
+    const tableCreationResults = {};
     for (const [tableId, schema] of Object.entries(tableSchemas)) {
-      const isNew = await createTable(tableId, schema);
+      tableCreationResults[tableId] = await createTable(tableId, schema);
+    }
 
-      // Create attributes
+    // Create non-relationship columns first
+    console.log('\n📝 Creating non-relationship columns...');
+    for (const [tableId, schema] of Object.entries(tableSchemas)) {
+      const isNew = tableCreationResults[tableId];
+
       for (const column of schema.columns) {
-        await createColumn(tableId, column);
+        if (column.type !== 'relationship') {
+          await createColumn(tableId, column);
 
-        // Wait for column to be available before creating the next one
-        if (isNew) {
-          await waitForColumnCreation(tableId, column.key);
+          // Wait for column to be available before creating the next one
+          if (isNew) {
+            await waitForColumnCreation(tableId, column.key);
+          }
         }
       }
+    }
 
-      // Create indexes (only after all attributes are created)
+    // Create relationship columns after all tables and basic columns exist
+    console.log('\n🔗 Creating relationship columns...');
+    for (const [tableId, schema] of Object.entries(tableSchemas)) {
+      for (const column of schema.columns) {
+        if (column.type === 'relationship') {
+          await createColumn(tableId, column);
+        }
+      }
+    }
+
+    // Create indexes (only after all columns are created)
+    console.log('\n🔍 Creating indexes...');
+    for (const [tableId, schema] of Object.entries(tableSchemas)) {
       if (schema.indexes.length > 0) {
         console.log(`   🔍 Creating indexes for ${schema.name}...`);
         for (const index of schema.indexes) {
