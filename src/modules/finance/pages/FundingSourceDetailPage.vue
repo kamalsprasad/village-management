@@ -228,7 +228,8 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue';
-import { useRoute, useRouter } from 'vue-router';
+// import { useRoute, useRouter } from 'vue-router';
+import { useRoute } from 'vue-router';
 import { useQuasar } from 'quasar';
 import { format } from 'date-fns';
 import { useFinanceStore } from '../stores/finance-store';
@@ -236,7 +237,7 @@ import { tables } from 'src/boot/appwrite';
 import { Query } from 'appwrite';
 
 const route = useRoute();
-const router = useRouter();
+//const router = useRouter();
 const $q = useQuasar();
 const financeStore = useFinanceStore();
 

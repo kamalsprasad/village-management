@@ -15,6 +15,7 @@
     "build": "quasar build",
     "postinstall": "quasar prepare",
     "setup:appwrite": "node scripts/setup-appwrite.js",
+    "seed:roles": "node server/scripts/seed-roles.js",
     "seed:settings": "node scripts/seed-village-settings.js",
     "seed:sample": "node server/scripts/seed-sample-data.js"
   },
