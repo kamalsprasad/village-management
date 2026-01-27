@@ -15,19 +15,25 @@
 import 'dotenv/config';
 import { Client, Databases, ID } from 'node-appwrite';
 
+// Helper to strip quotes from env variables if present
+const stripQuotes = (str) => {
+  if (!str) return str;
+  return str.replace(/^["']|["']$/g, '');
+};
+
 // ============================================
 // CONFIGURATION
 // ============================================
 
-const endpoint = process.env.VITE_APPWRITE_ENDPOINT || 'https://cloud.appwrite.io/v1';
-const projectId = process.env.VITE_APPWRITE_PROJECT_ID;
-const apiKey = process.env.APPWRITE_API_KEY;
-const databaseId = process.env.VITE_APPWRITE_DATABASE_ID || 'villageDB';
+const endpoint = stripQuotes(process.env.VITE_APPWRITE_ENDPOINT) || 'https://cloud.appwrite.io/v1';
+const projectId = stripQuotes(process.env.VITE_APPWRITE_PROJECT_ID);
+const apiKey = stripQuotes(process.env.APPWRITE_API_KEY);
+const databaseId = stripQuotes(process.env.VITE_APPWRITE_DATABASE_ID) || 'villageDB';
 
 const TABLES = {
-  households: process.env.VITE_APPWRITE_TABLE_HOUSEHOLDS || 'households',
-  residents: process.env.VITE_APPWRITE_TABLE_RESIDENTS || 'residents',
-  settings: process.env.VITE_APPWRITE_TABLE_VILLAGE_SETTINGS || 'village_settings',
+  households: stripQuotes(process.env.VITE_APPWRITE_TABLE_HOUSEHOLDS) || 'households',
+  residents: stripQuotes(process.env.VITE_APPWRITE_TABLE_RESIDENTS) || 'residents',
+  settings: stripQuotes(process.env.VITE_APPWRITE_TABLE_VILLAGE_SETTINGS) || 'village_settings',
 };
 
 // ============================================
@@ -336,14 +342,19 @@ async function seedSampleData() {
     console.log('📦 Creating households...');
     for (const household of sampleHouseholds) {
       const householdId = ID.unique();
-      await databases.createDocument(databaseId, TABLES.households, householdId, {
-        name: household.name,
-        household_type: household.household_type,
-        construction_date: household.construction_date,
-        bedrooms: household.bedrooms,
-        bathrooms: household.bathrooms,
-        notes: household.notes,
-        head_resident_id: null,
+      await databases.createDocument({
+        databaseId: databaseId,
+        collectionId: TABLES.households,
+        documentId: householdId,
+        data: {
+          name: household.name,
+          household_type: household.household_type,
+          construction_date: household.construction_date,
+          bedrooms: household.bedrooms,
+          bathrooms: household.bathrooms,
+          notes: household.notes,
+          head_resident_id: null,
+        },
       });
       createdHouseholdIds.push(householdId);
       console.log(`   ✓ Created: ${household.name}`);
@@ -356,17 +367,22 @@ async function seedSampleData() {
       const residentId = ID.unique();
       const householdId = createdHouseholdIds[resident.householdIndex];
 
-      await databases.createDocument(databaseId, TABLES.residents, residentId, {
-        first_name: resident.first_name,
-        middle_names: resident.middle_names || '',
-        last_name: resident.last_name,
-        dob: new Date(`${resident.dob}T00:00:00Z`).toISOString(),
-        gender: resident.gender,
-        household_id: householdId,
-        room_number: resident.room_number || '',
-        phone: resident.phone || '',
-        email: '',
-        notes: resident.notes || '',
+      await databases.createDocument({
+        databaseId: databaseId,
+        collectionId: TABLES.residents,
+        documentId: residentId,
+        data: {
+          first_name: resident.first_name,
+          middle_names: resident.middle_names || '',
+          last_name: resident.last_name,
+          dob: new Date(`${resident.dob}T00:00:00Z`).toISOString(),
+          gender: resident.gender,
+          household_id: householdId,
+          room_number: resident.room_number || '',
+          phone: resident.phone || '',
+          email: '',
+          notes: resident.notes || '',
+        },
       });
 
       createdResidentIds.push(residentId);
@@ -390,8 +406,13 @@ async function seedSampleData() {
 
     for (const [householdIndex, headResidentId] of Object.entries(householdHeadMap)) {
       const householdId = createdHouseholdIds[parseInt(householdIndex)];
-      await databases.updateDocument(databaseId, TABLES.households, householdId, {
-        head_resident_id: headResidentId,
+      await databases.updateDocument({
+        databaseId: databaseId,
+        collectionId: TABLES.households,
+        documentId: householdId,
+        data: {
+          head_resident_id: headResidentId,
+        },
       });
       console.log(`   ✓ Set head for household ${parseInt(householdIndex) + 1}`);
     }
@@ -404,7 +425,12 @@ async function seedSampleData() {
       council_member_ids: councilMemberIds,
     };
 
-    await databases.createDocument(databaseId, TABLES.settings, 'settings_root', settingsData);
+    await databases.createDocument({
+      databaseId: databaseId,
+      collectionId: TABLES.settings,
+      documentId: 'settings_root',
+      data: settingsData,
+    });
     console.log(`   ✓ Created: ${sampleVillageSettings.village_name}\n`);
 
     // Summary

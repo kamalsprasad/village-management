@@ -8,11 +8,17 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 dotenv.config({ path: join(__dirname, '..', '.env') });
 
+// Helper to strip quotes from env variables if present
+const stripQuotes = (str) => {
+  if (!str) return str;
+  return str.replace(/^["']|["']$/g, '');
+};
+
 // Configuration
 const config = {
-  endpoint: process.env.APPWRITE_ENDPOINT || 'https://cloud.appwrite.io/v1',
-  projectId: process.env.APPWRITE_PROJECT_ID,
-  apiKey: process.env.APPWRITE_API_KEY,
+  endpoint: stripQuotes(process.env.APPWRITE_ENDPOINT) || 'https://cloud.appwrite.io/v1',
+  projectId: stripQuotes(process.env.APPWRITE_PROJECT_ID),
+  apiKey: stripQuotes(process.env.APPWRITE_API_KEY),
   databaseId: 'villageDB',
 };
 
@@ -238,14 +244,17 @@ async function waitForColumn(tableId, key) {
   for (let i = 0; i < 20; i++) {
     // 40 seconds max
     try {
-      const table = await tables.getTable(config.databaseId, tableId);
+      const table = await tables.getTable({
+        databaseId: config.databaseId,
+        tableId: tableId,
+      });
       const col = table.columns ? table.columns.find((a) => a.key === key) : null;
 
       if (col && col.status === 'available') {
         console.log(' ✅ Ready');
         return;
       }
-    } catch (e) {
+    } catch {
       // ignore
     }
     await new Promise((r) => setTimeout(r, 2000));
@@ -257,6 +266,7 @@ async function waitForColumn(tableId, key) {
 async function validateWorkflows() {
   console.log('\n🧪 Validating Workflows...');
 
+  let expense;
   try {
     // Workflow 1: Create Funding Source (Story 2.4 schema)
     const donor = await tables.createRow({
@@ -294,7 +304,7 @@ async function validateWorkflows() {
     const expenseAmountFunded = 500.0;
 
     try {
-      const expense = await tables.createRow({
+      expense = await tables.createRow({
         databaseId: config.databaseId,
         tableId: TABLES.TRANSACTIONS,
         rowId: ID.unique(),
@@ -413,7 +423,7 @@ async function validateWorkflows() {
     console.log(`✅ [Workflow 6] Final Funding Source Balance: ${finalBalance}`);
 
     // Workflow 4: Auto-create Inventory (checking category name from relationship)
-    if (testCategory.name === 'Farm Inputs') {
+    if (testCategory.name === 'Farm Inputs' && expense) {
       const inventory = await tables.createRow({
         databaseId: config.databaseId,
         tableId: TABLES.INVENTORY,
@@ -500,7 +510,7 @@ async function createTableIfNotExists(tableId, name, permissions = null) {
     console.log(
       `   ⚠️  VERIFY PERMISSIONS: Ensure ${name} has restricted access (team:finance, team:village_administrators).`,
     );
-  } catch (e) {
+  } catch {
     await tables.createTable({
       databaseId: config.databaseId,
       tableId,
@@ -532,9 +542,9 @@ async function createColumn(tableId, type, key, size, required, array = false, e
         tableId,
         key,
         required,
-        min: 0 || null,
-        max: 0 || null,
-        xdefault: 0 || null,
+        min: null,
+        max: null,
+        default: null,
         array,
       });
     } else if (type === 'float') {
@@ -543,9 +553,9 @@ async function createColumn(tableId, type, key, size, required, array = false, e
         tableId,
         key,
         required,
-        min: 0 || null,
-        max: 0 || null,
-        xdefault: 0 || null,
+        min: null,
+        max: null,
+        default: null,
         array,
       });
     } else if (type === 'boolean') {
@@ -563,7 +573,6 @@ async function createColumn(tableId, type, key, size, required, array = false, e
         tableId,
         key,
         required,
-        xdefault: undefined,
         array,
       });
     } else if (type === 'enum') {
@@ -573,7 +582,6 @@ async function createColumn(tableId, type, key, size, required, array = false, e
         key,
         elements: enumValues,
         required,
-        xdefault: undefined,
         array,
       });
     }

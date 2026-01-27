@@ -53,17 +53,20 @@ export const useAuthStore = defineStore('auth', {
       this.isLoading = true;
       this.errorMessage = null;
       // Check localStorage cache first (performance optimization)
-      const hasWindow = typeof window !== 'undefined';
-      const storage = hasWindow ? window.localStorage : null;
-      const systemInitialized = storage?.getItem('systemInitialized');
+      /*
+      // const hasWindow = typeof window !== 'undefined';
+      // const storage = hasWindow ? window.localStorage : null;
+      // const systemInitialized = storage?.getItem('systemInitialized');
 
-      if (systemInitialized === 'true') {
-        this.hasUsers = true;
-        // Also check for active session
-        await this.checkSession();
-        this.isLoading = false;
-        return true;
-      }
+      // if (systemInitialized === 'true') {
+      //   console.log('users exist');
+      //   this.hasUsers = true;
+      //   // Also check for active session
+      //   await this.checkSession();
+      //   this.isLoading = false;
+      //   return true;
+      // }
+      */
 
       // If not cached, call the Appwrite Function to check for users
       try {
@@ -80,7 +83,7 @@ export const useAuthStore = defineStore('auth', {
           return false;
         }
 
-        const execution = await functions.createExecution(functionId);
+        const execution = await functions.createExecution({ functionId });
         const response = JSON.parse(execution.responseBody);
 
         if (response.success === false && response.userExists === null) {
@@ -98,7 +101,7 @@ export const useAuthStore = defineStore('auth', {
 
         if (response.success && response.userExists) {
           this.hasUsers = true;
-          storage?.setItem('systemInitialized', 'true');
+          // storage?.setItem('systemInitialized', 'true');
           // Also check for active session
           await this.checkSession();
           return true;
@@ -130,19 +133,49 @@ export const useAuthStore = defineStore('auth', {
     async createAdmin(name, email, password) {
       this.isLoading = true;
       try {
-        const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
-        const usersCollectionId = import.meta.env.VITE_APPWRITE_TABLE_USERS;
-        const rolesCollectionId = import.meta.env.VITE_APPWRITE_TABLE_ROLES;
+        const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID || 'villageDB';
+        const usersCollectionId = import.meta.env.VITE_APPWRITE_TABLE_USERS || 'users';
+        const rolesCollectionId = import.meta.env.VITE_APPWRITE_TABLE_ROLES || 'roles';
 
         // 1. Create Appwrite Auth user
         const userId = ID.unique();
-        await account.create(userId, email, password, name);
+        await account.create({
+          userId,
+          email,
+          password,
+          name,
+        });
 
-        // 2. Find System Administrator role
-        const rolesResponse = await tables.listRows({
+        // 1.5. Log in the user immediately to gain "any" (authenticated) permissions
+        await account.createEmailPasswordSession({
+          email,
+          password,
+        });
+
+        console.log('TablesDB instance:', tables);
+        console.log('Attempting to fetch roles from:', {
           databaseId: dbId,
           tableId: rolesCollectionId,
         });
+
+        // 2. Find System Administrator role
+        let rolesResponse;
+        try {
+          rolesResponse = await tables.listRows({
+            databaseId: dbId,
+            tableId: rolesCollectionId,
+          });
+        } catch (err) {
+          console.error('Failed to list roles. Current configuration:', {
+            endpoint: import.meta.env.VITE_APPWRITE_ENDPOINT,
+            project: import.meta.env.VITE_APPWRITE_PROJECT_ID,
+            database: dbId,
+            table: rolesCollectionId,
+          });
+          throw err;
+        }
+
+        console.log('Roles response:', rolesResponse);
 
         const adminRole = rolesResponse.rows.find((role) => role.name === 'System Administrator');
 
@@ -159,19 +192,22 @@ export const useAuthStore = defineStore('auth', {
             email,
             name,
             role_ids: [adminRole.$id], // Relationship to roles table
-            resident_id: null,
+            // storage_quota is optional and has a default in the schema
           },
         });
 
-        // 4. Automatically log in the new user
-        await this.login(email, password);
+        // 4. Update store state
+        const user = await account.get();
+        this.user = user;
+        this.isLoggedIn = true;
+        this.hasUsers = true;
+        await this.fetchUserRoles();
 
         const hasWindow = typeof window !== 'undefined';
         if (hasWindow) {
           window.localStorage.setItem('systemInitialized', 'true');
         }
 
-        this.hasUsers = true;
         return { success: true };
       } catch (error) {
         console.error('Error creating admin:', error);
@@ -191,7 +227,10 @@ export const useAuthStore = defineStore('auth', {
       this.isLoading = true;
       try {
         // Create session
-        await account.createEmailPasswordSession(email, password);
+        await account.createEmailPasswordSession({
+          email,
+          password,
+        });
 
         // Fetch user data
         const user = await account.get();
@@ -225,7 +264,7 @@ export const useAuthStore = defineStore('auth', {
     async logout() {
       this.isLoading = true;
       try {
-        await account.deleteSession('current');
+        await account.deleteSession({ sessionId: 'current' });
         this.user = null;
         this.userRoles = [];
         this.isLoggedIn = false;

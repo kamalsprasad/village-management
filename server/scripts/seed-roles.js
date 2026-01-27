@@ -22,18 +22,24 @@ import dotenv from 'dotenv';
 // Load environment variables from parent directory
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
-dotenv.config({ path: join(__dirname, '..', '..', '.env') });
+dotenv.config({ path: join(__dirname, '..', '.env') });
 import { Client, TablesDB, ID } from 'node-appwrite';
+
+// Helper to strip quotes from env variables if present
+const stripQuotes = (str) => {
+  if (!str) return str;
+  return str.replace(/^["']|["']$/g, '');
+};
 
 // ============================================
 // CONFIGURATION
 // ============================================
 
-const endpoint = process.env.VITE_APPWRITE_ENDPOINT || 'https://cloud.appwrite.io/v1';
-const projectId = process.env.VITE_APPWRITE_PROJECT_ID;
-const apiKey = process.env.VITE_APPWRITE_API_KEY;
-const databaseId = process.env.VITE_APPWRITE_DATABASE_ID || 'villageDB';
-const rolesTableId = process.env.VITE_APPWRITE_TABLE_ROLES || 'roles';
+const endpoint = stripQuotes(process.env.APPWRITE_ENDPOINT) || 'https://cloud.appwrite.io/v1';
+const projectId = stripQuotes(process.env.APPWRITE_PROJECT_ID);
+const apiKey = stripQuotes(process.env.APPWRITE_API_KEY);
+const databaseId = stripQuotes(process.env.APPWRITE_DATABASE_ID) || 'villageDB';
+const rolesTableId = stripQuotes(process.env.APPWRITE_TABLE_ROLES) || 'roles';
 
 // ============================================
 // DEFAULT ROLES
@@ -98,7 +104,10 @@ async function seedRoles() {
     // Check if roles table exists
     console.log('\n🔍 Verifying roles table exists...');
     try {
-      await tables.getTable(databaseId, rolesTableId);
+      await tables.getTable({
+        databaseId: databaseId,
+        tableId: rolesTableId,
+      });
       console.log('   ✅ Roles table found');
     } catch (error) {
       if (error.code === 404) {

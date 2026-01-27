@@ -29,13 +29,19 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 dotenv.config({ path: join(__dirname, '..', '.env') });
 
+// Helper to strip quotes from env variables if present
+const stripQuotes = (str) => {
+  if (!str) return str;
+  return str.replace(/^["']|["']$/g, '');
+};
+
 // Configuration
 const config = {
-  endpoint: process.env.APPWRITE_ENDPOINT || 'https://cloud.appwrite.io/v1',
-  projectId: process.env.APPWRITE_PROJECT_ID,
-  apiKey: process.env.APPWRITE_API_KEY,
-  databaseId: process.env.APPWRITE_DATABASE_ID || 'villageDB',
-  tableId: process.env.APPWRITE_TABLE_VILLAGE_SETTINGS || 'village_settings',
+  endpoint: stripQuotes(process.env.APPWRITE_ENDPOINT) || 'https://cloud.appwrite.io/v1',
+  projectId: stripQuotes(process.env.APPWRITE_PROJECT_ID),
+  apiKey: stripQuotes(process.env.APPWRITE_API_KEY),
+  databaseId: stripQuotes(process.env.APPWRITE_DATABASE_ID) || 'villageDB',
+  tableId: stripQuotes(process.env.APPWRITE_TABLE_VILLAGE_SETTINGS) || 'village_settings',
 };
 
 // Validate configuration
@@ -80,7 +86,11 @@ async function seedVillageSettings() {
     // Check if settings_root already exists
     console.log('\n🔍 Checking for existing settings...');
     try {
-      const existing = await tables.getRow(config.databaseId, config.tableId, 'settings_root');
+      const existing = await tables.getRow({
+        databaseId: config.databaseId,
+        tableId: config.tableId,
+        rowId: 'settings_root',
+      });
 
       console.log('   ⚠️  Settings already exist');
       console.log(`   Village: ${existing.village_name}`);
@@ -98,12 +108,12 @@ async function seedVillageSettings() {
 
     // Create settings_root row
     console.log('\n📝 Creating settings_root row...');
-    const result = await tables.createRow(
-      config.databaseId,
-      config.tableId,
-      'settings_root',
-      defaultSettings,
-    );
+    const result = await tables.createRow({
+      databaseId: config.databaseId,
+      tableId: config.tableId,
+      rowId: 'settings_root',
+      data: defaultSettings,
+    });
 
     console.log('   ✅ Settings created successfully!');
     console.log('\n📋 Default Settings:');

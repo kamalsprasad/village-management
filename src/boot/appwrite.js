@@ -6,9 +6,12 @@ import { Client, Account, Databases, Storage, Functions, TablesDB } from 'appwri
 const client = new Client();
 
 // Configure client with environment variables
-client
-  .setEndpoint(import.meta.env.VITE_APPWRITE_ENDPOINT || 'https://cloud.appwrite.io/v1')
-  .setProject(import.meta.env.VITE_APPWRITE_PROJECT_ID || '');
+const endpoint = import.meta.env.VITE_APPWRITE_ENDPOINT || 'https://cloud.appwrite.io/v1';
+const projectId = import.meta.env.VITE_APPWRITE_PROJECT_ID || '';
+
+console.log('Appwrite Boot: Initializing with', { endpoint, projectId });
+
+client.setEndpoint(endpoint).setProject(projectId);
 
 // Initialize Appwrite services
 export const account = new Account(client);

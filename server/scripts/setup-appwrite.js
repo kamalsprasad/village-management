@@ -19,7 +19,7 @@
  *   npm run setup:appwrite
  */
 
-import { Client, TablesDB, RelationshipType, RelationMutate } from 'node-appwrite';
+import { Client, Databases, TablesDB, RelationshipType, RelationMutate } from 'node-appwrite';
 import dotenv from 'dotenv';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
@@ -29,11 +29,17 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 dotenv.config({ path: join(__dirname, '..', '.env') });
 
+// Helper to strip quotes from env variables if present
+const stripQuotes = (str) => {
+  if (!str) return str;
+  return str.replace(/^["']|["']$/g, '');
+};
+
 // Configuration
 const config = {
-  endpoint: process.env.APPWRITE_ENDPOINT || 'https://cloud.appwrite.io/v1',
-  projectId: process.env.APPWRITE_PROJECT_ID,
-  apiKey: process.env.APPWRITE_API_KEY,
+  endpoint: stripQuotes(process.env.APPWRITE_ENDPOINT) || 'https://cloud.appwrite.io/v1',
+  projectId: stripQuotes(process.env.APPWRITE_PROJECT_ID),
+  apiKey: stripQuotes(process.env.APPWRITE_API_KEY),
   databaseId: 'villageDB',
 };
 
@@ -56,7 +62,7 @@ const client = new Client()
   .setProject(config.projectId)
   .setKey(config.apiKey);
 
-//const databases = new Databases(client);
+const databases = new Databases(client);
 const tables = new TablesDB(client);
 
 // Table schemas
@@ -217,14 +223,14 @@ async function createTable(tableId, schema) {
   try {
     console.log(`\n📦 Creating table: ${schema.name} (${tableId})`);
 
-    await tables.createTable(
-      config.databaseId,
-      tableId,
-      schema.name,
-      ['read("any")', 'create("any")', 'update("any")', 'delete("any")'], // Permissions for any authenticated user
-      true, // Enabled
-      false, // Document security (false = table-level permissions)
-    );
+    await tables.createTable({
+      databaseId: config.databaseId,
+      tableId: tableId,
+      name: schema.name,
+      permissions: ['read("any")', 'create("any")', 'update("any")', 'delete("any")'], // Permissions for any authenticated user
+      enabled: true,
+      rowSecurity: false, // Document security (false = table-level permissions)
+    });
 
     console.log(`   ✅ Table created: ${schema.name}`);
     return true;
@@ -352,14 +358,14 @@ async function createIndex(tableId, index) {
   try {
     console.log(`   🔍 Creating index: ${index.key}`);
 
-    await tables.createIndex(
-      config.databaseId,
-      tableId,
-      index.key,
-      index.type,
-      index.attributes,
-      index.orders || [],
-    );
+    await tables.createIndex({
+      databaseId: config.databaseId,
+      tableId: tableId,
+      key: index.key,
+      type: index.type,
+      attributes: index.attributes,
+      orders: index.orders || [],
+    });
 
     console.log(`      ✅ Index created: ${index.key}`);
   } catch (error) {
@@ -374,7 +380,10 @@ async function createIndex(tableId, index) {
 async function waitForColumnCreation(tableId, columnKey, maxAttempts = 10) {
   for (let i = 0; i < maxAttempts; i++) {
     try {
-      const table = await tables.getTable(config.databaseId, tableId);
+      const table = await tables.getTable({
+        databaseId: config.databaseId,
+        tableId: tableId,
+      });
       const column = table.columns.find((attr) => attr.key === columnKey);
 
       if (column && column.status === 'available') {
@@ -403,7 +412,7 @@ async function setupDatabase() {
     // Verify database exists
     console.log('\n🔍 Verifying database exists...');
     try {
-      await tables.get({ databaseId: config.databaseId });
+      await databases.get(config.databaseId);
       console.log('   ✅ Database found');
     } catch (error) {
       if (error.code === 404) {

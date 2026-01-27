@@ -40,7 +40,7 @@ const routes = [
       {
         path: 'appwrite-test',
         component: () => import('pages/AppwriteTestPage.vue'),
-        meta: { requiresAuth: true },
+        meta: { requiresAuth: false },
       },
       {
         path: 'admin/users',

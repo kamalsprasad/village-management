@@ -17,11 +17,17 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 dotenv.config({ path: join(__dirname, '..', '.env') });
 
+// Helper to strip quotes from env variables if present
+const stripQuotes = (str) => {
+  if (!str) return str;
+  return str.replace(/^["']|["']$/g, '');
+};
+
 // Configuration
 const config = {
-  endpoint: process.env.APPWRITE_ENDPOINT || 'https://cloud.appwrite.io/v1',
-  projectId: process.env.APPWRITE_PROJECT_ID,
-  apiKey: process.env.APPWRITE_API_KEY,
+  endpoint: stripQuotes(process.env.APPWRITE_ENDPOINT) || 'https://cloud.appwrite.io/v1',
+  projectId: stripQuotes(process.env.APPWRITE_PROJECT_ID),
+  apiKey: stripQuotes(process.env.APPWRITE_API_KEY),
   databaseId: 'villageDB',
 };
 
