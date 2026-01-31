@@ -48,15 +48,19 @@ This function checks if any users exist in the Appwrite authentication system. I
 
 ### Step 3: Configure Environment Variables
 
+> ⚠️ **Important**: These environment variables must be configured **in the Appwrite Console** under the function's Settings tab — not in your local `.env` file. Functions run in isolated containers and cannot access your local environment.
+
 1. In the function details page, go to the **Settings** tab
 2. Scroll to **Environment Variables**
 3. Add the following variables:
 
-   | Variable Name         | Value                             |
-   | --------------------- | --------------------------------- |
-   | `APPWRITE_ENDPOINT`   | `https://cloud.appwrite.io/v1`    |
-   | `APPWRITE_PROJECT_ID` | Your project ID (from console)    |
-   | `APPWRITE_API_KEY`    | The API key you created in Step 1 |
+   | Variable Name         | Appwrite Cloud                    | Self-Hosted                       |
+   | --------------------- | --------------------------------- | --------------------------------- |
+   | `APPWRITE_ENDPOINT`   | `https://cloud.appwrite.io/v1`    | `http://host.docker.internal/v1`  |
+   | `APPWRITE_PROJECT_ID` | Your project ID (from console)    | Your project ID (from console)    |
+   | `APPWRITE_API_KEY`    | The API key you created in Step 1 | The API key you created in Step 1 |
+
+   > 💡 **Self-hosted users**: Use `host.docker.internal` instead of `localhost`. Function containers cannot reach the host machine via `localhost` — it refers to the container itself. Alternatively, use your machine's actual IP address (e.g., `http://192.168.1.x/v1`).
 
 4. Click **Update** to save
 

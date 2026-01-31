@@ -28,13 +28,17 @@ This is a condensed version of the full deployment guide. For detailed instructi
 
 ### 3. Set Environment Variables (1 minute)
 
+> ⚠️ **Important**: These environment variables must be configured **in the Appwrite Console** under the function's Settings tab — not in your local `.env` file. Functions run in isolated containers and cannot access your local environment.
+
 In the function's **Settings** tab, add these environment variables:
 
-```
-APPWRITE_ENDPOINT=https://cloud.appwrite.io/v1
-APPWRITE_PROJECT_ID=<your-project-id>
-APPWRITE_API_KEY=<api-key-from-step-1>
-```
+| Variable              | Appwrite Cloud                 | Self-Hosted                      |
+| --------------------- | ------------------------------ | -------------------------------- |
+| `APPWRITE_ENDPOINT`   | `https://cloud.appwrite.io/v1` | `http://host.docker.internal/v1` |
+| `APPWRITE_PROJECT_ID` | Your project ID                | Your project ID                  |
+| `APPWRITE_API_KEY`    | API key from Step 1            | API key from Step 1              |
+
+> 💡 **Self-hosted users**: Use `host.docker.internal` instead of `localhost`. Function containers cannot reach the host machine via `localhost` — it refers to the container itself.
 
 ### 4. Deploy Function Code (2 minutes)
 
