@@ -49,7 +49,7 @@ const defaultRoles = [
   {
     name: 'System Administrator',
     category: 'administration',
-    permissions: ['all'],
+    permissions: ['*'],
     storage_quota: 1000,
   },
   {

@@ -31,7 +31,7 @@ export function useSampleData() {
     village_name: 'Katete Model Village',
     address: 'Katete District, Eastern Province, Zambia',
     established_date: '2020-03-15',
-    default_currency: 'Zambian Kwacha (ZMW)', // LEAVE THE spaces BETWEEN WORDS AS THEY ARE
+    default_currency: 'ZMW',
     currency_symbol: 'K',
     timezone: 'Africa/Lusaka',
     country_code: 'ZM',
