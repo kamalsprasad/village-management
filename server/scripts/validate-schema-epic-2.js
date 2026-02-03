@@ -169,21 +169,6 @@ async function setupSchema() {
       'restrict',
     );
 
-    // Story 2.4: Self-referential relationship for supporting transactions
-    // A supporting transaction points to its parent transaction
-    // Appwrite auto-creates child_transaction_ids on the inverse side
-
-    // SELF REFERRING RELATIONSHIP IS BROKEN IN APPWRITE
-    await createRelationshipColumn(
-      TABLES.TRANSACTIONS,
-      TABLES.TRANSACTIONS,
-      RelationshipType.ManyToOne,
-      true,
-      'parent_transaction_id',
-      'child_transaction_ids',
-      'setNull', // If parent is deleted, children become orphaned (not deleted)
-    );
-
     // --- Loans ---
     console.log('💸 Configuring Loans...');
     await createRelationshipColumn(
@@ -374,53 +359,10 @@ async function validateWorkflows() {
     });
     console.log(`✅ [Workflow 5] Updated Funding Source Balance to: ${balanceAfterPartial}`);
 
-    // Workflow 6: Create a supporting transaction (Story 2.4)
-    // This transaction funds the remaining 500 of the partial expense
-    const supportingTx = await tables.createRow({
-      databaseId: config.databaseId,
-      tableId: TABLES.TRANSACTIONS,
-      rowId: ID.unique(),
-      data: {
-        type: 'expense',
-        amount_needed: 500.0, // For supporting tx, amount_needed == amount_funded
-        amount_funded: 500.0,
-        category_id: testCategory.$id,
-        source_module: 'Farm',
-        payment_method: 'Bank Transfer',
-        funding_source_id: donor.$id, // Could be a different funding source
-        parent_transaction_id: partialExpense.$id, // Links to parent
-        date: new Date().toISOString(),
-        description: 'Additional Funding for Tractor Parts',
-        status: 'completed',
-      },
-    });
-    console.log(
-      `✅ [Workflow 6] Created Supporting Transaction: ${supportingTx.description} (Funds parent: ${partialExpense.$id})`,
-    );
-
-    // Update parent's amount_funded
-    await tables.updateRow({
-      databaseId: config.databaseId,
-      tableId: TABLES.TRANSACTIONS,
-      rowId: partialExpense.$id,
-      data: {
-        amount_funded: partialExpense.amount_funded + supportingTx.amount_funded, // 1500 + 500 = 2000
-        status: 'completed', // Now fully funded
-      },
-    });
-    console.log(`✅ [Workflow 6] Updated Parent Transaction: Now fully funded (2000 of 2000)`);
-
-    // Update funding source balance for supporting tx
-    const finalBalance = balanceAfterPartial - 500.0;
-    await tables.updateRow({
-      databaseId: config.databaseId,
-      tableId: TABLES.FUNDING_SOURCES,
-      rowId: donor.$id,
-      data: {
-        current_balance: finalBalance,
-      },
-    });
-    console.log(`✅ [Workflow 6] Final Funding Source Balance: ${finalBalance}`);
+    // Workflow 6: Partial funding demonstration (without supporting transactions)
+    // Note: Supporting transactions removed - Appwrite doesn't support self-referencing relationships
+    // See: https://github.com/appwrite/appwrite/issues/9471
+    // Alternate approach: Use a separate "transaction_links" collection if needed in future
 
     // Workflow 4: Auto-create Inventory (checking category name from relationship)
     if (testCategory.name === 'Farm Inputs' && expense) {

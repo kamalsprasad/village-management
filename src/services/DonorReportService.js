@@ -159,7 +159,7 @@ export class DonorReportService {
       (t) => t.type === 'income' && t.status === 'completed',
     );
     const expenseTransactions = transactions.filter(
-      (t) => t.type === 'expense' && t.status === 'completed' && !t.parent_transaction_id,
+      (t) => t.type === 'expense' && t.status === 'completed',
     );
 
     const totalIncome = incomeTransactions.reduce((sum, t) => sum + (t.amount_funded || 0), 0);
@@ -217,7 +217,7 @@ export class DonorReportService {
           t.type === 'income'
             ? `+${this.formatCurrency(t.amount_funded)}`
             : `-${this.formatCurrency(t.amount_funded)}`,
-          t.parent_transaction_id ? 'Supporting' : 'Primary',
+          t.status.charAt(0).toUpperCase() + t.status.slice(1),
         ]);
 
       doc.autoTable({

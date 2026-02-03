@@ -139,13 +139,6 @@
                 >
                   {{ props.value === 'income' ? 'Income' : 'Expense' }}
                 </q-chip>
-                <!-- Story 2.4: Supporting transaction badge -->
-                <q-badge
-                  v-if="props.row.parent_transaction_id"
-                  color="info"
-                  label="supporting"
-                  class="q-ml-xs"
-                />
               </div>
             </q-td>
           </template>
@@ -542,7 +535,6 @@ const columns = [
 // Story 2.4: Check if a transaction is underfunded
 function isUnderfunded(row) {
   if (row.type !== 'expense') return false;
-  if (row.parent_transaction_id) return false; // Supporting transactions are not shown as underfunded
   if (row.status === 'cancelled') return false;
   const amountFunded = row.amount_funded || 0;
   const amountNeeded = row.amount_needed || amountFunded;
@@ -553,9 +545,6 @@ function isUnderfunded(row) {
 function getRowClass(row) {
   if (isUnderfunded(row)) {
     return 'bg-warning-1'; // Light yellow/warning background for underfunded
-  }
-  if (row.parent_transaction_id) {
-    return 'bg-info-1'; // Light blue background for supporting transactions
   }
   return '';
 }
@@ -771,12 +760,8 @@ onMounted(async () => {
 </script>
 
 <style scoped>
-/* Story 2.4: Row highlighting for underfunded and supporting transactions */
+/* Story 2.4: Row highlighting for underfunded transactions */
 :deep(.bg-warning-1) {
   background-color: rgba(255, 193, 7, 0.08) !important;
-}
-
-:deep(.bg-info-1) {
-  background-color: rgba(33, 150, 243, 0.08) !important;
 }
 </style>

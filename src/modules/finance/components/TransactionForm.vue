@@ -62,59 +62,6 @@
               <q-icon name="shopping_cart" />
             </template>
           </q-input>
-
-          <!-- Supporting Transaction Checkbox -->
-          <q-checkbox
-            v-model="formData.isSupportingTransaction"
-            label="This funds another transaction"
-            dense
-            class="q-mb-sm"
-            :disable="formData.differentAmountNeeded"
-          />
-
-          <!-- Parent Transaction Selector (shown when supporting checkbox is checked) -->
-          <q-select
-            v-if="formData.isSupportingTransaction"
-            v-model="formData.parent_transaction_id"
-            :options="underfundedTransactionOptions"
-            label="Select transaction to fund *"
-            outlined
-            dense
-            use-input
-            input-debounce="300"
-            option-value="value"
-            option-label="label"
-            emit-value
-            map-options
-            :loading="loadingUnderfunded"
-            :rules="[(val) => !!val || 'Please select a transaction']"
-            class="q-mb-md"
-            @filter="filterUnderfundedTransactions"
-          >
-            <template #prepend>
-              <q-icon name="link" />
-            </template>
-            <template #option="scope">
-              <q-item v-bind="scope.itemProps">
-                <q-item-section>
-                  <q-item-label>{{ scope.opt.description }}</q-item-label>
-                  <q-item-label caption>
-                    Needs: {{ formatCurrency(scope.opt.remaining) }} more ({{
-                      formatCurrency(scope.opt.funded)
-                    }}
-                    of {{ formatCurrency(scope.opt.needed) }})
-                  </q-item-label>
-                </q-item-section>
-              </q-item>
-            </template>
-            <template #no-option>
-              <q-item>
-                <q-item-section class="text-grey">
-                  No underfunded transactions found
-                </q-item-section>
-              </q-item>
-            </template>
-          </q-select>
         </template>
 
         <!-- Category (Story 2.3: Dynamic from database) -->
@@ -360,8 +307,6 @@ const formData = ref({
   amount_funded: null, // Story 2.4: Primary amount input
   amount_needed: null, // Story 2.4: Total amount needed (for partial funding)
   differentAmountNeeded: false, // Story 2.4: Checkbox for partial funding
-  isSupportingTransaction: false, // Story 2.4: Checkbox for supporting transactions
-  parent_transaction_id: null, // Story 2.4: Parent transaction for supporting tx
   category_id: null, // Story 2.3: Changed from category string to category_id
   source_module: '',
   payment_method: '',
@@ -377,10 +322,6 @@ const formData = ref({
   receipt_number: '',
   payment_status: 'paid',
 });
-
-// Story 2.4: Underfunded transactions for supporting transaction dropdown
-const underfundedTransactions = ref([]);
-const loadingUnderfunded = ref(false);
 
 // Track if "Other" subcategory is selected
 const showCustomSubcategory = computed(
@@ -422,43 +363,11 @@ const amountFundedRules = computed(() => [
   () => !hasInsufficientFunds.value || insufficientFundsMessage.value,
 ]);
 
-// Story 2.4: Underfunded transaction options for dropdown
-const underfundedTransactionOptions = computed(() => {
-  return underfundedTransactions.value.map((tx) => ({
-    label: tx.description,
-    value: tx.$id,
-    description: tx.description,
-    needed: tx.amount_needed,
-    funded: tx.amount_funded,
-    remaining: tx.amount_needed - tx.amount_funded,
-  }));
-});
-
 // Story 2.4: Handle amount funded change - sync amount_needed if not different
 function onAmountFundedChange(value) {
   if (!formData.value.differentAmountNeeded) {
     formData.value.amount_needed = value;
   }
-}
-
-// Story 2.4: Filter underfunded transactions for searchable dropdown
-async function filterUnderfundedTransactions(val, update) {
-  if (underfundedTransactions.value.length === 0) {
-    loadingUnderfunded.value = true;
-    const result = await financeStore.fetchUnderfundedTransactions();
-    loadingUnderfunded.value = false;
-    if (result.success) {
-      underfundedTransactions.value = result.data;
-    }
-  }
-
-  update(() => {
-    if (!val) return;
-    const needle = val.toLowerCase();
-    underfundedTransactions.value = underfundedTransactions.value.filter((tx) =>
-      tx.description.toLowerCase().includes(needle),
-    );
-  });
 }
 
 // Computed properties
@@ -581,8 +490,6 @@ watch(
         amount_funded: amountFunded, // Story 2.4: Use amount_funded
         amount_needed: amountNeeded, // Story 2.4: Use amount_needed
         differentAmountNeeded: hasDifferentAmount,
-        isSupportingTransaction: !!newData.parent_transaction_id,
-        parent_transaction_id: newData.parent_transaction_id || null,
         category_id: newData.category_id || null,
         source_module: newData.source_module,
         payment_method: newData.payment_method,
@@ -611,8 +518,6 @@ function resetForm() {
     amount_funded: null, // Story 2.4: Use amount_funded
     amount_needed: null, // Story 2.4: Use amount_needed
     differentAmountNeeded: false,
-    isSupportingTransaction: false,
-    parent_transaction_id: null,
     category_id: null,
     source_module: '',
     payment_method: '',
@@ -628,8 +533,6 @@ function resetForm() {
     receipt_number: '',
     payment_status: 'paid',
   };
-  // Reset underfunded transactions cache
-  underfundedTransactions.value = [];
 }
 
 // Handle form submission (Story 2.4: Updated for partial funding)
@@ -657,11 +560,6 @@ async function handleSubmit() {
     ? formData.value.amount_needed
     : amountFunded;
 
-  // Story 2.4: Determine parent_transaction_id for supporting transactions
-  const parentTransactionId = formData.value.isSupportingTransaction
-    ? formData.value.parent_transaction_id
-    : null;
-
   // Prepare data for submission
   const submitData = {
     type: props.type,
@@ -672,7 +570,6 @@ async function handleSubmit() {
     payment_method: formData.value.payment_method,
     date: new Date(formData.value.date).toISOString(),
     funding_source_id: formData.value.funding_source_id || null,
-    parent_transaction_id: parentTransactionId, // Story 2.4: Supporting transaction
     description: formData.value.description,
     status: formData.value.status,
     subcategory: finalSubcategory || null,
@@ -687,12 +584,7 @@ async function handleSubmit() {
 
   let result;
   if (isEditMode.value) {
-    // Story 2.4: Pass original transaction for cascading updates
-    result = await financeStore.updateTransaction(
-      props.initialData.$id,
-      submitData,
-      props.initialData,
-    );
+    result = await financeStore.updateTransaction(props.initialData.$id, submitData);
   } else {
     result = await financeStore.createTransaction(submitData);
   }

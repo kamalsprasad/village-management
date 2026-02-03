@@ -161,12 +161,6 @@
                   :color="props.row.type === 'income' ? 'positive' : 'negative'"
                   :label="props.row.type"
                 />
-                <q-badge
-                  v-if="props.row.parent_transaction_id"
-                  color="info"
-                  label="supporting"
-                  class="q-ml-xs"
-                />
               </q-td>
             </template>
 
@@ -271,7 +265,7 @@ const totalIncome = computed(() => {
 
 const totalExpenses = computed(() => {
   return transactions.value
-    .filter((t) => t.type === 'expense' && t.status === 'completed' && !t.parent_transaction_id)
+    .filter((t) => t.type === 'expense' && t.status === 'completed')
     .reduce((sum, t) => sum + (t.amount_funded || 0), 0);
 });
 

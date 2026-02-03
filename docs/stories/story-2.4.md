@@ -18,11 +18,12 @@ so that **I can generate donor-specific reports showing how their funds were use
 6. **Settings Widget**: "Funding Sources Overview" widget on Finance Settings page showing balance bars for active sources. [Source: docs/epics.md#344]
 7. **Spending Validation**: Hard block when `amount_funded` exceeds `current_balance` of selected funding source. No override allowed - user must reduce amount or choose different source. [Source: docs/epics.md#345]
 8. **Donor Reporting**: Generate PDF report for specific funding source showing all related income/expenses. [Source: docs/epics.md#346]
-9. **Partial Funding System**: Support expenses where `amount_needed > amount_funded`. Supporting transactions can be created later to fulfill remaining amount. Visual indicators show underfunded transactions.
+9. ~~Partial Funding System~~: ~~Support expenses where `amount_needed > amount_funded`. Supporting transactions can be created later to fulfill remaining amount. Visual indicators show underfunded transactions.~~
+   - **UPDATE**: Self-referencing relationships are not supported by Appwrite (see [GitHub Issue #9471](https://github.com/appwrite/appwrite/issues/9471)). The supporting transaction feature has been removed. Partial funding is still supported, but requires manual editing of the original transaction to add additional funding.
 
 ## Tasks / Subtasks
 
-- [ ] **Task 1: Database Schema & Seeding (AC: 1, 4, 9)**
+- [ ] **Task 1: Database Schema & Seeding (AC: 1, 4)**
   - [ ] Update `funding_sources` table in `validate-schema-epic-2.js`:
     - `name`: String (required, existing)
     - `type`: Enum (grant, donation, income, loan) - NEW
@@ -33,29 +34,27 @@ so that **I can generate donor-specific reports showing how their funds were use
     - `status`: Enum (active, inactive, depleted) - NEW
   - [ ] Update `finance_transactions` table in `validate-schema-epic-2.js`:
     - Replace `amount` with `amount_needed` (Float) and `amount_funded` (Float)
-    - Add `parent_transaction_id`: Relationship (Many-to-One, self-referential) - for supporting transactions
-    - Appwrite auto-creates `child_transaction_ids` (One-to-Many) on the inverse side
+    - ~~Add `parent_transaction_id`: Relationship (Many-to-One, self-referential) - for supporting transactions~~
+    - ~~Appwrite auto-creates `child_transaction_ids` (One-to-Many) on the inverse side~~
+    - **UPDATE**: Self-referencing relationships removed - Appwrite doesn't support them
     - Keep existing `funding_source_id`: Relationship (Many-to-One) to `funding_sources`
   - [ ] Create seeding script `seed-funding-sources.js` with default sources.
   - [ ] Run seeding script.
 
-- [ ] **Task 2: Store Updates (AC: 3, 4, 7, 9)**
+- [ ] **Task 2: Store Updates (AC: 3, 4, 7)**
   - [ ] Update `finance-store.js` to manage funding sources:
     - `fetchFundingSources()` - load all sources
     - `addFundingSource(data)` - create new source
     - `updateFundingSource(id, data)` - update source
     - `deleteFundingSource(id)` - delete source (if no linked transactions)
   - [ ] Update transaction actions for new amount fields:
-    - `createTransaction()` - handle `amount_needed`, `amount_funded`, parent linking
-    - `updateTransaction()` - cascade updates to parent if supporting transaction
-    - `deleteTransaction()` - cascade updates to parent if supporting transaction
+    - `createTransaction()` - handle `amount_needed`, `amount_funded`
+    - `updateTransaction()` - update transaction amounts
+    - `deleteTransaction()` - handle transaction deletion
   - [ ] Implement balance update logic:
     - Income: `total_received += amount`, `current_balance += amount`
     - Expense: `current_balance -= amount_funded`
-    - Supporting: `current_balance -= amount_funded`, parent's `amount_funded += amount`
   - [ ] Implement validation: hard block if `amount_funded > current_balance`
-  - [ ] Add getter: `isSupportingTransaction(tx)` = `tx.parent_transaction_id !== null`
-  - [ ] Add getter: `underfundedTransactions` = transactions where `amount_funded < amount_needed`
 
 - [ ] **Task 3: Settings UI (AC: 2, 6)**
   - [ ] Add "Funding Sources" section to `FinanceSettingsPage.vue`:
@@ -67,11 +66,10 @@ so that **I can generate donor-specific reports showing how their funds were use
     - Color coding: green (>50%), yellow (20-50%), red (<20%)
   - [ ] Ensure only Admin can add/edit/delete (Finance Manager has read-only view)
 
-- [ ] **Task 4: Transaction Form Integration (AC: 3, 4, 7, 9)**
+- [ ] **Task 4: Transaction Form Integration (AC: 3, 4, 7)**
   - [ ] Update `TransactionForm.vue` for income transactions:
     - Show "Funding Source" dropdown
     - Hide `amount_needed` field (auto-equals `amount_funded`)
-    - Hide supporting transaction options
   - [ ] Update `TransactionForm.vue` for expense transactions:
     - Show "Funding Source" dropdown
     - Show `amount_funded` field (primary input)
@@ -79,12 +77,13 @@ so that **I can generate donor-specific reports showing how their funds were use
     - Add checkbox "Different amount needed" to enable `amount_needed` editing
     - `amount_needed` must be >= `amount_funded` when checkbox enabled
     - Hard block if `amount_funded > current_balance` of selected source
-  - [ ] Add supporting transaction flow:
-    - Add checkbox "This funds another transaction"
-    - When checked, show searchable dropdown of underfunded transactions (filter by `amount_funded < amount_needed`)
-    - Search by transaction description
-    - When supporting, enforce `amount_needed == amount_funded` (no partial on supporting)
-    - On save, update parent transaction's `amount_funded`
+  - [ ] ~~Add supporting transaction flow~~:
+    - ~~Add checkbox "This funds another transaction"~~
+    - ~~When checked, show searchable dropdown of underfunded transactions (filter by `amount_funded < amount_needed`)~~
+    - ~~Search by transaction description~~
+    - ~~When supporting, enforce `amount_needed == amount_funded` (no partial on supporting)~~
+    - ~~On save, update parent transaction's `amount_funded`~~
+    - **REMOVED**: Not supported by Appwrite self-referencing relationships
 
 - [ ] **Task 5: Funding Source Detail Page (AC: 5)**
   - [ ] Create `FundingSourceDetailPage.vue` (route: `/finance/funding/:id`)
@@ -106,10 +105,11 @@ so that **I can generate donor-specific reports showing how their funds were use
   - [ ] Add "Generate Report" button on Funding Source Detail page
   - [ ] Support date range filtering for report
 
-- [ ] **Task 7: Visual Indicators & Polish (AC: 9)**
+- [ ] **Task 7: Visual Indicators & Polish (AC: 9 - Modified)**
   - [ ] Add row highlighting in transaction tables for underfunded transactions (`amount_funded < amount_needed`)
   - [ ] Add badge/chip showing funding status on transaction rows
-  - [ ] Add tooltip showing funding breakdown on hover
+  - [ ] ~~Add tooltip showing funding breakdown on hover~~
+  - **Note**: Supporting transactions removed due to Appwrite limitation. Underfunded transactions must be manually edited to add more funding.
 
 - [ ] **Task 8: Testing & Verification**
   - [ ] Manual Test: Create Funding Source (all field types)
@@ -117,8 +117,8 @@ so that **I can generate donor-specific reports showing how their funds were use
   - [ ] Manual Test: Record Expense from Source (verify `current_balance` decrease)
   - [ ] Manual Test: Verify Hard Block when exceeding balance
   - [ ] Manual Test: Create partially funded expense (`amount_needed > amount_funded`)
-  - [ ] Manual Test: Create supporting transaction (verify parent's `amount_funded` updates)
-  - [ ] Manual Test: Delete supporting transaction (verify parent's `amount_funded` decrements)
+  - [ ] ~~Manual Test: Create supporting transaction (verify parent's `amount_funded` updates)~~
+  - [ ] ~~Manual Test: Delete supporting transaction (verify parent's `amount_funded` decrements)~~
   - [ ] Manual Test: Verify underfunded transaction highlighting
   - [ ] Manual Test: Generate PDF Report
 
@@ -142,13 +142,23 @@ so that **I can generate donor-specific reports showing how their funds were use
 |--------|------|----------|-------|
 | `amount_needed` | Float | Yes | Total expense amount required |
 | `amount_funded` | Float | Yes | Amount currently funded from source |
-| `parent_transaction_id` | Relationship (Many-to-One, self) | No | Points to transaction this supports |
-| `child_transaction_ids` | Relationship (One-to-Many) | Auto | Appwrite auto-creates inverse |
-| `funding_source_id` | Relationship (Many-to-One) | No | Existing - links to funding source |
+| ~~`parent_transaction_id`~~ | ~~Relationship (Many-to-One, self)~~ | ~~No~~ | ~~Points to transaction this supports~~ **REMOVED - Not supported by Appwrite** |
+| ~~`child_transaction_ids`~~ | ~~Relationship (One-to-Many)~~ | ~~Auto~~ | ~~Appwrite auto-creates inverse~~ **REMOVED** |
+| `funding_source_id` | Relationship (Many-to-One) | No | Links to funding source |
 
 **Note:** `amount` column is replaced by `amount_needed` and `amount_funded`. For income and fully-funded expenses, these values are equal.
 
-**Derived field:** `is_supporting_transaction` = `parent_transaction_id !== null` (computed, not stored)
+~~**Derived field:** `is_supporting_transaction` = `parent_transaction_id !== null` (computed, not stored)~~ **REMOVED**
+
+### Appwrite Limitation
+
+Self-referencing relationships are not supported by Appwrite as of the current version (see [GitHub Issue #9471](https://github.com/appwrite/appwrite/issues/9471)). This prevents the implementation of the "supporting transaction" feature where one transaction could fund another.
+
+**Alternate Approach**:
+
+- Partial funding is still supported via `amount_needed` and `amount_funded` fields
+- To add funding to an underfunded transaction, users must edit the original transaction
+- A future enhancement could create a separate `transaction_links` collection to track relationships without using self-referencing relationships
 
 ### Balance Update Logic
 
@@ -159,22 +169,24 @@ INCOME TRANSACTION:
 
 EXPENSE TRANSACTION (standard):
   funding_source.current_balance -= amount_funded
-
-EXPENSE TRANSACTION (supporting):
-  funding_source.current_balance -= amount_funded
-  parent_transaction.amount_funded += this.amount_funded
-
-DELETE SUPPORTING TRANSACTION:
-  funding_source.current_balance += deleted.amount_funded
-  parent_transaction.amount_funded -= deleted.amount_funded
-
-EDIT SUPPORTING TRANSACTION:
-  # Reverse old, apply new
-  funding_source.current_balance += old.amount_funded
-  parent_transaction.amount_funded -= old.amount_funded
-  funding_source.current_balance -= new.amount_funded
-  parent_transaction.amount_funded += new.amount_funded
 ```
+
+~~EXPENSE TRANSACTION (supporting):~~
+~~funding_source.current_balance -= amount_funded~~
+~~parent_transaction.amount_funded += this.amount_funded~~
+
+~~DELETE SUPPORTING TRANSACTION:~~
+~~funding_source.current_balance += deleted.amount_funded~~
+~~parent_transaction.amount_funded -= deleted.amount_funded~~
+
+~~EDIT SUPPORTING TRANSACTION:~~
+~~# Reverse old, apply new~~
+~~funding_source.current_balance += old.amount_funded~~
+~~parent_transaction.amount_funded -= old.amount_funded~~
+~~funding_source.current_balance -= new.amount_funded~~
+~~parent_transaction.amount_funded += new.amount_funded~~
+
+**Note:** Supporting transaction logic removed due to Appwrite self-referencing relationship limitation.
 
 ### RBAC
 
@@ -188,8 +200,8 @@ Finance Manager needs Read access to select sources in forms, but cannot Create/
 
 1. **Hard block on overspend**: `amount_funded > funding_source.current_balance` → Block, show error
 2. **Amount needed >= Amount funded**: When "Different amount needed" is checked
-3. **Supporting transaction amount equality**: When supporting another transaction, `amount_needed == amount_funded` (enforced)
-4. **No nested supporting**: Supporting transactions cannot have children (flat structure)
+3. ~~**Supporting transaction amount equality**: When supporting another transaction, `amount_needed == amount_funded` (enforced)~~ **REMOVED**
+4. ~~**No nested supporting**: Supporting transactions cannot have children (flat structure)~~ **REMOVED**
 
 ### Reporting
 
@@ -202,7 +214,7 @@ Finance Manager needs Read access to select sources in forms, but cannot Create/
 - **Expense form**:
   - Default: `amount_funded` input, `amount_needed` auto-equals (disabled)
   - Checkbox enables `amount_needed` editing for partial funding
-  - Checkbox for "funds another transaction" shows searchable dropdown
+  - ~~Checkbox for "funds another transaction" shows searchable dropdown~~ **REMOVED**
 - **Visual indicators**:
   - Underfunded rows highlighted (yellow/orange background)
   - Badge showing "Partially Funded" or "Fully Funded"

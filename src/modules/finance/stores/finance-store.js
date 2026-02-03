@@ -145,43 +145,6 @@ export const useFinanceStore = defineStore('finance', {
     },
 
     /**
-     * Check if a transaction is a supporting transaction
-     * (derived from parent_transaction_id !== null)
-     */
-    isSupportingTransaction: () => (transaction) => {
-      return transaction && transaction.parent_transaction_id !== null;
-    },
-
-    /**
-     * Get underfunded transactions (amount_funded < amount_needed)
-     * Excludes supporting transactions
-     */
-    underfundedTransactions: (state) => {
-      return state.transactions.filter(
-        (tx) =>
-          tx.type === 'expense' &&
-          tx.amount_funded < tx.amount_needed &&
-          !tx.parent_transaction_id &&
-          tx.status !== 'cancelled',
-      );
-    },
-
-    /**
-     * Get funding sources formatted for dropdown options
-     * Includes balance info in label
-     */
-    fundingSourceOptions: (state) => {
-      return state.fundingSources
-        .filter((source) => source.status === 'active')
-        .map((source) => ({
-          label: `${source.name} (ZMW ${source.current_balance.toLocaleString()} available)`,
-          value: source.$id,
-          balance: source.current_balance,
-          source: source,
-        }));
-    },
-
-    /**
      * Get funding source types
      */
     fundingSourceTypes: () => ['grant', 'donation', 'income', 'loan'],
@@ -387,95 +350,6 @@ export const useFinanceStore = defineStore('finance', {
         shortfall: valid ? 0 : amount - currentBalance,
         sourceName: source.name,
       };
-    },
-
-    /**
-     * Update parent transaction's amount_funded when a supporting transaction is created/modified
-     * Story 2.4: Cascading update for supporting transactions
-     * @param {string} parentTransactionId - Parent transaction ID
-     * @param {number} amountDelta - Amount to add (positive) or subtract (negative)
-     */
-    async updateParentTransactionFunding(parentTransactionId, amountDelta) {
-      try {
-        const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
-        const transactionsTableId = 'finance_transactions';
-
-        // Fetch parent transaction
-        const parentTx = await tables.getRow({
-          databaseId: dbId,
-          tableId: transactionsTableId,
-          rowId: parentTransactionId,
-        });
-
-        const newAmountFunded = parentTx.amount_funded + amountDelta;
-
-        // Determine if fully funded now
-        const isFullyFunded = newAmountFunded >= parentTx.amount_needed;
-
-        // Update parent
-        await tables.updateRow({
-          databaseId: dbId,
-          tableId: transactionsTableId,
-          rowId: parentTransactionId,
-          data: {
-            amount_funded: newAmountFunded,
-            // Auto-update status when fully funded
-            ...(isFullyFunded && parentTx.status === 'pending' ? { status: 'completed' } : {}),
-          },
-        });
-
-        console.log(
-          `Parent transaction ${parentTransactionId} amount_funded updated: ${parentTx.amount_funded} -> ${newAmountFunded}`,
-        );
-
-        // Update local state if transaction is in the list
-        const index = this.transactions.findIndex((t) => t.$id === parentTransactionId);
-        if (index !== -1) {
-          this.transactions[index].amount_funded = newAmountFunded;
-          if (isFullyFunded && this.transactions[index].status === 'pending') {
-            this.transactions[index].status = 'completed';
-          }
-        }
-      } catch (error) {
-        console.error('Error updating parent transaction funding:', error);
-        errorHandler.notifyError(
-          'Supporting transaction saved, but parent update failed. Please update manually.',
-        );
-      }
-    },
-
-    /**
-     * Fetch underfunded transactions for supporting transaction dropdown
-     * Story 2.4: Get transactions where amount_funded < amount_needed
-     * @returns {Array} - List of underfunded transactions
-     */
-    async fetchUnderfundedTransactions() {
-      try {
-        const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
-        const transactionsTableId = 'finance_transactions';
-
-        // Fetch all expense transactions that are not cancelled
-        const response = await tables.listRows({
-          databaseId: dbId,
-          tableId: transactionsTableId,
-          queries: [
-            Query.equal('type', 'expense'),
-            Query.notEqual('status', 'cancelled'),
-            Query.limit(100),
-            Query.orderDesc('date'),
-          ],
-        });
-
-        // Filter for underfunded (amount_funded < amount_needed) and not supporting transactions
-        const underfunded = response.rows.filter(
-          (tx) => tx.amount_funded < tx.amount_needed && !tx.parent_transaction_id,
-        );
-
-        return { success: true, data: underfunded };
-      } catch (error) {
-        console.error('Error fetching underfunded transactions:', error);
-        return { success: false, error: error.message };
-      }
     },
 
     /**
@@ -966,7 +840,6 @@ export const useFinanceStore = defineStore('finance', {
           source_module: transactionData.source_module,
           payment_method: transactionData.payment_method,
           funding_source_id: transactionData.funding_source_id || null,
-          parent_transaction_id: transactionData.parent_transaction_id || null, // Story 2.4: Supporting transaction
           date: transactionData.date,
           description: transactionData.description,
           status: transactionData.status || 'completed',
@@ -1006,14 +879,6 @@ export const useFinanceStore = defineStore('finance', {
           }
         }
 
-        // Story 2.4: If this is a supporting transaction, update parent's amount_funded
-        if (transactionData.parent_transaction_id && amountFunded > 0) {
-          await this.updateParentTransactionFunding(
-            transactionData.parent_transaction_id,
-            amountFunded,
-          );
-        }
-
         // Refresh the current page to include new transaction
         await this.fetchTransactions(this.pagination.currentPage, this.pagination.itemsPerPage);
 
@@ -1030,12 +895,11 @@ export const useFinanceStore = defineStore('finance', {
 
     /**
      * Update an existing transaction
-     * Story 2.4: Updated to handle amount_needed/amount_funded and supporting transaction cascading
+     * Story 2.4: Updated to handle amount_needed/amount_funded
      * @param {string} transactionId - Transaction ID to update
      * @param {Object} transactionData - Updated transaction data
-     * @param {Object} originalTransaction - Original transaction data for comparison (for cascading)
      */
-    async updateTransaction(transactionId, transactionData, originalTransaction = null) {
+    async updateTransaction(transactionId, transactionData) {
       this.isLoading = true;
       try {
         const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
@@ -1073,19 +937,6 @@ export const useFinanceStore = defineStore('finance', {
           rowId: transactionId,
           data,
         });
-
-        // Story 2.4: Handle cascading updates for supporting transactions
-        if (originalTransaction && originalTransaction.parent_transaction_id) {
-          const oldAmountFunded = parseFloat(originalTransaction.amount_funded) || 0;
-          const amountDelta = amountFunded - oldAmountFunded;
-
-          if (amountDelta !== 0) {
-            await this.updateParentTransactionFunding(
-              originalTransaction.parent_transaction_id,
-              amountDelta,
-            );
-          }
-        }
 
         // Refresh the current page
         await this.fetchTransactions(this.pagination.currentPage, this.pagination.itemsPerPage);
@@ -1132,14 +983,6 @@ export const useFinanceStore = defineStore('finance', {
             status: 'cancelled',
           },
         });
-
-        // Story 2.4: If this is a supporting transaction, update parent's amount_funded
-        if (txToDelete && txToDelete.parent_transaction_id && txToDelete.amount_funded > 0) {
-          await this.updateParentTransactionFunding(
-            txToDelete.parent_transaction_id,
-            -txToDelete.amount_funded, // Negative to decrement
-          );
-        }
 
         // Story 2.4: Restore funding source balance for expenses
         if (
@@ -1298,16 +1141,13 @@ export const useFinanceStore = defineStore('finance', {
           if (t.type === 'income') {
             totalIncome += t.amount_funded || 0;
           } else if (t.type === 'expense') {
-            // Story 2.4: Skip supporting transactions to avoid double-counting
-            if (!t.parent_transaction_id) {
-              totalExpenses += t.amount_funded || 0;
-              // Track expense categories using category_id
-              const categoryKey = t.category_id || 'Uncategorized';
-              if (!categoryTotals[categoryKey]) {
-                categoryTotals[categoryKey] = 0;
-              }
-              categoryTotals[categoryKey] += t.amount_funded || 0;
+            totalExpenses += t.amount_funded || 0;
+            // Track expense categories using category_id
+            const categoryKey = t.category_id || 'Uncategorized';
+            if (!categoryTotals[categoryKey]) {
+              categoryTotals[categoryKey] = 0;
             }
+            categoryTotals[categoryKey] += t.amount_funded || 0;
           }
         });
 
