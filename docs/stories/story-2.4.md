@@ -1,6 +1,6 @@
 # Story 2.4: Finance Module - Funding Source Tracking for Donor Accountability
 
-Status: in-progress
+Status: Approved
 
 ## Story
 

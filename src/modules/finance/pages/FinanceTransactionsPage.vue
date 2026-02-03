@@ -203,6 +203,19 @@
               >
                 <q-tooltip>Edit</q-tooltip>
               </q-btn>
+              <!-- Story 2.4: Add Funding button for underfunded transactions -->
+              <q-btn
+                v-if="hasPermission('finance:write') && isUnderfunded(props.row)"
+                flat
+                dense
+                round
+                icon="add_circle"
+                color="positive"
+                size="sm"
+                @click="openAddFundingDialog(props.row)"
+              >
+                <q-tooltip>Add Funding</q-tooltip>
+              </q-btn>
               <q-btn
                 v-if="hasPermission('finance:write') && props.row.status !== 'cancelled'"
                 flat
@@ -443,6 +456,16 @@
           @cancelled="handleEditCancelled"
         />
       </q-dialog>
+
+      <!-- Story 2.4: Add Funding Dialog for underfunded transactions -->
+      <q-dialog v-model="showAddFundingDialog" persistent>
+        <add-funding-dialog
+          v-if="transactionToFund"
+          :transaction="transactionToFund"
+          @saved="handleFundingAdded"
+          @cancelled="showAddFundingDialog = false"
+        />
+      </q-dialog>
     </div>
   </q-page>
 </template>
@@ -454,6 +477,7 @@ import { format, parseISO } from 'date-fns';
 import { useFinanceStore } from '../stores/finance-store';
 import { usePermissions } from 'src/composables/usePermissions';
 import TransactionForm from '../components/TransactionForm.vue';
+import AddFundingDialog from '../components/AddFundingDialog.vue';
 
 const $q = useQuasar();
 const financeStore = useFinanceStore();
@@ -472,6 +496,10 @@ const dialogTransactionType = ref('income'); // Type for add dialog
 const selectedStatus = ref(null);
 const showEditDialog = ref(false);
 const editingTransaction = ref(null);
+
+// Story 2.4: Add Funding dialog state
+const showAddFundingDialog = ref(false);
+const transactionToFund = ref(null);
 
 // Status filter options
 const statusFilterOptions = [
@@ -678,6 +706,24 @@ function handleEditSaved() {
 function handleEditCancelled() {
   showEditDialog.value = false;
   editingTransaction.value = null;
+}
+
+// Story 2.4: Open Add Funding dialog
+function openAddFundingDialog(transaction) {
+  transactionToFund.value = transaction;
+  showAddFundingDialog.value = true;
+}
+
+// Story 2.4: Handle funding added successfully
+function handleFundingAdded() {
+  showAddFundingDialog.value = false;
+  transactionToFund.value = null;
+  // Refresh transactions to show updated amounts
+  financeStore.fetchTransactions(financeStore.pagination.currentPage, itemsPerPage.value);
+  $q.notify({
+    type: 'positive',
+    message: 'Funding added successfully',
+  });
 }
 
 // Confirm delete transaction

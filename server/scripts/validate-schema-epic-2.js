@@ -67,6 +67,7 @@ async function setupSchema() {
 
     // Other tables - Standard Finance permissions (Read/Create/Update/Delete for Finance & Admins)
     await createTableIfNotExists(TABLES.TRANSACTIONS, 'Finance Transactions');
+    await createTableIfNotExists(TABLES.TRANSACTION_LINKS, 'Transaction Links');
     await createTableIfNotExists(TABLES.FUNDING_SOURCES, 'Funding Sources');
     await createTableIfNotExists(TABLES.LOANS, 'Loans');
     await createTableIfNotExists(TABLES.INVENTORY, 'Inventory');
