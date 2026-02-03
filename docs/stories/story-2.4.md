@@ -18,8 +18,11 @@ so that **I can generate donor-specific reports showing how their funds were use
 6. **Settings Widget**: "Funding Sources Overview" widget on Finance Settings page showing balance bars for active sources. [Source: docs/epics.md#344]
 7. **Spending Validation**: Hard block when `amount_funded` exceeds `current_balance` of selected funding source. No override allowed - user must reduce amount or choose different source. [Source: docs/epics.md#345]
 8. **Donor Reporting**: Generate PDF report for specific funding source showing all related income/expenses. [Source: docs/epics.md#346]
-9. ~~Partial Funding System~~: ~~Support expenses where `amount_needed > amount_funded`. Supporting transactions can be created later to fulfill remaining amount. Visual indicators show underfunded transactions.~~
-   - **UPDATE**: Self-referencing relationships are not supported by Appwrite (see [GitHub Issue #9471](https://github.com/appwrite/appwrite/issues/9471)). The supporting transaction feature has been removed. Partial funding is still supported, but requires manual editing of the original transaction to add additional funding.
+9. **Partial Funding System**: Support expenses where `amount_needed > amount_funded`. Users can create funding links to add additional funding to underfunded transactions without editing the original transaction. Visual indicators show underfunded transactions and funding link history. [Source: docs/epics.md#345]
+   - **Implementation**: Uses `transaction_links` table to track funding relationships (avoids Appwrite self-referencing limitation)
+   - Users with finance role can add funding links to underfunded transactions
+   - Each link records amount, funding source, and maintains complete audit trail
+   - Transaction `amount_funded` automatically updates when links are created
 
 ## Tasks / Subtasks
 
@@ -54,6 +57,10 @@ so that **I can generate donor-specific reports showing how their funds were use
   - [ ] Implement balance update logic:
     - Income: `total_received += amount`, `current_balance += amount`
     - Expense: `current_balance -= amount_funded`
+    - Funding Link: update parent's `amount_funded`, deduct from funding source balance
+  - [ ] Implement balance update logic:
+    - Income: `total_received += amount`, `current_balance += amount`
+    - Expense: `current_balance -= amount_funded`
   - [ ] Implement validation: hard block if `amount_funded > current_balance`
 
 - [ ] **Task 3: Settings UI (AC: 2, 6)**
@@ -77,6 +84,12 @@ so that **I can generate donor-specific reports showing how their funds were use
     - Add checkbox "Different amount needed" to enable `amount_needed` editing
     - `amount_needed` must be >= `amount_funded` when checkbox enabled
     - Hard block if `amount_funded > current_balance` of selected source
+  - [ ] Add "Add Funding" button on transaction detail page for underfunded transactions:
+    - Only visible when `amount_funded < amount_needed` and user has finance role
+    - Opens dialog with fields: funding source, amount to add, notes
+    - Validates amount doesn't exceed remaining needed (`amount_needed - amount_funded`)
+    - Validates funding source has sufficient balance
+    - Creates funding link and updates transaction on save
   - [ ] ~~Add supporting transaction flow~~:
     - ~~Add checkbox "This funds another transaction"~~
     - ~~When checked, show searchable dropdown of underfunded transactions (filter by `amount_funded < amount_needed`)~~
@@ -146,19 +159,40 @@ so that **I can generate donor-specific reports showing how their funds were use
 | ~~`child_transaction_ids`~~ | ~~Relationship (One-to-Many)~~ | ~~Auto~~ | ~~Appwrite auto-creates inverse~~ **REMOVED** |
 | `funding_source_id` | Relationship (Many-to-One) | No | Links to funding source |
 
+**`transaction_links` table:**
+| Column | Type | Required | Notes |
+|--------|------|----------|-------|
+| `parent_transaction_id` | Relationship (Many-to-One) | Yes | Transaction receiving the funding |
+| `child_transaction_id` | Relationship (Many-to-One) | Yes | Transaction providing the funding |
+| `link_type` | Enum | Yes | Values: `funding`, `refund`, `transfer` |
+| `amount` | Float | Yes | Amount of funding added via this link |
+| `recorded_by` | Relationship (Many-to-One) to users | Yes | User who created the link |
+| `notes` | String(500) | No | Optional notes about this funding |
+| `created_at` | DateTime | Auto | When the link was created |
+
 **Note:** `amount` column is replaced by `amount_needed` and `amount_funded`. For income and fully-funded expenses, these values are equal.
 
-~~**Derived field:** `is_supporting_transaction` = `parent_transaction_id !== null` (computed, not stored)~~ **REMOVED**
+### Appwrite Limitation - RESOLVED
 
-### Appwrite Limitation
+Self-referencing relationships are not supported by Appwrite as of the current version (see [GitHub Issue #9471](https://github.com/appwrite/appwrite/issues/9471)). This prevented the original implementation of the "supporting transaction" feature where one transaction could fund another transaction directly.
 
-Self-referencing relationships are not supported by Appwrite as of the current version (see [GitHub Issue #9471](https://github.com/appwrite/appwrite/issues/9471)). This prevents the implementation of the "supporting transaction" feature where one transaction could fund another.
+**Solution Implemented**: Created a separate `transaction_links` collection to track funding relationships without using self-referencing relationships.
 
-**Alternate Approach**:
+**Benefits of this approach**:
 
-- Partial funding is still supported via `amount_needed` and `amount_funded` fields
-- To add funding to an underfunded transaction, users must edit the original transaction
-- A future enhancement could create a separate `transaction_links` collection to track relationships without using self-referencing relationships
+- Clean audit trail of all funding additions
+- No self-referencing relationship issues
+- Supports multiple link types (funding, refund, transfer)
+- Records who added funding and when
+- Can be extended with soft-delete for unlinking (see future_enhancements.md)
+
+**How it works**:
+
+1. Original expense created with `amount_needed=1000`, `amount_funded=600`
+2. Finance Manager clicks "Add Funding" on underfunded transaction
+3. System creates `transaction_links` record linking to parent transaction
+4. Parent transaction's `amount_funded` is automatically updated
+5. Complete history available via funding links table
 
 ### Balance Update Logic
 
@@ -167,8 +201,14 @@ INCOME TRANSACTION:
   funding_source.total_received += amount_funded
   funding_source.current_balance += amount_funded
 
-EXPENSE TRANSACTION (standard):
+EXPENSE TRANSACTION (initial creation):
   funding_source.current_balance -= amount_funded
+
+FUNDING LINK CREATION (adding funding to underfunded transaction):
+  parent_transaction.amount_funded += link.amount
+  funding_source.current_balance -= link.amount
+  funding_link.recorded_by = current_user
+  funding_link.created_at = now()
 ```
 
 ~~EXPENSE TRANSACTION (supporting):~~

@@ -42,6 +42,10 @@ export const useFinanceStore = defineStore('finance', {
       dateTo: null,
       status: null, // 'pending', 'completed', 'cancelled', or null for all
     },
+    // Story 2.4: Transaction Links state
+    transactionLinks: {}, // Map of transactionId -> array of links
+    underfundedTransactions: [], // List of underfunded transactions
+    isTransactionLinksLoading: false,
   }),
 
   getters: {
@@ -1175,5 +1179,209 @@ export const useFinanceStore = defineStore('finance', {
         return { success: false, error: error.message };
       }
     },
+
+    // ==========================================
+    // Story 2.4: Transaction Links Actions
+    // ==========================================
+
+    /**
+     * Create a funding link to add funding to an underfunded transaction
+     * Story 2.4: Implements the funding links feature without self-referencing relationships
+     * @param {string} parentTransactionId - The expense transaction being funded
+     * @param {number} amount - Amount to add
+     * @param {string} fundingSourceId - Source of the funds
+     * @param {string} notes - Optional notes about the funding
+     * @param {string} childTransactionId - Optional: specific transaction providing funds
+     */
+    async createFundingLink(
+      parentTransactionId,
+      amount,
+      fundingSourceId,
+      notes = '',
+      childTransactionId = null,
+    ) {
+      this.isTransactionLinksLoading = true;
+      try {
+        const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
+        const transactionLinksTableId = 'transaction_links';
+        const transactionsTableId = 'finance_transactions';
+
+        // 1. Fetch parent transaction to validate
+        const parentTx = await tables.getRow({
+          databaseId: dbId,
+          tableId: transactionsTableId,
+          rowId: parentTransactionId,
+        });
+
+        if (!parentTx) {
+          throw new Error('Parent transaction not found');
+        }
+
+        // 2. Validate amount doesn't exceed remaining needed
+        const remainingNeeded = (parentTx.amount_needed || 0) - (parentTx.amount_funded || 0);
+        if (amount > remainingNeeded) {
+          throw new Error(`Amount exceeds remaining needed (${remainingNeeded})`);
+        }
+
+        // 3. Validate funding source has sufficient balance
+        const fundingSource = this.fundingSources.find((fs) => fs.$id === fundingSourceId);
+        if (!fundingSource) {
+          throw new Error('Funding source not found');
+        }
+        if (fundingSource.current_balance < amount) {
+          throw new Error(
+            `Insufficient balance in funding source (available: ${fundingSource.current_balance})`,
+          );
+        }
+
+        // 4. Create the funding link
+        const fundingLink = await tables.createRow({
+          databaseId: dbId,
+          tableId: transactionLinksTableId,
+          rowId: ID.unique(),
+          data: {
+            parent_transaction_id: parentTransactionId,
+            child_transaction_id: childTransactionId,
+            link_type: 'funding',
+            amount: amount,
+            notes: notes,
+            created_at: new Date().toISOString(),
+          },
+        });
+
+        // 5. Update parent transaction's amount_funded
+        const newAmountFunded = (parentTx.amount_funded || 0) + amount;
+        await tables.updateRow({
+          databaseId: dbId,
+          tableId: transactionsTableId,
+          rowId: parentTransactionId,
+          data: {
+            amount_funded: newAmountFunded,
+          },
+        });
+
+        // 6. Decrement funding source balance
+        await this.decrementFundingSourceBalance(fundingSourceId, amount);
+
+        // 7. Update local state
+        if (!this.transactionLinks[parentTransactionId]) {
+          this.transactionLinks[parentTransactionId] = [];
+        }
+        this.transactionLinks[parentTransactionId].push(fundingLink);
+
+        // 8. Update the transaction in the transactions array
+        const txIndex = this.transactions.findIndex((t) => t.$id === parentTransactionId);
+        if (txIndex !== -1) {
+          this.transactions[txIndex].amount_funded = newAmountFunded;
+        }
+
+        errorHandler.notifySuccess(`Funding added: ${amount} from ${fundingSource.name}`);
+        return { success: true, data: fundingLink };
+      } catch (error) {
+        console.error('Error creating funding link:', error);
+        errorHandler.notifyError(`Failed to add funding: ${error.message}`);
+        return { success: false, error: error.message };
+      } finally {
+        this.isTransactionLinksLoading = false;
+      }
+    },
+
+    /**
+     * Fetch all funding links for a transaction
+     * @param {string} transactionId - Transaction ID to fetch links for
+     */
+    async fetchTransactionLinks(transactionId) {
+      this.isTransactionLinksLoading = true;
+      try {
+        const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
+        const transactionLinksTableId = 'transaction_links';
+
+        const response = await tables.listRows({
+          databaseId: dbId,
+          tableId: transactionLinksTableId,
+          queries: [
+            Query.equal('parent_transaction_id', transactionId),
+            Query.orderDesc('created_at'),
+          ],
+        });
+
+        // Store in local state
+        this.transactionLinks[transactionId] = response.rows;
+
+        return { success: true, data: response.rows };
+      } catch (error) {
+        console.error('Error fetching transaction links:', error);
+        return { success: false, error: error.message };
+      } finally {
+        this.isTransactionLinksLoading = false;
+      }
+    },
+
+    /**
+     * Get underfunded transactions (where amount_funded < amount_needed)
+     * Story 2.4: For Add Funding workflow
+     * @param {number} limit - Maximum number of results
+     */
+    async getUnderfundedTransactions(limit = 50) {
+      try {
+        const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
+        const transactionsTableId = 'finance_transactions';
+
+        // Query for expense transactions where amount_funded < amount_needed
+        // We need to fetch and filter since Appwrite doesn't support complex comparison queries
+        const response = await tables.listRows({
+          databaseId: dbId,
+          tableId: transactionsTableId,
+          queries: [
+            Query.equal('type', 'expense'),
+            Query.notEqual('status', 'cancelled'),
+            Query.limit(limit),
+            Query.orderDesc('date'),
+          ],
+        });
+
+        // Filter to underfunded transactions
+        const underfunded = response.rows.filter((tx) => {
+          const amountNeeded = tx.amount_needed || 0;
+          const amountFunded = tx.amount_funded || 0;
+          return amountFunded < amountNeeded;
+        });
+
+        this.underfundedTransactions = underfunded;
+
+        return { success: true, data: underfunded };
+      } catch (error) {
+        console.error('Error fetching underfunded transactions:', error);
+        return { success: false, error: error.message };
+      }
+    },
+
+    /**
+     * Check if user can add funding (has finance role)
+     * @param {Object} user - Current user object with roles
+     */
+    canAddFunding(user) {
+      if (!user || !user.roles) return false;
+      return user.roles.some(
+        (role) =>
+          role.category === 'finance' || (role.permissions && role.permissions.includes('*')),
+      );
+    },
+
+    /**
+     * Clear transaction links cache for a transaction
+     * @param {string} transactionId
+     */
+    clearTransactionLinks(transactionId) {
+      if (transactionId) {
+        delete this.transactionLinks[transactionId];
+      } else {
+        this.transactionLinks = {};
+      }
+    },
+
+    // TODO: UNLINKING_FUNDING - Implement unlinkFunding action
+    // See: docs/future_enhancements.md
+    // async unlinkFunding(linkId, reason) { ... }
   },
 });

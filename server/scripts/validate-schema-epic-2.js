@@ -40,9 +40,11 @@ const tables = new TablesDB(client);
 const TABLES = {
   TRANSACTIONS: 'finance_transactions',
   FUNDING_SOURCES: 'funding_sources',
+  TRANSACTION_LINKS: 'transaction_links',
   LOANS: 'loans',
   INVENTORY: 'inventory',
   RESIDENTS: 'residents',
+  USERS: 'users',
   FINANCE_CATEGORIES: 'finance_categories',
 };
 
@@ -208,6 +210,44 @@ async function setupSchema() {
       'restrict',
     );
 
+    // --- Transaction Links (Story 2.4: Funding Links without self-referencing) ---
+    console.log('🔗 Configuring Transaction Links...');
+    await createRelationshipColumn(
+      TABLES.TRANSACTION_LINKS,
+      TABLES.TRANSACTIONS,
+      RelationshipType.ManyToOne,
+      true,
+      'parent_transaction_id',
+      'funding_links_received',
+      'restrict',
+    );
+    await createRelationshipColumn(
+      TABLES.TRANSACTION_LINKS,
+      TABLES.TRANSACTIONS,
+      RelationshipType.ManyToOne,
+      true,
+      'child_transaction_id',
+      'funding_links_provided',
+      'restrict',
+    );
+    await createColumn(TABLES.TRANSACTION_LINKS, 'enum', 'link_type', null, true, false, [
+      'funding',
+      'refund',
+      'transfer',
+    ]);
+    await createColumn(TABLES.TRANSACTION_LINKS, 'float', 'amount', null, true);
+    await createRelationshipColumn(
+      TABLES.TRANSACTION_LINKS,
+      TABLES.USERS,
+      RelationshipType.ManyToOne,
+      true,
+      'recorded_by',
+      'recorded_transaction_links',
+      'restrict',
+    );
+    await createColumn(TABLES.TRANSACTION_LINKS, 'string', 'notes', 500, false);
+    await createColumn(TABLES.TRANSACTION_LINKS, 'datetime', 'created_at', null, true);
+
     console.log('✅ Schema Setup Complete. Waiting for columns to be available...');
 
     // Wait for key columns to be ready
@@ -216,6 +256,8 @@ async function setupSchema() {
     await waitForColumn(TABLES.TRANSACTIONS, 'amount_needed');
     await waitForColumn(TABLES.TRANSACTIONS, 'amount_funded');
     await waitForColumn(TABLES.INVENTORY, 'item_name');
+    await waitForColumn(TABLES.TRANSACTION_LINKS, 'parent_transaction_id');
+    await waitForColumn(TABLES.TRANSACTION_LINKS, 'amount');
 
     // 3. Validate Workflows
     await validateWorkflows();
@@ -359,10 +401,55 @@ async function validateWorkflows() {
     });
     console.log(`✅ [Workflow 5] Updated Funding Source Balance to: ${balanceAfterPartial}`);
 
-    // Workflow 6: Partial funding demonstration (without supporting transactions)
-    // Note: Supporting transactions removed - Appwrite doesn't support self-referencing relationships
-    // See: https://github.com/appwrite/appwrite/issues/9471
-    // Alternate approach: Use a separate "transaction_links" collection if needed in future
+    // Workflow 6: Add funding to partially funded expense using transaction_links
+    console.log('\n📝 Workflow 6: Adding Funding via Transaction Links...');
+    try {
+      // Create a funding link to add more funding to the partial expense
+      const fundingLink = await tables.createRow({
+        databaseId: config.databaseId,
+        tableId: TABLES.TRANSACTION_LINKS,
+        rowId: ID.unique(),
+        data: {
+          parent_transaction_id: partialExpense.$id, // The underfunded expense
+          child_transaction_id: expense.$id, // The funding source transaction
+          link_type: 'funding',
+          amount: 400.0, // Adding 400 more
+          notes: 'Additional funding for tractor parts from maize seed budget',
+          created_at: new Date().toISOString(),
+        },
+      });
+      console.log(
+        `✅ [Workflow 6] Created Funding Link: ${fundingLink.amount} added to ${partialExpense.description}`,
+      );
+
+      // Update the partial expense's amount_funded
+      const newAmountFunded = partialExpense.amount_funded + 400.0;
+      await tables.updateRow({
+        databaseId: config.databaseId,
+        tableId: TABLES.TRANSACTIONS,
+        rowId: partialExpense.$id,
+        data: {
+          amount_funded: newAmountFunded,
+        },
+      });
+      console.log(
+        `✅ [Workflow 6] Updated Expense: Now funded ${newAmountFunded} of ${partialExpense.amount_needed}`,
+      );
+
+      // Update funding source balance
+      const balanceAfterLink = balanceAfterPartial - 400.0;
+      await tables.updateRow({
+        databaseId: config.databaseId,
+        tableId: TABLES.FUNDING_SOURCES,
+        rowId: donor.$id,
+        data: {
+          current_balance: balanceAfterLink,
+        },
+      });
+      console.log(`✅ [Workflow 6] Updated Funding Source Balance to: ${balanceAfterLink}`);
+    } catch (e) {
+      console.log(`⚠️  [Workflow 6] Funding link creation skipped: ${e.message}`);
+    }
 
     // Workflow 4: Auto-create Inventory (checking category name from relationship)
     if (testCategory.name === 'Farm Inputs' && expense) {
