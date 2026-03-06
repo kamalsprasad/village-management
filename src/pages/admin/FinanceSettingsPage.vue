@@ -651,7 +651,7 @@ const fundingSourceColumns = [
 ];
 
 const hasPermission = () => {
-  const permissions = authStore.userRoles[0].permissions;
+  const permissions = authStore.userRoles?.[0]?.permissions || [];
   return permissions.includes('finance_settings') || permissions.includes('*');
 };
 
@@ -838,6 +838,17 @@ async function saveFundingSource() {
   if (!fundingSourceForm.value.type) {
     $q.notify({ type: 'warning', message: 'Please select a type' });
     return;
+  }
+
+  // Validate date_received is not in the future
+  if (fundingSourceForm.value.date_received) {
+    const dateReceived = new Date(fundingSourceForm.value.date_received);
+    const today = new Date();
+    today.setHours(23, 59, 59, 999); // End of today
+    if (dateReceived > today) {
+      $q.notify({ type: 'warning', message: 'Date received cannot be in the future' });
+      return;
+    }
   }
 
   let result;

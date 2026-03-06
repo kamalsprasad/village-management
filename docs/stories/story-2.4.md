@@ -160,7 +160,7 @@ so that **I can generate donor-specific reports showing how their funds were use
 | Column | Type | Required | Notes |
 |--------|------|----------|-------|
 | `parent_transaction_id` | Relationship (Many-to-One) | Yes | Transaction receiving the funding |
-| `child_transaction_id` | Relationship (Many-to-One) | No | Optional transaction providing the funding |
+| `child_transaction_id` | Relationship (Many-to-One) | No | Optional transaction providing the funding (null for direct funding source links) |
 | `link_type` | Enum | Yes | Values: `funding`, `refund`, `transfer` |
 | `amount` | Float | Yes | Amount of funding added via this link |
 | `recorded_by` | Relationship (Many-to-One) to users | Yes | User who created the link |
@@ -316,6 +316,14 @@ Cascade
 - Added funding source detail navigation from Finance Settings and improved read-only behavior for Finance Managers.
 - Aligned donor reporting with Story 2.4 by adding `generateFundingSourceReport(...)`, date-range filtering, and fixing the PDF transaction table columns.
 - Kept manual verification tasks open because they still need to be executed in the app.
+- **Code Review Fixes Applied (Mar 5, 2026)**:
+  - Fixed `hasPermission()` null check issue in FinanceSettingsPage.vue to prevent runtime errors
+  - Fixed console.log variable reference in `decrementFundingSourceBalance()`
+  - Removed dead commented code in FundingSourceDetailPage.vue
+  - Enhanced AutoTable error messages for better debugging
+  - Refactored optional parameters to ES6 pattern in finance-store.js
+  - Added future date validation for funding source `date_received` field
+  - Updated schema documentation to clarify optional `child_transaction_id` field
 
 ### File List
 

@@ -286,13 +286,14 @@ export const useFinanceStore = defineStore('finance', {
      *
      * @param {string} fundingSourceId - Funding source ID
      * @param {number} amount - Amount to decrement
+     * @param {Object} options - Options object
+     * @param {boolean} options.includeTotalReceived - Include total received in update
      */
-    async decrementFundingSourceBalance(fundingSourceId, amount) {
+    async decrementFundingSourceBalance(fundingSourceId, amount, options = {}) {
+      const { includeTotalReceived = false } = options;
       try {
         const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
         const fundingSourcesTableId = 'funding_sources';
-        const includeTotalReceived =
-          arguments.length > 2 ? arguments[2]?.includeTotalReceived === true : false;
         const parsedAmount = parseFloat(amount) || 0;
 
         // Fetch current balance
@@ -336,7 +337,7 @@ export const useFinanceStore = defineStore('finance', {
         }
 
         console.log(
-          `Funding source ${fundingSource.name} balance decremented: ${fundingSource.current_balance} -> ${newBalance}`,
+          `Funding source "${fundingSource.name}" balance decremented: ${fundingSource.current_balance} -> ${newBalance}`,
         );
       } catch (error) {
         console.error('Error updating funding source balance:', error);
@@ -546,13 +547,14 @@ export const useFinanceStore = defineStore('finance', {
      * Story 2.4: Increases both total_received and current_balance
      * @param {string} fundingSourceId - Funding source ID
      * @param {number} amount - Amount to increment
+     * @param {Object} options - Options object
+     * @param {boolean} options.includeTotalReceived - Include total received in update
      */
-    async incrementFundingSourceBalance(fundingSourceId, amount) {
+    async incrementFundingSourceBalance(fundingSourceId, amount, options = {}) {
+      const { includeTotalReceived = true } = options;
       try {
         const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
         const fundingSourcesTableId = 'funding_sources';
-        const includeTotalReceived =
-          arguments.length > 2 ? arguments[2]?.includeTotalReceived !== false : true;
         const parsedAmount = parseFloat(amount) || 0;
 
         // Fetch current values

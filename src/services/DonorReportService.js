@@ -56,7 +56,10 @@ export class DonorReportService {
       return this.autoTable(doc, options);
     }
 
-    throw new Error('AutoTable is not available for PDF generation');
+    throw new Error(
+      'AutoTable is not available for PDF generation. ' +
+        'Plugin not loaded properly. Try refreshing the page.',
+    );
   }
 
   /**
