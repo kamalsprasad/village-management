@@ -15,6 +15,36 @@
       />
     </div>
 
+    <q-card flat bordered class="q-mb-md">
+      <q-card-section>
+        <div class="row q-col-gutter-md items-end">
+          <div class="col-12 col-md-4">
+            <q-input
+              v-model="reportDateFrom"
+              label="Report Start Date"
+              type="date"
+              outlined
+              dense
+              clearable
+            />
+          </div>
+          <div class="col-12 col-md-4">
+            <q-input
+              v-model="reportDateTo"
+              label="Report End Date"
+              type="date"
+              outlined
+              dense
+              clearable
+            />
+          </div>
+          <div class="col-12 col-md-4 text-right">
+            <q-btn flat color="primary" label="Clear Dates" @click="clearReportDateRange" />
+          </div>
+        </div>
+      </q-card-section>
+    </q-card>
+
     <!-- Loading State -->
     <template v-if="loading">
       <div class="row q-col-gutter-md q-mb-md">
@@ -241,6 +271,8 @@ const loadingTransactions = ref(false);
 const generatingReport = ref(false);
 const fundingSource = ref(null);
 const transactions = ref([]);
+const reportDateFrom = ref('');
+const reportDateTo = ref('');
 
 // Computed
 const utilizationRatio = computed(() => {
@@ -335,17 +367,28 @@ async function generateReport() {
     // Import the service dynamically
     const { DonorReportService } = await import('src/services/DonorReportService');
     const service = new DonorReportService();
-    await service.generateReport(fundingSource.value, transactions.value);
+    await service.generateFundingSourceReport(fundingSource.value, transactions.value, {
+      dateFrom: reportDateFrom.value ? new Date(reportDateFrom.value).toISOString() : null,
+      dateTo: reportDateTo.value
+        ? new Date(`${reportDateTo.value}T23:59:59.999`).toISOString()
+        : null,
+      generatedAt: new Date().toISOString(),
+    });
     $q.notify({ type: 'positive', message: 'Report generated successfully' });
   } catch (error) {
     console.error('Error generating report:', error);
     $q.notify({
       type: 'negative',
-      message: 'Failed to generate report. Service may not be available yet.',
+      message: error.message || 'Failed to generate report.',
     });
   } finally {
     generatingReport.value = false;
   }
+}
+
+function clearReportDateRange() {
+  reportDateFrom.value = '';
+  reportDateTo.value = '';
 }
 
 // Helper functions

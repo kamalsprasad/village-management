@@ -146,20 +146,29 @@
           <!-- Custom column: amount (Story 2.4: Show amount_funded vs amount_needed) -->
           <template #body-cell-amount="props">
             <q-td :props="props">
-              <div>
-                <span
-                  :class="props.row.type === 'income' ? 'text-positive' : 'text-negative'"
-                  class="text-weight-medium"
-                >
-                  {{ props.row.type === 'income' ? '+' : '-' }}
-                  {{ formatCurrency(props.row.amount_funded || props.row.amount) }}
-                </span>
-                <!-- Story 2.4: Underfunded indicator -->
-                <div v-if="isUnderfunded(props.row)" class="text-caption text-warning">
-                  <q-icon name="warning" size="xs" />
-                  of {{ formatCurrency(props.row.amount_needed) }}
-                </div>
+              <div :class="props.row.type === 'income' ? 'text-positive' : 'text-negative'">
+                {{ props.row.type === 'income' ? '+' : '-' }}
+                {{ formatCurrency(props.row.amount_funded) }}
               </div>
+              <div
+                v-if="props.row.amount_funded < props.row.amount_needed"
+                class="text-caption text-warning"
+              >
+                of {{ formatCurrency(props.row.amount_needed) }}
+              </div>
+              <q-badge
+                v-if="props.row.type === 'expense'"
+                class="q-mt-xs"
+                :color="getFundingStatusColor(props.row)"
+                :label="getFundingStatusLabel(props.row)"
+              />
+            </q-td>
+          </template>
+
+          <!-- Custom column: category -->
+          <template #body-cell-category="props">
+            <q-td :props="props">
+              {{ getCategoryName(props.row.category_id) }}
             </q-td>
           </template>
 
@@ -337,7 +346,14 @@
                     class="text-h6"
                   >
                     {{ selectedTransaction.type === 'income' ? '+' : '-' }}
-                    {{ formatCurrency(selectedTransaction.amount) }}
+                    {{ formatCurrency(selectedTransaction.amount_funded) }}
+                  </q-item-label>
+                  <q-item-label
+                    v-if="selectedTransaction.amount_funded < selectedTransaction.amount_needed"
+                    caption
+                    class="text-warning"
+                  >
+                    of {{ formatCurrency(selectedTransaction.amount_needed) }} required
                   </q-item-label>
                 </q-item-section>
               </q-item>
@@ -345,7 +361,9 @@
               <q-item>
                 <q-item-section>
                   <q-item-label caption>Category</q-item-label>
-                  <q-item-label>{{ selectedTransaction.category }}</q-item-label>
+                  <q-item-label>{{
+                    getCategoryName(selectedTransaction.category_id)
+                  }}</q-item-label>
                 </q-item-section>
               </q-item>
 
@@ -377,48 +395,61 @@
                 </q-item-section>
               </q-item>
 
-              <q-item v-if="selectedTransaction.fundingSource">
+              <q-item v-if="selectedTransaction.funding_source_id">
                 <q-item-section>
                   <q-item-label caption>Funding Source</q-item-label>
-                  <q-item-label>{{ selectedTransaction.fundingSource.name }}</q-item-label>
+                  <q-item-label>{{
+                    getFundingSourceName(selectedTransaction.funding_source_id)
+                  }}</q-item-label>
+                  <q-item-label caption>
+                    Balance:
+                    {{
+                      formatCurrency(getFundingSourceBalance(selectedTransaction.funding_source_id))
+                    }}
+                  </q-item-label>
                 </q-item-section>
               </q-item>
 
-              <!-- Expense-specific fields -->
-              <template v-if="selectedTransaction.type === 'expense'">
-                <q-item v-if="selectedTransaction.vendor">
-                  <q-item-section>
-                    <q-item-label caption>Vendor/Supplier</q-item-label>
-                    <q-item-label>{{ selectedTransaction.vendor }}</q-item-label>
-                  </q-item-section>
-                </q-item>
+              <q-item v-if="selectedTransaction.amount_funded < selectedTransaction.amount_needed">
+                <q-item-section>
+                  <q-item-label caption>Funding Status</q-item-label>
+                  <q-item-label class="text-warning">
+                    Underfunded:
+                    {{
+                      formatCurrency(
+                        selectedTransaction.amount_needed - selectedTransaction.amount_funded,
+                      )
+                    }}
+                    remaining
+                  </q-item-label>
+                </q-item-section>
+              </q-item>
 
-                <q-item v-if="selectedTransaction.subcategory">
-                  <q-item-section>
-                    <q-item-label caption>Subcategory</q-item-label>
-                    <q-item-label>{{ selectedTransaction.subcategory }}</q-item-label>
-                  </q-item-section>
-                </q-item>
+              <q-item v-if="selectedTransaction.subcategory">
+                <q-item-section>
+                  <q-item-label caption>Subcategory</q-item-label>
+                  <q-item-label>{{ selectedTransaction.subcategory }}</q-item-label>
+                </q-item-section>
+              </q-item>
 
-                <q-item v-if="selectedTransaction.receipt_number">
-                  <q-item-section>
-                    <q-item-label caption>Receipt/Invoice Number</q-item-label>
-                    <q-item-label>{{ selectedTransaction.receipt_number }}</q-item-label>
-                  </q-item-section>
-                </q-item>
+              <q-item v-if="selectedTransaction.receipt_number">
+                <q-item-section>
+                  <q-item-label caption>Receipt/Invoice Number</q-item-label>
+                  <q-item-label>{{ selectedTransaction.receipt_number }}</q-item-label>
+                </q-item-section>
+              </q-item>
 
-                <q-item v-if="selectedTransaction.payment_status">
-                  <q-item-section>
-                    <q-item-label caption>Payment Status</q-item-label>
-                    <q-item-label>
-                      <q-badge
-                        :color="getPaymentStatusColor(selectedTransaction.payment_status)"
-                        :label="capitalizeFirst(selectedTransaction.payment_status)"
-                      />
-                    </q-item-label>
-                  </q-item-section>
-                </q-item>
-              </template>
+              <q-item v-if="selectedTransaction.payment_status">
+                <q-item-section>
+                  <q-item-label caption>Payment Status</q-item-label>
+                  <q-item-label>
+                    <q-badge
+                      :color="getPaymentStatusColor(selectedTransaction.payment_status)"
+                      :label="capitalizeFirst(selectedTransaction.payment_status)"
+                    />
+                  </q-item-label>
+                </q-item-section>
+              </q-item>
 
               <q-item>
                 <q-item-section>
@@ -501,6 +532,22 @@ const editingTransaction = ref(null);
 const showAddFundingDialog = ref(false);
 const transactionToFund = ref(null);
 
+// Helper function for category display
+function getCategoryName(categoryId) {
+  return financeStore.getCategoryName(categoryId);
+}
+
+// Helper functions for funding source display
+function getFundingSourceName(fundingSourceId) {
+  const source = financeStore.getFundingSourceById(fundingSourceId);
+  return source ? source.name : 'Unknown';
+}
+
+function getFundingSourceBalance(fundingSourceId) {
+  const source = financeStore.getFundingSourceById(fundingSourceId);
+  return source ? source.current_balance : 0;
+}
+
 // Status filter options
 const statusFilterOptions = [
   { label: 'Pending', value: 'pending' },
@@ -567,6 +614,16 @@ function isUnderfunded(row) {
   const amountFunded = row.amount_funded || 0;
   const amountNeeded = row.amount_needed || amountFunded;
   return amountFunded < amountNeeded;
+}
+
+function getFundingStatusLabel(row) {
+  if (row.type !== 'expense') return 'N/A';
+  return isUnderfunded(row) ? 'Partially Funded' : 'Fully Funded';
+}
+
+function getFundingStatusColor(row) {
+  if (row.type !== 'expense') return 'grey';
+  return isUnderfunded(row) ? 'warning' : 'positive';
 }
 
 // Story 2.4: Get row class for table styling
@@ -798,6 +855,8 @@ function handleCancelled() {
 
 onMounted(async () => {
   isClient.value = true; // Enable client-side rendering after hydration
+  // Load categories first (needed for display)
+  await financeStore.fetchCategories();
   // Load transactions
   await financeStore.fetchTransactions(1, itemsPerPage.value);
   // Load funding sources for form dropdown

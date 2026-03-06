@@ -32,7 +32,12 @@ export class DonorReportService {
         this.jsPDF = jsPDF;
 
         // Dynamic import of autotable plugin
-        await import('jspdf-autotable');
+        const autoTableModule = await import('jspdf-autotable');
+        this.autoTable = autoTableModule.default || autoTableModule.autoTable;
+
+        if (typeof this.autoTable !== 'function') {
+          throw new Error('jspdf-autotable export could not be resolved');
+        }
       } catch (error) {
         console.error('Failed to load jsPDF dependencies:', error);
         throw new Error(
@@ -40,6 +45,18 @@ export class DonorReportService {
         );
       }
     }
+  }
+
+  applyAutoTable(doc, options) {
+    if (typeof doc.autoTable === 'function') {
+      return doc.autoTable(options);
+    }
+
+    if (typeof this.autoTable === 'function') {
+      return this.autoTable(doc, options);
+    }
+
+    throw new Error('AutoTable is not available for PDF generation');
   }
 
   /**
@@ -62,15 +79,58 @@ export class DonorReportService {
     return format(new Date(dateStr), 'MMM d, yyyy');
   }
 
+  filterTransactionsByDateRange(transactions = [], options = {}) {
+    const { dateFrom, dateTo } = options;
+
+    return transactions.filter((transaction) => {
+      if (!dateFrom && !dateTo) {
+        return true;
+      }
+
+      const transactionDate = new Date(transaction.date);
+
+      if (dateFrom && transactionDate < new Date(dateFrom)) {
+        return false;
+      }
+
+      if (dateTo && transactionDate > new Date(dateTo)) {
+        return false;
+      }
+
+      return true;
+    });
+  }
+
+  buildDateRangeLabel(options = {}) {
+    const { dateFrom, dateTo } = options;
+
+    if (!dateFrom && !dateTo) {
+      return 'All transactions';
+    }
+
+    if (dateFrom && dateTo) {
+      return `${this.formatDate(dateFrom)} - ${this.formatDate(dateTo)}`;
+    }
+
+    if (dateFrom) {
+      return `From ${this.formatDate(dateFrom)}`;
+    }
+
+    return `Up to ${this.formatDate(dateTo)}`;
+  }
+
   /**
    * Generate a donor report PDF for a funding source
    *
    * @param {Object} fundingSource - The funding source object
    * @param {Array} transactions - Array of transactions linked to this source
+   * @param {Object} options - Optional report filters
    * @returns {Promise<void>} - Downloads the PDF
    */
-  async generateReport(fundingSource, transactions = []) {
+  async generateFundingSourceReport(fundingSource, transactions = [], options = {}) {
     await this.loadDependencies();
+
+    const filteredTransactions = this.filterTransactionsByDateRange(transactions, options);
 
     // Create new PDF document
     const doc = new this.jsPDF({
@@ -96,7 +156,20 @@ export class DonorReportService {
     doc.text('Sustainable Model Village Management System', pageWidth / 2, yPos, {
       align: 'center',
     });
-    yPos += 15;
+    yPos += 7;
+
+    doc.text(this.buildDateRangeLabel(options), pageWidth / 2, yPos, {
+      align: 'center',
+    });
+    yPos += 8;
+
+    if (options.generatedAt) {
+      doc.setFontSize(10);
+      doc.text(`Generated: ${this.formatDate(options.generatedAt)}`, pageWidth / 2, yPos, {
+        align: 'center',
+      });
+      yPos += 8;
+    }
 
     // ==============================
     // Funding Source Details
@@ -155,10 +228,10 @@ export class DonorReportService {
     const utilizationPercent =
       totalReceived > 0 ? ((utilized / totalReceived) * 100).toFixed(1) : 0;
 
-    const incomeTransactions = transactions.filter(
+    const incomeTransactions = filteredTransactions.filter(
       (t) => t.type === 'income' && t.status === 'completed',
     );
-    const expenseTransactions = transactions.filter(
+    const expenseTransactions = filteredTransactions.filter(
       (t) => t.type === 'expense' && t.status === 'completed',
     );
 
@@ -168,7 +241,7 @@ export class DonorReportService {
     doc.setFontSize(10);
 
     // Summary table
-    doc.autoTable({
+    this.applyAutoTable(doc, {
       startY: yPos,
       head: [['Metric', 'Amount']],
       body: [
@@ -178,7 +251,7 @@ export class DonorReportService {
         ['Utilization Rate', `${utilizationPercent}%`],
         ['Total Income Added', this.formatCurrency(totalIncome)],
         ['Total Expenses Deducted', this.formatCurrency(totalExpenses)],
-        ['Transaction Count', transactions.length.toString()],
+        ['Transaction Count', filteredTransactions.length.toString()],
       ],
       theme: 'striped',
       headStyles: { fillColor: [41, 98, 255] },
@@ -194,7 +267,7 @@ export class DonorReportService {
     // ==============================
     // Transaction History
     // ==============================
-    if (transactions.length > 0) {
+    if (filteredTransactions.length > 0) {
       // Check if we need a new page
       if (yPos > 200) {
         doc.addPage();
@@ -207,7 +280,7 @@ export class DonorReportService {
       yPos += 8;
 
       // Prepare transaction data for table
-      const transactionRows = transactions
+      const transactionRows = filteredTransactions
         .filter((t) => t.status !== 'cancelled')
         .sort((a, b) => new Date(b.date) - new Date(a.date))
         .map((t) => [
@@ -220,9 +293,9 @@ export class DonorReportService {
           t.status.charAt(0).toUpperCase() + t.status.slice(1),
         ]);
 
-      doc.autoTable({
+      this.applyAutoTable(doc, {
         startY: yPos,
-        head: [['Date', 'Type', 'Description', 'Amount', 'Category']],
+        head: [['Date', 'Type', 'Description', 'Amount', 'Status']],
         body: transactionRows,
         theme: 'striped',
         headStyles: { fillColor: [41, 98, 255] },
@@ -265,6 +338,10 @@ export class DonorReportService {
     // ==============================
     const fileName = `Donor_Report_${fundingSource.name.replace(/[^a-zA-Z0-9]/g, '_')}_${format(new Date(), 'yyyy-MM-dd')}.pdf`;
     doc.save(fileName);
+  }
+
+  async generateReport(fundingSource, transactions = [], options = {}) {
+    return this.generateFundingSourceReport(fundingSource, transactions, options);
   }
 
   /**
@@ -330,7 +407,7 @@ export class DonorReportService {
       ];
     });
 
-    doc.autoTable({
+    this.applyAutoTable(doc, {
       startY: yPos,
       head: [['Name', 'Type', 'Status', 'Total Received', 'Balance', 'Utilized', 'Restricted']],
       body: sourceRows,

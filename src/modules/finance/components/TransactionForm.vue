@@ -340,19 +340,38 @@ const selectedFundingSourceBalance = computed(() => {
   return source ? source.current_balance : 0;
 });
 
+const effectiveFundingSourceBalance = computed(() => {
+  let availableBalance = selectedFundingSourceBalance.value;
+
+  if (
+    props.type === 'expense' &&
+    isEditMode.value &&
+    props.initialData?.type === 'expense' &&
+    props.initialData?.status !== 'cancelled' &&
+    props.initialData?.funding_source_id &&
+    props.initialData.funding_source_id === formData.value.funding_source_id
+  ) {
+    availableBalance += parseFloat(
+      props.initialData.amount_funded || props.initialData.amount || 0,
+    );
+  }
+
+  return availableBalance;
+});
+
 // Story 2.4: Check if amount exceeds funding source balance (hard block)
 const hasInsufficientFunds = computed(() => {
   if (props.type !== 'expense') return false;
   if (!formData.value.funding_source_id) return false;
   if (!formData.value.amount_funded) return false;
 
-  return formData.value.amount_funded > selectedFundingSourceBalance.value;
+  return formData.value.amount_funded > effectiveFundingSourceBalance.value;
 });
 
 // Story 2.4: Insufficient funds error message
 const insufficientFundsMessage = computed(() => {
   if (!hasInsufficientFunds.value) return '';
-  const shortfall = formData.value.amount_funded - selectedFundingSourceBalance.value;
+  const shortfall = formData.value.amount_funded - effectiveFundingSourceBalance.value;
   return `Insufficient funds. Short by ${formatCurrency(shortfall)}`;
 });
 

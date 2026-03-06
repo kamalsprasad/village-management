@@ -226,17 +226,23 @@ async function setupSchema() {
       TABLES.TRANSACTION_LINKS,
       TABLES.TRANSACTIONS,
       RelationshipType.ManyToOne,
-      true,
+      false,
       'child_transaction_id',
       'funding_links_provided',
       'restrict',
     );
-    await createColumn(TABLES.TRANSACTION_LINKS, 'enum', 'link_type', null, true, false, [
-      'funding',
-      'refund',
-      'transfer',
-    ]);
     await createColumn(TABLES.TRANSACTION_LINKS, 'float', 'amount', null, true);
+
+    await createRelationshipColumn(
+      TABLES.TRANSACTION_LINKS,
+      TABLES.FUNDING_SOURCES,
+      RelationshipType.ManyToOne,
+      true,
+      'funding_source_id',
+      'funding_links_source',
+      'restrict',
+    );
+
     await createRelationshipColumn(
       TABLES.TRANSACTION_LINKS,
       TABLES.USERS,

@@ -1,6 +1,6 @@
 # Story 2.4: Finance Module - Funding Source Tracking for Donor Accountability
 
-Status: Approved
+Status: in-progress
 
 ## Story
 
@@ -27,7 +27,7 @@ so that **I can generate donor-specific reports showing how their funds were use
 ## Tasks / Subtasks
 
 - [ ] **Task 1: Database Schema & Seeding (AC: 1, 4)**
-  - [ ] Update `funding_sources` table in `validate-schema-epic-2.js`:
+  - [x] Update `funding_sources` table in `validate-schema-epic-2.js`:
     - `name`: String (required, existing)
     - `type`: Enum (grant, donation, income, loan) - NEW
     - `total_received`: Float (renamed from `total_allocated`) - tracks lifetime funds
@@ -35,56 +35,53 @@ so that **I can generate donor-specific reports showing how their funds were use
     - `date_received`: DateTime - NEW
     - `restrictions`: Text (existing)
     - `status`: Enum (active, inactive, depleted) - NEW
-  - [ ] Update `finance_transactions` table in `validate-schema-epic-2.js`:
+  - [x] Update `finance_transactions` table in `validate-schema-epic-2.js`:
     - Replace `amount` with `amount_needed` (Float) and `amount_funded` (Float)
     - ~~Add `parent_transaction_id`: Relationship (Many-to-One, self-referential) - for supporting transactions~~
     - ~~Appwrite auto-creates `child_transaction_ids` (One-to-Many) on the inverse side~~
     - **UPDATE**: Self-referencing relationships removed - Appwrite doesn't support them
     - Keep existing `funding_source_id`: Relationship (Many-to-One) to `funding_sources`
-  - [ ] Create seeding script `seed-funding-sources.js` with default sources.
+  - [x] Create seeding script `seed-funding-sources.js` with default sources.
   - [ ] Run seeding script.
 
-- [ ] **Task 2: Store Updates (AC: 3, 4, 7)**
-  - [ ] Update `finance-store.js` to manage funding sources:
+- [x] **Task 2: Store Updates (AC: 3, 4, 7)**
+  - [x] Update `finance-store.js` to manage funding sources:
     - `fetchFundingSources()` - load all sources
     - `addFundingSource(data)` - create new source
     - `updateFundingSource(id, data)` - update source
     - `deleteFundingSource(id)` - delete source (if no linked transactions)
-  - [ ] Update transaction actions for new amount fields:
+  - [x] Update transaction actions for new amount fields:
     - `createTransaction()` - handle `amount_needed`, `amount_funded`
     - `updateTransaction()` - update transaction amounts
     - `deleteTransaction()` - handle transaction deletion
-  - [ ] Implement balance update logic:
+  - [x] Implement balance update logic:
     - Income: `total_received += amount`, `current_balance += amount`
     - Expense: `current_balance -= amount_funded`
     - Funding Link: update parent's `amount_funded`, deduct from funding source balance
-  - [ ] Implement balance update logic:
-    - Income: `total_received += amount`, `current_balance += amount`
-    - Expense: `current_balance -= amount_funded`
-  - [ ] Implement validation: hard block if `amount_funded > current_balance`
+  - [x] Implement validation: hard block if `amount_funded > current_balance`
 
-- [ ] **Task 3: Settings UI (AC: 2, 6)**
-  - [ ] Add "Funding Sources" section to `FinanceSettingsPage.vue`:
+- [x] **Task 3: Settings UI (AC: 2, 6)**
+  - [x] Add "Funding Sources" section to `FinanceSettingsPage.vue`:
     - List all funding sources with status indicators
     - Add/Edit dialog with all fields
     - Delete with confirmation (blocked if has transactions)
-  - [ ] Create `FundingSourcesOverviewWidget.vue` for Settings page:
+  - [x] Create `FundingSourcesOverviewWidget.vue` for Settings page:
     - Bar charts showing utilization (current_balance / total_received)
     - Color coding: green (>50%), yellow (20-50%), red (<20%)
-  - [ ] Ensure only Admin can add/edit/delete (Finance Manager has read-only view)
+  - [x] Ensure only Admin can add/edit/delete (Finance Manager has read-only view)
 
-- [ ] **Task 4: Transaction Form Integration (AC: 3, 4, 7)**
-  - [ ] Update `TransactionForm.vue` for income transactions:
+- [x] **Task 4: Transaction Form Integration (AC: 3, 4, 7)**
+  - [x] Update `TransactionForm.vue` for income transactions:
     - Show "Funding Source" dropdown
     - Hide `amount_needed` field (auto-equals `amount_funded`)
-  - [ ] Update `TransactionForm.vue` for expense transactions:
+  - [x] Update `TransactionForm.vue` for expense transactions:
     - Show "Funding Source" dropdown
     - Show `amount_funded` field (primary input)
     - Show `amount_needed` field (disabled by default, auto-equals `amount_funded`)
     - Add checkbox "Different amount needed" to enable `amount_needed` editing
     - `amount_needed` must be >= `amount_funded` when checkbox enabled
     - Hard block if `amount_funded > current_balance` of selected source
-  - [ ] Add "Add Funding" button on transaction detail page for underfunded transactions:
+  - [x] Add "Add Funding" button on transaction detail page for underfunded transactions:
     - Only visible when `amount_funded < amount_needed` and user has finance role
     - Opens dialog with fields: funding source, amount to add, notes
     - Validates amount doesn't exceed remaining needed (`amount_needed - amount_funded`)
@@ -98,29 +95,29 @@ so that **I can generate donor-specific reports showing how their funds were use
     - ~~On save, update parent transaction's `amount_funded`~~
     - **REMOVED**: Not supported by Appwrite self-referencing relationships
 
-- [ ] **Task 5: Funding Source Detail Page (AC: 5)**
-  - [ ] Create `FundingSourceDetailPage.vue` (route: `/finance/funding/:id`)
-  - [ ] Display key metrics card:
+- [x] **Task 5: Funding Source Detail Page (AC: 5)**
+  - [x] Create `FundingSourceDetailPage.vue` (route: `/finance/funding/:id`)
+  - [x] Display key metrics card:
     - Total Received (lifetime)
     - Total Spent (sum of linked expense amount_funded)
     - Current Balance
     - Status (active/inactive/depleted)
     - Restrictions (if any)
-  - [ ] Display transaction history table filtered by this source
-  - [ ] Add "Generate Report" button (links to Task 6)
-  - [ ] Add route to `src/modules/finance/router.js`
+  - [x] Display transaction history table filtered by this source
+  - [x] Add "Generate Report" button (links to Task 6)
+  - [x] Add route to `src/modules/finance/router.js`
 
-- [ ] **Task 6: Reporting (AC: 8)**
+- [x] **Task 6: Reporting (AC: 8)**
   - [x] Install `jspdf` and `jspdf-autotable` packages.
-  - [ ] Create `src/services/DonorReportService.js`:
+  - [x] Create `src/services/DonorReportService.js`:
     - `generateFundingSourceReport(fundingSource, transactions, options)`
     - Report layout: Header (Village Name, Report Date), Source Info, Financial Summary, Transaction Table, Footer
-  - [ ] Add "Generate Report" button on Funding Source Detail page
-  - [ ] Support date range filtering for report
+  - [x] Add "Generate Report" button on Funding Source Detail page
+  - [x] Support date range filtering for report
 
-- [ ] **Task 7: Visual Indicators & Polish (AC: 9 - Modified)**
-  - [ ] Add row highlighting in transaction tables for underfunded transactions (`amount_funded < amount_needed`)
-  - [ ] Add badge/chip showing funding status on transaction rows
+- [x] **Task 7: Visual Indicators & Polish (AC: 9 - Modified)**
+  - [x] Add row highlighting in transaction tables for underfunded transactions (`amount_funded < amount_needed`)
+  - [x] Add badge/chip showing funding status on transaction rows
   - [ ] ~~Add tooltip showing funding breakdown on hover~~
   - **Note**: Supporting transactions removed due to Appwrite limitation. Underfunded transactions must be manually edited to add more funding.
 
@@ -163,7 +160,7 @@ so that **I can generate donor-specific reports showing how their funds were use
 | Column | Type | Required | Notes |
 |--------|------|----------|-------|
 | `parent_transaction_id` | Relationship (Many-to-One) | Yes | Transaction receiving the funding |
-| `child_transaction_id` | Relationship (Many-to-One) | Yes | Transaction providing the funding |
+| `child_transaction_id` | Relationship (Many-to-One) | No | Optional transaction providing the funding |
 | `link_type` | Enum | Yes | Values: `funding`, `refund`, `transfer` |
 | `amount` | Float | Yes | Amount of funding added via this link |
 | `recorded_by` | Relationship (Many-to-One) to users | Yes | User who created the link |
@@ -305,13 +302,34 @@ Finance Manager needs Read access to select sources in forms, but cannot Create/
 
 ### Agent Model Used
 
-{{agent_model_name_version}}
+Cascade
 
 ### Debug Log References
 
+- Browser console render error in `FinanceTransactionsPage.vue` due to missing `getCategoryName` helper; resolved by restoring the page helper and fetching categories on mount.
+- Story 2.4 review pass identified reporting API mismatches, settings-page funding-source navigation gaps, widget RBAC dead-end state, and duplicate schema column creation in `transaction_links`; all addressed in follow-up fixes.
+
 ### Completion Notes List
 
+- Re-baselined Story 2.4 against the actual repository because several story assets already existed outside the current git diff.
+- Hardened funding source balance and partial-funding flows without changing the underlying Pinia/Appwrite architecture.
+- Added funding source detail navigation from Finance Settings and improved read-only behavior for Finance Managers.
+- Aligned donor reporting with Story 2.4 by adding `generateFundingSourceReport(...)`, date-range filtering, and fixing the PDF transaction table columns.
+- Kept manual verification tasks open because they still need to be executed in the app.
+
 ### File List
+
+- `server/scripts/validate-schema-epic-2.js`
+- `server/scripts/seed-funding-sources.js`
+- `src/modules/finance/components/TransactionForm.vue`
+- `src/modules/finance/components/FundingSourcesOverviewWidget.vue`
+- `src/modules/finance/pages/FundingSourceDetailPage.vue`
+- `src/modules/finance/pages/FinanceTransactionsPage.vue`
+- `src/modules/finance/stores/finance-store.js`
+- `src/modules/finance/router.js`
+- `src/pages/admin/FinanceSettingsPage.vue`
+- `src/router/routes.js`
+- `src/services/DonorReportService.js`
 
 ### Learnings from Previous Story
 

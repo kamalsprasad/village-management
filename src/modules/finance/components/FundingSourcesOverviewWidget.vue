@@ -95,6 +95,7 @@
       <q-icon name="account_balance" size="3rem" class="q-mb-sm" />
       <div>No active funding sources</div>
       <q-btn
+        v-if="allowAddSource"
         flat
         dense
         color="primary"
@@ -137,6 +138,10 @@ const props = defineProps({
     default: 5,
   },
   showViewAll: {
+    type: Boolean,
+    default: true,
+  },
+  allowAddSource: {
     type: Boolean,
     default: true,
   },

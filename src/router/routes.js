@@ -101,10 +101,10 @@ const routes = [
       // Admin Settings routes (Story 2.3)
       {
         path: 'admin/finance-settings',
-        component: () => import('pages/admin/FinanceSettingsPage.vue'),
+        component: () => import('src/pages/admin/FinanceSettingsPage.vue'),
         meta: {
           requiresAuth: true,
-          requiresPermission: '*', // System Administrator only
+          requiresPermission: ['finance:read', '*'],
         },
       },
       // Finance Module routes

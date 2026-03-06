@@ -233,79 +233,66 @@
           </q-card-section>
         </q-card>
 
-        <!-- Story 2.4: Funding Sources Section -->
-        <q-separator class="q-my-lg" />
+        <!-- Funding Sources Section -->
+        <q-card flat bordered class="q-mb-lg">
+          <q-card-section>
+            <div class="row items-center q-mb-md">
+              <div class="col">
+                <div class="text-h6">
+                  <q-icon name="account_balance" class="q-mr-sm" />
+                  Funding Sources
+                </div>
+                <div class="text-caption text-grey-7">
+                  Manage funding sources and track available balances
+                </div>
+              </div>
+              <div class="col-auto">
+                <q-btn
+                  v-if="hasPermission('*')"
+                  color="primary"
+                  icon="add"
+                  label="Add Funding Source"
+                  @click="openAddFundingSourceDialog"
+                />
+                <q-badge v-else-if="hasPermission('finance:read')" color="info" class="q-mr-sm">
+                  Read-only view
+                </q-badge>
+              </div>
+            </div>
 
-        <div class="row items-center q-mb-md">
-          <div class="col">
-            <h5 class="q-my-none">Funding Sources</h5>
-            <p class="text-grey-7 q-mb-none">
-              Manage donor funds, grants, and other funding sources
-            </p>
-          </div>
-          <div class="col-auto">
-            <q-btn
-              color="primary"
-              icon="add"
-              label="Add Funding Source"
-              @click="openAddFundingSourceDialog"
-            />
-          </div>
-        </div>
-
-        <!-- Funding Sources Overview Widget -->
-        <div class="row q-col-gutter-md q-mb-md">
-          <div class="col-12 col-md-6">
+            <!-- Funding Sources Overview Widget -->
             <FundingSourcesOverviewWidget
               :sources="financeStore.fundingSources"
               :loading="financeStore.isFundingSourcesLoading"
               :show-view-all="false"
-              @add-source="openAddFundingSourceDialog"
+              :allow-add-source="hasPermission('*')"
             />
-          </div>
-        </div>
-
-        <!-- Funding Sources List -->
-        <q-card flat bordered class="q-mb-md">
-          <q-card-section>
-            <div class="text-h6 q-mb-md">
-              <q-icon name="account_balance" class="q-mr-sm" color="primary" />
-              All Funding Sources
-            </div>
-
-            <!-- Loading -->
-            <div v-if="financeStore.isFundingSourcesLoading" class="q-pa-md">
-              <q-skeleton type="rect" height="60px" class="q-mb-sm" />
-              <q-skeleton type="rect" height="60px" class="q-mb-sm" />
-              <q-skeleton type="rect" height="60px" />
-            </div>
-
-            <!-- Empty State -->
-            <div
-              v-else-if="financeStore.fundingSources.length === 0"
-              class="text-grey-7 text-center q-pa-lg"
-            >
-              <q-icon name="account_balance" size="3rem" class="q-mb-sm" />
-              <div>No funding sources configured yet.</div>
-              <q-btn
-                flat
-                color="primary"
-                label="Add Your First Funding Source"
-                class="q-mt-md"
-                @click="openAddFundingSourceDialog"
-              />
-            </div>
 
             <!-- Funding Sources Table -->
             <q-table
-              v-else
               :rows="financeStore.fundingSources"
               :columns="fundingSourceColumns"
               row-key="$id"
               flat
               bordered
+              :loading="financeStore.isFundingSourcesLoading"
               :pagination="{ rowsPerPage: 10 }"
             >
+              <!-- Empty State -->
+              <template #no-data>
+                <div class="text-grey-7 text-center q-pa-lg">
+                  <q-icon name="account_balance" size="3rem" class="q-mb-sm" />
+                  <div>No funding sources configured yet.</div>
+                  <q-btn
+                    v-if="hasPermission('*')"
+                    flat
+                    color="primary"
+                    label="Add Your First Funding Source"
+                    class="q-mt-md"
+                    @click="openAddFundingSourceDialog"
+                  />
+                </div>
+              </template>
               <!-- Name Column -->
               <template #body-cell-name="props">
                 <q-td :props="props">
@@ -358,6 +345,17 @@
                     flat
                     dense
                     round
+                    icon="visibility"
+                    color="secondary"
+                    @click="openFundingSourceDetail(props.row)"
+                  >
+                    <q-tooltip>View details</q-tooltip>
+                  </q-btn>
+                  <q-btn
+                    v-if="hasPermission('*')"
+                    flat
+                    dense
+                    round
                     icon="edit"
                     color="primary"
                     @click="openEditFundingSourceDialog(props.row)"
@@ -365,6 +363,7 @@
                     <q-tooltip>Edit</q-tooltip>
                   </q-btn>
                   <q-btn
+                    v-if="hasPermission('*')"
                     flat
                     dense
                     round
@@ -575,10 +574,14 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue';
 import { useQuasar } from 'quasar';
+import { useRouter } from 'vue-router';
+import { useAuthStore } from 'src/stores/auth-store';
 import { useFinanceStore } from 'src/modules/finance/stores/finance-store';
 import FundingSourcesOverviewWidget from 'src/modules/finance/components/FundingSourcesOverviewWidget.vue';
 
 const $q = useQuasar();
+const router = useRouter();
+const authStore = useAuthStore();
 const financeStore = useFinanceStore();
 
 // Computed categories
@@ -646,6 +649,11 @@ const fundingSourceColumns = [
   { name: 'status', label: 'Status', field: 'status', align: 'center', sortable: true },
   { name: 'actions', label: 'Actions', field: 'actions', align: 'center' },
 ];
+
+const hasPermission = () => {
+  const permissions = authStore.userRoles[0].permissions;
+  return permissions.includes('finance_settings') || permissions.includes('*');
+};
 
 // Load categories and funding sources on mount
 onMounted(async () => {
@@ -784,6 +792,10 @@ function openAddFundingSourceDialog() {
     status: 'active',
   };
   showFundingSourceDialog.value = true;
+}
+
+function openFundingSourceDetail(source) {
+  router.push({ name: 'funding-source-detail', params: { id: source.$id } });
 }
 
 function openEditFundingSourceDialog(source) {
