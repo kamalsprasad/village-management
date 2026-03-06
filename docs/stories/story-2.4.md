@@ -1,6 +1,6 @@
 # Story 2.4: Finance Module - Funding Source Tracking for Donor Accountability
 
-Status: in-progress
+Status: done
 
 ## Story
 
@@ -121,16 +121,16 @@ so that **I can generate donor-specific reports showing how their funds were use
   - [ ] ~~Add tooltip showing funding breakdown on hover~~
   - **Note**: Supporting transactions removed due to Appwrite limitation. Underfunded transactions must be manually edited to add more funding.
 
-- [ ] **Task 8: Testing & Verification**
-  - [ ] Manual Test: Create Funding Source (all field types)
-  - [ ] Manual Test: Record Income to Source (verify `total_received` and `current_balance` increase)
-  - [ ] Manual Test: Record Expense from Source (verify `current_balance` decrease)
-  - [ ] Manual Test: Verify Hard Block when exceeding balance
-  - [ ] Manual Test: Create partially funded expense (`amount_needed > amount_funded`)
+- [x] **Task 8: Testing & Verification**
+  - [x] Manual Test: Create Funding Source (all field types)
+  - [x] Manual Test: Record Income to Source (verify `total_received` and `current_balance` increase)
+  - [x] Manual Test: Record Expense from Source (verify `current_balance` decrease)
+  - [x] Manual Test: Verify Hard Block when exceeding balance
+  - [x] Manual Test: Create partially funded expense (`amount_needed > amount_funded`)
   - [ ] ~~Manual Test: Create supporting transaction (verify parent's `amount_funded` updates)~~
   - [ ] ~~Manual Test: Delete supporting transaction (verify parent's `amount_funded` decrements)~~
-  - [ ] Manual Test: Verify underfunded transaction highlighting
-  - [ ] Manual Test: Generate PDF Report
+  - [x] Manual Test: Verify underfunded transaction highlighting
+  - [x] Manual Test: Generate PDF Report
 
 ## Dev Notes
 
