@@ -39,7 +39,27 @@ export const useLendingStore = defineStore('lending', {
       try {
         const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
 
-        const queries = [Query.orderDesc('$createdAt')];
+        const queries = [
+          Query.orderDesc('$createdAt'),
+          Query.select([
+            '$id',
+            'borrower_id.*',
+            'principal_amount',
+            'interest_rate',
+            'term_months',
+            'repayment_frequency',
+            'collateral_description',
+            'purpose',
+            'disbursement_date',
+            'status',
+            'outstanding_balance',
+            'total_repayment',
+            'payment_amount',
+            'next_due_date',
+            '$createdAt',
+            '$updatedAt',
+          ]),
+        ];
 
         if (filters.status) {
           queries.push(Query.equal('status', filters.status));
@@ -82,6 +102,26 @@ export const useLendingStore = defineStore('lending', {
           databaseId: dbId,
           tableId: 'loans',
           rowId: loanId,
+          queries: [
+            Query.select([
+              '$id',
+              'borrower_id.*',
+              'principal_amount',
+              'interest_rate',
+              'term_months',
+              'repayment_frequency',
+              'collateral_description',
+              'purpose',
+              'disbursement_date',
+              'status',
+              'outstanding_balance',
+              'total_repayment',
+              'payment_amount',
+              'next_due_date',
+              '$createdAt',
+              '$updatedAt',
+            ]),
+          ],
         });
         this.currentLoan = loanResponse;
 
