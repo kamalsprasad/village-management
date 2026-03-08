@@ -157,7 +157,7 @@ async function fetchResidents(term) {
   const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
   const tableId = import.meta.env.VITE_APPWRITE_TABLE_RESIDENTS;
 
-  const queriesForField = (field) => [Query.search(field, term), Query.limit(MAX_RESULTS)];
+  const queriesForField = (field) => [Query.startsWith(field, term), Query.limit(MAX_RESULTS)];
 
   const results = await Promise.allSettled([
     tables.listRows({ databaseId: dbId, tableId, queries: queriesForField('first_name') }),
@@ -196,7 +196,9 @@ async function fetchResidents(term) {
         Array.from(map.values())
           .map((entry) => entry.option)
           .filter((option) =>
-            option.raw?.middle_names ? option.raw.middle_names.toLowerCase().includes(lowerTerm) : false,
+            option.raw?.middle_names
+              ? option.raw.middle_names.toLowerCase().includes(lowerTerm)
+              : false,
           ),
       )
       .filter((option, index, array) => array.findIndex((o) => o.id === option.id) === index)

@@ -327,7 +327,7 @@ async function setupDatabase() {
     try {
       await tables.getTable({ databaseId: config.databaseId, tableId: 'residents' });
       await tables.getTable({ databaseId: config.databaseId, tableId: 'finance_transactions' });
-    } catch (error) {
+    } catch {
       console.error(
         `❌ Required core tables (residents or finance_transactions) missing. Please run setup-appwrite.js and validate-schema-epic-2.js first.`,
       );

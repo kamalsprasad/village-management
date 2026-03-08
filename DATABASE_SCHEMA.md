@@ -23,7 +23,9 @@ Stores comprehensive resident profile information with multi-role support.
 | Column         | Type     | Constraints                          | Description                                 |
 | -------------- | -------- | ------------------------------------ | ------------------------------------------- |
 | `id`           | string   | Primary Key, Auto-generated          | Unique resident identifier                  |
-| `name`         | string   | Required                             | Resident's full name                        |
+| `first_name`   | string   | Required                             | Resident's first name                       |
+| `middle_names` | string   | Optional                             | Resident's middle names (can be null)       |
+| `last_name`    | string   | Required                             | Resident's last name                        |
 | `dob`          | datetime | Optional                             | Date of birth                               |
 | `gender`       | string   | Optional, Enum: Male/Female/Other    | Gender identity                             |
 | `contact`      | string   | Optional                             | Contact information (phone/email)           |
