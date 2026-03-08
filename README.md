@@ -39,8 +39,8 @@ This roadmap tracks the implementation status of all MVP features organized by e
 - ✅ 2.1 - Finance Module: Income Transaction Recording
 - ✅ 2.2 - Finance Module: Expense Transaction Recording
 - ✅ 2.3 - Finance Module: Admin-Configurable Categories
-- ☐ 2.4 - Finance Module: Funding Source Tracking for Donor Accountability
-- ☐ 2.5 - Village Lending: Loan Management
+- ✅ 2.4 - Finance Module: Funding Source Tracking for Donor Accountability
+- ✅ 2.5 - Village Lending: Loan Management
 - ☐ 2.6 - Inventory Module: Core Inventory Management
 - ☐ 2.7 - Inventory Module: Automatic Inventory from Finance Purchases
 - ☐ 2.8 - Financial Reports: Basic Reports Suite

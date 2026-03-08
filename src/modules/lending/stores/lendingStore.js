@@ -2,6 +2,7 @@ import { defineStore } from 'pinia';
 import { tables } from 'src/boot/appwrite';
 import { Query } from 'appwrite';
 import { useErrorHandler } from 'src/composables/useErrorHandler';
+import { useFinanceStore } from 'src/modules/finance/stores/finance-store';
 
 const errorHandler = useErrorHandler();
 
@@ -196,14 +197,64 @@ export const useLendingStore = defineStore('lending', {
 
     /**
      * Record a payment
+     * Automatically creates a finance transaction for the repayment
      */
-    async recordPayment(paymentData, financeTransactionId = null) {
+    async recordPayment(paymentData) {
       this.isLoading = true;
+      let financeTransactionId = null;
+
       try {
         const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
         const loanId = paymentData.loan_id;
 
-        // 1. Create the payment record
+        // Get loan details for transaction description
+        const loan = this.currentLoan || this.getLoanById(loanId);
+        if (!loan) throw new Error('Loan not found');
+
+        const borrowerName = loan.borrower_id
+          ? `${loan.borrower_id.first_name || ''} ${loan.borrower_id.last_name || ''}`.trim()
+          : 'Unknown Borrower';
+
+        // 1. Create finance transaction for loan repayment
+        const financeStore = useFinanceStore();
+
+        // Fetch or find "Loan Repayment" category
+        await financeStore.fetchCategories();
+        const loanRepaymentCategory = financeStore.incomeCategories.find(
+          (cat) => cat.name === 'Loan Repayment',
+        );
+
+        if (!loanRepaymentCategory) {
+          console.warn('Loan Repayment category not found, transaction will not be created');
+        } else {
+          // Find Internal - Loan Repayments funding source
+          await financeStore.fetchFundingSources();
+          const fundingSource = financeStore.fundingSources.find(
+            (source) => source.name === 'Internal - Loan Repayments',
+          );
+
+          // Create the finance transaction
+          const transactionResult = await financeStore.createTransaction({
+            type: 'income',
+            amount_funded: paymentData.amount / 100, // Convert ngwee to ZMW
+            amount_needed: paymentData.amount / 100,
+            category_id: loanRepaymentCategory.$id,
+            source_module: 'Village',
+            payment_method: paymentData.payment_method,
+            date: paymentData.payment_date || new Date().toISOString(),
+            funding_source_id: fundingSource?.$id || null,
+            description: `Payment for loan ${loanId.substring(0, 8)} - ${borrowerName}`,
+            status: 'completed',
+          });
+
+          if (transactionResult.success) {
+            financeTransactionId = transactionResult.data.$id;
+          } else {
+            console.warn('Failed to create finance transaction:', transactionResult.error);
+          }
+        }
+
+        // 2. Create the payment record
         const paymentRecord = {
           ...paymentData,
         };
@@ -218,10 +269,7 @@ export const useLendingStore = defineStore('lending', {
           data: paymentRecord,
         });
 
-        // 2. Update the loan's outstanding balance
-        const loan = this.currentLoan || this.getLoanById(loanId);
-        if (!loan) throw new Error('Loan not found');
-
+        // 3. Update the loan's outstanding balance
         const newBalance = Math.max(0, loan.outstanding_balance - paymentData.amount);
         let newStatus = loan.status;
 
@@ -254,7 +302,7 @@ export const useLendingStore = defineStore('lending', {
         this.calculateDashboardStats();
 
         errorHandler.notifySuccess('Payment recorded successfully');
-        return { success: true, data: newPayment };
+        return { success: true, data: newPayment, financeTransactionId };
       } catch (error) {
         console.error('Error recording payment:', error);
         errorHandler.notifyError('Failed to record payment.');

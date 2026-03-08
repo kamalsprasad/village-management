@@ -111,6 +111,9 @@
         </q-card-section>
       </q-card>
 
+      <!-- Story 2.5: Loan Portfolio Widget -->
+      <LoanPortfolioWidget v-if="settingsStore.lendingEnabled" />
+
       <!-- Loading State -->
       <div v-if="financeStore.isLoading && financeStore.transactions.length === 0" class="q-pa-md">
         <q-skeleton type="rect" height="60px" class="q-mb-sm" />
@@ -509,12 +512,15 @@ import { ref, computed, onMounted } from 'vue';
 import { useQuasar } from 'quasar';
 import { format, parseISO } from 'date-fns';
 import { useFinanceStore } from '../stores/finance-store';
+import { useSettingsStore } from 'src/stores/settings-store';
 import { usePermissions } from 'src/composables/usePermissions';
 import TransactionForm from '../components/TransactionForm.vue';
 import AddFundingDialog from '../components/AddFundingDialog.vue';
+import LoanPortfolioWidget from '../components/LoanPortfolioWidget.vue';
 
 const $q = useQuasar();
 const financeStore = useFinanceStore();
+const settingsStore = useSettingsStore();
 const { hasPermission } = usePermissions();
 
 const isClient = ref(false); // Track client-side hydration for SSR

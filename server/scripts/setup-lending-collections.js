@@ -10,7 +10,15 @@
  *   node scripts/setup-lending-collections.js
  */
 
-import { Client, Databases, TablesDB, RelationshipType, RelationMutate } from 'node-appwrite';
+import {
+  Client,
+  Databases,
+  TablesDB,
+  RelationshipType,
+  RelationMutate,
+  ID,
+  Query,
+} from 'node-appwrite';
 import dotenv from 'dotenv';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
@@ -307,6 +315,91 @@ async function waitForColumnCreation(tableId, columnKey, maxAttempts = 10) {
   return false;
 }
 
+/**
+ * Create or get 'Loan Repayment' income category
+ */
+async function createLoanRepaymentCategory() {
+  try {
+    console.log('\n📝 Checking for Loan Repayment category...');
+
+    // Check if category exists
+    const existingCategories = await tables.listRows({
+      databaseId: config.databaseId,
+      tableId: 'finance_categories',
+      queries: [Query.equal('name', 'Loan Repayment'), Query.equal('type', 'income')],
+    });
+
+    if (existingCategories.rows.length > 0) {
+      console.log('   ✅ Loan Repayment category already exists');
+      return existingCategories.rows[0].$id;
+    }
+
+    // Create the category
+    const category = await tables.createRow({
+      databaseId: config.databaseId,
+      tableId: 'finance_categories',
+      rowId: ID.unique(),
+      data: {
+        name: 'Loan Repayment',
+        type: 'income',
+        subcategories: [],
+      },
+    });
+
+    console.log('   ✅ Loan Repayment category created');
+    return category.$id;
+  } catch (error) {
+    console.error('   ⚠️ Could not create Loan Repayment category:', error.message);
+    return null;
+  }
+}
+
+/**
+ * Create or get 'Internal - Loan Repayments' funding source
+ */
+async function createLoanRepaymentsFundingSource() {
+  try {
+    console.log('\n📝 Checking for Internal - Loan Repayments funding source...');
+
+    // Check if funding source exists
+    const existingSources = await tables.listRows({
+      databaseId: config.databaseId,
+      tableId: 'funding_sources',
+      queries: [Query.equal('name', 'Internal - Loan Repayments')],
+    });
+
+    if (existingSources.rows.length > 0) {
+      console.log('   ✅ Internal - Loan Repayments funding source already exists');
+      return existingSources.rows[0].$id;
+    }
+
+    // Create the funding source
+    const source = await tables.createRow({
+      databaseId: config.databaseId,
+      tableId: 'funding_sources',
+      rowId: ID.unique(),
+      data: {
+        name: 'Internal - Loan Repayments',
+        type: 'internal',
+        total_received: 0,
+        current_balance: 0,
+        date_received: null,
+        restrictions: 'Automatically tracks loan repayment income',
+        status: 'active',
+      },
+    });
+
+    console.log('   ✅ Internal - Loan Repayments funding source created');
+    return source.$id;
+  } catch (error) {
+    console.error(
+      '   ⚠️ Could not create Internal - Loan Repayments funding source:',
+      error.message,
+    );
+    return null;
+  }
+}
+
 // Main setup function
 async function setupDatabase() {
   console.log('🚀 Starting Lending Module Database Setup');
@@ -399,6 +492,10 @@ async function setupDatabase() {
         }
       }
     }
+
+    // Create Loan Repayment category and funding source
+    await createLoanRepaymentCategory();
+    await createLoanRepaymentsFundingSource();
 
     console.log('\n✅ Lending Database setup complete!');
   } catch (error) {
