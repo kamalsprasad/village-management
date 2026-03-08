@@ -177,7 +177,11 @@
             </q-item-section>
           </q-item>
 
-          <q-item v-if="hasPermission('lending:read')" clickable to="/lending">
+          <q-item
+            v-if="hasPermission('lending:read') && settingsStore.lendingEnabled"
+            clickable
+            to="/lending"
+          >
             <q-item-section avatar>
               <q-icon name="account_balance" />
             </q-item-section>

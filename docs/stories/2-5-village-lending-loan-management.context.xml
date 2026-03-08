@@ -1,0 +1,187 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<context>
+  <story>
+    <id>2.5</id>
+    <title>Village Lending - Loan Management</title>
+    <epic>2</epic>
+    <module>lending</module>
+    <status>ready</status>
+    <last_updated>2025-12-08</last_updated>
+  </story>
+  
+  <requirements>
+    <functional>
+      <item id="AC1">Finance navigation includes a flat Lending item with page-level inner tabs, respecting RBAC</item>
+      <item id="AC2">Loans list page with search, filter, and pagination capabilities</item>
+      <item id="AC3">Loan creation form with real-time calculation preview</item>
+      <item id="AC4">Automatic calculations using simple interest formula</item>
+      <item id="AC5">Comprehensive loan detail page with all loan information</item>
+      <item id="AC6">Payment recording that creates finance transactions</item>
+      <item id="AC7">Overdue loan tracking with visual indicators</item>
+      <item id="AC8">Finance dashboard widget for active loans overview</item>
+      <item id="AC9">Loan status management with automatic updates</item>
+      <item id="AC10">Module separation with runtime enable/disable configuration via application settings</item>
+    </functional>
+    
+    <non_functional>
+      <item>Module must be separable from main codebase</item>
+      <item>Can be disabled via runtime setting (lending_enabled)</item>
+      <item>Responsive design for mobile devices</item>
+      <item>Offline viewing support for loan data</item>
+      <item>Audit trail for all loan operations</item>
+    </non_functional>
+  </requirements>
+  
+  <technical_specs>
+    <database>
+      <collection name="loans">
+        <field>id (string, primary key)</field>
+        <field>borrower_id (foreign key to residents)</field>
+        <field>principal_amount (float)</field>
+        <field>interest_rate (float, percentage)</field>
+        <field>term_months (integer)</field>
+        <field>repayment_frequency (enum: weekly/biweekly/monthly)</field>
+        <field>collateral_description (text, optional)</field>
+        <field>purpose (enum: farm/education/medical/business/other)</field>
+        <field>disbursement_date (date)</field>
+        <field>status (enum: active/paid/defaulted)</field>
+        <field>outstanding_balance (float)</field>
+        <field>total_repayment (float, calculated)</field>
+        <field>payment_amount (float, calculated)</field>
+        <field>next_due_date (date, calculated)</field>
+      </collection>
+      
+      <collection name="loan_payments">
+        <field>id (string, primary key)</field>
+        <field>loan_id (foreign key to loans)</field>
+        <field>amount (float)</field>
+        <field>payment_date (date)</field>
+        <field>payment_method (string)</field>
+        <field>notes (text, optional)</field>
+        <field>finance_transaction_id (foreign key)</field>
+      </collection>
+      
+      <collection name="repayment_schedule">
+        <field>id (string, primary key)</field>
+        <field>loan_id (foreign key to loans)</field>
+        <field>installment_number (integer)</field>
+        <field>due_date (date)</field>
+        <field>amount (float)</field>
+        <field>status (enum: pending/paid/overdue)</field>
+        <field>paid_date (date, optional)</field>
+        <field>payment_id (foreign key, optional)</field>
+      </collection>
+    </database>
+    
+    <api_endpoints>
+      <endpoint method="GET" path="/api/loans">List all loans</endpoint>
+      <endpoint method="POST" path="/api/loans">Create new loan</endpoint>
+      <endpoint method="GET" path="/api/loans/:id">Get loan details</endpoint>
+      <endpoint method="PUT" path="/api/loans/:id">Update loan</endpoint>
+      <endpoint method="POST" path="/api/loans/:id/payments">Record payment</endpoint>
+      <endpoint method="GET" path="/api/loans/:id/schedule">Get repayment schedule</endpoint>
+      <endpoint method="POST" path="/api/loans/:id/status">Update loan status</endpoint>
+    </api_endpoints>
+    
+    <module_structure>
+      <directory>src/modules/lending/</directory>
+      <components>
+        <file>LoanList.vue</file>
+        <file>LoanForm.vue</file>
+        <file>LoanDetail.vue</file>
+        <file>PaymentForm.vue</file>
+        <file>RepaymentSchedule.vue</file>
+      </components>
+      <composables>
+        <file>useLoans.js</file>
+        <file>useLoanCalculations.js</file>
+        <file>useLendingPermissions.js</file>
+      </composables>
+      <stores>
+        <file>lendingStore.js</file>
+      </stores>
+    </module_structure>
+  </technical_specs>
+  
+  <dependencies>
+    <prerequisites>
+      <item>Story 2.1: Income Transaction Recording</item>
+      <item>Epic 1 Story 1.7: Residents Management</item>
+    </prerequisites>
+    <technical>
+      <item>Appwrite SDK</item>
+      <item>Quasar Framework</item>
+      <item>Pinia state management</item>
+      <item>date-fns for date calculations</item>
+      <item>Chart.js for dashboard widget</item>
+    </technical>
+  </dependencies>
+  
+  <integration_points>
+    <item>Finance Transactions: Creates income transactions for repayments</item>
+    <item>Residents: Borrower selection from resident database</item>
+    <item>Dashboard: Active loans portfolio widget</item>
+    <item>RBAC: Finance Manager and Admin role permissions</item>
+    <item>Audit Log: Status changes and payment recordings</item>
+  </integration_points>
+  
+  <business_rules>
+    <rule>Simple interest calculation: Total Interest = Principal × Rate × (Term/12)</rule>
+    <rule>Payment per period = (Principal + Total Interest) / Number of payments</rule>
+    <rule>Currency: ZMW with 2 decimal places</rule>
+    <rule>Max loan amount: 100,000 ZMW</rule>
+    <rule>Max interest rate: 50%</rule>
+    <rule>Max loan term: 60 months</rule>
+    <rule>Defaulted status: 90+ days overdue</rule>
+  </business_rules>
+  
+  <ui_specifications>
+    <color_scheme>
+      <status color="green">Fully Repaid</status>
+      <status color="yellow">Due Soon (7 days)</status>
+      <status color="red">Overdue</status>
+      <status color="blue">Active</status>
+    </color_scheme>
+    <layout>
+      <page>Loan List: Table with search/filter, pagination</page>
+      <page>Loan Detail: Card-based layout with sections</page>
+      <page>Loan Form: Multi-step form with preview</page>
+      <widget>Dashboard: Portfolio overview with metrics</widget>
+    </layout>
+  </ui_specifications>
+  
+  <test_cases>
+    <case id="TC1">Create loan with valid data and verify calculations</case>
+    <case id="TC2">Record payment and verify balance update</case>
+    <case id="TC3">Test overdue loan calculations and indicators</case>
+    <case id="TC4">Verify RBAC restrictions for non-finance users</case>
+    <case id="TC5">Test module enable/disable functionality</case>
+    <case id="TC6">Validate form inputs and error handling</case>
+    <case id="TC7">Test loan status automatic updates</case>
+    <case id="TC8">Verify repayment schedule generation</case>
+  </test_cases>
+  
+  <risks>
+    <risk id="R1">Calculation errors in interest or payments</risk>
+    <mitigation>Unit tests for calculation functions</mitigation>
+    
+    <risk id="R2">Data inconsistency between loan balance and payments</risk>
+    <mitigation>Transactional operations, regular reconciliation</mitigation>
+    
+    <risk id="R3">Module coupling with finance core</risk>
+    <mitigation>Clear interfaces, event-based communication</mitigation>
+    
+    <risk id="R4">Performance issues with large loan datasets</risk>
+    <mitigation>Pagination, efficient queries, caching</mitigation>
+  </risks>
+  
+  <configuration>
+    <setting>lending_enabled (boolean, stored in DB)</setting>
+    <default_values>
+      <max_loan_amount>100000</max_loan_amount>
+      <max_interest_rate>50</max_interest_rate>
+      <max_term_months>60</max_term_months>
+      <default_currency>ZMW</default_currency>
+    </default_values>
+  </configuration>
+</context>

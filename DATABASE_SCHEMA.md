@@ -58,6 +58,93 @@ Stores role definitions with permissions and storage quotas for RBAC.
 | `created_at`    | datetime | Auto-generated              | Record creation timestamp                      |
 | `updated_at`    | datetime | Auto-updated                | Last modification timestamp                    |
 
+## Finance Tables
+
+### finance_transactions
+
+Stores all financial transactions for income and expense tracking.
+
+| Column              | Type     | Constraints                                       | Description                            |
+| ------------------- | -------- | ------------------------------------------------- | -------------------------------------- |
+| `id`                | string   | Primary Key, Auto-generated                       | Unique transaction identifier          |
+| `type`              | string   | Required, Enum: 'income','expense'                | Transaction type                       |
+| `amount`            | float    | Required, Min: 0                                  | Transaction amount in ZMW              |
+| `category`          | string   | Required                                          | Transaction category                   |
+| `source_module`     | string   | Optional                                          | Source module (e.g., 'Farm', 'School') |
+| `funding_source_id` | string   | Foreign Key → funding_sources.id                  | Linked funding source (optional)       |
+| `date`              | date     | Required                                          | Transaction date                       |
+| `description`       | string   | Required                                          | Transaction description                |
+| `status`            | string   | Required, Enum: 'pending','completed','cancelled' | Transaction status                     |
+| `created_at`        | datetime | Auto-generated                                    | Record creation timestamp              |
+| `updated_at`        | datetime | Auto-updated                                      | Last modification timestamp            |
+
+### funding_sources
+
+Manages donor funds and their allocations.
+
+| Column            | Type     | Constraints                 | Description                      |
+| ----------------- | -------- | --------------------------- | -------------------------------- |
+| `id`              | string   | Primary Key, Auto-generated | Unique funding source identifier |
+| `name`            | string   | Required, Unique            | Donor or fund name               |
+| `total_allocated` | float    | Required, Min: 0            | Total amount allocated to fund   |
+| `current_balance` | float    | Required, Min: 0            | Remaining balance in fund        |
+| `restrictions`    | text     | Optional                    | Usage restrictions or notes      |
+| `created_at`      | datetime | Auto-generated              | Record creation timestamp        |
+| `updated_at`      | datetime | Auto-updated                | Last modification timestamp      |
+
+### loans
+
+Stores village lending loan information and repayment details.
+
+| Column                   | Type     | Constraints                                                     | Description                 |
+| ------------------------ | -------- | --------------------------------------------------------------- | --------------------------- |
+| `id`                     | string   | Primary Key, Auto-generated                                     | Unique loan identifier      |
+| `borrower_id`            | string   | Foreign Key → residents.id, Indexed                             | Loan recipient              |
+| `principal_amount`       | float    | Required, Min: 0                                                | Original loan amount        |
+| `interest_rate`          | float    | Required, Min: 0, Max: 50                                       | Annual interest rate (%)    |
+| `term_months`            | integer  | Required, Min: 1, Max: 60                                       | Loan duration in months     |
+| `repayment_frequency`    | string   | Required, Enum: 'weekly','biweekly','monthly'                   | Payment frequency           |
+| `collateral_description` | text     | Optional                                                        | Description of collateral   |
+| `purpose`                | string   | Required, Enum: 'farm','education','medical','business','other' | Loan purpose                |
+| `disbursement_date`      | date     | Required                                                        | When funds were given       |
+| `status`                 | string   | Required, Enum: 'active','paid','defaulted'                     | Current loan status         |
+| `outstanding_balance`    | float    | Required, Min: 0                                                | Remaining amount to pay     |
+| `total_repayment`        | float    | Required, Calculated                                            | Total amount to be repaid   |
+| `payment_amount`         | float    | Required, Calculated                                            | Amount per payment          |
+| `next_due_date`          | date     | Calculated                                                      | Next payment due date       |
+| `created_at`             | datetime | Auto-generated                                                  | Record creation timestamp   |
+| `updated_at`             | datetime | Auto-updated                                                    | Last modification timestamp |
+
+### loan_payments
+
+Records individual loan payments and links to finance transactions.
+
+| Column                   | Type     | Constraints                           | Description               |
+| ------------------------ | -------- | ------------------------------------- | ------------------------- |
+| `id`                     | string   | Primary Key, Auto-generated           | Unique payment identifier |
+| `loan_id`                | string   | Foreign Key → loans.id, Indexed       | Related loan              |
+| `amount`                 | float    | Required, Min: 0                      | Payment amount            |
+| `payment_date`           | date     | Required                              | When payment was made     |
+| `payment_method`         | string   | Required                              | Cash, mobile, bank, etc.  |
+| `notes`                  | text     | Optional                              | Payment notes             |
+| `finance_transaction_id` | string   | Foreign Key → finance_transactions.id | Linked transaction        |
+| `created_at`             | datetime | Auto-generated                        | Record creation timestamp |
+
+### repayment_schedule
+
+Stores the calculated repayment schedule for each loan.
+
+| Column               | Type    | Constraints                                | Description                |
+| -------------------- | ------- | ------------------------------------------ | -------------------------- |
+| `id`                 | string  | Primary Key, Auto-generated                | Unique schedule identifier |
+| `loan_id`            | string  | Foreign Key → loans.id, Indexed            | Related loan               |
+| `installment_number` | integer | Required                                   | Sequence number            |
+| `due_date`           | date    | Required                                   | When payment is due        |
+| `amount`             | float   | Required, Min: 0                           | Payment amount             |
+| `status`             | string  | Required, Enum: 'pending','paid','overdue' | Payment status             |
+| `paid_date`          | date    | Optional                                   | Actual payment date        |
+| `payment_id`         | string  | Foreign Key → loan_payments.id, Optional   | Related payment            |
+
 ## Relationships
 
 The database uses a normalized schema with ID-based relationships:
@@ -65,17 +152,34 @@ The database uses a normalized schema with ID-based relationships:
 - **residents → households**: Many-to-one relationship via `residents.household_id` referencing `households.id`
 - **households → residents**: One-to-many relationship via `households.head_resident_id` referencing `residents.id`
 - **residents → roles**: Many-to-many relationship via `residents.role_ids` array containing role IDs
+- **loans → residents**: Many-to-one relationship via `loans.borrower_id` referencing `residents.id`
+- **loan_payments → loans**: Many-to-one relationship via `loan_payments.loan_id` referencing `loans.id`
+- **repayment_schedule → loans**: Many-to-one relationship via `repayment_schedule.loan_id` referencing `loans.id`
+- **loan_payments → finance_transactions**: One-to-one relationship via `loan_payments.finance_transaction_id` referencing `finance_transactions.id`
+- **finance_transactions → funding_sources**: Many-to-one relationship via `finance_transactions.funding_source_id` referencing `funding_sources.id`
 
 ## Indexes
 
 Indexes are created on frequently queried fields to optimize performance:
 
-| Table        | Column             | Purpose                                 |
-| ------------ | ------------------ | --------------------------------------- |
-| `users`      | `email`            | Fast user lookup during authentication  |
-| `residents`  | `household_id`     | Efficient household member queries      |
-| `residents`  | `role_ids`         | Role-based filtering and access control |
-| `households` | `head_resident_id` | Quick household head lookups            |
+| Table                  | Column              | Purpose                                 |
+| ---------------------- | ------------------- | --------------------------------------- |
+| `users`                | `email`             | Fast user lookup during authentication  |
+| `residents`            | `household_id`      | Efficient household member queries      |
+| `residents`            | `role_ids`          | Role-based filtering and access control |
+| `households`           | `head_resident_id`  | Quick household head lookups            |
+| `finance_transactions` | `date`              | Date range queries for reports          |
+| `finance_transactions` | `type`              | Filter by income/expense                |
+| `finance_transactions` | `funding_source_id` | Filter by funding source                |
+| `loans`                | `borrower_id`       | Find all loans for a resident           |
+| `loans`                | `status`            | Filter active/paid/defaulted loans      |
+| `loans`                | `next_due_date`     | Overdue loan queries                    |
+| `loan_payments`        | `loan_id`           | Find all payments for a loan            |
+| `loan_payments`        | `payment_date`      | Payment history queries                 |
+| `repayment_schedule`   | `loan_id`           | Get full schedule for a loan            |
+| `repayment_schedule`   | `due_date`          | Find due/overdue installments           |
+| `repayment_schedule`   | `status`            | Filter by payment status                |
+| `funding_sources`      | `name`              | Quick donor lookup                      |
 
 ## Permissions
 
@@ -143,6 +247,104 @@ const newResident = await tables.createRow({
     household_id: 'household_123',
     role_ids: ['resident_role_id'],
   },
+});
+```
+
+### Create a new loan
+
+```javascript
+const newLoan = await tables.createRow({
+  databaseId: 'villageDB',
+  tableId: 'loans',
+  rowId: 'unique()',
+  data: {
+    borrower_id: 'resident_456',
+    principal_amount: 5000.0,
+    interest_rate: 10.0,
+    term_months: 12,
+    repayment_frequency: 'monthly',
+    purpose: 'farm',
+    disbursement_date: '2025-01-01',
+    status: 'active',
+    outstanding_balance: 5500.0,
+    total_repayment: 5500.0,
+    payment_amount: 458.33,
+    next_due_date: '2025-02-01',
+  },
+});
+```
+
+### Get all active loans for a resident
+
+```javascript
+const residentLoans = await tables.listRows({
+  databaseId: 'villageDB',
+  tableId: 'loans',
+  queries: [Query.equal('borrower_id', 'resident_456'), Query.equal('status', 'active')],
+});
+```
+
+### Find overdue loans
+
+```javascript
+const today = new Date().toISOString().split('T')[0];
+const overdueLoans = await tables.listRows({
+  databaseId: 'villageDB',
+  tableId: 'loans',
+  queries: [Query.equal('status', 'active'), Query.lessThan('next_due_date', today)],
+});
+```
+
+### Record a loan payment
+
+```javascript
+// First create the payment record
+const payment = await tables.createRow({
+  databaseId: 'villageDB',
+  tableId: 'loan_payments',
+  rowId: 'unique()',
+  data: {
+    loan_id: 'loan_789',
+    amount: 458.33,
+    payment_date: '2025-02-01',
+    payment_method: 'cash',
+    notes: 'Monthly payment',
+  },
+});
+
+// Then create the linked finance transaction
+const transaction = await tables.createRow({
+  databaseId: 'villageDB',
+  tableId: 'finance_transactions',
+  rowId: 'unique()',
+  data: {
+    type: 'income',
+    amount: 458.33,
+    category: 'Loan Repayment',
+    date: '2025-02-01',
+    description: 'Loan repayment from John Doe',
+    status: 'completed',
+  },
+});
+
+// Link payment to transaction
+await tables.updateRow({
+  databaseId: 'villageDB',
+  tableId: 'loan_payments',
+  rowId: payment.$id,
+  data: {
+    finance_transaction_id: transaction.$id,
+  },
+});
+```
+
+### Get loan repayment schedule
+
+```javascript
+const schedule = await tables.listRows({
+  databaseId: 'villageDB',
+  tableId: 'repayment_schedule',
+  queries: [Query.equal('loan_id', 'loan_789'), Query.orderAsc('installment_number')],
 });
 ```
 

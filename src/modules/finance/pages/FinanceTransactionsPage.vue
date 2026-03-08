@@ -508,10 +508,8 @@
 import { ref, computed, onMounted } from 'vue';
 import { useQuasar } from 'quasar';
 import { format, parseISO } from 'date-fns';
-//import { Query } from 'appwrite';
 import { useFinanceStore } from '../stores/finance-store';
 import { usePermissions } from 'src/composables/usePermissions';
-//import { tables } from 'src/boot/appwrite';
 import TransactionForm from '../components/TransactionForm.vue';
 import AddFundingDialog from '../components/AddFundingDialog.vue';
 

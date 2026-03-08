@@ -108,6 +108,11 @@ export const useSettingsStore = defineStore('settings', {
     isUsingSampleData: (state) => state.settings?.is_using_sample_data || false,
 
     /**
+     * Check if lending module is enabled
+     */
+    lendingEnabled: (state) => state.settings?.lending_enabled ?? true,
+
+    /**
      * Get council members (parsed from JSON string)
      */
     councilMembers: (state) => {
@@ -239,6 +244,10 @@ export const useSettingsStore = defineStore('settings', {
           country_code: { required: true, minLength: 2, maxLength: 2 },
           country_phone_code: { required: true, minLength: 1, maxLength: 4 },
         });
+
+        if (updates.lending_enabled !== undefined && typeof updates.lending_enabled !== 'boolean') {
+          return { success: false, errors: ['lending_enabled must be a boolean'] };
+        }
 
         if (!validation.isValid) {
           errorHandler.notifyError(`Validation failed: ${validation.errors.join(', ')}`);

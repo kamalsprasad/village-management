@@ -206,6 +206,17 @@
                   </template>
                 </q-select>
               </div>
+              <div class="col-12 col-md-12">
+                <q-toggle
+                  v-model="formData.lending_enabled"
+                  label="Enable Village Lending Module"
+                  :disable="!isEditMode"
+                  color="primary"
+                />
+                <div class="text-caption text-grey-7 q-ml-xl">
+                  Turning this on enables the Loan Management system for tracking community loans.
+                </div>
+              </div>
             </div>
           </q-card-section>
         </q-card>
@@ -398,6 +409,7 @@ const formData = ref({
   country_code: '',
   country_phone_code: '',
   is_using_sample_data: false,
+  lending_enabled: true,
   council_member_ids: null,
   modules_enabled: [],
 });
@@ -522,6 +534,7 @@ function loadFormData() {
       country_code: settingsStore.settings.country_code || 'ZM',
       country_phone_code: settingsStore.settings.country_phone_code || '',
       is_using_sample_data: settingsStore.settings.is_using_sample_data || false,
+      lending_enabled: settingsStore.settings.lending_enabled ?? true,
       council_member_ids: settingsStore.councilMembers.map((member) =>
         normalizeCouncilMember(member),
       ),

@@ -64,6 +64,16 @@ export default defineBoot(({ router, store }) => {
       }
     }
 
+    // Check if route requires a specific setting to be truthy
+    if (to.meta.requiresSetting) {
+      const settingKey = to.meta.requiresSetting;
+      // Evaluate setting as truthy
+      if (!settingsStore[settingKey]) {
+        next('/');
+        return;
+      }
+    }
+
     // All checks passed, allow navigation
     next();
   });
