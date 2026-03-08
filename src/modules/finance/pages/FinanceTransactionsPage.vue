@@ -54,6 +54,9 @@
                 dense
                 clearable
                 placeholder="Filter by category..."
+                option-label="name"
+                emit-value
+                map-options
                 @update:model-value="applyFilters"
               >
                 <template #prepend>
@@ -505,8 +508,10 @@
 import { ref, computed, onMounted } from 'vue';
 import { useQuasar } from 'quasar';
 import { format, parseISO } from 'date-fns';
+//import { Query } from 'appwrite';
 import { useFinanceStore } from '../stores/finance-store';
 import { usePermissions } from 'src/composables/usePermissions';
+//import { tables } from 'src/boot/appwrite';
 import TransactionForm from '../components/TransactionForm.vue';
 import AddFundingDialog from '../components/AddFundingDialog.vue';
 
@@ -817,7 +822,9 @@ function clearDateRange() {
 // Apply filters
 async function applyFilters() {
   financeStore.setTypeFilter(selectedType.value);
-  financeStore.setCategoryFilter(selectedCategory.value);
+  // Handle category filter - selectedCategory can be an object (with $id) or null
+  const categoryId = selectedCategory.value?.$id || null;
+  financeStore.setCategoryFilter(categoryId);
   financeStore.setStatusFilter(selectedStatus.value);
   await financeStore.applyFilters();
 }
