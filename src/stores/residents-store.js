@@ -63,6 +63,13 @@ export const useResidentsStore = defineStore('residents', {
       parts.push(resident.last_name);
       return parts.join(' ');
     },
+
+    /**
+     * Get a resident by ID from the loaded residents array
+     */
+    getResidentById: (state) => (id) => {
+      return state.residents.find((r) => r.$id === id) || null;
+    },
   },
 
   actions: {
