@@ -324,7 +324,6 @@ async function createColumn(tableId, column) {
           twoWay: column.twoWay || false,
           key: key,
           twoWayKey: column.twoWayKey,
-          onDelete: RelationMutate.Cascade,
         });
         break;
 
