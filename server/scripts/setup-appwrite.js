@@ -90,7 +90,7 @@ const tableSchemas = {
       },
       { key: 'storage_quota', type: 'integer', min: 0, max: 1000, default: 2, required: false },
     ],
-    indexes: [{ key: 'idx_users_email_unique', type: 'unique', attributes: ['email'] }],
+    indexes: [{ key: 'idx_users_email_unique', type: 'unique', columns: ['email'] }],
   },
   residents: {
     name: 'Residents',
@@ -123,7 +123,7 @@ const tableSchemas = {
       {
         key: 'idx_residents_household_id',
         type: 'key',
-        attributes: ['first_name', 'last_name'],
+        columns: ['first_name', 'last_name'],
         orders: ['ASC', 'ASC'],
       },
     ],
@@ -172,7 +172,7 @@ const tableSchemas = {
       {
         key: 'idx_households_name',
         type: 'key',
-        attributes: ['name'],
+        columns: ['name'],
         orders: ['ASC'],
       },
     ],
@@ -362,7 +362,7 @@ async function createIndex(tableId, index) {
       tableId: tableId,
       key: index.key,
       type: index.type,
-      attributes: index.attributes,
+      columns: index.columns,
       orders: index.orders || [],
     });
 
