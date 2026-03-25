@@ -184,7 +184,7 @@ const tableSchemas = {
       {
         key: 'category',
         type: 'enum',
-        elements: ['administration', 'council', 'farm', 'school'],
+        elements: ['administration', 'council', 'farm', 'school', 'resident'],
         required: true,
       },
       { key: 'permissions', type: 'string', size: 100, array: true, required: false },

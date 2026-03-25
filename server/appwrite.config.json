@@ -1,6 +1,6 @@
 {
-  "projectId": "village-management",
-  "projectName": "Village Management",
+  "projectId": "village-project",
+  "projectName": "Village Project",
   "settings": {
     "services": {
       "account": true,

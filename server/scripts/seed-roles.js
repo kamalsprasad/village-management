@@ -72,13 +72,13 @@ const defaultRoles = [
   },
   {
     name: 'Finance Manager',
-    category: 'finance',
+    category: 'council',
     permissions: ['view_finance', 'edit_finance', 'view_reports', 'manage_funding_links'],
     storage_quota: 50,
   },
   {
     name: 'Village Resident',
-    category: 'administration',
+    category: 'resident',
     permissions: ['view_profile', 'edit_profile'],
     storage_quota: 10,
   },
