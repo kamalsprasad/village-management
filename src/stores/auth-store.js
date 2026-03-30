@@ -226,6 +226,13 @@ export const useAuthStore = defineStore('auth', {
     async login(email, password) {
       this.isLoading = true;
       try {
+        // Check if there's already an active session and delete it
+        try {
+          await account.deleteSession({ sessionId: 'current' });
+        } catch {
+          // No active session or deletion failed - safe to proceed
+        }
+
         // Create session
         await account.createEmailPasswordSession({
           email,

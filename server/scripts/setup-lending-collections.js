@@ -380,7 +380,7 @@ async function createLoanRepaymentsFundingSource() {
       rowId: ID.unique(),
       data: {
         name: 'Internal - Loan Repayments',
-        type: 'internal',
+        type: 'loan repayment',
         total_received: 0,
         current_balance: 0,
         date_received: null,
