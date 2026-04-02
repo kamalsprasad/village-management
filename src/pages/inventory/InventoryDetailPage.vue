@@ -136,6 +136,81 @@
             </q-card-section>
           </q-card>
 
+          <!-- Story 2.7: Source Transaction Card (for finance_purchase items) -->
+          <q-card
+            v-if="item?.source === 'finance_purchase' && item?.source_reference_id"
+            flat
+            bordered
+            class="q-mb-md"
+          >
+            <q-card-section>
+              <div class="text-subtitle2 text-grey-7 q-mb-md">Source Transaction</div>
+
+              <!-- Loading state -->
+              <div v-if="isLoadingSourceTransaction">
+                <q-skeleton type="rect" height="80px" />
+              </div>
+
+              <!-- Transaction found -->
+              <div v-else-if="sourceTransaction" class="row q-col-gutter-md">
+                <div class="col-12 col-sm-6">
+                  <InfoRow label="Reference ID" :value="item?.source_reference_id" />
+                </div>
+                <div class="col-12 col-sm-6">
+                  <InfoRow
+                    label="Transaction Type"
+                    :value="sourceTransaction.type === 'expense' ? 'Expense' : 'Income'"
+                  />
+                </div>
+                <div class="col-12 col-sm-6">
+                  <InfoRow
+                    label="Amount Funded"
+                    :value="formatCurrency(sourceTransaction.amount_funded)"
+                  />
+                </div>
+                <div class="col-12 col-sm-6">
+                  <InfoRow
+                    label="Category"
+                    :value="financeStore.getCategoryName(sourceTransaction.category_id)"
+                  />
+                </div>
+                <div class="col-12 col-sm-6">
+                  <InfoRow label="Date" :value="formatDate(sourceTransaction.date)" />
+                </div>
+                <div class="col-12" v-if="sourceTransaction.description">
+                  <InfoRow label="Description" :value="sourceTransaction.description" />
+                </div>
+                <div class="col-12">
+                  <q-btn
+                    outline
+                    color="primary"
+                    icon="receipt_long"
+                    label="View in Finance"
+                    size="sm"
+                    @click="
+                      router.push({
+                        path: '/finance',
+                        query: { transactionId: item?.source_reference_id },
+                      })
+                    "
+                  />
+                </div>
+              </div>
+
+              <!-- Transaction not found -->
+              <q-banner v-else rounded class="bg-orange-1 text-dark">
+                <template #avatar>
+                  <q-icon name="warning" color="warning" />
+                </template>
+                <div>Linked transaction not found</div>
+                <div class="text-caption">
+                  The source expense transaction ({{ item?.source_reference_id }}) may have been
+                  deleted.
+                </div>
+              </q-banner>
+            </q-card-section>
+          </q-card>
+
           <!-- Transaction History (Placeholder) -->
           <q-card flat bordered>
             <q-card-section>
@@ -232,9 +307,11 @@
 import { ref, computed, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useInventoryStore } from 'src/stores/inventory-store';
+import { useFinanceStore } from 'src/modules/finance/stores/finance-store';
 import StockAdjustDialog from 'src/components/inventory/StockAdjustDialog.vue';
 import StockLevelIndicator from 'src/components/inventory/StockLevelIndicator.vue';
 import DeleteConfirmDialog from 'src/components/dialogs/DeleteConfirmDialog.vue';
+import InfoRow from 'src/components/inventory/InfoRow.vue';
 import { useQuasar } from 'quasar';
 import { date } from 'quasar';
 
@@ -242,10 +319,15 @@ const $q = useQuasar();
 const route = useRoute();
 const router = useRouter();
 const inventoryStore = useInventoryStore();
+const financeStore = useFinanceStore();
 
 const isLoading = ref(false);
 const showAdjustDialog = ref(false);
 const showDeleteDialog = ref(false);
+
+// Story 2.7: Source transaction data for finance_purchase items
+const sourceTransaction = ref(null);
+const isLoadingSourceTransaction = ref(false);
 
 const itemId = computed(() => route.params.id);
 const item = computed(() => inventoryStore.currentItem);
@@ -346,6 +428,23 @@ async function loadItem() {
       message: result.error || 'Failed to load item',
     });
     router.push('/inventory');
+    return;
+  }
+
+  // Story 2.7: If item is from finance purchase, fetch the source transaction
+  const loadedItem = result.data;
+  if (loadedItem?.source === 'finance_purchase' && loadedItem?.source_reference_id) {
+    isLoadingSourceTransaction.value = true;
+    try {
+      await financeStore.fetchCategories();
+      const txn = await financeStore.fetchTransactionById(loadedItem.source_reference_id);
+      sourceTransaction.value = txn || null;
+    } catch (err) {
+      console.error('Failed to fetch source transaction:', err);
+      sourceTransaction.value = null;
+    } finally {
+      isLoadingSourceTransaction.value = false;
+    }
   }
 }
 

@@ -595,6 +595,42 @@ export const useInventoryStore = defineStore('inventory', {
     },
 
     /**
+     * Fetch inventory items linked to specific finance transaction IDs
+     * Story 2.7: Used for batch lookup of linked inventory from transaction list
+     * @param {string[]} transactionIds - Array of finance transaction $id values
+     * @returns {Object} - Map of { transactionId: inventoryItem }
+     */
+    async fetchItemsBySourceRefs(transactionIds) {
+      if (!transactionIds || transactionIds.length === 0) return {};
+
+      try {
+        const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
+        const inventoryCollectionId = import.meta.env.VITE_APPWRITE_TABLE_INVENTORY || 'inventory';
+
+        const response = await tables.listRows({
+          databaseId: dbId,
+          tableId: inventoryCollectionId,
+          queries: [
+            Query.equal('source', 'finance_purchase'),
+            Query.equal('source_reference_id', transactionIds),
+            Query.limit(transactionIds.length),
+          ],
+        });
+
+        const map = {};
+        for (const item of response.rows || []) {
+          if (item.source_reference_id) {
+            map[item.source_reference_id] = item;
+          }
+        }
+        return map;
+      } catch (error) {
+        console.error('Error fetching linked inventory items:', error);
+        return {};
+      }
+    },
+
+    /**
      * Update low stock and out of stock counts
      */
     updateAlertCounts() {

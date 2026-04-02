@@ -122,6 +122,152 @@
           </template>
         </q-input>
 
+        <!-- Story 2.7: Add to Inventory Section (expense only, eligible categories) -->
+        <template v-if="props.type === 'expense'">
+          <!-- Edit mode: show existing linked inventory item (read-only) -->
+          <q-banner
+            v-if="isEditMode && linkedInventoryItem"
+            rounded
+            class="bg-blue-1 text-dark q-mb-md"
+          >
+            <template #avatar>
+              <q-icon name="inventory_2" color="primary" />
+            </template>
+            <div class="text-weight-medium">
+              Linked Inventory Item: {{ linkedInventoryItem.item_name }}
+            </div>
+            <div class="text-caption">
+              {{ linkedInventoryItem.quantity }} {{ linkedInventoryItem.unit }} &bull;
+              {{ inventoryStore.getStatusLabel(linkedInventoryItem.status) }}
+            </div>
+            <template #action>
+              <q-btn
+                flat
+                dense
+                label="View Item"
+                color="primary"
+                icon="open_in_new"
+                @click="router.push(`/inventory/${linkedInventoryItem.$id}`)"
+              />
+            </template>
+          </q-banner>
+
+          <!-- Edit mode: loading check for linked inventory -->
+          <div v-else-if="isEditMode && isCheckingLinkedInventory" class="q-mb-md">
+            <q-skeleton type="rect" height="48px" />
+          </div>
+
+          <!-- Create mode (or edit with no linked item): show checkbox + fields -->
+          <template v-if="showInventoryOption && !linkedInventoryItem">
+            <q-checkbox v-model="addToInventory" label="Add to Inventory" dense class="q-mb-sm">
+              <q-tooltip> Automatically create an inventory item from this purchase </q-tooltip>
+            </q-checkbox>
+
+            <!-- Inventory fields (shown when checkbox is checked) -->
+            <div v-if="addToInventory" class="q-pl-lg q-mb-md">
+              <q-banner rounded dense class="bg-grey-2 q-mb-sm">
+                <template #avatar>
+                  <q-icon name="info" color="grey-7" size="xs" />
+                </template>
+                <span class="text-caption">
+                  An inventory item will be created when this expense is saved. Unit cost will be
+                  calculated as Amount ÷ Quantity.
+                </span>
+              </q-banner>
+
+              <q-input
+                v-model="inventoryItemName"
+                label="Item Name *"
+                outlined
+                dense
+                maxlength="255"
+                :rules="[(val) => !!val || 'Item name is required for inventory']"
+                class="q-mb-sm"
+                :hint="suggestedItemName ? `Suggestion: ${suggestedItemName}` : ''"
+              >
+                <template #prepend>
+                  <q-icon name="label" />
+                </template>
+              </q-input>
+
+              <div class="row q-col-gutter-sm q-mb-sm">
+                <div class="col-6">
+                  <q-input
+                    v-model.number="inventoryQuantity"
+                    label="Quantity *"
+                    type="number"
+                    outlined
+                    dense
+                    min="1"
+                    :rules="[
+                      (val) => (val !== null && val !== undefined) || 'Quantity is required',
+                      (val) => val >= 1 || 'Quantity must be at least 1',
+                      (val) => Number.isInteger(val) || 'Must be a whole number',
+                    ]"
+                  >
+                    <template #prepend>
+                      <q-icon name="numbers" />
+                    </template>
+                  </q-input>
+                </div>
+                <div class="col-6">
+                  <q-select
+                    v-model="inventoryUnit"
+                    :options="inventoryUnitOptions"
+                    label="Unit *"
+                    outlined
+                    dense
+                    emit-value
+                    map-options
+                    :rules="[(val) => !!val || 'Unit is required']"
+                  >
+                    <template #prepend>
+                      <q-icon name="straighten" />
+                    </template>
+                  </q-select>
+                </div>
+              </div>
+
+              <q-input
+                v-model.number="inventoryReorderThreshold"
+                label="Reorder Threshold"
+                type="number"
+                outlined
+                dense
+                min="0"
+                :rules="[
+                  (val) => (val !== null && val !== undefined) || 'Reorder threshold is required',
+                  (val) => val >= 0 || 'Reorder threshold must be 0 or greater',
+                ]"
+                hint="Alert when stock falls below this level"
+                class="q-mb-sm"
+              >
+                <template #prepend>
+                  <q-icon name="notification_important" />
+                </template>
+              </q-input>
+
+              <!-- Unit cost preview -->
+              <q-banner
+                v-if="formData.amount_funded && inventoryQuantity"
+                rounded
+                dense
+                class="bg-green-1 text-dark q-mb-sm"
+              >
+                <template #avatar>
+                  <q-icon name="calculate" color="positive" size="xs" />
+                </template>
+                <span class="text-caption">
+                  Unit cost: {{ formatCurrency(formData.amount_funded / inventoryQuantity) }} ({{
+                    formatCurrency(formData.amount_funded)
+                  }}
+                  ÷ {{ inventoryQuantity }})
+                </span>
+              </q-banner>
+            </div>
+          </template>
+        </template>
+
         <!-- Source Module -->
         <q-select
           v-model="formData.source_module"
@@ -279,8 +425,11 @@
 <script setup>
 import { ref, computed, watch, onMounted } from 'vue';
 import { useQuasar } from 'quasar';
+import { useRouter } from 'vue-router';
 import { format } from 'date-fns';
 import { useFinanceStore } from '../stores/finance-store';
+import { useInventoryStore } from 'src/stores/inventory-store';
+import { isInventoryEligible, getInventoryTypeForCategory } from 'src/utils/inventory-categories';
 
 // Special value for "Other" option
 const OTHER_SUBCATEGORY_VALUE = '__OTHER__';
@@ -300,7 +449,29 @@ const props = defineProps({
 const emit = defineEmits(['saved', 'cancelled']);
 
 const $q = useQuasar();
+const router = useRouter();
 const financeStore = useFinanceStore();
+const inventoryStore = useInventoryStore();
+
+// Story 2.7: Inventory integration state
+const addToInventory = ref(false);
+const inventoryItemName = ref('');
+const inventoryQuantity = ref(null);
+const inventoryUnit = ref('');
+const inventoryReorderThreshold = ref(10);
+const linkedInventoryItem = ref(null); // For edit mode: existing linked item
+const isCheckingLinkedInventory = ref(false);
+
+// Story 2.7: Unit options (same as InventoryFormPage.vue)
+const inventoryUnitOptions = [
+  { label: 'Kilograms (kg)', value: 'kg' },
+  { label: 'Liters (L)', value: 'liters' },
+  { label: 'Units/Pieces', value: 'units' },
+  { label: 'Bags', value: 'bags' },
+  { label: 'Boxes', value: 'boxes' },
+  { label: 'Bottles', value: 'bottles' },
+  { label: 'Packets', value: 'packets' },
+];
 
 // Form data (Story 2.4: Updated for partial funding)
 const formData = ref({
@@ -440,10 +611,45 @@ const subcategoryOptionsWithOther = computed(() => {
   return options;
 });
 
-// Handle category change - reset subcategory
+// Story 2.7: Resolve selected category name for inventory eligibility
+const selectedCategoryName = computed(() => {
+  if (!formData.value.category_id) return '';
+  const category = financeStore.getCategoryById(formData.value.category_id);
+  return category ? category.name : '';
+});
+
+// Story 2.7: Check if current category is inventory-eligible (expense only)
+const showInventoryOption = computed(() => {
+  if (props.type !== 'expense') return false;
+  if (!selectedCategoryName.value) return false;
+  return isInventoryEligible(selectedCategoryName.value);
+});
+
+// Story 2.7: Auto-generate suggested inventory item name
+const suggestedItemName = computed(() => {
+  const catName = selectedCategoryName.value;
+  const sub = formData.value.subcategory;
+  if (catName && sub && sub !== '__OTHER__') {
+    return `${catName} - ${sub}`;
+  }
+  return '';
+});
+
+// Handle category change - reset subcategory and inventory fields
 function onCategoryChange() {
   formData.value.subcategory = '';
   formData.value.customSubcategory = '';
+  // Story 2.7: Reset inventory fields when category changes
+  addToInventory.value = false;
+  resetInventoryFields();
+}
+
+// Story 2.7: Reset inventory fields to defaults
+function resetInventoryFields() {
+  inventoryItemName.value = '';
+  inventoryQuantity.value = null;
+  inventoryUnit.value = '';
+  inventoryReorderThreshold.value = 10;
 }
 
 // Handle subcategory change
@@ -451,7 +657,23 @@ function onSubcategoryChange(value) {
   if (value !== OTHER_SUBCATEGORY_VALUE) {
     formData.value.customSubcategory = '';
   }
+  // Story 2.7: Auto-suggest item name when subcategory changes
+  if (addToInventory.value && suggestedItemName.value && !inventoryItemName.value) {
+    inventoryItemName.value = suggestedItemName.value;
+  }
 }
+
+// Story 2.7: Prefill or clear inventory fields when checkbox changes
+watch(addToInventory, (enabled) => {
+  if (enabled) {
+    if (!inventoryItemName.value && suggestedItemName.value) {
+      inventoryItemName.value = suggestedItemName.value;
+    }
+    return;
+  }
+
+  resetInventoryFields();
+});
 
 // Funding source options for dropdown
 const fundingSourceOptions = computed(() => {
@@ -490,7 +712,7 @@ function formatCurrency(amount) {
 // Watch for initialData changes (edit mode) - Story 2.4: Updated for amount_funded/amount_needed
 watch(
   () => props.initialData,
-  (newData) => {
+  async (newData) => {
     if (newData) {
       // Determine if subcategory is a predefined one or custom
       const category = newData.category_id
@@ -524,6 +746,20 @@ watch(
         receipt_number: newData.receipt_number || '',
         payment_status: newData.payment_status || 'paid',
       };
+
+      // Story 2.7: Check for existing linked inventory item in edit mode
+      if (newData.$id && props.type === 'expense') {
+        isCheckingLinkedInventory.value = true;
+        try {
+          const linked = await inventoryStore.fetchItemsBySourceRefs([newData.$id]);
+          linkedInventoryItem.value = linked[newData.$id] || null;
+        } catch (err) {
+          console.error('Failed to check linked inventory:', err);
+          linkedInventoryItem.value = null;
+        } finally {
+          isCheckingLinkedInventory.value = false;
+        }
+      }
     } else {
       resetForm();
     }
@@ -552,9 +788,13 @@ function resetForm() {
     receipt_number: '',
     payment_status: 'paid',
   };
+  // Story 2.7: Reset inventory state
+  addToInventory.value = false;
+  resetInventoryFields();
+  linkedInventoryItem.value = null;
 }
 
-// Handle form submission (Story 2.4: Updated for partial funding)
+// Handle form submission (Story 2.4: Updated for partial funding, Story 2.7: Inventory integration)
 async function handleSubmit() {
   // Story 2.4: Block submission if insufficient funds
   if (hasInsufficientFunds.value) {
@@ -609,6 +849,51 @@ async function handleSubmit() {
   }
 
   if (result.success) {
+    // Story 2.7: Auto-create inventory item if checkbox is checked
+    if (
+      addToInventory.value &&
+      showInventoryOption.value &&
+      (!isEditMode.value || !linkedInventoryItem.value)
+    ) {
+      const unitCost = amountFunded / inventoryQuantity.value;
+      const itemType = getInventoryTypeForCategory(selectedCategoryName.value);
+      const descSnippet = (formData.value.description || '').substring(0, 100);
+
+      try {
+        const invResult = await inventoryStore.createItem({
+          item_name: inventoryItemName.value,
+          item_type: itemType,
+          quantity: inventoryQuantity.value,
+          unit: inventoryUnit.value,
+          unit_cost: Math.round(unitCost * 100) / 100,
+          source: 'finance_purchase',
+          source_reference_id: result.data.$id,
+          reorder_threshold: inventoryReorderThreshold.value,
+          notes: `Auto-created from expense: ${descSnippet}`,
+        });
+
+        if (invResult.success) {
+          $q.notify({
+            type: 'positive',
+            message: `Expense recorded and inventory item "${inventoryItemName.value}" created`,
+          });
+        } else {
+          $q.notify({
+            type: 'warning',
+            message: 'Expense saved, but inventory creation failed. Please add the item manually.',
+            timeout: 5000,
+          });
+        }
+      } catch (err) {
+        console.error('Inventory auto-creation failed:', err);
+        $q.notify({
+          type: 'warning',
+          message: 'Expense saved, but inventory creation failed. Please add the item manually.',
+          timeout: 5000,
+        });
+      }
+    }
+
     resetForm();
     emit('saved', result.data);
   }

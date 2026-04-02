@@ -133,7 +133,7 @@
           :pagination="{ rowsPerPage: 0 }"
           :row-class="getRowClass"
         >
-          <!-- Custom column: type (Story 2.4: Add supporting transaction badge) -->
+          <!-- Custom column: type (Story 2.4: Add supporting transaction badge, Story 2.7: Inventory link) -->
           <template #body-cell-type="props">
             <q-td :props="props">
               <div class="row items-center no-wrap q-gutter-xs">
@@ -145,6 +145,21 @@
                 >
                   {{ props.value === 'income' ? 'Income' : 'Expense' }}
                 </q-chip>
+                <!-- Story 2.7: Inventory link indicator -->
+                <q-btn
+                  v-if="getLinkedInventory(props.row.$id)"
+                  flat
+                  dense
+                  round
+                  icon="inventory_2"
+                  color="teal"
+                  size="xs"
+                  @click.stop="router.push(`/inventory/${getLinkedInventory(props.row.$id).$id}`)"
+                >
+                  <q-tooltip>
+                    Linked inventory: {{ getLinkedInventory(props.row.$id).item_name }}
+                  </q-tooltip>
+                </q-btn>
               </div>
             </q-td>
           </template>
@@ -468,6 +483,37 @@
                   </q-item-label>
                 </q-item-section>
               </q-item>
+
+              <!-- Story 2.7: Linked inventory item -->
+              <q-item v-if="selectedTransaction && getLinkedInventory(selectedTransaction.$id)">
+                <q-item-section>
+                  <q-item-label caption>Linked Inventory Item</q-item-label>
+                  <q-item-label>
+                    <q-chip
+                      color="teal"
+                      text-color="white"
+                      dense
+                      size="sm"
+                      icon="inventory_2"
+                      clickable
+                      @click="
+                        router.push(`/inventory/${getLinkedInventory(selectedTransaction.$id).$id}`)
+                      "
+                    >
+                      {{ getLinkedInventory(selectedTransaction.$id).item_name }}
+                    </q-chip>
+                  </q-item-label>
+                  <q-item-label caption>
+                    {{ getLinkedInventory(selectedTransaction.$id).quantity }}
+                    {{ getLinkedInventory(selectedTransaction.$id).unit }} &bull;
+                    {{
+                      inventoryStore.getStatusLabel(
+                        getLinkedInventory(selectedTransaction.$id).status,
+                      )
+                    }}
+                  </q-item-label>
+                </q-item-section>
+              </q-item>
             </q-list>
           </q-card-section>
 
@@ -508,22 +554,29 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, watch } from 'vue';
 import { useQuasar } from 'quasar';
+import { useRouter } from 'vue-router';
 import { format, parseISO } from 'date-fns';
 import { useFinanceStore } from '../stores/finance-store';
 import { useSettingsStore } from 'src/stores/settings-store';
+import { useInventoryStore } from 'src/stores/inventory-store';
 import { usePermissions } from 'src/composables/usePermissions';
 import TransactionForm from '../components/TransactionForm.vue';
 import AddFundingDialog from '../components/AddFundingDialog.vue';
 import LoanPortfolioWidget from '../components/LoanPortfolioWidget.vue';
 
 const $q = useQuasar();
+const router = useRouter();
 const financeStore = useFinanceStore();
 const settingsStore = useSettingsStore();
+const inventoryStore = useInventoryStore();
 const { hasPermission } = usePermissions();
 
 const isClient = ref(false); // Track client-side hydration for SSR
+
+// Story 2.7: Map of transactionId -> linked inventory item
+const linkedInventoryMap = ref({});
 
 const showAddDialog = ref(false);
 const showViewDialog = ref(false);
@@ -540,6 +593,31 @@ const editingTransaction = ref(null);
 // Story 2.4: Add Funding dialog state
 const showAddFundingDialog = ref(false);
 const transactionToFund = ref(null);
+
+// Story 2.7: Fetch linked inventory items for current page of transactions
+async function refreshLinkedInventory() {
+  const transactions = financeStore.paginatedTransactions;
+  const expenseIds = transactions.filter((t) => t.type === 'expense').map((t) => t.$id);
+
+  if (expenseIds.length > 0) {
+    linkedInventoryMap.value = await inventoryStore.fetchItemsBySourceRefs(expenseIds);
+  } else {
+    linkedInventoryMap.value = {};
+  }
+}
+
+// Story 2.7: Get linked inventory item for a transaction
+function getLinkedInventory(transactionId) {
+  return linkedInventoryMap.value[transactionId] || null;
+}
+
+// Story 2.7: Watch for transaction list changes to refresh linked inventory
+watch(
+  () => financeStore.paginatedTransactions,
+  () => {
+    refreshLinkedInventory();
+  },
+);
 
 // Helper function for category display
 function getCategoryName(categoryId) {

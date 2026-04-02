@@ -872,6 +872,30 @@ export const useFinanceStore = defineStore('finance', {
     },
 
     /**
+     * Fetch a single transaction by ID
+     * Story 2.7: Used for cross-linking from inventory detail page
+     * @param {string} transactionId - Transaction document ID
+     * @returns {Object|null} - Transaction object or null if not found
+     */
+    async fetchTransactionById(transactionId) {
+      try {
+        const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
+        const transactionsTableId = 'finance_transactions';
+
+        const transaction = await tables.getRow({
+          databaseId: dbId,
+          tableId: transactionsTableId,
+          rowId: transactionId,
+        });
+
+        return transaction;
+      } catch (error) {
+        console.error('Error fetching transaction by ID:', error);
+        return null;
+      }
+    },
+
+    /**
      * Create a new transaction
      * Story 2.4: Updated to handle amount_needed/amount_funded and supporting transactions
      * @param {Object} transactionData - Transaction data
