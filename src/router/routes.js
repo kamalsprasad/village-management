@@ -108,6 +108,41 @@ const routes = [
           requiresPermission: ['finance:read', '*'],
         },
       },
+      // Inventory Module routes (Story 2.6)
+      // IMPORTANT: 'inventory/add' must be defined BEFORE 'inventory/:id'
+      // to prevent the :id param from capturing 'add' as an ID.
+      {
+        path: 'inventory',
+        component: () => import('pages/inventory/InventoryListPage.vue'),
+        meta: {
+          requiresAuth: true,
+          requiresPermission: 'inventory:read',
+        },
+      },
+      {
+        path: 'inventory/add',
+        component: () => import('pages/inventory/InventoryFormPage.vue'),
+        meta: {
+          requiresAuth: true,
+          requiresPermission: 'inventory:write',
+        },
+      },
+      {
+        path: 'inventory/:id',
+        component: () => import('pages/inventory/InventoryDetailPage.vue'),
+        meta: {
+          requiresAuth: true,
+          requiresPermission: 'inventory:read',
+        },
+      },
+      {
+        path: 'inventory/:id/edit',
+        component: () => import('pages/inventory/InventoryFormPage.vue'),
+        meta: {
+          requiresAuth: true,
+          requiresPermission: 'inventory:write',
+        },
+      },
       // Finance Module routes
       ...financeRoutes,
       ...lendingRoutes,

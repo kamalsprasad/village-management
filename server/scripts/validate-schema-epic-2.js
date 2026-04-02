@@ -196,12 +196,39 @@ async function setupSchema() {
     ]);
     await createColumn(TABLES.LOANS, 'float', 'outstanding_balance', null, true);
 
-    // --- Inventory ---
+    // --- Inventory (Story 2.6: Core Inventory Management) ---
     console.log('📦 Configuring Inventory...');
     await createColumn(TABLES.INVENTORY, 'string', 'item_name', 255, true);
+    await createColumn(TABLES.INVENTORY, 'enum', 'item_type', null, true, false, [
+      'farm_inputs',
+      'farm_produce',
+      'school_supplies',
+      'medical_supplies',
+      'kitchen_supplies',
+      'equipment',
+      'other',
+    ]);
     await createColumn(TABLES.INVENTORY, 'integer', 'quantity', null, true);
     await createColumn(TABLES.INVENTORY, 'string', 'unit', 20, true);
+    await createColumn(TABLES.INVENTORY, 'float', 'unit_cost', null, false);
+    await createColumn(TABLES.INVENTORY, 'float', 'estimated_value', null, false);
+    await createColumn(TABLES.INVENTORY, 'enum', 'status', null, true, false, [
+      'in_stock',
+      'low_stock',
+      'out_of_stock',
+      'reserved',
+    ]);
+    await createColumn(TABLES.INVENTORY, 'enum', 'source', null, true, false, [
+      'finance_purchase',
+      'farm_harvest',
+      'manual_entry',
+      'donation',
+    ]);
+    await createColumn(TABLES.INVENTORY, 'string', 'source_reference_id', 255, false);
     await createColumn(TABLES.INVENTORY, 'integer', 'reorder_threshold', null, true);
+    await createColumn(TABLES.INVENTORY, 'datetime', 'date_added', null, false);
+    await createColumn(TABLES.INVENTORY, 'datetime', 'last_updated', null, true);
+    await createColumn(TABLES.INVENTORY, 'string', 'notes', 1000, false);
     await createRelationshipColumn(
       TABLES.INVENTORY,
       TABLES.TRANSACTIONS,
