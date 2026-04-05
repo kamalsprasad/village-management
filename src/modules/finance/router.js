@@ -24,9 +24,18 @@ const financeRoutes = [
       requiresPermission: 'finance:read',
     },
   },
+  // Story 2.8: Financial Reports
+  {
+    path: 'finance/reports',
+    name: 'finance-reports',
+    component: () => import('./pages/FinanceReportsPage.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresPermission: 'finance:read',
+    },
+  },
   // Future routes for Finance module:
   // - /finance/transactions/:id (Transaction detail)
-  // - /finance/reports (Financial reports)
 ];
 
 export default financeRoutes;

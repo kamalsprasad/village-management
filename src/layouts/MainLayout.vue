@@ -168,6 +168,16 @@
             </q-item-section>
           </q-item>
 
+          <!-- Story 2.8: Finance Reports -->
+          <q-item v-if="hasPermission('finance:read')" clickable to="/finance/reports">
+            <q-item-section avatar>
+              <q-icon name="assessment" />
+            </q-item-section>
+            <q-item-section>
+              <q-item-label>Reports</q-item-label>
+            </q-item-section>
+          </q-item>
+
           <q-item v-if="hasPermission('inventory:read')" clickable to="/inventory">
             <q-item-section avatar>
               <q-icon name="inventory_2" />
