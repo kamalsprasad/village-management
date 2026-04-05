@@ -195,7 +195,7 @@ This story is not just a UI addition. It formalizes the reporting calculation ru
   - [x] Verify load/generation timing against 1-year data target
   - [x] Avoid N+1 lookups when enriching report rows
   - [x] Verify charts mount safely in SSR / hydration contexts using prior project patterns
-  - [ ] Complete manual testing checklist below
+  - [x] Complete manual testing checklist below
 
 ---
 
@@ -842,6 +842,12 @@ Cascade
 - Recommended an MVP-friendly simplified Balance Sheet / Financial Position approach rather than assuming full double-entry accounting support.
 - **Implementation complete**: All 8 tasks implemented. Build passes with 0 errors.
 - Architecture: Pure utility functions in `ReportService.js` (no Pinia dependency) + `ReportExportService.js` for PDF/CSV/print + composable data-fetching via `fetchTransactionsForReport` store action.
+- Code Review Fixes Applied:
+  - Fixed 'All Time' reports returning empty charts by dynamically computing date ranges in `ReportService.js`.
+  - Fixed Appwrite 5000-row query limit truncation by implementing cursor-based pagination in `fetchTransactionsForReport` and `fetchAllItems`.
+  - Fixed inefficient Donor Report fetching by pushing `funding_source_id` to the Appwrite server-side query.
+  - Fixed Vue 3 Reactivity Memory Leak by wrapping `chartInstances` in `shallowRef`.
+  - Fixed Timezone Boundary Truncation by using `startOfDay` and `endOfDay` from `date-fns` for accurate local date filtering.
 - DonorReportService left untouched; refactoring deferred to POST-MVP.md.
 - Chart.js used directly (no vue-chartjs); migration deferred to POST-MVP.md.
 - Role names in report-scope.js use title-case matching actual database role names.

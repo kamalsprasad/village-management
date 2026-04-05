@@ -749,9 +749,10 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue';
+import { ref, shallowRef, computed, watch, onMounted, onUnmounted, nextTick } from 'vue';
 import { useQuasar } from 'quasar';
 import { Chart, registerables } from 'chart.js';
+import { startOfDay, endOfDay, parseISO } from 'date-fns';
 import { useFinanceStore } from '../stores/finance-store';
 import { useInventoryStore } from 'src/stores/inventory-store';
 import { useAuthStore } from 'src/stores/auth-store';
@@ -802,8 +803,8 @@ const filters = ref({
   status: null,
 });
 
-// Chart instances for cleanup
-const chartInstances = ref({});
+// Chart instances for cleanup - shallowRef prevents Vue 3 from deep-proxying Chart.js instances
+const chartInstances = shallowRef({});
 
 // Chart canvas refs
 const incomeTrendChart = ref(null);
@@ -1018,16 +1019,19 @@ async function generateTransactionReport(reportType) {
   // Build fetch options
   const fetchOptions = {};
   if (filters.value.dateFrom) {
-    fetchOptions.dateFrom = filters.value.dateFrom + 'T00:00:00.000Z';
+    fetchOptions.dateFrom = startOfDay(parseISO(filters.value.dateFrom)).toISOString();
   }
   if (filters.value.dateTo) {
-    fetchOptions.dateTo = filters.value.dateTo + 'T23:59:59.999Z';
+    fetchOptions.dateTo = endOfDay(parseISO(filters.value.dateTo)).toISOString();
   }
   // Default to completed unless user explicitly selects a status
   if (filters.value.status) {
     fetchOptions.status = filters.value.status;
   } else {
     fetchOptions.status = ['completed'];
+  }
+  if (reportType === 'donor-fund-usage' && filters.value.fundingSourceId) {
+    fetchOptions.fundingSourceId = filters.value.fundingSourceId;
   }
 
   const result = await financeStore.fetchTransactionsForReport(fetchOptions);
@@ -1087,9 +1091,13 @@ async function generateBalanceSheetReport() {
   // Fetch inventory items for the balance sheet
   let inventoryItems = [];
   try {
-    // Use a large limit to get all inventory items
-    await inventoryStore.fetchItems(1, 500);
-    inventoryItems = inventoryStore.items || [];
+    // Fetch all items directly bypassing pagination limits
+    const result = await inventoryStore.fetchAllItems();
+    if (result.success) {
+      inventoryItems = result.data || [];
+    } else {
+      inventoryItems = inventoryStore.items || [];
+    }
   } catch {
     // Inventory fetch failure is non-fatal for balance sheet
     console.warn('Could not fetch inventory items for balance sheet');

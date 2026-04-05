@@ -25,17 +25,17 @@ READINESS_REPORT: docs/implementation-readiness-report-2025-10-25.md
 
 ## Development Queue
 
-STORIES_SEQUENCE: [1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 1.8, 1.9]
-TODO_STORY: 1.9
-TODO_TITLE: Sample Data Mode - Katete Model Village Seed Data
+STORIES_SEQUENCE: [2.1, 2.2, 2.3, 2.4, 2.5, 2.6, 2.7, 2.8, 2.9]
+TODO_STORY: 2.9
+TODO_TITLE: Financial Dashboard Widgets
 IN_PROGRESS_STORY:
 IN_PROGRESS_TITLE:
-STORIES_DONE: [1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 1.8]
+STORIES_DONE: [1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 1.8, 1.9, 1.10, 1.11, 2.1, 2.2, 2.3, 2.4, 2.5, 2.6, 2.7, 2.8]
 STORIES_READY: []
 
 ## Next Action
 
-NEXT_ACTION: Draft Story 1.9 (Sample Data Mode - Katete Model Village Seed Data)
+NEXT_ACTION: Draft Story 2.9 (Financial Dashboard Widgets)
 NEXT_COMMAND: create-story
 NEXT_AGENT: Scrum Master (sm)
 
@@ -101,6 +101,7 @@ See docs/epics.md for complete story breakdown
 - **Story 1.6:** Households Management - CRUD Operations ✅ (Completed: 2025-10-31)
 - **Story 1.7:** Residents Management - CRUD Operations ✅ (Completed: 2025-10-31)
 - **Story 1.8:** Village Configuration and Default Settings ✅ (Completed: 2025-11-25)
+- **Story 2.8:** Financial Reports - Basic Reports Suite ✅ (Completed: 2026-04-05)
 
 ## Stories in Progress
 
@@ -138,6 +139,13 @@ See docs/epics.md for complete story breakdown
 **Confidence Level:** High - Project ready to proceed to implementation
 
 ## Recent Activity
+
+**2026-04-05 16:00 UTC:**
+
+- ✅ Story 2.8 marked DONE after Code Review
+- 📄 Story file updated: `docs/stories/story-2.8.md` (status → implemented, DoD notes + review added)
+- 📊 `docs/bmm-workflow-status.md` updated: Story 2.8 marked done
+- ⏭️ Next: Run `create-story` to draft Story 2.9 (Financial Dashboard Widgets)
 
 **2025-11-25 12:30 UTC+11:**
 

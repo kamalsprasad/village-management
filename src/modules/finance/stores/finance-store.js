@@ -239,39 +239,66 @@ export const useFinanceStore = defineStore('finance', {
      * Story 2.8: Fetch all transactions for report generation.
      * Unlike fetchTransactions(), this does NOT mutate store pagination/transaction state.
      * Returns raw transaction rows filtered server-side where possible.
-     * @param {Object} options - { dateFrom, dateTo, type, status, limit }
+     * Implements automatic pagination to bypass Appwrite limit truncations.
+     * @param {Object} options - { dateFrom, dateTo, type, status, fundingSourceId, limit }
      * @returns {Promise<{success: boolean, data?: Array, error?: string}>}
      */
     async fetchTransactionsForReport(options = {}) {
       try {
         const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
         const transactionsTableId = 'finance_transactions';
-        const { dateFrom, dateTo, type, status, limit: queryLimit = 5000 } = options;
+        const {
+          dateFrom,
+          dateTo,
+          type,
+          status,
+          fundingSourceId,
+          limit: queryLimit = 5000,
+        } = options;
 
-        const queries = [Query.limit(queryLimit), Query.orderDesc('date')];
+        const baseQueries = [Query.orderDesc('date')];
 
         if (type) {
-          queries.push(Query.equal('type', type));
+          baseQueries.push(Query.equal('type', type));
         }
         if (status && Array.isArray(status)) {
-          queries.push(Query.equal('status', status));
+          baseQueries.push(Query.equal('status', status));
         } else if (status && typeof status === 'string') {
-          queries.push(Query.equal('status', status));
+          baseQueries.push(Query.equal('status', status));
         }
         if (dateFrom) {
-          queries.push(Query.greaterThanEqual('date', dateFrom));
+          baseQueries.push(Query.greaterThanEqual('date', dateFrom));
         }
         if (dateTo) {
-          queries.push(Query.lessThanEqual('date', dateTo));
+          baseQueries.push(Query.lessThanEqual('date', dateTo));
+        }
+        if (fundingSourceId) {
+          baseQueries.push(Query.equal('funding_source_id', fundingSourceId));
         }
 
-        const response = await tables.listRows({
-          databaseId: dbId,
-          tableId: transactionsTableId,
-          queries,
-        });
+        let allRows = [];
+        let offset = 0;
+        let hasMore = true;
 
-        return { success: true, data: response.rows, total: response.total };
+        while (hasMore) {
+          const queries = [...baseQueries, Query.limit(queryLimit), Query.offset(offset)];
+
+          const response = await tables.listRows({
+            databaseId: dbId,
+            tableId: transactionsTableId,
+            queries,
+          });
+
+          allRows.push(...response.rows);
+
+          if (allRows.length >= response.total || response.rows.length < queryLimit) {
+            hasMore = false;
+          } else {
+            offset += queryLimit;
+          }
+        }
+
+        return { success: true, data: allRows, total: allRows.length };
       } catch (error) {
         console.error('Error fetching transactions for report:', error);
         return { success: false, error: error.message, data: [] };

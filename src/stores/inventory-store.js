@@ -258,6 +258,43 @@ export const useInventoryStore = defineStore('inventory', {
     },
 
     /**
+     * Fetch all items (bypassing pagination limit). Used for reports (Balance Sheet).
+     * @returns {Promise<{success: boolean, data?: Array, error?: string}>}
+     */
+    async fetchAllItems() {
+      try {
+        const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
+        const inventoryCollectionId = import.meta.env.VITE_APPWRITE_TABLE_INVENTORY || 'inventory';
+
+        let allItems = [];
+        let offset = 0;
+        let hasMore = true;
+        const limit = 5000;
+
+        while (hasMore) {
+          const response = await tables.listRows({
+            databaseId: dbId,
+            tableId: inventoryCollectionId,
+            queries: [Query.limit(limit), Query.offset(offset)],
+          });
+
+          allItems.push(...response.rows);
+
+          if (allItems.length >= response.total || response.rows.length < limit) {
+            hasMore = false;
+          } else {
+            offset += limit;
+          }
+        }
+
+        return { success: true, data: allItems };
+      } catch (error) {
+        console.error('Error fetching all inventory items:', error);
+        return { success: false, error: error.message };
+      }
+    },
+
+    /**
      * Fetch inventory items with pagination and filters
      * @param {number} page - Page number (1-indexed)
      * @param {number} limit - Items per page

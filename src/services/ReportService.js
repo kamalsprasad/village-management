@@ -125,14 +125,29 @@ function getMonthLabel(monthKey) {
  * Generate all month keys in a date range for consistent chart axes.
  * @param {string} dateFrom - ISO date string
  * @param {string} dateTo - ISO date string
+ * @param {Array} transactions - Array of transactions to determine date range if missing
  * @returns {string[]} Array of month keys
  */
-function getAllMonthKeys(dateFrom, dateTo) {
-  if (!dateFrom || !dateTo) return [];
+function getAllMonthKeys(dateFrom, dateTo, transactions = []) {
+  let start = dateFrom ? parseISO(dateFrom) : null;
+  let end = dateTo ? parseISO(dateTo) : null;
+
+  if (!start || !end) {
+    if (!transactions || !transactions.length) return [];
+
+    // Find min and max dates from transactions
+    const dates = transactions.map((t) => new Date(t.date).getTime()).filter((t) => !isNaN(t));
+
+    if (!dates.length) return [];
+
+    if (!start) start = new Date(Math.min(...dates));
+    if (!end) end = new Date(Math.max(...dates));
+  }
+
   try {
-    const start = startOfMonth(parseISO(dateFrom));
-    const end = endOfMonth(parseISO(dateTo));
-    return eachMonthOfInterval({ start, end }).map((d) => format(d, 'yyyy-MM'));
+    return eachMonthOfInterval({ start: startOfMonth(start), end: endOfMonth(end) }).map((d) =>
+      format(d, 'yyyy-MM'),
+    );
   } catch {
     return [];
   }
@@ -200,7 +215,7 @@ export function generateIncomeSummary(transactions, options = {}) {
   const { categories = [], dateFrom, dateTo } = options;
   const income = transactions.filter((t) => t.type === 'income');
   const totalIncome = income.reduce((sum, t) => sum + (t.amount_funded || 0), 0);
-  const allMonths = getAllMonthKeys(dateFrom, dateTo);
+  const allMonths = getAllMonthKeys(dateFrom, dateTo, income);
 
   const categoryLookup = (id) => {
     const cat = categories.find((c) => c.$id === id);
@@ -228,7 +243,7 @@ export function generateExpenseSummary(transactions, options = {}) {
   const { categories = [], fundingSources = [], dateFrom, dateTo } = options;
   const expenses = transactions.filter((t) => t.type === 'expense');
   const totalExpenses = expenses.reduce((sum, t) => sum + (t.amount_funded || 0), 0);
-  const allMonths = getAllMonthKeys(dateFrom, dateTo);
+  const allMonths = getAllMonthKeys(dateFrom, dateTo, expenses);
 
   const categoryLookup = (id) => {
     const cat = categories.find((c) => c.$id === id);
@@ -259,7 +274,7 @@ export function generateExpenseSummary(transactions, options = {}) {
  */
 export function generateProfitLoss(transactions, options = {}) {
   const { categories = [], dateFrom, dateTo } = options;
-  const allMonths = getAllMonthKeys(dateFrom, dateTo);
+  const allMonths = getAllMonthKeys(dateFrom, dateTo, transactions);
 
   const income = transactions.filter((t) => t.type === 'income');
   const expenses = transactions.filter((t) => t.type === 'expense');
@@ -294,7 +309,7 @@ export function generateProfitLoss(transactions, options = {}) {
  */
 export function generateCashFlow(transactions, options = {}) {
   const { dateFrom, dateTo } = options;
-  const allMonths = getAllMonthKeys(dateFrom, dateTo);
+  const allMonths = getAllMonthKeys(dateFrom, dateTo, transactions);
 
   const income = transactions.filter((t) => t.type === 'income');
   const expenses = transactions.filter((t) => t.type === 'expense');
@@ -431,7 +446,7 @@ export function generateDonorFundUsage(transactions, fundingSource, options = {}
     };
   }
 
-  const allMonths = getAllMonthKeys(dateFrom, dateTo);
+  const allMonths = getAllMonthKeys(dateFrom, dateTo, transactions);
 
   // Filter to transactions linked to this funding source
   const linked = transactions.filter((t) => t.funding_source_id === fundingSource.$id);
