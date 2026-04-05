@@ -115,11 +115,8 @@
                 <div class="col-12 col-sm-6" v-if="canViewValues">
                   <InfoRow label="Estimated Value" :value="formatCurrency(item?.estimated_value)" />
                 </div>
-                <div class="col-12 col-sm-6">
-                  <InfoRow label="Source" :value="inventoryStore.getSourceLabel(item?.source)" />
-                </div>
-                <div class="col-12 col-sm-6" v-if="item?.source_reference_id">
-                  <InfoRow label="Reference ID" :value="item?.source_reference_id" />
+                <div class="col-12 col-sm-6" v-if="item?.transaction_id">
+                  <InfoRow label="Reference ID" :value="item?.transaction_id" />
                 </div>
                 <div class="col-12 col-sm-6">
                   <InfoRow label="Date Added" :value="formatDate(item?.$createdAt)" />
@@ -136,25 +133,30 @@
             </q-card-section>
           </q-card>
 
-          <!-- Story 2.7: Source Transaction Card (for finance_purchase items) -->
-          <q-card
-            v-if="item?.source === 'finance_purchase' && item?.source_reference_id"
-            flat
-            bordered
-            class="q-mb-md"
-          >
+          <!-- Story 2.7: Source Transaction Card -->
+          <q-card v-if="item?.transaction_id" flat bordered class="q-mb-md">
             <q-card-section>
-              <div class="text-subtitle2 text-grey-7 q-mb-md">Source Transaction</div>
+              <div class="row items-center justify-between q-mb-sm">
+                <div class="text-subtitle1 text-weight-medium">Purchase Source</div>
+                <q-chip
+                  v-if="sourceTransaction"
+                  :color="getStatusColor(sourceTransaction.status)"
+                  text-color="white"
+                  size="sm"
+                >
+                  {{ sourceTransaction.status }}
+                </q-chip>
+              </div>
 
-              <!-- Loading state -->
-              <div v-if="isLoadingSourceTransaction">
-                <q-skeleton type="rect" height="80px" />
+              <!-- Loading State -->
+              <div v-if="isLoadingSourceTransaction" class="flex flex-center q-pa-md">
+                <q-spinner color="primary" size="2em" />
               </div>
 
               <!-- Transaction found -->
               <div v-else-if="sourceTransaction" class="row q-col-gutter-md">
                 <div class="col-12 col-sm-6">
-                  <InfoRow label="Reference ID" :value="item?.source_reference_id" />
+                  <InfoRow label="Reference ID" :value="item?.transaction_id" />
                 </div>
                 <div class="col-12 col-sm-6">
                   <InfoRow
@@ -190,7 +192,7 @@
                     @click="
                       router.push({
                         path: '/finance',
-                        query: { transactionId: item?.source_reference_id },
+                        query: { transactionId: item?.transaction_id },
                       })
                     "
                   />
@@ -198,14 +200,13 @@
               </div>
 
               <!-- Transaction not found -->
-              <q-banner v-else rounded class="bg-orange-1 text-dark">
+              <q-banner v-else class="bg-orange-1 text-dark">
                 <template #avatar>
                   <q-icon name="warning" color="warning" />
                 </template>
                 <div>Linked transaction not found</div>
                 <div class="text-caption">
-                  The source expense transaction ({{ item?.source_reference_id }}) may have been
-                  deleted.
+                  The source expense transaction ({{ item?.transaction_id }}) may have been deleted.
                 </div>
               </q-banner>
             </q-card-section>
@@ -433,11 +434,11 @@ async function loadItem() {
 
   // Story 2.7: If item is from finance purchase, fetch the source transaction
   const loadedItem = result.data;
-  if (loadedItem?.source === 'finance_purchase' && loadedItem?.source_reference_id) {
+  if (loadedItem?.transaction_id) {
     isLoadingSourceTransaction.value = true;
     try {
       await financeStore.fetchCategories();
-      const txn = await financeStore.fetchTransactionById(loadedItem.source_reference_id);
+      const txn = await financeStore.fetchTransactionById(loadedItem.transaction_id);
       sourceTransaction.value = txn || null;
     } catch (err) {
       console.error('Failed to fetch source transaction:', err);

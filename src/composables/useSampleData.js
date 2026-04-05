@@ -3,6 +3,7 @@ import { useSettingsStore } from 'src/stores/settings-store';
 import { useHouseholdsStore } from 'src/stores/households-store';
 import { useResidentsStore } from 'src/stores/residents-store';
 import { useErrorHandler } from 'src/composables/useErrorHandler';
+import { useFinanceSampleData } from 'src/composables/useFinanceSampleData';
 
 /**
  * Composable for seeding sample data (Katete Model Village)
@@ -15,6 +16,7 @@ export function useSampleData() {
   const householdsStore = useHouseholdsStore();
   const residentsStore = useResidentsStore();
   const errorHandler = useErrorHandler();
+  const { seedFinanceData, financeSeedingProgress, financeSeedingStatus } = useFinanceSampleData();
 
   const isSeeding = ref(false);
   const seedingProgress = ref(0);
@@ -413,6 +415,16 @@ export function useSampleData() {
         throw new Error('Failed to create village settings');
       }
 
+      seedingProgress.value = 0.9;
+
+      // Step 5: Seed Finance Data (Epic 2)
+      seedingStatus.value = 'Generating 1.5 years of financial history...';
+      const financeResult = await seedFinanceData(createdResidentIds, createdHouseholdIds);
+
+      if (!financeResult.success) {
+        throw new Error(`Failed to generate finance data: ${financeResult.error}`);
+      }
+
       seedingProgress.value = 1;
       seedingStatus.value = 'Sample data loaded successfully!';
 
@@ -436,6 +448,8 @@ export function useSampleData() {
     isSeeding,
     seedingProgress,
     seedingStatus,
+    financeSeedingProgress,
+    financeSeedingStatus,
     // Export sample data for use in seed script
     sampleVillageSettings,
     sampleHouseholds,

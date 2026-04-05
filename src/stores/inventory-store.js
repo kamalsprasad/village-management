@@ -1,26 +1,14 @@
 import { defineStore } from 'pinia';
 import { tables } from 'src/boot/appwrite';
+import { ID, Query } from 'appwrite';
 import { useErrorHandler } from 'src/composables/useErrorHandler';
 import { useAuthStore } from './auth-store';
 import {
   hasPermission as checkPerm,
   hasAnyPermission as checkAnyPerm,
 } from 'src/utils/permissions';
-import { ID, Query } from 'appwrite';
 
 const errorHandler = useErrorHandler();
-
-// Helper to calculate inventory status based on quantity and threshold
-function calculateStatus(quantity, reorderThreshold) {
-  if (quantity === 0) return 'out_of_stock';
-  if (quantity <= reorderThreshold) return 'low_stock';
-  return 'in_stock';
-}
-
-// Helper to calculate estimated value
-function calculateEstimatedValue(quantity, unitCost) {
-  return quantity * (unitCost || 0);
-}
 
 // Role-based visibility for farm types
 const FARM_TYPES = ['farm_inputs', 'farm_produce'];
@@ -370,32 +358,17 @@ export const useInventoryStore = defineStore('inventory', {
         const inventoryCollectionId = import.meta.env.VITE_APPWRITE_TABLE_INVENTORY || 'inventory';
 
         const itemId = ID.unique();
-        const now = new Date().toISOString();
 
-        // Calculate status based on quantity and threshold
-        const status = calculateStatus(itemData.quantity, itemData.reorder_threshold);
-
-        // Calculate estimated value
-        const estimatedValue = calculateEstimatedValue(itemData.quantity, itemData.unit_cost);
-
-        const newItem = await tables.createRow({
+        const response = await tables.createRow({
           databaseId: dbId,
           tableId: inventoryCollectionId,
           rowId: itemId,
           data: {
             item_name: itemData.item_name,
-            item_type: itemData.item_type,
             quantity: itemData.quantity,
             unit: itemData.unit,
-            unit_cost: itemData.unit_cost || 0,
-            estimated_value: estimatedValue,
-            status: status,
-            source: itemData.source || 'manual_entry',
-            source_reference_id: itemData.source_reference_id || null,
+            transaction_id: itemData.source_reference_id || itemData.transaction_id || null,
             reorder_threshold: itemData.reorder_threshold || 10,
-            //date_added: now,
-            last_updated: now,
-            notes: itemData.notes || '',
           },
         });
 
@@ -403,7 +376,7 @@ export const useInventoryStore = defineStore('inventory', {
         await this.fetchItems(this.pagination.currentPage, this.pagination.itemsPerPage);
 
         errorHandler.notifySuccess('Inventory item created successfully');
-        return { success: true, data: newItem };
+        return { success: true, data: response };
       } catch (error) {
         console.error('Error creating inventory item:', error);
         errorHandler.notifyError('Failed to create inventory item. Please try again.');
@@ -415,56 +388,47 @@ export const useInventoryStore = defineStore('inventory', {
 
     /**
      * Update an existing inventory item
-     * @param {string} itemId - Inventory document ID
-     * @param {Object} itemData - Updated inventory data
+     * @param {string} id - Inventory document ID
+     * @param {Object} itemData - Updated inventory item data
      */
-    async updateItem(itemId, itemData) {
+    async updateItem(id, itemData) {
       this.isLoading = true;
       try {
         const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
         const inventoryCollectionId = import.meta.env.VITE_APPWRITE_TABLE_INVENTORY || 'inventory';
 
-        // Recalculate status and value if quantity changed
-        const quantity =
-          itemData.quantity !== undefined ? itemData.quantity : this.currentItem?.quantity;
-        const unitCost =
-          itemData.unit_cost !== undefined ? itemData.unit_cost : this.currentItem?.unit_cost;
-        const reorderThreshold =
-          itemData.reorder_threshold !== undefined
-            ? itemData.reorder_threshold
-            : this.currentItem?.reorder_threshold;
+        // Build update object with only fields that match our schema
+        const updateData = {};
+        if (itemData.item_name !== undefined) updateData.item_name = itemData.item_name;
+        if (itemData.quantity !== undefined) updateData.quantity = itemData.quantity;
+        if (itemData.unit !== undefined) updateData.unit = itemData.unit;
+        if (itemData.reorder_threshold !== undefined)
+          updateData.reorder_threshold = itemData.reorder_threshold;
 
-        const status = calculateStatus(quantity, reorderThreshold);
-        const estimatedValue = calculateEstimatedValue(quantity, unitCost);
+        // Handle source reference / transaction ID
+        const txId =
+          itemData.source_reference_id !== undefined
+            ? itemData.source_reference_id
+            : itemData.transaction_id;
+        if (txId !== undefined) updateData.transaction_id = txId || null;
 
-        const updatedItem = await tables.updateRow({
+        await tables.updateRow({
           databaseId: dbId,
           tableId: inventoryCollectionId,
-          rowId: itemId,
-          data: {
-            item_name: itemData.item_name,
-            item_type: itemData.item_type,
-            quantity: quantity,
-            unit: itemData.unit,
-            unit_cost: unitCost,
-            estimated_value: estimatedValue,
-            status: status,
-            reorder_threshold: reorderThreshold,
-            notes: itemData.notes || '',
-            last_updated: new Date().toISOString(),
-          },
+          rowId: id,
+          data: updateData,
         });
 
         // Refresh the list
         await this.fetchItems(this.pagination.currentPage, this.pagination.itemsPerPage);
 
         // Update currentItem if it's the one being edited
-        if (this.currentItem && this.currentItem.$id === itemId) {
-          this.currentItem = { ...this.currentItem, ...updatedItem };
+        if (this.currentItem && this.currentItem.$id === id) {
+          this.currentItem = { ...this.currentItem, ...updateData };
         }
 
         errorHandler.notifySuccess('Inventory item updated successfully');
-        return { success: true, data: updatedItem };
+        return { success: true, data: this.currentItem || updateData };
       } catch (error) {
         console.error('Error updating inventory item:', error);
         errorHandler.notifyError('Failed to update inventory item. Please try again.');
@@ -517,19 +481,12 @@ export const useInventoryStore = defineStore('inventory', {
             throw new Error('Invalid adjustment type');
         }
 
-        // Calculate new status and value
-        const status = calculateStatus(newQuantity, item.reorder_threshold);
-        const estimatedValue = calculateEstimatedValue(newQuantity, item.unit_cost);
-
         const updatedItem = await tables.updateRow({
           databaseId: dbId,
           tableId: inventoryCollectionId,
           rowId: itemId,
           data: {
             quantity: newQuantity,
-            status: status,
-            estimated_value: estimatedValue,
-            last_updated: new Date().toISOString(),
           },
         });
 
@@ -542,11 +499,11 @@ export const useInventoryStore = defineStore('inventory', {
         }
 
         // Show appropriate notification
-        if (status === 'low_stock') {
+        if (newQuantity <= item.reorder_threshold && newQuantity > 0) {
           errorHandler.notifyWarning(
             `Stock updated: ${item.item_name} is now at low stock level (${newQuantity} ${item.unit})`,
           );
-        } else if (status === 'out_of_stock') {
+        } else if (newQuantity === 0) {
           errorHandler.notifyError(`Stock updated: ${item.item_name} is now OUT OF STOCK`);
         } else {
           errorHandler.notifySuccess(
@@ -611,22 +568,27 @@ export const useInventoryStore = defineStore('inventory', {
           databaseId: dbId,
           tableId: inventoryCollectionId,
           queries: [
-            Query.equal('source', 'finance_purchase'),
-            Query.equal('source_reference_id', transactionIds),
+            Query.equal('transaction_id', transactionIds),
             Query.limit(transactionIds.length),
           ],
         });
 
         const map = {};
         for (const item of response.rows || []) {
-          if (item.source_reference_id) {
-            map[item.source_reference_id] = item;
+          // With relationship fields, it might be an object or string depending on Appwrite version
+          const txId =
+            typeof item.transaction_id === 'object' && item.transaction_id !== null
+              ? item.transaction_id.$id
+              : item.transaction_id;
+
+          if (txId) {
+            map[txId] = item;
           }
         }
         return map;
       } catch (error) {
         console.error('Error fetching linked inventory items:', error);
-        return {};
+        return {}; // Return empty map on error to not break the UI
       }
     },
 

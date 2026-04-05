@@ -102,39 +102,6 @@
                 </q-input>
               </div>
 
-              <!-- Source (Locked in Edit Mode) -->
-              <div class="col-12 col-md-6">
-                <q-select
-                  v-model="form.source"
-                  :options="sourceOptions"
-                  label="Source *"
-                  outlined
-                  emit-value
-                  map-options
-                  :rules="[(val) => !!val || 'Source is required']"
-                  hint="How did this item enter inventory?"
-                  :disable="isEdit"
-                />
-                <div v-if="isEdit" class="text-caption text-orange-8 q-mt-xs">
-                  <q-icon name="lock" size="xs" /> Source cannot be changed after creation (audit
-                  trail)
-                </div>
-              </div>
-
-              <!-- Source Reference (conditional, locked in Edit Mode) -->
-              <div class="col-12" v-if="showSourceReference">
-                <q-input
-                  v-model="form.source_reference_id"
-                  :label="sourceReferenceLabel"
-                  outlined
-                  hint="Optional reference ID to link to purchase or harvest record"
-                  :disable="isEdit"
-                />
-                <div v-if="isEdit" class="text-caption text-orange-8 q-mt-xs">
-                  <q-icon name="lock" size="xs" /> Reference cannot be changed after creation
-                </div>
-              </div>
-
               <!-- Notes -->
               <div class="col-12">
                 <q-input
@@ -209,13 +176,12 @@ const inventoryStore = useInventoryStore();
 const isLoading = ref(false);
 const form = ref({
   item_name: '',
-  item_type: '',
+  item_type: 'other',
   quantity: 0,
-  unit: '',
+  unit: 'pcs',
   reorder_threshold: 10,
   unit_cost: null,
-  source: 'manual_entry',
-  source_reference_id: '',
+  transaction_id: '',
   notes: '',
 });
 
@@ -244,25 +210,6 @@ const unitOptions = [
   { label: 'Packets', value: 'packets' },
   { label: 'Other', value: 'other' },
 ];
-
-const sourceOptions = [
-  { label: 'Manual Entry', value: 'manual_entry' },
-  { label: 'Finance Purchase', value: 'finance_purchase' },
-  { label: 'Farm Harvest', value: 'farm_harvest' },
-  { label: 'Donation', value: 'donation' },
-];
-
-const showSourceReference = computed(() => {
-  return ['finance_purchase', 'farm_harvest'].includes(form.value.source);
-});
-
-const sourceReferenceLabel = computed(() => {
-  const labels = {
-    finance_purchase: 'Transaction Reference ID (Optional)',
-    farm_harvest: 'Harvest Record ID (Optional)',
-  };
-  return labels[form.value.source] || 'Reference ID';
-});
 
 const estimatedValue = computed(() => {
   return (form.value.quantity || 0) * (form.value.unit_cost || 0);
@@ -316,8 +263,7 @@ async function loadItem() {
       unit: item.unit || '',
       reorder_threshold: item.reorder_threshold || 10,
       unit_cost: item.unit_cost || null,
-      source: item.source || 'manual_entry',
-      source_reference_id: item.source_reference_id || '',
+      transaction_id: item.transaction_id || '',
       notes: item.notes || '',
     };
   } else {
@@ -329,7 +275,7 @@ async function loadItem() {
   }
 }
 
-async function onSubmit() {
+const onSubmit = async () => {
   isLoading.value = true;
 
   try {
@@ -347,24 +293,33 @@ async function onSubmit() {
     if (isEdit.value) {
       result = await inventoryStore.updateItem(itemId.value, itemData);
     } else {
-      // Only include source fields on creation (locked after for audit trail)
-      itemData.source = form.value.source;
-      itemData.source_reference_id = form.value.source_reference_id || null;
+      // Only include transaction_id on creation
+      itemData.transaction_id = form.value.transaction_id || null;
       result = await inventoryStore.createItem(itemData);
     }
 
     if (result.success) {
+      $q.notify({
+        type: 'positive',
+        message: `Inventory item ${isEdit.value ? 'updated' : 'created'} successfully`,
+      });
       router.push('/inventory');
     } else {
       $q.notify({
         type: 'negative',
-        message: result.error || 'Failed to save item',
+        message: result.error || 'Failed to save inventory item',
       });
     }
+  } catch (error) {
+    console.error('Error saving inventory item:', error);
+    $q.notify({
+      type: 'negative',
+      message: 'An unexpected error occurred',
+    });
   } finally {
     isLoading.value = false;
   }
-}
+};
 
 function goBack() {
   router.push('/inventory');

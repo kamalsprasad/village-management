@@ -66,19 +66,27 @@ Stores role definitions with permissions and storage quotas for RBAC.
 
 Stores all financial transactions for income and expense tracking.
 
-| Column              | Type     | Constraints                                       | Description                            |
-| ------------------- | -------- | ------------------------------------------------- | -------------------------------------- |
-| `id`                | string   | Primary Key, Auto-generated                       | Unique transaction identifier          |
-| `type`              | string   | Required, Enum: 'income','expense'                | Transaction type                       |
-| `amount`            | float    | Required, Min: 0                                  | Transaction amount in ZMW              |
-| `category`          | string   | Required                                          | Transaction category                   |
-| `source_module`     | string   | Optional                                          | Source module (e.g., 'Farm', 'School') |
-| `funding_source_id` | string   | Foreign Key → funding_sources.id                  | Linked funding source (optional)       |
-| `date`              | date     | Required                                          | Transaction date                       |
-| `description`       | string   | Required                                          | Transaction description                |
-| `status`            | string   | Required, Enum: 'pending','completed','cancelled' | Transaction status                     |
-| `created_at`        | datetime | Auto-generated                                    | Record creation timestamp              |
-| `updated_at`        | datetime | Auto-updated                                      | Last modification timestamp            |
+| Column              | Type     | Constraints                                       | Description                                |
+| ------------------- | -------- | ------------------------------------------------- | ------------------------------------------ |
+| `id`                | string   | Primary Key, Auto-generated                       | Unique transaction identifier              |
+| `type`              | string   | Required, Enum: 'income','expense'                | Transaction type                           |
+| `amount_needed`     | double   | Required, Min: 0                                  | Required amount for the transaction        |
+| `amount_funded`     | double   | Required, Min: 0                                  | Funded amount for the transaction          |
+| `category_id`       | string   | Optional, Foreign Key → finance_categories.id     | Transaction category (relationship)        |
+| `source_module`     | string   | Required                                          | Source module (e.g., 'Farm', 'School')     |
+| `funding_source_id` | string   | Optional, Foreign Key → funding_sources.id        | Linked funding source                      |
+| `date`              | datetime | Required                                          | Transaction date                           |
+| `description`       | string   | Required                                          | Transaction description                    |
+| `status`            | string   | Required, Enum: 'pending','completed','cancelled' | Transaction status                         |
+| `payment_method`    | string   | Required                                          | Payment method (Cash, Bank Transfer, etc.) |
+| `subcategory`       | string   | Optional                                          | Transaction subcategory                    |
+| `vendor`            | string   | Optional                                          | Vendor name                                |
+| `receipt_number`    | string   | Optional                                          | Receipt number                             |
+| `payment_status`    | string   | Optional                                          | Payment status                             |
+| `loan_id`           | string   | Optional, Foreign Key → loans.id                  | Related loan (if applicable)               |
+| `inventory_ids`     | string[] | Optional                                          | Related inventory items                    |
+| `created_at`        | datetime | Auto-generated                                    | Record creation timestamp                  |
+| `updated_at`        | datetime | Auto-updated                                      | Last modification timestamp                |
 
 ### funding_sources
 
@@ -98,24 +106,24 @@ Manages donor funds and their allocations.
 
 Stores village lending loan information and repayment details.
 
-| Column                   | Type     | Constraints                                                     | Description                 |
-| ------------------------ | -------- | --------------------------------------------------------------- | --------------------------- |
-| `id`                     | string   | Primary Key, Auto-generated                                     | Unique loan identifier      |
-| `borrower_id`            | string   | Foreign Key → residents.id, Indexed                             | Loan recipient              |
-| `principal_amount`       | float    | Required, Min: 0                                                | Original loan amount        |
-| `interest_rate`          | float    | Required, Min: 0, Max: 50                                       | Annual interest rate (%)    |
-| `term_months`            | integer  | Required, Min: 1, Max: 60                                       | Loan duration in months     |
-| `repayment_frequency`    | string   | Required, Enum: 'weekly','biweekly','monthly'                   | Payment frequency           |
-| `collateral_description` | text     | Optional                                                        | Description of collateral   |
-| `purpose`                | string   | Required, Enum: 'farm','education','medical','business','other' | Loan purpose                |
-| `disbursement_date`      | date     | Required                                                        | When funds were given       |
-| `status`                 | string   | Required, Enum: 'active','paid','defaulted'                     | Current loan status         |
-| `outstanding_balance`    | float    | Required, Min: 0                                                | Remaining amount to pay     |
-| `total_repayment`        | float    | Required, Calculated                                            | Total amount to be repaid   |
-| `payment_amount`         | float    | Required, Calculated                                            | Amount per payment          |
-| `next_due_date`          | date     | Calculated                                                      | Next payment due date       |
-| `created_at`             | datetime | Auto-generated                                                  | Record creation timestamp   |
-| `updated_at`             | datetime | Auto-updated                                                    | Last modification timestamp |
+| Column                   | Type     | Constraints                                                      | Description                 |
+| ------------------------ | -------- | ---------------------------------------------------------------- | --------------------------- |
+| `id`                     | string   | Primary Key, Auto-generated                                      | Unique loan identifier      |
+| `borrower_id`            | string   | Foreign Key → residents.id, Indexed                              | Loan recipient              |
+| `principal_amount`       | float    | Required, Min: 0                                                 | Original loan amount        |
+| `interest_rate`          | float    | Required, Min: 0, Max: 50                                        | Annual interest rate (%)    |
+| `term_months`            | integer  | Required, Min: 1, Max: 60                                        | Loan duration in months     |
+| `repayment_frequency`    | string   | Required, Enum: 'weekly','biweekly','monthly'                    | Payment frequency           |
+| `collateral_description` | text     | Optional                                                         | Description of collateral   |
+| `purpose`                | string   | Required, Enum: 'farm','education','medical','business','other'  | Loan purpose                |
+| `disbursement_date`      | date     | Required                                                         | When funds were given       |
+| `status`                 | string   | Required, Enum: 'active','overdue','late','defaulted','paid_off' | Current loan status         |
+| `outstanding_balance`    | float    | Required, Min: 0                                                 | Remaining amount to pay     |
+| `total_repayment`        | integer  | Required, Calculated                                             | Total amount to be repaid   |
+| `payment_amount`         | integer  | Required, Calculated                                             | Amount per payment          |
+| `next_due_date`          | date     | Calculated                                                       | Next payment due date       |
+| `created_at`             | datetime | Auto-generated                                                   | Record creation timestamp   |
+| `updated_at`             | datetime | Auto-updated                                                     | Last modification timestamp |
 
 ### loan_payments
 
@@ -125,7 +133,7 @@ Records individual loan payments and links to finance transactions.
 | ------------------------ | -------- | ------------------------------------- | ------------------------- |
 | `id`                     | string   | Primary Key, Auto-generated           | Unique payment identifier |
 | `loan_id`                | string   | Foreign Key → loans.id, Indexed       | Related loan              |
-| `amount`                 | float    | Required, Min: 0                      | Payment amount            |
+| `amount`                 | integer  | Required, Min: 0                      | Payment amount            |
 | `payment_date`           | date     | Required                              | When payment was made     |
 | `payment_method`         | string   | Required                              | Cash, mobile, bank, etc.  |
 | `notes`                  | text     | Optional                              | Payment notes             |
@@ -142,10 +150,23 @@ Stores the calculated repayment schedule for each loan.
 | `loan_id`            | string  | Foreign Key → loans.id, Indexed            | Related loan               |
 | `installment_number` | integer | Required                                   | Sequence number            |
 | `due_date`           | date    | Required                                   | When payment is due        |
-| `amount`             | float   | Required, Min: 0                           | Payment amount             |
+| `amount`             | integer | Required, Min: 0                           | Payment amount             |
 | `status`             | string  | Required, Enum: 'pending','paid','overdue' | Payment status             |
 | `paid_date`          | date    | Optional                                   | Actual payment date        |
 | `payment_id`         | string  | Foreign Key → loan_payments.id, Optional   | Related payment            |
+
+### inventory
+
+Tracks physical village assets, supplies, and harvested goods.
+
+| Column              | Type    | Constraints                                     | Description                         |
+| ------------------- | ------- | ----------------------------------------------- | ----------------------------------- |
+| `id`                | string  | Primary Key, Auto-generated                     | Unique item identifier              |
+| `item_name`         | string  | Required                                        | Name of the item/produce            |
+| `quantity`          | integer | Required, Min: 0                                | Current quantity in stock           |
+| `unit`              | string  | Required                                        | Unit of measurement (kg, pcs, etc.) |
+| `reorder_threshold` | integer | Required, Min: 0                                | Alert threshold for low stock       |
+| `transaction_id`    | string  | Optional, Foreign Key → finance_transactions.id | Linked purchase transaction         |
 
 ## Relationships
 

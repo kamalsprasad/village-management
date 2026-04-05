@@ -28,3 +28,15 @@ This document tracks deferred improvements, upgrades, and refactoring items that
 - **Added**: Story 2.8
 
 ---
+
+## Seeding
+
+### Server-Side Data Seeding via Cloud Function
+
+- **Current state**: Sample data generation (including 1.5 years of financial history) runs client-side, making numerous API calls which can be slow and subject to network interruptions.
+- **Improvement**: Move the entire sample data generation logic into an Appwrite Cloud Function written in Node.js. The "Load Sample Data" button would just trigger this function execution.
+- **Benefits**: Significantly faster execution (runs directly on server), no client-side rate limits, resilient to network drops, cleaner client codebase.
+- **Effort**: Medium
+- **Added**: Story 2.8
+
+---

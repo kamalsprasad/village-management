@@ -866,8 +866,7 @@ async function handleSubmit() {
           quantity: inventoryQuantity.value,
           unit: inventoryUnit.value,
           unit_cost: Math.round(unitCost * 100) / 100,
-          source: 'finance_purchase',
-          source_reference_id: result.data.$id,
+          transaction_id: result.data.$id,
           reorder_threshold: inventoryReorderThreshold.value,
           notes: `Auto-created from expense: ${descSnippet}`,
         });

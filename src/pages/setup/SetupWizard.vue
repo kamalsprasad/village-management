@@ -85,10 +85,19 @@
             <q-linear-progress
               :value="seedingProgress"
               color="primary"
+              class="q-mb-sm"
+              style="max-width: 400px; margin: 0 auto"
+            />
+            <q-linear-progress
+              v-if="seedingProgress >= 0.9"
+              :value="financeSeedingProgress"
+              color="secondary"
               class="q-mb-md"
               style="max-width: 400px; margin: 0 auto"
             />
-            <p class="text-body2 text-grey-7">{{ seedingStatus }}</p>
+            <p class="text-body2 text-grey-7">
+              {{ seedingProgress >= 0.9 ? financeSeedingStatus : seedingStatus }}
+            </p>
           </div>
         </div>
       </q-page>
@@ -102,7 +111,14 @@ import { useRouter } from 'vue-router';
 import { useSampleData } from 'src/composables/useSampleData';
 
 const router = useRouter();
-const { seedSampleData, isSeeding, seedingProgress, seedingStatus } = useSampleData();
+const {
+  seedSampleData,
+  isSeeding,
+  seedingProgress,
+  seedingStatus,
+  financeSeedingProgress,
+  financeSeedingStatus,
+} = useSampleData();
 
 const selectedOption = ref(null);
 
