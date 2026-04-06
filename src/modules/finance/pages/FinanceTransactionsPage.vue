@@ -556,7 +556,7 @@
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue';
 import { useQuasar } from 'quasar';
-import { useRouter } from 'vue-router';
+import { useRouter, useRoute } from 'vue-router';
 import { format, parseISO } from 'date-fns';
 import { useFinanceStore } from '../stores/finance-store';
 import { useSettingsStore } from 'src/stores/settings-store';
@@ -568,6 +568,7 @@ import LoanPortfolioWidget from '../components/LoanPortfolioWidget.vue';
 
 const $q = useQuasar();
 const router = useRouter();
+const route = useRoute();
 const financeStore = useFinanceStore();
 const settingsStore = useSettingsStore();
 const inventoryStore = useInventoryStore();
@@ -942,6 +943,20 @@ function handleCancelled() {
   showAddDialog.value = false;
 }
 
+async function applyRouteQueryFilters() {
+  const { type } = route.query;
+
+  if (!type) {
+    return;
+  }
+
+  selectedType.value = type === 'income' || type === 'expense' ? type : null;
+  selectedCategory.value = null;
+  selectedStatus.value = null;
+  dateRangeModel.value = null;
+  await applyFilters();
+}
+
 onMounted(async () => {
   isClient.value = true; // Enable client-side rendering after hydration
   // Load categories first (needed for display)
@@ -950,7 +965,16 @@ onMounted(async () => {
   await financeStore.fetchTransactions(1, itemsPerPage.value);
   // Load funding sources for form dropdown
   await financeStore.fetchFundingSources();
+  await applyRouteQueryFilters();
 });
+
+watch(
+  () => route.query,
+  async () => {
+    await applyRouteQueryFilters();
+  },
+  { deep: true },
+);
 </script>
 
 <style scoped>

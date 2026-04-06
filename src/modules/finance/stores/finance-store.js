@@ -325,25 +325,34 @@ export const useFinanceStore = defineStore('finance', {
 
       this.isLoading = true;
       try {
-        // Fetch transactions (get a good chunk for recent and charts)
-        const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
-
-        // We do parallel fetches for better performance
-        const [transactionsRes] = await Promise.all([
-          tables.listRows({
-            databaseId: dbId,
-            tableId: 'finance_transactions',
-            queries: [Query.limit(100), Query.orderDesc('date')],
-          }),
+        const [transactionsRes, fundingSourcesRes, categoriesRes] = await Promise.all([
+          this.fetchTransactionsForReport(),
           this.fetchFundingSources(),
           this.fetchCategories(),
         ]);
 
-        if (transactionsRes && transactionsRes.rows) {
-          this.transactions = transactionsRes.rows;
+        if (!transactionsRes?.success) {
+          throw new Error(transactionsRes?.error || 'Failed to load dashboard transactions');
+        }
+        if (!fundingSourcesRes?.success) {
+          throw new Error(fundingSourcesRes?.error || 'Failed to load funding sources');
+        }
+        if (!categoriesRes?.success) {
+          throw new Error(categoriesRes?.error || 'Failed to load finance categories');
         }
 
-        return { success: true };
+        if (transactionsRes?.data) {
+          this.transactions = transactionsRes.data;
+        }
+
+        return {
+          success: true,
+          data: {
+            transactions: transactionsRes.data || [],
+            fundingSources: this.fundingSources,
+            categories: this.categories,
+          },
+        };
       } catch (error) {
         console.error('Error fetching dashboard data:', error);
         return { success: false, error: error.message };

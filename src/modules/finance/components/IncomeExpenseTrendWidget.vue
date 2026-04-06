@@ -3,9 +3,18 @@
     <q-card-section class="row items-center justify-between">
       <div>
         <div class="text-h6">Income vs Expenses Trend</div>
-        <div class="text-caption text-grey">Last 6 Months</div>
+        <div class="text-caption text-grey">{{ periodLabel }}</div>
       </div>
-      <q-btn flat color="primary" label="View Full Report" to="/finance/reports" />
+      <div class="row items-center q-gutter-sm">
+        <q-btn-toggle
+          v-model="selectedPeriod"
+          dense
+          unelevated
+          toggle-color="primary"
+          :options="periodOptions"
+        />
+        <q-btn flat color="primary" label="View Full Report" @click="goToReport" />
+      </div>
     </q-card-section>
 
     <q-card-section class="q-pt-none" style="min-height: 250px">
@@ -26,35 +35,73 @@
 </template>
 
 <script setup>
-import { ref, watch, onMounted, onBeforeUnmount, shallowRef } from 'vue';
+import { ref, watch, onMounted, onBeforeUnmount, shallowRef, computed } from 'vue';
+import { useRouter } from 'vue-router';
 import ClientOnly from 'src/components/layout/ClientOnly.vue';
-import { format, parseISO, startOfMonth, subMonths, eachMonthOfInterval } from 'date-fns';
+import {
+  format,
+  parseISO,
+  startOfMonth,
+  subMonths,
+  eachMonthOfInterval,
+  startOfYear,
+} from 'date-fns';
 
-defineProps({
+const props = defineProps({
+  transactions: {
+    type: Array,
+    required: true,
+    default: () => [],
+  },
   loading: {
     type: Boolean,
     default: false,
   },
 });
 
-// Since we're using ReportService logic, we'll pull from the finance store directly for this chart
-import { useFinanceStore } from 'src/modules/finance/stores/finance-store';
-const financeStore = useFinanceStore();
-
+const router = useRouter();
 const chartRef = ref(null);
 const chartInstance = shallowRef(null);
+const selectedPeriod = ref('6m');
+
+const periodOptions = [
+  { label: '3M', value: '3m' },
+  { label: '6M', value: '6m' },
+  { label: '12M', value: '12m' },
+  { label: 'YTD', value: 'ytd' },
+];
+
+const periodLabel = computed(() => {
+  switch (selectedPeriod.value) {
+    case '3m':
+      return 'Last 3 Months';
+    case '12m':
+      return 'Last 12 Months';
+    case 'ytd':
+      return 'Year to Date';
+    default:
+      return 'Last 6 Months';
+  }
+});
 
 const generateTrendData = () => {
-  const transactions = financeStore.transactions || [];
+  const transactions = props.transactions || [];
 
-  // Last 6 months
   const end = new Date();
-  const start = startOfMonth(subMonths(end, 5));
+  const monthWindow = {
+    '3m': 2,
+    '6m': 5,
+    '12m': 11,
+  };
+  const start =
+    selectedPeriod.value === 'ytd'
+      ? startOfYear(end)
+      : startOfMonth(subMonths(end, monthWindow[selectedPeriod.value] ?? 5));
 
   const monthKeys = eachMonthOfInterval({ start, end }).map((d) => format(d, 'yyyy-MM'));
 
-  const incomeData = new Array(6).fill(0);
-  const expenseData = new Array(6).fill(0);
+  const incomeData = new Array(monthKeys.length).fill(0);
+  const expenseData = new Array(monthKeys.length).fill(0);
 
   transactions.forEach((t) => {
     if (t.status === 'cancelled') return;
@@ -79,7 +126,17 @@ const generateTrendData = () => {
     labels: monthKeys.map((k) => format(parseISO(k + '-01'), 'MMM yyyy')),
     incomeData,
     expenseData,
+    netData: incomeData.map((income, index) => income - expenseData[index]),
   };
+};
+
+const goToReport = () => {
+  router.push({
+    path: '/finance/reports',
+    query: {
+      report: 'profit-loss',
+    },
+  });
 };
 
 const renderChart = async () => {
@@ -120,6 +177,15 @@ const renderChart = async () => {
             borderDash: [5, 5],
             tension: 0.3,
             fill: true,
+          },
+          {
+            label: 'Net Position',
+            data: data.netData,
+            borderColor: '#1976D2',
+            backgroundColor: 'rgba(25, 118, 210, 0.08)',
+            borderWidth: 2,
+            tension: 0.3,
+            fill: false,
           },
         ],
       },
@@ -184,7 +250,7 @@ const renderChart = async () => {
 };
 
 watch(
-  () => financeStore.transactions,
+  () => [props.transactions, selectedPeriod.value],
   () => {
     renderChart();
   },

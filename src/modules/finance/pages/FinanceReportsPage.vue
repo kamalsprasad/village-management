@@ -751,6 +751,7 @@
 <script setup>
 import { ref, shallowRef, computed, watch, onMounted, onUnmounted, nextTick } from 'vue';
 import { useQuasar } from 'quasar';
+import { useRoute } from 'vue-router';
 import { Chart, registerables } from 'chart.js';
 import { startOfDay, endOfDay, parseISO } from 'date-fns';
 import { useFinanceStore } from '../stores/finance-store';
@@ -780,6 +781,7 @@ const financeStore = useFinanceStore();
 const inventoryStore = useInventoryStore();
 const authStore = useAuthStore();
 const settingsStore = useSettingsStore();
+const route = useRoute();
 
 const isClient = ref(false);
 
@@ -961,6 +963,21 @@ const fmtCurrency = formatCurrency;
 function selectReport(reportId) {
   selectedReportType.value = reportId;
   // Don't clear report data on selection change - user may want to compare
+}
+
+async function applyRouteReportSelection() {
+  const reportId = route.query.report;
+  if (!reportId || typeof reportId !== 'string') {
+    return;
+  }
+
+  const exists = reportTypes.some((report) => report.id === reportId);
+  if (!exists) {
+    return;
+  }
+
+  selectedReportType.value = reportId;
+  await generateReport();
 }
 
 function resetFilters() {
@@ -1448,6 +1465,8 @@ onMounted(async () => {
   if (!financeStore.fundingSourcesLoaded) {
     financeStore.fetchFundingSources();
   }
+
+  await applyRouteReportSelection();
 });
 
 onUnmounted(() => {
@@ -1464,6 +1483,13 @@ watch(selectedReportType, async () => {
     }
   }
 });
+
+watch(
+  () => route.query.report,
+  async () => {
+    await applyRouteReportSelection();
+  },
+);
 </script>
 
 <style scoped>

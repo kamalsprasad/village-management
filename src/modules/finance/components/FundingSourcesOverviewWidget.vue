@@ -14,7 +14,7 @@
           icon="open_in_new"
           color="primary"
           size="sm"
-          to="/finance/funding"
+          to="/admin/finance-settings"
         >
           <q-tooltip>View All Funding Sources</q-tooltip>
         </q-btn>

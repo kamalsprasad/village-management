@@ -5,7 +5,7 @@
         <div class="text-h6">Funding Sources</div>
         <div class="text-caption text-grey">Current Status</div>
       </div>
-      <q-btn v-if="!readOnly" flat color="primary" label="Manage" to="/finance/funding" />
+      <q-btn v-if="!readOnly" flat color="primary" label="Manage" to="/admin/finance-settings" />
     </q-card-section>
 
     <q-card-section v-if="sources.length > 0">
@@ -28,8 +28,10 @@
           @click="goToDetail(source)"
         >
           <q-tooltip>
-            {{ source.percentUsed.toFixed(1) }}% Used
-            ({{ formatCurrency(source.total_received - source.current_balance) }} of {{ formatCurrency(source.total_received) }})
+            {{ source.percentUsed.toFixed(1) }}% Used ({{
+              formatCurrency(source.total_received - source.current_balance)
+            }}
+            of {{ formatCurrency(source.total_received) }})
           </q-tooltip>
         </q-linear-progress>
       </div>
@@ -37,9 +39,7 @@
       <q-separator class="q-my-md" />
 
       <div class="row q-gutter-sm justify-center">
-        <q-chip outline color="primary" size="sm">
-          {{ sources.length }} Total Sources
-        </q-chip>
+        <q-chip outline color="primary" size="sm"> {{ sources.length }} Total Sources </q-chip>
         <q-chip v-if="depletedCount > 0" outline color="negative" size="sm">
           {{ depletedCount }} Depleted
         </q-chip>
@@ -70,16 +70,16 @@ const props = defineProps({
   sources: {
     type: Array,
     required: true,
-    default: () => []
+    default: () => [],
   },
   loading: {
     type: Boolean,
-    default: false
+    default: false,
   },
   readOnly: {
     type: Boolean,
-    default: false
-  }
+    default: false,
+  },
 });
 
 const router = useRouter();
@@ -91,11 +91,11 @@ const getProgressColor = (percentUsed) => {
 };
 
 const depletedCount = computed(() => {
-  return props.sources.filter(s => s.status === 'depleted' || s.current_balance <= 0).length;
+  return props.sources.filter((s) => s.status === 'depleted' || s.current_balance <= 0).length;
 });
 
 const restrictedCount = computed(() => {
-  return props.sources.filter(s => s.restrictions && s.restrictions.trim() !== '').length;
+  return props.sources.filter((s) => s.restrictions && s.restrictions.trim() !== '').length;
 });
 
 const goToDetail = (source) => {

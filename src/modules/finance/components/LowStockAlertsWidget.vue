@@ -13,6 +13,15 @@
       <q-btn flat color="primary" label="Manage" to="/inventory" />
     </q-card-section>
 
+    <q-card-section v-if="alerts.length > 0" class="q-pt-none q-pb-sm">
+      <div class="row q-gutter-sm">
+        <q-chip outline color="negative" size="sm">{{ outOfStockCount }} Out of Stock</q-chip>
+        <q-chip outline color="warning" text-color="dark" size="sm"
+          >{{ lowStockCount }} Low Stock</q-chip
+        >
+      </div>
+    </q-card-section>
+
     <q-card-section v-if="alerts.length > 0" class="q-pt-none">
       <q-list separator>
         <q-item
@@ -68,7 +77,9 @@
 </template>
 
 <script setup>
-defineProps({
+import { computed } from 'vue';
+
+const props = defineProps({
   alerts: {
     type: Array,
     required: true,
@@ -78,6 +89,14 @@ defineProps({
     type: Boolean,
     default: false,
   },
+});
+
+const outOfStockCount = computed(() => {
+  return props.alerts.filter((alert) => alert.status === 'out_of_stock').length;
+});
+
+const lowStockCount = computed(() => {
+  return props.alerts.filter((alert) => alert.status === 'low_stock').length;
 });
 
 const getIconForType = (type) => {

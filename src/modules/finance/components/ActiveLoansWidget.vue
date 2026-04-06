@@ -29,10 +29,22 @@
             </q-card>
           </div>
           <div class="col-6">
-            <q-card flat bordered :class="summary.overdueCount > 0 ? 'bg-red-1 border-negative' : 'bg-grey-1'">
+            <q-card
+              flat
+              bordered
+              :class="summary.overdueCount > 0 ? 'bg-red-1 border-negative' : 'bg-grey-1'"
+            >
               <q-card-section class="q-pa-sm text-center">
-                <div class="text-caption" :class="summary.overdueCount > 0 ? 'text-negative' : 'text-grey-8'">Overdue</div>
-                <div class="text-subtitle1 text-weight-bold" :class="summary.overdueCount > 0 ? 'text-negative' : 'text-grey-8'">
+                <div
+                  class="text-caption"
+                  :class="summary.overdueCount > 0 ? 'text-negative' : 'text-grey-8'"
+                >
+                  Overdue
+                </div>
+                <div
+                  class="text-subtitle1 text-weight-bold"
+                  :class="summary.overdueCount > 0 ? 'text-negative' : 'text-grey-8'"
+                >
                   {{ summary.overdueCount }} Loans
                 </div>
               </q-card-section>
@@ -40,23 +52,46 @@
           </div>
         </div>
 
+        <q-banner v-if="summary.nextPaymentDue" class="bg-blue-1 text-primary q-mb-md" rounded>
+          <template #avatar>
+            <q-icon name="event" />
+          </template>
+          Next payment due: {{ summary.nextPaymentDue.borrowerName }} on
+          {{ formatReportDate(summary.nextPaymentDue.date) }} for
+          {{ formatCurrency(summary.nextPaymentDue.amount) }}
+        </q-banner>
+
         <q-list separator class="q-mt-sm">
           <q-item-label header class="q-px-none q-pb-sm">Top Active Loans</q-item-label>
-          <q-item v-for="loan in topLoans" :key="loan.id" clickable :to="`/lending/${loan.id}`" class="q-px-none">
+          <q-item
+            v-for="loan in topLoans"
+            :key="loan.id"
+            clickable
+            :to="`/lending/${loan.id}`"
+            class="q-px-none"
+          >
             <q-item-section>
-              <q-item-label class="text-weight-medium">{{ loan.borrowerName || 'Resident' }}</q-item-label>
+              <q-item-label class="text-weight-medium">{{
+                loan.borrowerName || 'Resident'
+              }}</q-item-label>
               <q-item-label caption lines="1">
                 {{ formatCurrency(loan.principal_amount) }} Original
               </q-item-label>
             </q-item-section>
-            
+
             <q-item-section side>
               <q-item-label class="text-primary text-weight-bold">
                 {{ formatCurrency(loan.outstanding_balance) }}
               </q-item-label>
               <q-item-label caption>
-                <q-chip v-if="loan.status === 'overdue'" size="sm" color="negative" text-color="white" dense>
-                  Overdue
+                <q-chip
+                  v-if="loan.daysOverdue > 0"
+                  size="sm"
+                  color="negative"
+                  text-color="white"
+                  dense
+                >
+                  {{ loan.daysOverdue }}d overdue
                 </q-chip>
                 <span v-else class="text-positive">Active</span>
               </q-item-label>
@@ -80,7 +115,7 @@
 
 <script setup>
 import { computed } from 'vue';
-import { formatCurrency } from 'src/services/ReportService';
+import { formatCurrency, formatReportDate } from 'src/services/ReportService';
 
 const props = defineProps({
   summary: {
@@ -92,13 +127,13 @@ const props = defineProps({
       overdueCount: 0,
       nextPaymentDue: null,
       topLoans: [],
-      moduleEnabled: false
-    })
+      moduleEnabled: false,
+    }),
   },
   loading: {
     type: Boolean,
-    default: false
-  }
+    default: false,
+  },
 });
 
 const topLoans = computed(() => {
