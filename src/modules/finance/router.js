@@ -8,6 +8,20 @@
 const financeRoutes = [
   {
     path: 'finance',
+    redirect: '/finance/dashboard',
+  },
+  {
+    path: 'finance/dashboard',
+    name: 'finance-dashboard',
+    component: () => import('./pages/FinanceDashboardPage.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresPermission: 'finance:read',
+    },
+  },
+  {
+    path: 'finance/transactions',
+    name: 'finance-transactions',
     component: () => import('./pages/FinanceTransactionsPage.vue'),
     meta: {
       requiresAuth: true,

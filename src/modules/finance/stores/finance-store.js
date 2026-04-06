@@ -306,6 +306,53 @@ export const useFinanceStore = defineStore('finance', {
     },
 
     /**
+     * Fetch all necessary data for the dashboard in one go.
+     * Caches data if forceRefresh is false.
+     * @param {Object} options - { forceRefresh: boolean }
+     */
+    async fetchDashboardData(options = {}) {
+      const { forceRefresh = false } = options;
+
+      // If we already have data and aren't forcing a refresh, just return success
+      if (
+        !forceRefresh &&
+        this.transactions.length > 0 &&
+        this.fundingSourcesLoaded &&
+        this.categoriesLoaded
+      ) {
+        return { success: true };
+      }
+
+      this.isLoading = true;
+      try {
+        // Fetch transactions (get a good chunk for recent and charts)
+        const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
+
+        // We do parallel fetches for better performance
+        const [transactionsRes] = await Promise.all([
+          tables.listRows({
+            databaseId: dbId,
+            tableId: 'finance_transactions',
+            queries: [Query.limit(100), Query.orderDesc('date')],
+          }),
+          this.fetchFundingSources(),
+          this.fetchCategories(),
+        ]);
+
+        if (transactionsRes && transactionsRes.rows) {
+          this.transactions = transactionsRes.rows;
+        }
+
+        return { success: true };
+      } catch (error) {
+        console.error('Error fetching dashboard data:', error);
+        return { success: false, error: error.message };
+      } finally {
+        this.isLoading = false;
+      }
+    },
+
+    /**
      * Enrich transactions with funding source names
      */
     async enrichTransactionsWithFundingSources() {
@@ -442,16 +489,9 @@ export const useFinanceStore = defineStore('finance', {
     },
 
     /**
-     * Fetch funding sources
-     * Story 2.4: Enhanced with caching and loading state
-     * @param {boolean} forceRefresh - Force refresh even if already loaded
+     * Fetch all funding sources
      */
-    async fetchFundingSources(forceRefresh = false) {
-      // Skip if already loaded and not forcing refresh
-      if (this.fundingSourcesLoaded && !forceRefresh) {
-        return { success: true, data: this.fundingSources };
-      }
-
+    async fetchFundingSources() {
       this.isFundingSourcesLoading = true;
       try {
         const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
@@ -460,7 +500,7 @@ export const useFinanceStore = defineStore('finance', {
         const response = await tables.listRows({
           databaseId: dbId,
           tableId: fundingSourcesTableId,
-          queries: [Query.limit(100), Query.orderAsc('name')],
+          queries: [Query.limit(100), Query.orderDesc('date_received')],
         });
 
         this.fundingSources = response.rows;
@@ -723,20 +763,13 @@ export const useFinanceStore = defineStore('finance', {
     },
 
     // ========================================
-    // Story 2.3: Category Management Actions
+    // Story 2.3: Category Management
     // ========================================
 
     /**
-     * Fetch all finance categories from database
-     * Categories are cached and only fetched once unless force refresh
-     * @param {boolean} forceRefresh - Force refresh even if already loaded
+     * Fetch all categories
      */
-    async fetchCategories(forceRefresh = false) {
-      // Skip if already loaded and not forcing refresh
-      if (this.categoriesLoaded && !forceRefresh) {
-        return { success: true, data: this.categories };
-      }
-
+    async fetchCategories() {
       this.isCategoriesLoading = true;
       try {
         const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;

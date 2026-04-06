@@ -2,7 +2,7 @@
 
 **Epic:** 2 - Financial Management and Inventory Tracking
 **Story ID:** 2.8
-**Status:** implemented
+**Status:** done
 **Date:** 2026-04-02
 **Author:** AI Assistant
 

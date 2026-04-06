@@ -201,6 +201,63 @@ function groupByMonth(transactions, allMonthKeys = []) {
   return Object.values(groups).sort((a, b) => a.monthKey.localeCompare(b.monthKey));
 }
 
+/**
+ * Group transactions by category and sum amount_funded.
+ * @param {Array} transactions
+ * @param {Array} categories - Optional array of categories to resolve names
+ * @returns {Array<{id: string, name: string, amount: number}>}
+ */
+export function groupByCategory(transactions, categories = []) {
+  const groups = {};
+  for (const t of transactions) {
+    const key = t.category_id || 'Unknown';
+    if (!groups[key]) {
+      groups[key] = { id: key, amount: 0 };
+    }
+    groups[key].amount += t.amount_funded || 0;
+  }
+
+  return Object.values(groups).map((g) => {
+    const cat = categories.find((c) => c.$id === g.id);
+    return {
+      ...g,
+      name: cat ? cat.name : g.id === 'Unknown' ? 'Uncategorized' : g.id,
+    };
+  });
+}
+
+/**
+ * Calculate high-level financial summary
+ * @param {Array} transactions
+ * @returns {Object} { totalIncome, totalExpenses, netPosition, incomeCount, expenseCount }
+ */
+export function calculateSummary(transactions) {
+  let totalIncome = 0;
+  let totalExpenses = 0;
+  let incomeCount = 0;
+  let expenseCount = 0;
+
+  for (const t of transactions) {
+    if (t.status === 'cancelled') continue;
+
+    if (t.type === 'income') {
+      totalIncome += t.amount_funded || 0;
+      incomeCount++;
+    } else if (t.type === 'expense') {
+      totalExpenses += t.amount_funded || 0;
+      expenseCount++;
+    }
+  }
+
+  return {
+    totalIncome,
+    totalExpenses,
+    netPosition: totalIncome - totalExpenses,
+    incomeCount,
+    expenseCount,
+  };
+}
+
 // ============================================================
 // Report Generators
 // ============================================================

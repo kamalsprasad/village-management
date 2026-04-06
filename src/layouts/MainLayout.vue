@@ -159,17 +159,44 @@
           <q-separator class="q-my-sm" />
           <q-item-label header> Finance </q-item-label>
 
-          <q-item v-if="hasPermission('finance:read')" clickable to="/finance">
+          <q-item
+            v-if="hasPermission('finance:read')"
+            clickable
+            to="/finance/dashboard"
+            :class="{
+              'bg-primary text-white':
+                $route.path === '/finance' || $route.path === '/finance/dashboard',
+            }"
+          >
             <q-item-section avatar>
-              <q-icon name="account_balance_wallet" />
+              <q-icon name="dashboard" />
             </q-item-section>
             <q-item-section>
-              <q-item-label>Finance</q-item-label>
+              <q-item-label>Dashboard</q-item-label>
+            </q-item-section>
+          </q-item>
+
+          <q-item
+            v-if="hasPermission('finance:read')"
+            clickable
+            to="/finance/transactions"
+            :class="{ 'bg-primary text-white': $route.path === '/finance/transactions' }"
+          >
+            <q-item-section avatar>
+              <q-icon name="receipt_long" />
+            </q-item-section>
+            <q-item-section>
+              <q-item-label>Transactions</q-item-label>
             </q-item-section>
           </q-item>
 
           <!-- Story 2.8: Finance Reports -->
-          <q-item v-if="hasPermission('finance:read')" clickable to="/finance/reports">
+          <q-item
+            v-if="hasPermission('finance:read')"
+            clickable
+            to="/finance/reports"
+            :class="{ 'bg-primary text-white': $route.path === '/finance/reports' }"
+          >
             <q-item-section avatar>
               <q-icon name="assessment" />
             </q-item-section>
