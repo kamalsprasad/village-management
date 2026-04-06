@@ -92,15 +92,48 @@ Stores all financial transactions for income and expense tracking.
 
 Manages donor funds and their allocations.
 
-| Column            | Type     | Constraints                 | Description                      |
-| ----------------- | -------- | --------------------------- | -------------------------------- |
-| `id`              | string   | Primary Key, Auto-generated | Unique funding source identifier |
-| `name`            | string   | Required, Unique            | Donor or fund name               |
-| `total_allocated` | float    | Required, Min: 0            | Total amount allocated to fund   |
-| `current_balance` | float    | Required, Min: 0            | Remaining balance in fund        |
-| `restrictions`    | text     | Optional                    | Usage restrictions or notes      |
-| `created_at`      | datetime | Auto-generated              | Record creation timestamp        |
-| `updated_at`      | datetime | Auto-updated                | Last modification timestamp      |
+| Column            | Type     | Constraints                                 | Description                      |
+| ----------------- | -------- | ------------------------------------------- | -------------------------------- |
+| `id`              | string   | Primary Key, Auto-generated                 | Unique funding source identifier |
+| `name`            | string   | Required, Unique                            | Donor or fund name               |
+| `type`            | string   | Enum: 'grant', 'donation', 'income', 'loan' | Type of funding source           |
+| `total_received`  | float    | Required, Min: 0                            | Total amount received            |
+| `current_balance` | float    | Required, Min: 0                            | Remaining balance in fund        |
+| `restrictions`    | text     | Optional                                    | Usage restrictions or notes      |
+| `status`          | string   | Enum: 'active', 'inactive', 'depleted'      | Current status                   |
+| `date_received`   | datetime | Optional                                    | When funds were received         |
+| `created_at`      | datetime | Auto-generated                              | Record creation timestamp        |
+| `updated_at`      | datetime | Auto-updated                                | Last modification timestamp      |
+
+### finance_categories
+
+Stores income and expense categories for transaction classification.
+
+| Column              | Type     | Constraints                         | Description                         |
+| ------------------- | -------- | ----------------------------------- | ----------------------------------- |
+| `id`                | string   | Primary Key, Auto-generated         | Unique category identifier          |
+| `name`              | string   | Required                            | Category name                       |
+| `type`              | string   | Required, Enum: 'income', 'expense' | Category type                       |
+| `subcategories`     | string[] | Optional                            | Array of subcategory names          |
+| `is_system_default` | boolean  | Optional, Default: false            | System categories cannot be deleted |
+| `created_at`        | datetime | Auto-generated                      | Record creation timestamp           |
+| `updated_at`        | datetime | Auto-updated                        | Last modification timestamp         |
+
+### transaction_links
+
+Links transactions for funding relationships (workaround for Appwrite self-referencing relationship limitation).
+
+| Column                  | Type     | Constraints                                     | Description                     |
+| ----------------------- | -------- | ----------------------------------------------- | ------------------------------- |
+| `id`                    | string   | Primary Key, Auto-generated                     | Unique link identifier          |
+| `parent_transaction_id` | string   | Required, Foreign Key → finance_transactions.id | The expense being funded        |
+| `child_transaction_id`  | string   | Optional, Foreign Key → finance_transactions.id | Optional income providing funds |
+| `funding_source_id`     | string   | Optional, Foreign Key → funding_sources.id      | Source of funds                 |
+| `link_type`             | string   | Required, Enum: 'funding'                       | Type of link                    |
+| `amount`                | float    | Required, Min: 0                                | Amount linked                   |
+| `recorded_by`           | string   | Required, Foreign Key → users.id                | Who created the link            |
+| `notes`                 | text     | Optional                                        | Notes about the link            |
+| `created_at`            | datetime | Auto-generated                                  | Record creation timestamp       |
 
 ### loans
 
@@ -159,14 +192,23 @@ Stores the calculated repayment schedule for each loan.
 
 Tracks physical village assets, supplies, and harvested goods.
 
-| Column              | Type    | Constraints                                     | Description                         |
-| ------------------- | ------- | ----------------------------------------------- | ----------------------------------- |
-| `id`                | string  | Primary Key, Auto-generated                     | Unique item identifier              |
-| `item_name`         | string  | Required                                        | Name of the item/produce            |
-| `quantity`          | integer | Required, Min: 0                                | Current quantity in stock           |
-| `unit`              | string  | Required                                        | Unit of measurement (kg, pcs, etc.) |
-| `reorder_threshold` | integer | Required, Min: 0                                | Alert threshold for low stock       |
-| `transaction_id`    | string  | Optional, Foreign Key → finance_transactions.id | Linked purchase transaction         |
+| Column                | Type     | Constraints                                                                               | Description                                                                                                          |
+| --------------------- | -------- | ----------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| `id`                  | string   | Primary Key, Auto-generated                                                               | Unique item identifier                                                                                               |
+| `item_name`           | string   | Required                                                                                  | Name of the item/produce                                                                                             |
+| `item_type`           | string   | Required                                                                                  | Type: 'Farm Inputs', 'School Supplies', 'Medical Supplies', 'Kitchen Supplies', 'Farm Produce', 'Equipment', 'Other' |
+| `quantity`            | integer  | Required, Min: 0                                                                          | Current quantity in stock                                                                                            |
+| `unit`                | string   | Required                                                                                  | Unit of measurement (kg, pcs, etc.)                                                                                  |
+| `unit_cost`           | float    | Optional, Min: 0                                                                          | Cost per unit                                                                                                        |
+| `estimated_value`     | float    | Optional, Min: 0                                                                          | Total estimated value                                                                                                |
+| `status`              | string   | Required, Enum: 'In Stock', 'Low Stock', 'Out of Stock', 'Reserved', 'Available for Sale' | Current status                                                                                                       |
+| `source`              | string   | Required                                                                                  | Source: 'Finance Purchase', 'Farm Harvest', 'Donation', 'Other'                                                      |
+| `source_reference_id` | string   | Optional                                                                                  | ID of source (expense transaction, harvest, etc.)                                                                    |
+| `reorder_threshold`   | integer  | Required, Min: 0                                                                          | Alert threshold for low stock                                                                                        |
+| `transaction_id`      | string   | Optional, Foreign Key → finance_transactions.id                                           | Linked purchase transaction                                                                                          |
+| `date_added`          | datetime | Required                                                                                  | When item was added to inventory                                                                                     |
+| `created_at`          | datetime | Auto-generated                                                                            | Record creation timestamp                                                                                            |
+| `updated_at`          | datetime | Auto-updated                                                                              | Last modification timestamp                                                                                          |
 
 ## Relationships
 
@@ -180,29 +222,35 @@ The database uses a normalized schema with ID-based relationships:
 - **repayment_schedule → loans**: Many-to-one relationship via `repayment_schedule.loan_id` referencing `loans.id`
 - **loan_payments → finance_transactions**: One-to-one relationship via `loan_payments.finance_transaction_id` referencing `finance_transactions.id`
 - **finance_transactions → funding_sources**: Many-to-one relationship via `finance_transactions.funding_source_id` referencing `funding_sources.id`
+- **finance_transactions → finance_categories**: Many-to-one relationship via `finance_transactions.category_id` referencing `finance_categories.id`
+- **transaction_links → finance_transactions**: Many-to-one via `transaction_links.parent_transaction_id` and `transaction_links.child_transaction_id`
 
 ## Indexes
 
 Indexes are created on frequently queried fields to optimize performance:
 
-| Table                  | Column              | Purpose                                 |
-| ---------------------- | ------------------- | --------------------------------------- |
-| `users`                | `email`             | Fast user lookup during authentication  |
-| `residents`            | `household_id`      | Efficient household member queries      |
-| `residents`            | `role_ids`          | Role-based filtering and access control |
-| `households`           | `head_resident_id`  | Quick household head lookups            |
-| `finance_transactions` | `date`              | Date range queries for reports          |
-| `finance_transactions` | `type`              | Filter by income/expense                |
-| `finance_transactions` | `funding_source_id` | Filter by funding source                |
-| `loans`                | `borrower_id`       | Find all loans for a resident           |
-| `loans`                | `status`            | Filter active/paid/defaulted loans      |
-| `loans`                | `next_due_date`     | Overdue loan queries                    |
-| `loan_payments`        | `loan_id`           | Find all payments for a loan            |
-| `loan_payments`        | `payment_date`      | Payment history queries                 |
-| `repayment_schedule`   | `loan_id`           | Get full schedule for a loan            |
-| `repayment_schedule`   | `due_date`          | Find due/overdue installments           |
-| `repayment_schedule`   | `status`            | Filter by payment status                |
-| `funding_sources`      | `name`              | Quick donor lookup                      |
+| Table                  | Column                  | Purpose                                 |
+| ---------------------- | ----------------------- | --------------------------------------- |
+| `users`                | `email`                 | Fast user lookup during authentication  |
+| `residents`            | `household_id`          | Efficient household member queries      |
+| `residents`            | `role_ids`              | Role-based filtering and access control |
+| `households`           | `head_resident_id`      | Quick household head lookups            |
+| `finance_transactions` | `date`                  | Date range queries for reports          |
+| `finance_transactions` | `type`                  | Filter by income/expense                |
+| `finance_transactions` | `funding_source_id`     | Filter by funding source                |
+| `loans`                | `borrower_id`           | Find all loans for a resident           |
+| `loans`                | `status`                | Filter active/paid/defaulted loans      |
+| `loans`                | `next_due_date`         | Overdue loan queries                    |
+| `loan_payments`        | `loan_id`               | Find all payments for a loan            |
+| `loan_payments`        | `payment_date`          | Payment history queries                 |
+| `repayment_schedule`   | `loan_id`               | Get full schedule for a loan            |
+| `repayment_schedule`   | `due_date`              | Find due/overdue installments           |
+| `repayment_schedule`   | `status`                | Filter by payment status                |
+| `funding_sources`      | `name`                  | Quick donor lookup                      |
+| `finance_categories`   | `type`                  | Filter categories by income/expense     |
+| `finance_categories`   | `name`                  | Quick category lookup                   |
+| `transaction_links`    | `parent_transaction_id` | Find all funding for a transaction      |
+| `transaction_links`    | `funding_source_id`     | Find all links for a funding source     |
 
 ## Permissions
 

@@ -1663,9 +1663,5 @@ export const useFinanceStore = defineStore('finance', {
         this.transactionLinks = {};
       }
     },
-
-    // TODO: UNLINKING_FUNDING - Implement unlinkFunding action
-    // See: docs/future_enhancements.md
-    // async unlinkFunding(linkId, reason) { ... }
   },
 });
