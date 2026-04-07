@@ -24,13 +24,7 @@
     <!-- Filters -->
     <div class="row q-col-gutter-md q-mb-md">
       <div class="col-12 col-md-4">
-        <q-input
-          v-model="searchQuery"
-          label="Search plots"
-          dense
-          outlined
-          clearable
-        >
+        <q-input v-model="searchQuery" label="Search plots" dense outlined clearable>
           <template #append>
             <q-icon name="search" />
           </template>
@@ -105,23 +99,10 @@
       <!-- Actions column -->
       <template #body-cell-actions="{ row }">
         <q-td class="text-right">
-          <q-btn
-            flat
-            round
-            dense
-            icon="visibility"
-            @click.stop="viewPlot(row.$id)"
-          >
+          <q-btn flat round dense icon="visibility" @click.stop="viewPlot(row.$id)">
             <q-tooltip>View</q-tooltip>
           </q-btn>
-          <q-btn
-            v-if="canWrite"
-            flat
-            round
-            dense
-            icon="edit"
-            @click.stop="editPlot(row.$id)"
-          >
+          <q-btn v-if="canWrite" flat round dense icon="edit" @click.stop="editPlot(row.$id)">
             <q-tooltip>Edit</q-tooltip>
           </q-btn>
           <q-btn
@@ -147,7 +128,10 @@
           <span class="q-ml-sm">Delete plot "{{ plotToDelete?.name }}"?</span>
         </q-card-section>
         <q-card-section>
-          <p>This action cannot be undone. If this plot has planting history, deletion will be blocked.</p>
+          <p>
+            This action cannot be undone. If this plot has planting history, deletion will be
+            blocked.
+          </p>
         </q-card-section>
         <q-card-actions align="right">
           <q-btn v-close-popup flat label="Cancel" color="primary" />
@@ -170,6 +154,7 @@ import { ref, computed, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { useQuasar } from 'quasar';
 import { useFarmStore } from '../stores/farm-store';
+import { useResidentsStore } from 'src/stores/residents-store';
 import { usePermissions } from 'src/composables/usePermissions';
 import PlotStatusBadge from '../components/PlotStatusBadge.vue';
 
@@ -259,7 +244,7 @@ const filteredPlots = computed(() => {
     plots = plots.filter(
       (p) =>
         p.name?.toLowerCase().includes(query) ||
-        p.location_description?.toLowerCase().includes(query)
+        p.location_description?.toLowerCase().includes(query),
     );
   }
 
@@ -282,7 +267,9 @@ function formatSize(size) {
 function getCropManagerName(managerId) {
   // TODO: Integrate with residents store to get actual name
   if (!managerId) return 'Unassigned';
-  return 'Loading...';
+  const residentsStore = useResidentsStore();
+  const managerName = residentsStore.getFullNameById(managerId);
+  return managerName || 'Failed to load.';
 }
 
 function onRowClick(evt, row) {

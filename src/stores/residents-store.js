@@ -6,6 +6,21 @@ import { useHouseholdsStore } from './households-store';
 
 const errorHandler = useErrorHandler();
 
+/**
+ * Build full name from resident object parts
+ * @param {Object} resident - Resident with first_name, middle_names, last_name
+ * @returns {string} Full name
+ */
+function buildFullName(resident) {
+  if (!resident) return '';
+  const parts = [resident.first_name];
+  if (resident.middle_names) {
+    parts.push(resident.middle_names);
+  }
+  parts.push(resident.last_name);
+  return parts.join(' ');
+}
+
 export const useResidentsStore = defineStore('residents', {
   state: () => ({
     residents: [],
@@ -55,14 +70,7 @@ export const useResidentsStore = defineStore('residents', {
     /**
      * Get full name for a resident
      */
-    getFullName: () => (resident) => {
-      const parts = [resident.first_name];
-      if (resident.middle_names) {
-        parts.push(resident.middle_names);
-      }
-      parts.push(resident.last_name);
-      return parts.join(' ');
-    },
+    getFullName: () => (resident) => buildFullName(resident),
 
     /**
      * Get full name by ID
@@ -71,8 +79,7 @@ export const useResidentsStore = defineStore('residents', {
      */
     getFullNameById: (state) => (id) => {
       const resident = state.residents.find((r) => r.$id === id);
-      if (!resident) return '';
-      return this.getFullName(resident);
+      return buildFullName(resident);
     },
 
     /**

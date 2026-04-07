@@ -192,6 +192,7 @@ const route = useRoute();
 const router = useRouter();
 const $q = useQuasar();
 const farmStore = useFarmStore();
+const residentsStore = useResidentsStore();
 const { hasPermission } = usePermissions();
 
 const isLoading = ref(true);
@@ -208,6 +209,10 @@ onMounted(async () => {
   await loadPlot();
   if (!farmStore.soilTypesLoaded) {
     await farmStore.fetchSoilTypes();
+  }
+  // Ensure residents are loaded for crop manager names
+  if (residentsStore.residents.length === 0) {
+    await residentsStore.fetchResidents(1, 100);
   }
 });
 
@@ -239,13 +244,9 @@ function formatDate(dateString) {
 }
 
 function getCropManagerName(managerId) {
-  // TODO: Integrate with residents store
   if (!managerId) return 'Unassigned';
-  const residentsStore = useResidentsStore();
-  console.log(`residentsStore:`, residentsStore);
   const managerName = residentsStore.getFullNameById(managerId);
-  console.log(`managerName:`, managerName);
-  return managerName || managerId; // Placeholder - show ID for now
+  return managerName || managerId;
 }
 
 function goBack() {
