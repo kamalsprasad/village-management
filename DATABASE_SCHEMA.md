@@ -60,6 +60,134 @@ Stores role definitions with permissions and storage quotas for RBAC.
 | `created_at`    | datetime | Auto-generated              | Record creation timestamp                      |
 | `updated_at`    | datetime | Auto-updated                | Last modification timestamp                    |
 
+## Farm Tables
+
+### plots
+
+Stores farm plot information with soil characteristics and management assignments.
+
+| Column                 | Type     | Constraints                                   | Description                               |
+| ---------------------- | -------- | --------------------------------------------- | ----------------------------------------- |
+| `id`                   | string   | Primary Key, Auto-generated                   | Unique plot identifier                    |
+| `name`                 | string   | Required, max 100                             | Plot name (e.g., "North Field", "Plot A") |
+| `size_hectares`        | float    | Required, min 0.01, max 1000                  | Size in hectares                          |
+| `location_description` | string   | Optional, max 500                             | Description of location                   |
+| `soil_type_id`         | string   | Optional, Foreign Key → soil_types.id         | Reference to soil type                    |
+| `status`               | string   | Required, Enum: 'Active', 'Fallow', 'Retired' | Current plot status                       |
+| `crop_manager_id`      | string   | Optional, Foreign Key → residents.id          | Assigned Crop Manager                     |
+| `created_at`           | datetime | Auto-generated                                | Creation timestamp                        |
+| `updated_at`           | datetime | Auto-updated                                  | Modification timestamp                    |
+
+### soil_types
+
+Configurable soil types for the farm module. Administrators can add custom soil types for their region.
+
+| Column              | Type     | Constraints                 | Description                                 |
+| ------------------- | -------- | --------------------------- | ------------------------------------------- |
+| `id`                | string   | Primary Key, Auto-generated | Unique soil type identifier                 |
+| `name`              | string   | Required, Unique            | Soil type name (e.g., "Sandy Loam", "Clay") |
+| `description`       | string   | Optional, max 500           | Description and characteristics             |
+| `color_code`        | string   | Optional                    | Hex color for visual representation         |
+| `is_system_default` | boolean  | Default: false              | System types cannot be deleted              |
+| `created_at`        | datetime | Auto-generated              | Creation timestamp                          |
+| `updated_at`        | datetime | Auto-updated                | Modification timestamp                      |
+
+**Default Soil Types (seeded):**
+
+- Sandy
+- Clay
+- Loam
+- Silt
+- Peaty
+- Chalky
+- Other
+
+### crops
+
+Stores crop information and characteristics for the crop database.
+
+| Column                      | Type     | Constraints                           | Description                                                        |
+| --------------------------- | -------- | ------------------------------------- | ------------------------------------------------------------------ |
+| `id`                        | string   | Primary Key, Auto-generated           | Unique crop identifier                                             |
+| `crop_name`                 | string   | Required                              | Name of the crop                                                   |
+| `crop_type`                 | string   | Required, Enum: 'Annual', 'Perennial' | Crop lifecycle type                                                |
+| `maturity_days`             | integer  | Required, Min: 1                      | Days from planting to maturity                                     |
+| `harvest_frequency`         | integer  | Optional                              | Days between harvests (for perennials)                             |
+| `typical_yield_per_hectare` | float    | Optional                              | Average expected yield                                             |
+| `growing_season`            | string   | Optional                              | Wet, Dry, or All Year                                              |
+| `category`                  | string   | Required                              | Grains, Legumes, Vegetables, Root Crops, Fruits, Perennials, Other |
+| `is_active`                 | boolean  | Default: true                         | Active crops appear in planting forms                              |
+| `created_at`                | datetime | Auto-generated                        | Creation timestamp                                                 |
+| `updated_at`                | datetime | Auto-updated                          | Modification timestamp                                             |
+
+### plantings
+
+Records crop plantings with seed inventory and labor cost tracking.
+
+| Column                       | Type     | Constraints                                                                     | Description                            |
+| ---------------------------- | -------- | ------------------------------------------------------------------------------- | -------------------------------------- |
+| `id`                         | string   | Primary Key, Auto-generated                                                     | Unique planting identifier             |
+| `plot_id`                    | string   | Required, Foreign Key → plots.id, Indexed                                       | Reference to plot                      |
+| `crop_id`                    | string   | Required, Foreign Key → crops.id, Indexed                                       | Reference to crop                      |
+| `planting_date`              | date     | Required                                                                        | When crop was planted                  |
+| `expected_harvest_date`      | date     | Calculated                                                                      | Auto-calculated from crop maturity     |
+| `seed_inventory_id`          | string   | Optional, Foreign Key → inventory.id                                            | Seed source from inventory             |
+| `seed_cost`                  | float    | Optional, Min: 0                                                                | Cost of seeds if purchased separately  |
+| `seed_source`                | string   | Optional, Enum: 'From Inventory', 'Purchased Separately', 'Donated'             | Origin of seeds                        |
+| `planting_labor_farmhands`   | integer  | Optional, Min: 0                                                                | Number of workers for planting         |
+| `planting_labor_cost`        | float    | Optional, Min: 0                                                                | Total labor cost for planting          |
+| `planting_labor_notes`       | string   | Optional                                                                        | Notes about labor                      |
+| `planting_other_costs`       | float    | Optional, Min: 0                                                                | Miscellaneous costs (fertilizer, etc.) |
+| `planting_other_costs_notes` | string   | Optional                                                                        | Notes about other costs                |
+| `status`                     | string   | Required, Enum: 'Planted', 'Growing', 'Harvesting', 'Completed', 'Failed'       | Current status                         |
+| `failure_reason`             | string   | Optional, Enum: 'Drought', 'Pests', 'Disease', 'Flooding', 'Poor Soil', 'Other' | Reason if failed                       |
+| `created_at`                 | datetime | Auto-generated                                                                  | Creation timestamp                     |
+| `updated_at`                 | datetime | Auto-updated                                                                    | Modification timestamp                 |
+
+### harvests
+
+Records harvest data with labor cost tracking for profitability analysis.
+
+| Column                      | Type     | Constraints                                                               | Description                          |
+| --------------------------- | -------- | ------------------------------------------------------------------------- | ------------------------------------ |
+| `id`                        | string   | Primary Key, Auto-generated                                               | Unique harvest identifier            |
+| `planting_id`               | string   | Required, Foreign Key → plantings.id, Indexed                             | Reference to planting                |
+| `harvest_type`              | string   | Required, Enum: 'Single Day', 'Multi-Day Aggregate', 'Continuous Picking' | Harvest type                         |
+| `harvest_date`              | date     | Required (for single day)                                                 | Harvest date                         |
+| `harvest_start_date`        | date     | Optional                                                                  | Start date for multi-day             |
+| `harvest_end_date`          | date     | Optional                                                                  | End date for multi-day               |
+| `total_quantity_kg`         | float    | Required, Min: 0                                                          | Total harvest quantity               |
+| `daily_breakdown`           | object[] | Optional                                                                  | Array of daily details for multi-day |
+| `harvest_labor_farmhands`   | integer  | Optional, Min: 0                                                          | Workers for harvest                  |
+| `harvest_labor_cost`        | float    | Optional, Min: 0                                                          | Labor cost for harvest               |
+| `harvest_other_costs`       | float    | Optional, Min: 0                                                          | Miscellaneous costs                  |
+| `harvest_other_costs_notes` | string   | Optional                                                                  | Notes about other costs              |
+| `status`                    | string   | Required, Enum: 'In Progress', 'Completed'                                | Current status                       |
+| `inventory_item_id`         | string   | Optional, Foreign Key → inventory.id                                      | Auto-created inventory reference     |
+| `created_at`                | datetime | Auto-generated                                                            | Creation timestamp                   |
+| `updated_at`                | datetime | Auto-updated                                                              | Modification timestamp               |
+
+### farm_sales
+
+Links farm produce sales to inventory, harvests, and finance transactions.
+
+| Column                   | Type     | Constraints                                     | Description                    |
+| ------------------------ | -------- | ----------------------------------------------- | ------------------------------ |
+| `id`                     | string   | Primary Key, Auto-generated                     | Unique sale identifier         |
+| `inventory_item_id`      | string   | Required, Foreign Key → inventory.id            | Sold inventory item            |
+| `harvest_id`             | string   | Required, Foreign Key → harvests.id             | Source harvest                 |
+| `finance_transaction_id` | string   | Required, Foreign Key → finance_transactions.id | Linked income transaction      |
+| `buyer`                  | string   | Required                                        | Buyer name or identifier       |
+| `quantity_sold`          | float    | Required, Min: 0                                | Quantity sold in kg            |
+| `price_per_kg`           | float    | Required, Min: 0                                | Price per kilogram             |
+| `total_amount`           | float    | Required, Min: 0                                | Total sale amount              |
+| `payment_method`         | string   | Required                                        | Cash, Mobile Money, Bank, etc. |
+| `payment_status`         | string   | Required, Enum: 'Pending', 'Completed'          | Payment status                 |
+| `sale_date`              | date     | Required                                        | Date of sale                   |
+| `notes`                  | string   | Optional                                        | Additional notes               |
+| `created_at`             | datetime | Auto-generated                                  | Creation timestamp             |
+| `updated_at`             | datetime | Auto-updated                                    | Modification timestamp         |
+
 ## Finance Tables
 
 ### finance_transactions
@@ -217,6 +345,16 @@ The database uses a normalized schema with ID-based relationships:
 - **residents → households**: Many-to-one relationship via `residents.household_id` referencing `households.id`
 - **households → residents**: One-to-many relationship via `households.head_resident_id` referencing `residents.id`
 - **residents → roles**: Many-to-many relationship via `residents.role_ids` array containing role IDs
+- **plots → soil_types**: Many-to-one via `plots.soil_type_id` referencing `soil_types.id`
+- **plots → residents**: Many-to-one via `plots.crop_manager_id` referencing `residents.id` (Crop Manager assignment)
+- **plantings → plots**: Many-to-one via `plantings.plot_id` referencing `plots.id`
+- **plantings → crops**: Many-to-one via `plantings.crop_id` referencing `crops.id`
+- **plantings → inventory**: Many-to-one via `plantings.seed_inventory_id` referencing `inventory.id`
+- **harvests → plantings**: Many-to-one via `harvests.planting_id` referencing `plantings.id`
+- **harvests → inventory**: One-to-one via `harvests.inventory_item_id` referencing `inventory.id`
+- **farm_sales → inventory**: Many-to-one via `farm_sales.inventory_item_id` referencing `inventory.id`
+- **farm_sales → harvests**: Many-to-one via `farm_sales.harvest_id` referencing `harvests.id`
+- **farm_sales → finance_transactions**: Many-to-one via `farm_sales.finance_transaction_id` referencing `finance_transactions.id`
 - **loans → residents**: Many-to-one relationship via `loans.borrower_id` referencing `residents.id`
 - **loan_payments → loans**: Many-to-one relationship via `loan_payments.loan_id` referencing `loans.id`
 - **repayment_schedule → loans**: Many-to-one relationship via `repayment_schedule.loan_id` referencing `loans.id`
@@ -229,28 +367,36 @@ The database uses a normalized schema with ID-based relationships:
 
 Indexes are created on frequently queried fields to optimize performance:
 
-| Table                  | Column                  | Purpose                                 |
-| ---------------------- | ----------------------- | --------------------------------------- |
-| `users`                | `email`                 | Fast user lookup during authentication  |
-| `residents`            | `household_id`          | Efficient household member queries      |
-| `residents`            | `role_ids`              | Role-based filtering and access control |
-| `households`           | `head_resident_id`      | Quick household head lookups            |
-| `finance_transactions` | `date`                  | Date range queries for reports          |
-| `finance_transactions` | `type`                  | Filter by income/expense                |
-| `finance_transactions` | `funding_source_id`     | Filter by funding source                |
-| `loans`                | `borrower_id`           | Find all loans for a resident           |
-| `loans`                | `status`                | Filter active/paid/defaulted loans      |
-| `loans`                | `next_due_date`         | Overdue loan queries                    |
-| `loan_payments`        | `loan_id`               | Find all payments for a loan            |
-| `loan_payments`        | `payment_date`          | Payment history queries                 |
-| `repayment_schedule`   | `loan_id`               | Get full schedule for a loan            |
-| `repayment_schedule`   | `due_date`              | Find due/overdue installments           |
-| `repayment_schedule`   | `status`                | Filter by payment status                |
-| `funding_sources`      | `name`                  | Quick donor lookup                      |
-| `finance_categories`   | `type`                  | Filter categories by income/expense     |
-| `finance_categories`   | `name`                  | Quick category lookup                   |
-| `transaction_links`    | `parent_transaction_id` | Find all funding for a transaction      |
-| `transaction_links`    | `funding_source_id`     | Find all links for a funding source     |
+| Table                  | Column                  | Purpose                                        |
+| ---------------------- | ----------------------- | ---------------------------------------------- |
+| `users`                | `email`                 | Fast user lookup during authentication         |
+| `residents`            | `household_id`          | Efficient household member queries             |
+| `residents`            | `role_ids`              | Role-based filtering and access control        |
+| `households`           | `head_resident_id`      | Quick household head lookups                   |
+| `plots`                | `status`                | Filter plots by status (Active/Fallow/Retired) |
+| `plots`                | `crop_manager_id`       | Find plots by assigned manager                 |
+| `plantings`            | `plot_id`               | Find plantings for a plot                      |
+| `plantings`            | `crop_id`               | Find plantings for a crop                      |
+| `plantings`            | `status`                | Filter by planting status                      |
+| `harvests`             | `planting_id`           | Find harvests for a planting                   |
+| `crops`                | `category`              | Filter crops by category                       |
+| `crops`                | `is_active`             | Filter active crops                            |
+| `finance_transactions` | `date`                  | Date range queries for reports                 |
+| `finance_transactions` | `type`                  | Filter by income/expense                       |
+| `finance_transactions` | `funding_source_id`     | Filter by funding source                       |
+| `loans`                | `borrower_id`           | Find all loans for a resident                  |
+| `loans`                | `status`                | Filter active/paid/defaulted loans             |
+| `loans`                | `next_due_date`         | Overdue loan queries                           |
+| `loan_payments`        | `loan_id`               | Find all payments for a loan                   |
+| `loan_payments`        | `payment_date`          | Payment history queries                        |
+| `repayment_schedule`   | `loan_id`               | Get full schedule for a loan                   |
+| `repayment_schedule`   | `due_date`              | Find due/overdue installments                  |
+| `repayment_schedule`   | `status`                | Filter by payment status                       |
+| `funding_sources`      | `name`                  | Quick donor lookup                             |
+| `finance_categories`   | `type`                  | Filter categories by income/expense            |
+| `finance_categories`   | `name`                  | Quick category lookup                          |
+| `transaction_links`    | `parent_transaction_id` | Find all funding for a transaction             |
+| `transaction_links`    | `funding_source_id`     | Find all links for a funding source            |
 
 ## Permissions
 
@@ -261,6 +407,126 @@ Table-level permissions are configured for role-based access control:
 - **Row-Level Permissions**: Future enhancement for user-specific data access
 
 ## Example Queries
+
+### Query plots with soil type and crop manager
+
+```javascript
+const plots = await tables.listRows({
+  databaseId: 'villageDB',
+  tableId: 'plots',
+  queries: [Query.equal('status', 'Active'), Query.orderAsc('name')],
+});
+
+// Enrich with soil type and crop manager names
+const enrichedPlots = await Promise.all(
+  plots.rows.map(async (plot) => {
+    const [soilType, cropManager] = await Promise.all([
+      plot.soil_type_id
+        ? tables.getRow({
+            databaseId: 'villageDB',
+            tableId: 'soil_types',
+            rowId: plot.soil_type_id,
+          })
+        : null,
+      plot.crop_manager_id
+        ? tables.getRow({
+            databaseId: 'villageDB',
+            tableId: 'residents',
+            rowId: plot.crop_manager_id,
+          })
+        : null,
+    ]);
+    return {
+      ...plot,
+      soil_type_name: soilType?.name || 'Not specified',
+      crop_manager_name: cropManager
+        ? `${cropManager.first_name} ${cropManager.last_name}`
+        : 'Unassigned',
+    };
+  }),
+);
+```
+
+### Create a new plot
+
+```javascript
+const newPlot = await tables.createRow({
+  databaseId: 'villageDB',
+  tableId: 'plots',
+  rowId: 'unique()',
+  data: {
+    name: 'North Field',
+    size_hectares: 2.5,
+    location_description: 'North side of the village, near the river',
+    soil_type_id: 'soil_loam_123',
+    status: 'Active',
+    crop_manager_id: 'resident_456',
+  },
+});
+```
+
+### Find plots by assigned crop manager
+
+```javascript
+const managerPlots = await tables.listRows({
+  databaseId: 'villageDB',
+  tableId: 'plots',
+  queries: [Query.equal('crop_manager_id', 'resident_456')],
+});
+```
+
+### Query plots by status for dashboard statistics
+
+```javascript
+const [activePlots, fallowPlots, retiredPlots] = await Promise.all([
+  tables.listRows({
+    databaseId: 'villageDB',
+    tableId: 'plots',
+    queries: [Query.equal('status', 'Active')],
+  }),
+  tables.listRows({
+    databaseId: 'villageDB',
+    tableId: 'plots',
+    queries: [Query.equal('status', 'Fallow')],
+  }),
+  tables.listRows({
+    databaseId: 'villageDB',
+    tableId: 'plots',
+    queries: [Query.equal('status', 'Retired')],
+  }),
+]);
+
+const stats = {
+  total: activePlots.total + fallowPlots.total + retiredPlots.total,
+  active: activePlots.total,
+  fallow: fallowPlots.total,
+  retired: retiredPlots.total,
+};
+```
+
+### Check if plot has plantings before deletion
+
+```javascript
+async function canDeletePlot(plotId) {
+  const plantings = await tables.listRows({
+    databaseId: 'villageDB',
+    tableId: 'plantings',
+    queries: [Query.equal('plot_id', plotId)],
+  });
+
+  return plantings.total === 0;
+}
+
+// Usage
+const canDelete = await canDeletePlot('plot_123');
+if (canDelete) {
+  await tables.deleteRow({
+    databaseId: 'villageDB',
+    tableId: 'plots',
+    rowId: 'plot_123',
+  });
+}
+```
 
 ### List all residents in a household
 

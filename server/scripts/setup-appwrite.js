@@ -216,6 +216,254 @@ const tableSchemas = {
     ],
     indexes: [],
   },
+  // Epic 3: Farm Module Tables
+  soil_types: {
+    name: 'Soil Types',
+    columns: [
+      { key: 'name', type: 'string', size: 100, required: true },
+      { key: 'description', type: 'string', size: 500, required: false },
+      { key: 'color_code', type: 'string', size: 7, required: false },
+      { key: 'is_system_default', type: 'boolean', required: true, default: false },
+    ],
+    indexes: [
+      {
+        key: 'idx_soil_types_name',
+        type: 'key',
+        columns: ['name'],
+        orders: ['ASC'],
+      },
+    ],
+  },
+  plots: {
+    name: 'Plots',
+    columns: [
+      { key: 'name', type: 'string', size: 100, required: true },
+      { key: 'size_hectares', type: 'integer', min: 1, max: 10000000, required: true },
+      { key: 'location_description', type: 'string', size: 500, required: false },
+      {
+        key: 'soil_type_id',
+        type: 'relationship',
+        relatedTable: 'soil_types',
+        relationType: 'manyToOne',
+        twoWay: false,
+        required: false,
+      },
+      {
+        key: 'status',
+        type: 'enum',
+        elements: ['Active', 'Fallow', 'Retired'],
+        required: true,
+        default: 'Active',
+      },
+      {
+        key: 'crop_manager_id',
+        type: 'relationship',
+        relatedTable: 'residents',
+        relationType: 'manyToOne',
+        twoWay: false,
+        required: false,
+      },
+    ],
+    indexes: [
+      {
+        key: 'idx_plots_name',
+        type: 'key',
+        columns: ['name'],
+        orders: ['ASC'],
+      },
+      {
+        key: 'idx_plots_status',
+        type: 'key',
+        columns: ['status'],
+        orders: ['ASC'],
+      },
+    ],
+  },
+  crops: {
+    name: 'Crops',
+    columns: [
+      { key: 'crop_name', type: 'string', size: 100, required: true },
+      {
+        key: 'category',
+        type: 'enum',
+        elements: ['Grain', 'Vegetable', 'Fruit', 'Legume', 'Root', 'Other'],
+        required: true,
+      },
+      { key: 'variety', type: 'string', size: 100, required: false },
+      {
+        key: 'expected_yield_per_hectare',
+        type: 'integer',
+        min: 0,
+        max: 1000000000,
+        required: false,
+      },
+      { key: 'yield_unit', type: 'string', size: 20, required: false, default: 'kg' },
+      { key: 'growing_season_months', type: 'integer', min: 1, max: 36, required: false },
+      {
+        key: 'optimal_planting_months',
+        type: 'integer',
+        array: true,
+        min: 1,
+        max: 12,
+        required: false,
+      },
+      { key: 'notes', type: 'string', size: 1000, required: false },
+      { key: 'is_active', type: 'boolean', required: true, default: true },
+    ],
+    indexes: [
+      {
+        key: 'idx_crops_category',
+        type: 'key',
+        columns: ['category', 'crop_name'],
+        orders: ['ASC', 'ASC'],
+      },
+      {
+        key: 'idx_crops_name',
+        type: 'key',
+        columns: ['crop_name'],
+        orders: ['ASC'],
+      },
+    ],
+  },
+  plantings: {
+    name: 'Plantings',
+    columns: [
+      {
+        key: 'plot_id',
+        type: 'relationship',
+        relatedTable: 'plots',
+        relationType: 'manyToOne',
+        twoWay: false,
+        required: true,
+      },
+      {
+        key: 'crop_id',
+        type: 'relationship',
+        relatedTable: 'crops',
+        relationType: 'manyToOne',
+        twoWay: false,
+        required: true,
+      },
+      { key: 'planting_date', type: 'datetime', required: true },
+      { key: 'quantity_planted', type: 'integer', min: 1, max: 1000000000, required: false },
+      { key: 'unit', type: 'string', size: 20, required: false, default: 'kg' },
+      { key: 'expected_harvest_date', type: 'datetime', required: false },
+      { key: 'actual_harvest_date', type: 'datetime', required: false },
+      { key: 'inputs_cost', type: 'integer', min: 0, max: 1000000000000, required: false },
+      { key: 'labor_cost', type: 'integer', min: 0, max: 1000000000000, required: false },
+      { key: 'other_cost', type: 'integer', min: 0, max: 1000000000000, required: false },
+      { key: 'notes', type: 'string', size: 1000, required: false },
+      {
+        key: 'status',
+        type: 'enum',
+        elements: ['planned', 'planted', 'growing', 'harvesting', 'completed', 'failed'],
+        required: true,
+        default: 'planned',
+      },
+    ],
+    indexes: [
+      {
+        key: 'idx_plantings_plot',
+        type: 'key',
+        columns: ['plot_id'],
+        orders: ['ASC'],
+      },
+      {
+        key: 'idx_plantings_date',
+        type: 'key',
+        columns: ['planting_date'],
+        orders: ['DESC'],
+      },
+      {
+        key: 'idx_plantings_crop',
+        type: 'key',
+        columns: ['crop_id'],
+        orders: ['ASC'],
+      },
+      {
+        key: 'idx_plantings_status',
+        type: 'key',
+        columns: ['status'],
+        orders: ['ASC'],
+      },
+    ],
+  },
+  harvests: {
+    name: 'Harvests',
+    columns: [
+      {
+        key: 'planting_id',
+        type: 'relationship',
+        relatedTable: 'plantings',
+        relationType: 'manyToOne',
+        twoWay: false,
+        required: true,
+      },
+      { key: 'harvest_date', type: 'datetime', required: true },
+      { key: 'quantity_harvested', type: 'integer', min: 0, max: 1000000000000, required: true },
+      { key: 'unit', type: 'string', size: 20, required: true, default: 'kg' },
+      { key: 'quality_grade', type: 'string', size: 50, required: false },
+      { key: 'storage_location', type: 'string', size: 200, required: false },
+      { key: 'notes', type: 'string', size: 1000, required: false },
+    ],
+    indexes: [
+      {
+        key: 'idx_harvests_planting',
+        type: 'key',
+        columns: ['planting_id'],
+        orders: ['ASC'],
+      },
+      {
+        key: 'idx_harvests_date',
+        type: 'key',
+        columns: ['harvest_date'],
+        orders: ['DESC'],
+      },
+    ],
+  },
+  farm_sales: {
+    name: 'Farm Sales',
+    columns: [
+      {
+        key: 'harvest_id',
+        type: 'relationship',
+        relatedTable: 'harvests',
+        relationType: 'manyToOne',
+        twoWay: false,
+        required: false,
+      },
+      {
+        key: 'buyer_type',
+        type: 'enum',
+        elements: ['household', 'external', 'market', 'cooperative'],
+        required: true,
+      },
+      { key: 'buyer_id', type: 'string', size: 50, required: false },
+      { key: 'buyer_name', type: 'string', size: 200, required: false },
+      { key: 'sale_date', type: 'datetime', required: true },
+      { key: 'quantity_sold', type: 'integer', min: 0, max: 1000000000000, required: true },
+      { key: 'unit', type: 'string', size: 20, required: true, default: 'kg' },
+      { key: 'price_per_unit', type: 'integer', min: 0, max: 1000000000000, required: true },
+      { key: 'total_amount', type: 'integer', min: 0, max: 1000000000000, required: true },
+      { key: 'payment_status', type: 'string', size: 20, required: true, default: 'pending' },
+      { key: 'payment_method', type: 'string', size: 50, required: false },
+      { key: 'notes', type: 'string', size: 1000, required: false },
+    ],
+    indexes: [
+      {
+        key: 'idx_farm_sales_date',
+        type: 'key',
+        columns: ['sale_date'],
+        orders: ['DESC'],
+      },
+      {
+        key: 'idx_farm_sales_buyer',
+        type: 'key',
+        columns: ['buyer_type', 'buyer_id'],
+        orders: ['ASC', 'ASC'],
+      },
+    ],
+  },
 };
 
 // Helper functions
@@ -469,11 +717,14 @@ async function setupDatabase() {
 
     console.log('\n✅ Database setup complete!');
     console.log('\n📋 Summary:');
-    console.log('   - 5 Tables created/verified');
-    console.log('   - 32 columns created/verified');
-    console.log('   - 4 indexes created/verified');
+    console.log('   - 11 Tables created/verified');
+    console.log('   - 80+ columns created/verified');
+    console.log('   - 16 indexes created/verified');
     console.log('   - Permissions configured');
     console.log('\n🎉 You can now test the database connection at /appwrite-test');
+    console.log('\n📦 Tables created:');
+    console.log('   Core: users, residents, households, roles, village_settings');
+    console.log('   Farm: soil_types, plots, crops, plantings, harvests, farm_sales');
   } catch (error) {
     console.error('\n❌ Setup failed:', error.message);
     if (error.response) {

@@ -65,6 +65,17 @@ export const useResidentsStore = defineStore('residents', {
     },
 
     /**
+     * Get full name by ID
+     * @param {Object} state
+     * @returns {string} Full name or empty string if resident not found
+     */
+    getFullNameById: (state) => (id) => {
+      const resident = state.residents.find((r) => r.$id === id);
+      if (!resident) return '';
+      return this.getFullName(resident);
+    },
+
+    /**
      * Get a resident by ID from the loaded residents array
      */
     getResidentById: (state) => (id) => {

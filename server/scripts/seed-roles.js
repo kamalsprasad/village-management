@@ -65,6 +65,12 @@ const defaultRoles = [
     storage_quota: 50,
   },
   {
+    name: 'Crop Manager',
+    category: 'farm',
+    permissions: ['farm:read', 'farm:planting:write', 'inventory:read'],
+    storage_quota: 20,
+  },
+  {
     name: 'School Administrator',
     category: 'school',
     permissions: ['school:read', 'school:write', 'reports:read'],

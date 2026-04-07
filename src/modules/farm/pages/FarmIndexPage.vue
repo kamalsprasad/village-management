@@ -46,9 +46,18 @@
         <q-card bordered>
           <q-card-section>
             <div class="text-caption text-grey">This Month's Sales</div>
-            <div class="text-h4 text-weight-bold text-primary">{{ formatCurrency(stats.monthlySales) }}</div>
+            <div class="text-h4 text-weight-bold text-primary">
+              {{ formatCurrency(stats.monthlySales) }}
+            </div>
           </q-card-section>
         </q-card>
+      </div>
+    </div>
+
+    <!-- Widget Row -->
+    <div class="row q-col-gutter-md q-mb-lg">
+      <div class="col-12 col-md-6">
+        <PlotsOverviewWidget />
       </div>
     </div>
 
@@ -78,6 +87,7 @@
 import { computed, ref, onMounted } from 'vue';
 import { useQuasar } from 'quasar';
 import { useFarmStore } from './stores/farm-store';
+import PlotsOverviewWidget from './components/PlotsOverviewWidget.vue';
 
 const $q = useQuasar();
 const farmStore = useFarmStore();
@@ -86,7 +96,7 @@ const stats = ref({
   totalPlots: 0,
   activePlantings: 0,
   readyForHarvest: 0,
-  monthlySales: 0
+  monthlySales: 0,
 });
 
 const hasFarmManagerRole = computed(() => {
@@ -100,29 +110,29 @@ const moduleLinks = [
     description: 'Manage farm plots and assignments',
     route: '/farm/plots',
     icon: 'grid_on',
-    color: 'green'
+    color: 'green',
   },
   {
     name: 'Plantings',
-    description: 'Track what\'s planted and growing',
+    description: "Track what's planted and growing",
     route: '/farm/plantings',
     icon: 'spa',
-    color: 'green-7'
+    color: 'green-7',
   },
   {
     name: 'Harvests',
     description: 'Record and track harvests',
     route: '/farm/harvests',
     icon: 'agriculture',
-    color: 'orange'
+    color: 'orange',
   },
   {
     name: 'Sales',
     description: 'Farm produce sales and revenue',
     route: '/farm/sales',
     icon: 'point_of_sale',
-    color: 'blue'
-  }
+    color: 'blue',
+  },
 ];
 
 function formatCurrency(value) {
@@ -133,7 +143,7 @@ function showNewPlantingDialog() {
   $q.dialog({
     title: 'New Planting',
     message: 'Planting form will be implemented in Story 3.3',
-    ok: true
+    ok: true,
   });
 }
 

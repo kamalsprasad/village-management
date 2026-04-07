@@ -3,10 +3,7 @@
 
 import { defineStore } from 'pinia';
 import { tables } from 'src/boot/appwrite';
-import { useErrorHandler } from 'src/composables/useErrorHandler';
 import { ID, Query } from 'appwrite';
-
-const errorHandler = useErrorHandler();
 
 export const useFarmStore = defineStore('farm', {
   state: () => ({
@@ -14,6 +11,12 @@ export const useFarmStore = defineStore('farm', {
     plots: [],
     plotsLoaded: false,
     isPlotsLoading: false,
+    currentPlot: null,
+
+    // Soil Types (Story 3.1)
+    soilTypes: [],
+    soilTypesLoaded: false,
+    isSoilTypesLoading: false,
 
     // Crops (Story 3.2)
     crops: [],
@@ -41,7 +44,7 @@ export const useFarmStore = defineStore('farm', {
       totalPlots: 0,
       activePlantings: 0,
       readyForHarvest: 0,
-      monthlySales: 0
+      monthlySales: 0,
     },
 
     // Filters
@@ -50,13 +53,13 @@ export const useFarmStore = defineStore('farm', {
       cropId: null,
       status: null,
       dateFrom: null,
-      dateTo: null
-    }
+      dateTo: null,
+    },
   }),
 
   getters: {
     // Plot getters (Story 3.1)
-    activePlots: (state) => state.plots.filter(p => p.status === 'Active'),
+    activePlots: (state) => state.plots.filter((p) => p.status === 'Active'),
     plotsByStatus: (state) => {
       return state.plots.reduce((acc, plot) => {
         acc[plot.status] = (acc[plot.status] || 0) + 1;
@@ -65,7 +68,7 @@ export const useFarmStore = defineStore('farm', {
     },
 
     // Crop getters (Story 3.2)
-    activeCrops: (state) => state.crops.filter(c => c.is_active !== false),
+    activeCrops: (state) => state.crops.filter((c) => c.is_active !== false),
     cropsByCategory: (state) => {
       return state.crops.reduce((acc, crop) => {
         acc[crop.category] = acc[crop.category] || [];
@@ -82,27 +85,27 @@ export const useFarmStore = defineStore('farm', {
         return acc;
       }, {});
     },
-    activePlantings: (state) => state.plantings.filter(p =>
-      ['planted', 'growing', 'harvesting'].includes(p.status)
-    ),
-    readyForHarvest: (state) => state.plantings.filter(p => {
-      if (p.status !== 'growing') return false;
-      const expectedDate = new Date(p.expected_harvest_date);
-      const today = new Date();
-      const daysDiff = Math.ceil((expectedDate - today) / (1000 * 60 * 60 * 24));
-      return daysDiff <= 7; // Ready within 7 days
-    }),
+    activePlantings: (state) =>
+      state.plantings.filter((p) => ['planted', 'growing', 'harvesting'].includes(p.status)),
+    readyForHarvest: (state) =>
+      state.plantings.filter((p) => {
+        if (p.status !== 'growing') return false;
+        const expectedDate = new Date(p.expected_harvest_date);
+        const today = new Date();
+        const daysDiff = Math.ceil((expectedDate - today) / (1000 * 60 * 60 * 24));
+        return daysDiff <= 7; // Ready within 7 days
+      }),
 
     // Filtered plantings
     filteredPlantings: (state) => {
-      return state.plantings.filter(planting => {
+      return state.plantings.filter((planting) => {
         if (state.filters.plotId && planting.plot_id !== state.filters.plotId) return false;
         if (state.filters.cropId && planting.crop_id !== state.filters.cropId) return false;
         if (state.filters.status && planting.status !== state.filters.status) return false;
         // Date filtering logic can be added here
         return true;
       });
-    }
+    },
   },
 
   actions: {
@@ -114,7 +117,7 @@ export const useFarmStore = defineStore('farm', {
         const response = await tables.listRows({
           databaseId: dbId,
           tableId: 'plots',
-          queries: [Query.limit(100), Query.orderAsc('name')]
+          queries: [Query.limit(100), Query.orderAsc('name')],
         });
         this.plots = response.rows;
         this.plotsLoaded = true;
@@ -127,6 +130,133 @@ export const useFarmStore = defineStore('farm', {
       }
     },
 
+    async fetchPlotById(plotId) {
+      try {
+        const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
+        const response = await tables.getRow({
+          databaseId: dbId,
+          tableId: 'plots',
+          rowId: plotId,
+        });
+        this.currentPlot = response;
+        return { success: true, data: response };
+      } catch (error) {
+        console.error('Error fetching plot:', error);
+        return { success: false, error: error.message };
+      }
+    },
+
+    async createPlot(plotData) {
+      try {
+        const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
+        const response = await tables.createRow({
+          databaseId: dbId,
+          tableId: 'plots',
+          rowId: ID.unique(),
+          data: plotData,
+        });
+        // Add to local state
+        this.plots.push(response);
+        this.plots.sort((a, b) => a.name.localeCompare(b.name));
+        return { success: true, data: response };
+      } catch (error) {
+        console.error('Error creating plot:', error);
+        return { success: false, error: error.message };
+      }
+    },
+
+    async updatePlot(plotId, plotData) {
+      try {
+        const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
+        const response = await tables.updateRow({
+          databaseId: dbId,
+          tableId: 'plots',
+          rowId: plotId,
+          data: plotData,
+        });
+        // Update local state
+        const index = this.plots.findIndex((p) => p.$id === plotId);
+        if (index !== -1) {
+          this.plots[index] = response;
+        }
+        if (this.currentPlot?.$id === plotId) {
+          this.currentPlot = response;
+        }
+        return { success: true, data: response };
+      } catch (error) {
+        console.error('Error updating plot:', error);
+        return { success: false, error: error.message };
+      }
+    },
+
+    async deletePlot(plotId) {
+      try {
+        // Check for plantings first
+        const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
+        const plantings = await tables.listRows({
+          databaseId: dbId,
+          tableId: 'plantings',
+          queries: [Query.equal('plot_id', plotId), Query.limit(1)],
+        });
+
+        if (plantings.total > 0) {
+          return {
+            success: false,
+            error:
+              'Cannot delete plot with planting history. Consider changing status to "Retired" instead.',
+          };
+        }
+
+        await tables.deleteRow({
+          databaseId: dbId,
+          tableId: 'plots',
+          rowId: plotId,
+        });
+
+        // Remove from local state
+        this.plots = this.plots.filter((p) => p.$id !== plotId);
+        if (this.currentPlot?.$id === plotId) {
+          this.currentPlot = null;
+        }
+
+        return { success: true };
+      } catch (error) {
+        console.error('Error deleting plot:', error);
+        return { success: false, error: error.message };
+      }
+    },
+
+    clearCurrentPlot() {
+      this.currentPlot = null;
+    },
+
+    // Soil Types management (Story 3.1)
+    async fetchSoilTypes() {
+      this.isSoilTypesLoading = true;
+      try {
+        const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
+        const response = await tables.listRows({
+          databaseId: dbId,
+          tableId: 'soil_types',
+          queries: [Query.limit(100), Query.orderAsc('name')],
+        });
+        this.soilTypes = response.rows;
+        this.soilTypesLoaded = true;
+        return { success: true, data: response.rows };
+      } catch (error) {
+        console.error('Error fetching soil types:', error);
+        return { success: false, error: error.message };
+      } finally {
+        this.isSoilTypesLoading = false;
+      }
+    },
+
+    getSoilTypeName(soilTypeId) {
+      if (!soilTypeId) return 'Not specified';
+      const soilType = this.soilTypes.find((st) => st.$id === soilTypeId);
+      return soilType?.name || 'Not specified';
+    },
+
     // Crop management (Story 3.2)
     async fetchCrops() {
       this.isCropsLoading = true;
@@ -135,7 +265,7 @@ export const useFarmStore = defineStore('farm', {
         const response = await tables.listRows({
           databaseId: dbId,
           tableId: 'crops',
-          queries: [Query.limit(100), Query.orderAsc('category'), Query.orderAsc('crop_name')]
+          queries: [Query.limit(100), Query.orderAsc('category'), Query.orderAsc('crop_name')],
         });
         this.crops = response.rows;
         this.cropsLoaded = true;
@@ -156,7 +286,7 @@ export const useFarmStore = defineStore('farm', {
         const response = await tables.listRows({
           databaseId: dbId,
           tableId: 'plantings',
-          queries: [Query.limit(200), Query.orderDesc('planting_date')]
+          queries: [Query.limit(200), Query.orderDesc('planting_date')],
         });
         this.plantings = response.rows;
         this.plantingsLoaded = true;
@@ -177,7 +307,7 @@ export const useFarmStore = defineStore('farm', {
         const response = await tables.listRows({
           databaseId: dbId,
           tableId: 'harvests',
-          queries: [Query.limit(200), Query.orderDesc('harvest_date')]
+          queries: [Query.limit(200), Query.orderDesc('harvest_date')],
         });
         this.harvests = response.rows;
         this.harvestsLoaded = true;
@@ -194,10 +324,7 @@ export const useFarmStore = defineStore('farm', {
     async fetchStats() {
       try {
         // Fetch all necessary data in parallel
-        await Promise.all([
-          this.fetchPlots(),
-          this.fetchPlantings()
-        ]);
+        await Promise.all([this.fetchPlots(), this.fetchPlantings()]);
 
         // Calculate stats
         this.stats.totalPlots = this.plots.length;
@@ -225,8 +352,8 @@ export const useFarmStore = defineStore('farm', {
         cropId: null,
         status: null,
         dateFrom: null,
-        dateTo: null
+        dateTo: null,
       };
-    }
-  }
+    },
+  },
 });

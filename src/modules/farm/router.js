@@ -1,66 +1,62 @@
 // Farm Router Configuration
 // Story 3.1-3.9: Farm Management routes
 
-const farmRoutes = {
-  path: '/farm',
-  component: () => import('layouts/MainLayout.vue'),
-  meta: { requiresAuth: true, module: 'farm' },
-  children: [
-    {
-      path: '',
-      name: 'farm',
-      component: () => import('./pages/FarmIndexPage.vue'),
-      meta: { permission: 'farm:read' }
+const farmRoutes = [
+  {
+    path: 'farm',
+    redirect: '/farm/dashboard',
+  },
+  {
+    path: 'farm/dashboard',
+    name: 'farm-dashboard',
+    component: () => import('./pages/FarmDashboardPage.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresPermission: 'farm:read',
     },
-    {
-      path: 'dashboard',
-      name: 'farm-dashboard',
-      component: () => import('./pages/FarmDashboardPage.vue'),
-      meta: { permission: 'farm:read' }
+  },
+  {
+    path: 'farm/plots',
+    name: 'farm-plots',
+    component: () => import('./pages/PlotsListPage.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresPermission: 'farm:read',
     },
-    {
-      path: 'plots',
-      name: 'farm-plots',
-      component: () => import('./pages/PlotsListPage.vue'),
-      meta: { permission: 'farm:read' }
+  },
+  {
+    path: 'farm/plots/add',
+    name: 'farm-plot-add',
+    component: () => import('./pages/PlotFormPage.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresPermission: 'farm:write',
     },
-    {
-      path: 'plots/:id',
-      name: 'farm-plot-detail',
-      component: () => import('./pages/PlotDetailPage.vue'),
-      meta: { permission: 'farm:read' }
+  },
+  {
+    path: 'farm/plots/:id',
+    name: 'farm-plot-detail',
+    component: () => import('./pages/PlotDetailPage.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresPermission: 'farm:read',
     },
-    {
-      path: 'plantings',
-      name: 'farm-plantings',
-      component: () => import('./pages/PlantingsListPage.vue'),
-      meta: { permission: 'farm:read' }
+  },
+  {
+    path: 'farm/plots/:id/edit',
+    name: 'farm-plot-edit',
+    component: () => import('./pages/PlotFormPage.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresPermission: 'farm:write',
     },
-    {
-      path: 'harvests',
-      name: 'farm-harvests',
-      component: () => import('./pages/HarvestsListPage.vue'),
-      meta: { permission: 'farm:read' }
-    },
-    {
-      path: 'crops',
-      name: 'farm-crops',
-      component: () => import('./pages/CropsDatabasePage.vue'),
-      meta: { permission: 'farm:admin' }
-    },
-    {
-      path: 'sales',
-      name: 'farm-sales',
-      component: () => import('./pages/FarmSalesPage.vue'),
-      meta: { permission: 'farm:read' }
-    },
-    {
-      path: 'reports',
-      name: 'farm-reports',
-      component: () => import('./pages/FarmReportsPage.vue'),
-      meta: { permission: 'farm:read' }
-    }
-  ]
-};
+  },
+  // Future routes for Farm module (Stories 3.2-3.9):
+  // - /farm/crops (Crops database)
+  // - /farm/plantings (Planting records)
+  // - /farm/harvests (Harvest records)
+  // - /farm/sales (Farm sales)
+  // - /farm/reports (Farm reports)
+];
 
 export default farmRoutes;

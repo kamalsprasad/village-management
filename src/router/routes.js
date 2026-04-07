@@ -1,6 +1,7 @@
 // Module routes
 import financeRoutes from 'src/modules/finance/router';
 import lendingRoutes from 'src/modules/lending/router';
+import farmRoutes from 'src/modules/farm/router';
 
 const routes = [
   // Auth page (no layout)
@@ -146,6 +147,7 @@ const routes = [
       // Finance Module routes
       ...financeRoutes,
       ...lendingRoutes,
+      ...farmRoutes,
     ],
   },
 
