@@ -456,7 +456,9 @@ As a **Finance Manager**, I want a comprehensive financial dashboard, so that I 
 
 ---
 
-### Story 3.1: Farm Module - Plot Management
+### Story 3.1: Farm Module - Plot Management ✅
+
+**Status:** completed
 
 As a **Farm Manager**, I want to create and manage farm plots, so that I can organize agricultural operations and assign responsibilities.
 

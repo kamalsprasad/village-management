@@ -161,6 +161,7 @@ import PlotStatusBadge from '../components/PlotStatusBadge.vue';
 const router = useRouter();
 const $q = useQuasar();
 const farmStore = useFarmStore();
+const residentsStore = useResidentsStore();
 const { hasPermission } = usePermissions();
 
 // Permissions
@@ -257,6 +258,10 @@ onMounted(async () => {
   if (!farmStore.soilTypesLoaded) {
     await farmStore.fetchSoilTypes();
   }
+  // Load residents for crop manager name lookups
+  if (residentsStore.residents.length === 0) {
+    await residentsStore.fetchResidents(1, 100);
+  }
 });
 
 function formatSize(size) {
@@ -265,9 +270,7 @@ function formatSize(size) {
 }
 
 function getCropManagerName(managerId) {
-  // TODO: Integrate with residents store to get actual name
   if (!managerId) return 'Unassigned';
-  const residentsStore = useResidentsStore();
   const managerName = residentsStore.getFullNameById(managerId);
   return managerName || 'Failed to load.';
 }

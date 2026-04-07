@@ -19,6 +19,7 @@
         <q-input
           v-model="formData.name"
           label="Plot Name *"
+          placeholder="e.g., North Field, Plot A, East Garden"
           :rules="[
             (val) => !!val || 'Plot name is required',
             (val) => val.length <= 100 || 'Maximum 100 characters',
@@ -37,7 +38,7 @@
           type="number"
           :rules="[
             (val) => (val !== null && val !== undefined) || 'Size is required',
-            (val) => val > 0 || 'Size must be greater than 0',
+            (val) => val >= 0.01 || 'Minimum size is 0.01 hectares (100 m²)',
             (val) => val <= 1000 || 'Maximum size is 1000 hectares',
           ]"
           min="0.01"
