@@ -40,3 +40,16 @@ This document tracks deferred improvements, upgrades, and refactoring items that
 - **Added**: Story 2.8
 
 ---
+
+## Farm Module
+
+### Per-Worker Labor Cost Tracking
+
+- **Current state**: Planting and harvest labor costs are tracked as aggregate totals (`planting_labor_farmhands` count + `planting_labor_cost` total)
+- **Improvement**: Track individual worker contributions with resident linkage for detailed labor accountability and potential payroll integration
+- **Schema change**: Replace aggregate fields with `labor_entries[]` array containing `{worker_id, hours_worked, hourly_rate, total_cost, task_description}`
+- **Benefits**: Worker accountability, detailed cost breakdown, payroll system integration, labor efficiency analysis per worker
+- **Effort**: Medium (requires schema migration and UI updates)
+- **Added**: Story 3.3 (deferred from MVP requirements)
+
+---

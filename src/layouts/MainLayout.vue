@@ -242,6 +242,15 @@
             </q-item-section>
           </q-item>
 
+          <q-item clickable to="/farm/plantings">
+            <q-item-section avatar>
+              <q-icon name="spa" />
+            </q-item-section>
+            <q-item-section>
+              <q-item-label>Plantings</q-item-label>
+            </q-item-section>
+          </q-item>
+
           <q-item clickable to="/farm/crops">
             <q-item-section avatar>
               <q-icon name="grass" />

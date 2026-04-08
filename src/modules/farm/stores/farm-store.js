@@ -111,6 +111,20 @@ export const useFarmStore = defineStore('farm', {
         return true;
       });
     },
+
+    // Active planting check for a plot (Story 3.3)
+    hasActivePlanting: (state) => (plotId) => {
+      return state.plantings.some(
+        (p) => p.plot_id === plotId && ['Planted', 'Growing', 'Harvesting'].includes(p.status),
+      );
+    },
+
+    // Get active planting for a specific plot
+    getActivePlantingForPlot: (state) => (plotId) => {
+      return state.plantings.find(
+        (p) => p.plot_id === plotId && ['Planted', 'Growing', 'Harvesting'].includes(p.status),
+      );
+    },
   },
 
   actions: {
@@ -394,6 +408,121 @@ export const useFarmStore = defineStore('farm', {
       } finally {
         this.isPlantingsLoading = false;
       }
+    },
+
+    async fetchPlantingsByPlot(plotId) {
+      this.isPlantingsLoading = true;
+      try {
+        const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
+        const response = await tables.listRows({
+          databaseId: dbId,
+          tableId: 'plantings',
+          queries: [
+            Query.equal('plot_id', plotId),
+            Query.limit(100),
+            Query.orderDesc('planting_date'),
+          ],
+        });
+        // Merge with existing plantings to maintain cache
+        const newPlantings = response.rows.filter(
+          (p) => !this.plantings.some((existing) => existing.$id === p.$id),
+        );
+        this.plantings = [...this.plantings, ...newPlantings];
+        return { success: true, data: response.rows };
+      } catch (error) {
+        console.error('Error fetching plantings by plot:', error);
+        return { success: false, error: error.message };
+      } finally {
+        this.isPlantingsLoading = false;
+      }
+    },
+
+    async fetchPlantingById(plantingId) {
+      this.isPlantingsLoading = true;
+      try {
+        const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
+        const response = await tables.getRow({
+          databaseId: dbId,
+          tableId: 'plantings',
+          rowId: plantingId,
+        });
+        this.currentPlanting = response;
+        return { success: true, data: response };
+      } catch (error) {
+        console.error('Error fetching planting:', error);
+        return { success: false, error: error.message };
+      } finally {
+        this.isPlantingsLoading = false;
+      }
+    },
+
+    async createPlanting(plantingData) {
+      try {
+        const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
+        const response = await tables.createRow({
+          databaseId: dbId,
+          tableId: 'plantings',
+          rowId: ID.unique(),
+          data: {
+            ...plantingData,
+            status: plantingData.status || 'Planted',
+          },
+        });
+        // Add to local state
+        this.plantings.unshift(response);
+        return { success: true, data: response };
+      } catch (error) {
+        console.error('Error creating planting:', error);
+        return { success: false, error: error.message };
+      }
+    },
+
+    async updatePlanting(plantingId, updateData) {
+      try {
+        const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
+        const response = await tables.updateRow({
+          databaseId: dbId,
+          tableId: 'plantings',
+          rowId: plantingId,
+          data: updateData,
+        });
+        // Update local state
+        const index = this.plantings.findIndex((p) => p.$id === plantingId);
+        if (index !== -1) {
+          this.plantings[index] = response;
+        }
+        if (this.currentPlanting?.$id === plantingId) {
+          this.currentPlanting = response;
+        }
+        return { success: true, data: response };
+      } catch (error) {
+        console.error('Error updating planting:', error);
+        return { success: false, error: error.message };
+      }
+    },
+
+    async deletePlanting(plantingId) {
+      try {
+        const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
+        await tables.deleteRow({
+          databaseId: dbId,
+          tableId: 'plantings',
+          rowId: plantingId,
+        });
+        // Remove from local state
+        this.plantings = this.plantings.filter((p) => p.$id !== plantingId);
+        if (this.currentPlanting?.$id === plantingId) {
+          this.currentPlanting = null;
+        }
+        return { success: true };
+      } catch (error) {
+        console.error('Error deleting planting:', error);
+        return { success: false, error: error.message };
+      }
+    },
+
+    clearCurrentPlanting() {
+      this.currentPlanting = null;
     },
 
     // Harvest management (Story 3.5-3.6)

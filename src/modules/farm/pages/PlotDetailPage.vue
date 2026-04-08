@@ -26,6 +26,13 @@
           </div>
         </div>
         <div class="row q-gutter-sm">
+          <q-btn
+            v-if="canWrite && !hasActivePlanting"
+            color="positive"
+            icon="add"
+            label="Record Planting"
+            @click="createPlanting"
+          />
           <q-btn v-if="canWrite" color="primary" icon="edit" label="Edit" @click="editPlot" />
           <q-btn
             v-if="canDelete"
@@ -96,29 +103,152 @@
           </q-card>
         </div>
 
-        <!-- Current Planting (Placeholder) -->
+        <!-- Current Planting -->
         <div class="col-12">
           <q-card>
             <q-card-section>
-              <div class="text-subtitle1 text-weight-medium q-mb-md">Current Planting</div>
-              <div class="text-grey q-pa-md text-center">
+              <div class="row items-center justify-between q-mb-md">
+                <div class="text-subtitle1 text-weight-medium">Current Planting</div>
+                <q-btn
+                  v-if="canWrite && !hasActivePlanting"
+                  size="sm"
+                  color="positive"
+                  icon="add"
+                  label="Record Planting"
+                  @click="createPlanting"
+                />
+              </div>
+
+              <!-- Active Planting Display -->
+              <div v-if="activePlanting" class="q-gutter-y-md">
+                <div class="row items-center">
+                  <div class="col">
+                    <router-link
+                      :to="`/farm/plantings/${activePlanting.$id}`"
+                      class="text-h6 text-primary"
+                    >
+                      {{ getCropName(activePlanting.crop_id) }}
+                    </router-link>
+                    <q-badge :color="getStatusColor(activePlanting.status)" class="q-ml-sm">
+                      {{ activePlanting.status }}
+                    </q-badge>
+                  </div>
+                </div>
+
+                <div class="row q-col-gutter-md">
+                  <div class="col-6 col-md-3">
+                    <div class="text-grey text-caption">Planted</div>
+                    <div>{{ formatDate(activePlanting.planting_date) }}</div>
+                  </div>
+                  <div class="col-6 col-md-3">
+                    <div class="text-grey text-caption">Expected Harvest</div>
+                    <div>
+                      {{ formatDate(activePlanting.expected_harvest_date) }}
+                      <q-badge
+                        v-if="daysUntilHarvest !== null"
+                        :color="harvestBadgeColor"
+                        class="q-ml-xs"
+                      >
+                        {{ daysUntilHarvestText }}
+                      </q-badge>
+                    </div>
+                  </div>
+                  <div class="col-6 col-md-3">
+                    <div class="text-grey text-caption">Investment</div>
+                    <div>ZMW {{ calculateInvestment(activePlanting).toFixed(2) }}</div>
+                  </div>
+                  <div class="col-6 col-md-3 text-right">
+                    <q-btn
+                      flat
+                      color="primary"
+                      icon="visibility"
+                      label="View Details"
+                      :to="`/farm/plantings/${activePlanting.$id}`"
+                    />
+                  </div>
+                </div>
+
+                <!-- Cost Breakdown (Collapsible) -->
+                <q-expansion-item
+                  icon="payments"
+                  label="Cost Breakdown"
+                  caption="Click to expand"
+                  dense
+                >
+                  <q-list dense>
+                    <q-item>
+                      <q-item-section>Seed Cost</q-item-section>
+                      <q-item-section side>
+                        ZMW {{ (activePlanting.seed_cost || 0).toFixed(2) }}
+                      </q-item-section>
+                    </q-item>
+                    <q-item>
+                      <q-item-section>Labor Cost</q-item-section>
+                      <q-item-section side>
+                        ZMW {{ (activePlanting.planting_labor_cost || 0).toFixed(2) }}
+                      </q-item-section>
+                    </q-item>
+                    <q-item>
+                      <q-item-section>Other Costs</q-item-section>
+                      <q-item-section side>
+                        ZMW {{ (activePlanting.planting_other_costs || 0).toFixed(2) }}
+                      </q-item-section>
+                    </q-item>
+                  </q-list>
+                </q-expansion-item>
+              </div>
+
+              <!-- Empty State -->
+              <div v-else class="text-grey q-pa-md text-center">
                 <q-icon name="spa" size="2em" class="q-mb-sm" />
                 <div>No active planting</div>
-                <div class="text-caption">Planting functionality coming in Story 3.3</div>
+                <div class="text-caption q-mt-sm">
+                  Click "Record Planting" to start tracking crops on this plot
+                </div>
               </div>
             </q-card-section>
           </q-card>
         </div>
 
-        <!-- Planting History (Placeholder) -->
+        <!-- Planting History -->
         <div class="col-12 col-md-6">
           <q-card>
             <q-card-section>
               <div class="text-subtitle1 text-weight-medium q-mb-md">Planting History</div>
-              <div class="text-grey q-pa-md text-center">
+
+              <div v-if="plotPlantings.length > 0">
+                <q-list separator>
+                  <q-item
+                    v-for="planting in completedPlantings"
+                    :key="planting.$id"
+                    clickable
+                    :to="`/farm/plantings/${planting.$id}`"
+                  >
+                    <q-item-section>
+                      <q-item-label>{{ getCropName(planting.crop_id) }}</q-item-label>
+                      <q-item-label caption>
+                        Planted: {{ formatDate(planting.planting_date) }}
+                        <span v-if="planting.status === 'Failed'" class="text-negative">
+                          (Failed)
+                        </span>
+                      </q-item-label>
+                    </q-item-section>
+                    <q-item-section side>
+                      <q-badge :color="getStatusColor(planting.status)">
+                        {{ planting.status }}
+                      </q-badge>
+                    </q-item-section>
+                  </q-item>
+                </q-list>
+                <div v-if="completedPlantings.length === 0" class="text-grey text-center q-pa-sm">
+                  No completed or failed plantings yet
+                </div>
+              </div>
+
+              <div v-else class="text-grey q-pa-md text-center">
                 <q-icon name="history" size="2em" class="q-mb-sm" />
                 <div>No planting history yet</div>
-                <div class="text-caption">History tracking coming in Story 3.4</div>
+                <div class="text-caption">History will appear once plantings are recorded</div>
               </div>
             </q-card-section>
           </q-card>
@@ -205,6 +335,55 @@ const plot = computed(() => farmStore.currentPlot);
 const canWrite = computed(() => hasPermission('farm:write'));
 const canDelete = computed(() => hasPermission('farm:delete'));
 
+// Planting-related computed properties
+const hasActivePlanting = computed(() => {
+  if (!plotId.value) return false;
+  return farmStore.hasActivePlanting(plotId.value);
+});
+
+const activePlanting = computed(() => {
+  if (!plotId.value) return null;
+  return farmStore.getActivePlantingForPlot(plotId.value);
+});
+
+const plotPlantings = computed(() => {
+  if (!plotId.value || !farmStore.plantingsLoaded) return [];
+  return farmStore.plantingsByPlot[plotId.value] || [];
+});
+
+const completedPlantings = computed(() => {
+  return plotPlantings.value.filter((p) => ['Completed', 'Failed'].includes(p.status));
+});
+
+const daysUntilHarvest = computed(() => {
+  if (!activePlanting.value?.expected_harvest_date) return null;
+  try {
+    const today = new Date();
+    const harvestDate = new Date(activePlanting.value.expected_harvest_date);
+    const diffTime = harvestDate - today;
+    return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+  } catch {
+    return null;
+  }
+});
+
+const daysUntilHarvestText = computed(() => {
+  const days = daysUntilHarvest.value;
+  if (days === null) return '';
+  if (days < 0) return `${days} days overdue`;
+  if (days === 0) return 'Today!';
+  if (days === 1) return 'Tomorrow';
+  return `In ${days} days`;
+});
+
+const harvestBadgeColor = computed(() => {
+  const days = daysUntilHarvest.value;
+  if (days === null) return 'grey';
+  if (days < 0) return 'negative';
+  if (days <= 7) return 'warning';
+  return 'positive';
+});
+
 onMounted(async () => {
   await loadPlot();
   if (!farmStore.soilTypesLoaded) {
@@ -214,6 +393,8 @@ onMounted(async () => {
   if (residentsStore.residents.length === 0) {
     await residentsStore.fetchResidents(1, 100);
   }
+  // Load plantings for this plot
+  await farmStore.fetchPlantingsByPlot(plotId.value);
 });
 
 async function loadPlot() {
@@ -253,8 +434,35 @@ function goBack() {
   router.push('/farm/plots');
 }
 
+function createPlanting() {
+  router.push(`/farm/plots/${plotId.value}/plantings/new`);
+}
+
 function editPlot() {
   router.push(`/farm/plots/${plotId.value}/edit`);
+}
+
+function getCropName(cropId) {
+  return farmStore.getCropNameById(cropId);
+}
+
+function getStatusColor(status) {
+  const colors = {
+    Planted: 'info',
+    Growing: 'positive',
+    Harvesting: 'warning',
+    Completed: 'positive',
+    Failed: 'negative',
+  };
+  return colors[status] || 'grey';
+}
+
+function calculateInvestment(planting) {
+  return (
+    (planting.seed_cost || 0) +
+    (planting.planting_labor_cost || 0) +
+    (planting.planting_other_costs || 0)
+  );
 }
 
 function confirmDelete() {
