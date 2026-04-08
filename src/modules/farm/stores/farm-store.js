@@ -76,6 +76,11 @@ export const useFarmStore = defineStore('farm', {
         return acc;
       }, {});
     },
+    getCropNameById: (state) => (cropId) => {
+      if (!cropId) return 'Unknown Crop';
+      const crop = state.crops.find((c) => c.$id === cropId);
+      return crop?.crop_name || 'Unknown Crop';
+    },
 
     // Planting getters (Story 3.3-3.4)
     plantingsByPlot: (state) => {
@@ -258,14 +263,27 @@ export const useFarmStore = defineStore('farm', {
     },
 
     // Crop management (Story 3.2)
-    async fetchCrops() {
+    async fetchCrops(filters = {}) {
       this.isCropsLoading = true;
       try {
         const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
+        const queries = [Query.limit(100), Query.orderAsc('category'), Query.orderAsc('crop_name')];
+
+        // Apply filters
+        if (filters.category) {
+          queries.push(Query.equal('category', filters.category));
+        }
+        if (filters.crop_type) {
+          queries.push(Query.equal('crop_type', filters.crop_type));
+        }
+        if (filters.is_active !== undefined) {
+          queries.push(Query.equal('is_active', filters.is_active));
+        }
+
         const response = await tables.listRows({
           databaseId: dbId,
           tableId: 'crops',
-          queries: [Query.limit(100), Query.orderAsc('category'), Query.orderAsc('crop_name')],
+          queries,
         });
         this.crops = response.rows;
         this.cropsLoaded = true;
@@ -275,6 +293,85 @@ export const useFarmStore = defineStore('farm', {
         return { success: false, error: error.message };
       } finally {
         this.isCropsLoading = false;
+      }
+    },
+
+    async fetchCropById(cropId) {
+      try {
+        const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
+        const response = await tables.getRow({
+          databaseId: dbId,
+          tableId: 'crops',
+          rowId: cropId,
+        });
+        return { success: true, data: response };
+      } catch (error) {
+        console.error('Error fetching crop:', error);
+        return { success: false, error: error.message };
+      }
+    },
+
+    async createCrop(cropData) {
+      try {
+        const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
+        const response = await tables.createRow({
+          databaseId: dbId,
+          tableId: 'crops',
+          rowId: ID.unique(),
+          data: {
+            ...cropData,
+            is_active: true,
+          },
+        });
+        // Add to local state
+        this.crops.push(response);
+        this.crops.sort((a, b) => a.crop_name.localeCompare(b.crop_name));
+        return { success: true, data: response };
+      } catch (error) {
+        console.error('Error creating crop:', error);
+        return { success: false, error: error.message };
+      }
+    },
+
+    async updateCrop(cropId, cropData) {
+      try {
+        const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
+        const response = await tables.updateRow({
+          databaseId: dbId,
+          tableId: 'crops',
+          rowId: cropId,
+          data: cropData,
+        });
+        // Update local state
+        const index = this.crops.findIndex((c) => c.$id === cropId);
+        if (index !== -1) {
+          this.crops[index] = response;
+        }
+        return { success: true, data: response };
+      } catch (error) {
+        console.error('Error updating crop:', error);
+        return { success: false, error: error.message };
+      }
+    },
+
+    async toggleCropActive(cropId, isActive) {
+      try {
+        const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
+        const response = await tables.updateRow({
+          databaseId: dbId,
+          tableId: 'crops',
+          rowId: cropId,
+          data: { is_active: isActive },
+        });
+        // Update local state
+        const index = this.crops.findIndex((c) => c.$id === cropId);
+        if (index !== -1) {
+          this.crops[index] = response;
+        }
+        return { success: true, data: response };
+      } catch (error) {
+        console.error('Error toggling crop active state:', error);
+        return { success: false, error: error.message };
       }
     },
 

@@ -241,6 +241,15 @@
               <q-item-label>Farm</q-item-label>
             </q-item-section>
           </q-item>
+
+          <q-item clickable to="/farm/crops">
+            <q-item-section avatar>
+              <q-icon name="grass" />
+            </q-item-section>
+            <q-item-section>
+              <q-item-label>Crop Database</q-item-label>
+            </q-item-section>
+          </q-item>
         </template>
 
         <!-- School Section -->

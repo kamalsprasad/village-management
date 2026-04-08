@@ -213,6 +213,13 @@ const tableSchemas = {
       },
       { key: 'is_using_sample_data', type: 'boolean', required: true, default: false },
       { key: 'modules_enabled', type: 'string', size: 500, array: true, required: false },
+      {
+        key: 'yield_unit',
+        type: 'enum',
+        elements: ['kg_per_hectare', 'kg_per_acre', 'tonnes_per_hectare'],
+        required: true,
+        default: 'kg_per_hectare',
+      },
     ],
     indexes: [],
   },
@@ -289,37 +296,64 @@ const tableSchemas = {
         elements: ['Grain', 'Vegetable', 'Fruit', 'Legume', 'Root', 'Other'],
         required: true,
       },
-      { key: 'variety', type: 'string', size: 100, required: false },
       {
-        key: 'expected_yield_per_hectare',
-        type: 'integer',
-        min: 0,
-        max: 1000000000,
-        required: false,
+        key: 'crop_type',
+        type: 'enum',
+        elements: ['Annual', 'Perennial'],
+        required: true,
       },
-      { key: 'yield_unit', type: 'string', size: 20, required: false, default: 'kg' },
-      { key: 'growing_season_months', type: 'integer', min: 1, max: 36, required: false },
       {
-        key: 'optimal_planting_months',
+        key: 'maturity_days',
         type: 'integer',
-        array: true,
         min: 1,
-        max: 12,
+        max: 1825,
+        required: true,
+      },
+      {
+        key: 'harvest_frequency',
+        type: 'integer',
+        min: 1,
+        max: 365,
         required: false,
       },
-      { key: 'notes', type: 'string', size: 1000, required: false },
+      {
+        key: 'typical_yield_per_hectare',
+        type: 'double',
+        min: 0,
+        max: 1000000,
+        required: false,
+      },
+      {
+        key: 'growing_season',
+        type: 'enum',
+        elements: ['Warm', 'Wet', 'Cool', 'All Year'],
+        required: false,
+      },
+      { key: 'notes', type: 'string', size: 500, required: false },
       { key: 'is_active', type: 'boolean', required: true, default: true },
     ],
     indexes: [
       {
         key: 'idx_crops_category',
         type: 'key',
-        columns: ['category', 'crop_name'],
-        orders: ['ASC', 'ASC'],
+        columns: ['category'],
+        orders: ['ASC'],
+      },
+      {
+        key: 'idx_crops_type',
+        type: 'key',
+        columns: ['crop_type'],
+        orders: ['ASC'],
+      },
+      {
+        key: 'idx_crops_active',
+        type: 'key',
+        columns: ['is_active'],
+        orders: ['ASC'],
       },
       {
         key: 'idx_crops_name',
-        type: 'key',
+        type: 'unique',
         columns: ['crop_name'],
         orders: ['ASC'],
       },
@@ -363,22 +397,10 @@ const tableSchemas = {
     ],
     indexes: [
       {
-        key: 'idx_plantings_plot',
-        type: 'key',
-        columns: ['plot_id'],
-        orders: ['ASC'],
-      },
-      {
         key: 'idx_plantings_date',
         type: 'key',
         columns: ['planting_date'],
         orders: ['DESC'],
-      },
-      {
-        key: 'idx_plantings_crop',
-        type: 'key',
-        columns: ['crop_id'],
-        orders: ['ASC'],
       },
       {
         key: 'idx_plantings_status',
@@ -407,12 +429,6 @@ const tableSchemas = {
       { key: 'notes', type: 'string', size: 1000, required: false },
     ],
     indexes: [
-      {
-        key: 'idx_harvests_planting',
-        type: 'key',
-        columns: ['planting_id'],
-        orders: ['ASC'],
-      },
       {
         key: 'idx_harvests_date',
         type: 'key',
@@ -511,6 +527,20 @@ async function createColumn(tableId, column) {
         break;
       case 'integer':
         await tables.createIntegerColumn({
+          databaseId: config.databaseId,
+          tableId: tableId,
+          key: key,
+          required: required,
+          min: min,
+          max: max,
+          default: defaultValue,
+          array: array || false,
+        });
+        break;
+
+      case 'float':
+      case 'double':
+        await tables.createFloatColumn({
           databaseId: config.databaseId,
           tableId: tableId,
           key: key,

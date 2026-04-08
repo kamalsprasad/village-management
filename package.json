@@ -16,6 +16,8 @@
     "postinstall": "quasar prepare",
     "setup:appwrite": "node server/scripts/setup-appwrite.js",
     "seed:roles": "node server/scripts/seed-roles.js",
+    "seed:soil-types": "node server/scripts/seed-soil-types.js",
+    "seed:crops": "node server/scripts/seed-crops.js",
     "seed:settings": "node server/scripts/seed-village-settings.js",
     "seed:sample": "node server/scripts/seed-sample-data.js"
   },

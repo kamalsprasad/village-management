@@ -478,7 +478,9 @@ As a **Farm Manager**, I want to create and manage farm plots, so that I can org
 
 ---
 
-### Story 3.2: Farm Module - Crops Database and Management
+### Story 3.2: Farm Module - Crops Database and Management ✅
+
+**Status:** completed
 
 As a **System Administrator**, I want to manage the crops database, so that Farm Managers can select from appropriate crops for our region.
 

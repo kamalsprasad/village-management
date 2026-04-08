@@ -51,8 +51,44 @@ const farmRoutes = [
       requiresPermission: 'farm:write',
     },
   },
-  // Future routes for Farm module (Stories 3.2-3.9):
-  // - /farm/crops (Crops database)
+  // Crops Database (Story 3.2)
+  {
+    path: 'farm/crops',
+    name: 'farm-crops',
+    component: () => import('./pages/CropsListPage.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresPermission: 'farm:read',
+    },
+  },
+  {
+    path: 'farm/crops/add',
+    name: 'farm-crop-add',
+    component: () => import('./pages/CropFormPage.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresPermission: 'farm:admin',
+    },
+  },
+  {
+    path: 'farm/crops/:id',
+    name: 'farm-crop-detail',
+    component: () => import('./pages/CropDetailPage.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresPermission: 'farm:read',
+    },
+  },
+  {
+    path: 'farm/crops/:id/edit',
+    name: 'farm-crop-edit',
+    component: () => import('./pages/CropFormPage.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresPermission: 'farm:admin',
+    },
+  },
+  // Future routes for Farm module (Stories 3.3-3.9):
   // - /farm/plantings (Planting records)
   // - /farm/harvests (Harvest records)
   // - /farm/sales (Farm sales)

@@ -179,6 +179,11 @@ export const useSettingsStore = defineStore('settings', {
       },
 
     /**
+     * Get yield unit
+     */
+    yieldUnit: (state) => state.settings?.yield_unit || 'kg_per_hectare',
+
+    /**
      * Check if settings are loaded
      */
     isLoaded: (state) => state.settings !== null,
