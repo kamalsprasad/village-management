@@ -499,29 +499,41 @@ export function useFinanceSampleData() {
     return { loans, schedules, payments, loanTransactions };
   };
 
-  const batchInsert = async (dbId, tableId, items, batchSize = 10) => {
+  const batchInsert = async (dbId, tableId, items, batchSize = 5) => {
     const results = [];
+
+    // Helper to create a single row with retry logic for rate limiting
+    const createRowWithRetry = async (item, idx, retries = 3, delay = 1000) => {
+      try {
+        return await tables.createRow({
+          databaseId: dbId,
+          tableId: tableId,
+          rowId: ID.unique(),
+          data: item.data || item,
+        });
+      } catch (err) {
+        // Retry on rate limit (429) or network errors
+        if ((err.code === 429 || err.type === 'general_rate_limit_exceeded') && retries > 0) {
+          console.warn(`Rate limit hit for ${tableId} item ${idx}, retrying in ${delay}ms...`);
+          await new Promise((resolve) => setTimeout(resolve, delay));
+          return createRowWithRetry(item, idx, retries - 1, delay * 2); // Exponential backoff
+        }
+        console.error(`Error inserting into ${tableId}, batch item ${idx}:`, item.data || item);
+        throw err;
+      }
+    };
+
     for (let i = 0; i < items.length; i += batchSize) {
       const batch = items.slice(i, i + batchSize);
-      const batchPromises = batch.map((item, idx) =>
-        tables
-          .createRow({
-            databaseId: dbId,
-            tableId: tableId,
-            rowId: ID.unique(),
-            data: item.data || item,
-          })
-          .catch((err) => {
-            console.error(
-              `Error inserting into ${tableId}, batch item ${i + idx}:`,
-              item.data || item,
-            );
-            throw err;
-          }),
-      );
 
-      const batchResults = await Promise.all(batchPromises);
-      // We map back the tempIndex so we can link them later
+      // Process batch items sequentially to avoid rate limits, with individual retry logic
+      const batchResults = [];
+      for (let j = 0; j < batch.length; j++) {
+        const res = await createRowWithRetry(batch[j], i + j);
+        batchResults.push(res);
+      }
+
+      // Map back the tempIndex so we can link them later
       batchResults.forEach((res, idx) => {
         if (batch[idx].tempIndex !== undefined) {
           res.tempIndex = batch[idx].tempIndex;
@@ -530,9 +542,9 @@ export function useFinanceSampleData() {
 
       results.push(...batchResults);
 
-      // Small delay between batches to prevent rate limiting
+      // Longer delay between batches to prevent rate limiting
       if (i + batchSize < items.length) {
-        await new Promise((resolve) => setTimeout(resolve, 300));
+        await new Promise((resolve) => setTimeout(resolve, 1000));
       }
     }
     return results;
