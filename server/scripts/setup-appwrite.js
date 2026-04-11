@@ -437,6 +437,295 @@ const tableSchemas = {
       },
     ],
   },
+  // Epic 2: Finance Module Tables
+  finance_categories: {
+    name: 'Finance Categories',
+    permissions: [
+      'read("team:finance")',
+      'read("team:village_administrators")',
+      'create("team:village_administrators")',
+      'update("team:village_administrators")',
+      'delete("team:village_administrators")',
+    ],
+    columns: [
+      { key: 'name', type: 'string', size: 100, required: true },
+      { key: 'type', type: 'enum', elements: ['income', 'expense'], required: true },
+      { key: 'subcategories', type: 'string', size: 2000, required: false, array: true },
+    ],
+    indexes: [],
+  },
+  funding_sources: {
+    name: 'Funding Sources',
+    permissions: [
+      'read("team:finance")',
+      'read("team:village_administrators")',
+      'create("team:finance")',
+      'create("team:village_administrators")',
+      'update("team:finance")',
+      'update("team:village_administrators")',
+      'delete("team:finance")',
+      'delete("team:village_administrators")',
+    ],
+    columns: [
+      { key: 'name', type: 'string', size: 255, required: true },
+      {
+        key: 'type',
+        type: 'enum',
+        elements: ['grant', 'donation', 'income', 'loan', 'loan repayment'],
+        required: true,
+      },
+      { key: 'total_received', type: 'float', required: true },
+      { key: 'current_balance', type: 'float', required: true },
+      { key: 'date_received', type: 'datetime', required: false },
+      { key: 'restrictions', type: 'string', size: 1000, required: false },
+      {
+        key: 'status',
+        type: 'enum',
+        elements: ['active', 'inactive', 'depleted'],
+        required: true,
+      },
+    ],
+    indexes: [],
+  },
+  loans: {
+    name: 'Loans',
+    permissions: [
+      'read("team:finance")',
+      'read("team:village_administrators")',
+      'create("team:finance")',
+      'create("team:village_administrators")',
+      'update("team:finance")',
+      'update("team:village_administrators")',
+      'delete("team:finance")',
+      'delete("team:village_administrators")',
+    ],
+    columns: [
+      {
+        key: 'borrower_id',
+        type: 'relationship',
+        relatedTable: 'residents',
+        relationType: 'manyToOne',
+        twoWay: true,
+        twoWayKey: 'loans',
+        onDelete: 'restrict',
+        required: true,
+      },
+      { key: 'principal_amount', type: 'float', required: true },
+      { key: 'interest_rate', type: 'float', required: true },
+      { key: 'term_months', type: 'integer', required: true },
+      {
+        key: 'status',
+        type: 'enum',
+        elements: ['active', 'overdue', 'late', 'defaulted', 'paid_off'],
+        required: true,
+      },
+      { key: 'outstanding_balance', type: 'float', required: true },
+    ],
+    indexes: [],
+  },
+  inventory: {
+    name: 'Inventory',
+    permissions: [
+      'read("team:finance")',
+      'read("team:village_administrators")',
+      'create("team:finance")',
+      'create("team:village_administrators")',
+      'update("team:finance")',
+      'update("team:village_administrators")',
+      'delete("team:finance")',
+      'delete("team:village_administrators")',
+    ],
+    columns: [
+      { key: 'item_name', type: 'string', size: 255, required: true },
+      {
+        key: 'item_type',
+        type: 'enum',
+        elements: [
+          'farm_inputs',
+          'farm_produce',
+          'school_supplies',
+          'medical_supplies',
+          'kitchen_supplies',
+          'equipment',
+          'other',
+        ],
+        required: true,
+      },
+      { key: 'quantity', type: 'integer', required: true },
+      { key: 'unit', type: 'string', size: 20, required: true },
+      { key: 'unit_cost', type: 'float', required: false },
+      { key: 'estimated_value', type: 'float', required: false },
+      {
+        key: 'status',
+        type: 'enum',
+        elements: ['in_stock', 'low_stock', 'out_of_stock', 'reserved'],
+        required: true,
+      },
+      {
+        key: 'source',
+        type: 'enum',
+        elements: ['finance_purchase', 'farm_harvest', 'manual_entry', 'donation'],
+        required: true,
+      },
+      { key: 'source_reference_id', type: 'string', size: 255, required: false },
+      { key: 'reorder_threshold', type: 'integer', required: true },
+      { key: 'date_added', type: 'datetime', required: false },
+      { key: 'last_updated', type: 'datetime', required: true },
+      { key: 'notes', type: 'string', size: 1000, required: false },
+      {
+        key: 'transaction_id',
+        type: 'relationship',
+        relatedTable: 'finance_transactions',
+        relationType: 'manyToOne',
+        twoWay: true,
+        twoWayKey: 'inventory_items',
+        onDelete: 'restrict',
+        required: false,
+      },
+    ],
+    indexes: [],
+  },
+  finance_transactions: {
+    name: 'Finance Transactions',
+    permissions: [
+      'read("team:finance")',
+      'read("team:village_administrators")',
+      'create("team:finance")',
+      'create("team:village_administrators")',
+      'update("team:finance")',
+      'update("team:village_administrators")',
+      'delete("team:finance")',
+      'delete("team:village_administrators")',
+    ],
+    columns: [
+      {
+        key: 'type',
+        type: 'enum',
+        elements: ['expense', 'income', 'transfer'],
+        required: true,
+      },
+      { key: 'amount_needed', type: 'float', required: true },
+      { key: 'amount_funded', type: 'float', required: true },
+      {
+        key: 'category_id',
+        type: 'relationship',
+        relatedTable: 'finance_categories',
+        relationType: 'manyToOne',
+        twoWay: true,
+        twoWayKey: 'transaction_ids',
+        onDelete: 'restrict',
+        required: true,
+      },
+      {
+        key: 'payment_method',
+        type: 'enum',
+        elements: ['Bank Transfer', 'Cash', 'Cheque', 'Mobile Money', 'Other'],
+        required: true,
+      },
+      { key: 'source_module', type: 'string', size: 50, required: true },
+      { key: 'date', type: 'datetime', required: true },
+      { key: 'description', type: 'string', size: 500, required: true },
+      { key: 'status', type: 'string', size: 20, required: true },
+      { key: 'subcategory', type: 'string', size: 100, required: false },
+      { key: 'vendor', type: 'string', size: 255, required: false },
+      { key: 'receipt_number', type: 'string', size: 100, required: false },
+      {
+        key: 'payment_status',
+        type: 'enum',
+        elements: ['paid', 'unpaid', 'partial'],
+        required: false,
+      },
+      {
+        key: 'funding_source_id',
+        type: 'relationship',
+        relatedTable: 'funding_sources',
+        relationType: 'manyToOne',
+        twoWay: true,
+        twoWayKey: 'transaction_ids',
+        onDelete: 'restrict',
+        required: false,
+      },
+      {
+        key: 'loan_id',
+        type: 'relationship',
+        relatedTable: 'loans',
+        relationType: 'manyToOne',
+        twoWay: true,
+        twoWayKey: 'transaction_ids',
+        onDelete: 'restrict',
+        required: false,
+      },
+      {
+        key: 'inventory_ids',
+        type: 'relationship',
+        relatedTable: 'inventory',
+        relationType: 'oneToMany',
+        twoWay: false,
+        onDelete: 'restrict',
+        required: false,
+      },
+    ],
+    indexes: [],
+  },
+  transaction_links: {
+    name: 'Transaction Links',
+    permissions: [
+      'read("team:finance")',
+      'read("team:village_administrators")',
+      'create("team:finance")',
+      'create("team:village_administrators")',
+      'update("team:finance")',
+      'update("team:village_administrators")',
+      'delete("team:finance")',
+      'delete("team:village_administrators")',
+    ],
+    columns: [
+      {
+        key: 'parent_transaction_id',
+        type: 'relationship',
+        relatedTable: 'finance_transactions',
+        relationType: 'manyToOne',
+        twoWay: true,
+        twoWayKey: 'funding_links_received',
+        onDelete: 'restrict',
+        required: true,
+      },
+      {
+        key: 'child_transaction_id',
+        type: 'relationship',
+        relatedTable: 'finance_transactions',
+        relationType: 'manyToOne',
+        twoWay: true,
+        twoWayKey: 'funding_links_provided',
+        onDelete: 'restrict',
+        required: false,
+      },
+      { key: 'amount', type: 'float', required: true },
+      {
+        key: 'funding_source_id',
+        type: 'relationship',
+        relatedTable: 'funding_sources',
+        relationType: 'manyToOne',
+        twoWay: true,
+        twoWayKey: 'funding_links_source',
+        onDelete: 'restrict',
+        required: true,
+      },
+      {
+        key: 'recorded_by',
+        type: 'relationship',
+        relatedTable: 'users',
+        relationType: 'manyToOne',
+        twoWay: true,
+        twoWayKey: 'recorded_transaction_links',
+        onDelete: 'restrict',
+        required: true,
+      },
+      { key: 'notes', type: 'string', size: 500, required: false },
+      { key: 'created_at', type: 'datetime', required: true },
+    ],
+    indexes: [],
+  },
   farm_sales: {
     name: 'Farm Sales',
     columns: [
@@ -487,11 +776,18 @@ async function createTable(tableId, schema) {
   try {
     console.log(`\n📦 Creating table: ${schema.name} (${tableId})`);
 
+    const permissions = schema.permissions || [
+      'read("any")',
+      'create("any")',
+      'update("any")',
+      'delete("any")',
+    ];
+
     await tables.createTable({
       databaseId: config.databaseId,
       tableId: tableId,
       name: schema.name,
-      permissions: ['read("any")', 'create("any")', 'update("any")', 'delete("any")'], // Permissions for any authenticated user
+      permissions: permissions,
       enabled: true,
       rowSecurity: false, // Document security (false = table-level permissions)
     });
@@ -602,6 +898,7 @@ async function createColumn(tableId, column) {
           twoWay: column.twoWay || false,
           key: key,
           twoWayKey: column.twoWayKey,
+          onDelete: column.onDelete,
         });
         break;
 
@@ -747,14 +1044,17 @@ async function setupDatabase() {
 
     console.log('\n✅ Database setup complete!');
     console.log('\n📋 Summary:');
-    console.log('   - 11 Tables created/verified');
-    console.log('   - 80+ columns created/verified');
+    console.log('   - 17 Tables created/verified');
+    console.log('   - 120+ columns created/verified');
     console.log('   - 16 indexes created/verified');
     console.log('   - Permissions configured');
     console.log('\n🎉 You can now test the database connection at /appwrite-test');
     console.log('\n📦 Tables created:');
     console.log('   Core: users, residents, households, roles, village_settings');
     console.log('   Farm: soil_types, plots, crops, plantings, harvests, farm_sales');
+    console.log(
+      '   Finance: finance_categories, funding_sources, loans, inventory, finance_transactions, transaction_links',
+    );
   } catch (error) {
     console.error('\n❌ Setup failed:', error.message);
     if (error.response) {

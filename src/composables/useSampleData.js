@@ -38,6 +38,7 @@ export function useSampleData() {
     timezone: 'Africa/Lusaka',
     country_code: 'ZM',
     country_phone_code: '+260',
+    yield_unit: 'kg_per_hectare',
     is_using_sample_data: true,
     modules_enabled: ['residents', 'households', 'dashboard', 'finance', 'inventory'],
     council_members: [], // Will be populated after residents are created
