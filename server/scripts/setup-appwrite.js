@@ -65,6 +65,9 @@ const client = new Client()
 const databases = new Databases(client);
 const tables = new TablesDB(client);
 
+// TODO: Update these permissions to be more specific based on user roles and databases they to which they need access
+const permissions = ['read("any")', 'create("any")', 'update("any")', 'delete("any")'];
+
 // Table schemas
 const tableSchemas = {
   users: {
@@ -440,13 +443,7 @@ const tableSchemas = {
   // Epic 2: Finance Module Tables
   finance_categories: {
     name: 'Finance Categories',
-    permissions: [
-      'read("team:finance")',
-      'read("team:village_administrators")',
-      'create("team:village_administrators")',
-      'update("team:village_administrators")',
-      'delete("team:village_administrators")',
-    ],
+    permissions: permissions,
     columns: [
       { key: 'name', type: 'string', size: 100, required: true },
       { key: 'type', type: 'enum', elements: ['income', 'expense'], required: true },
@@ -456,16 +453,7 @@ const tableSchemas = {
   },
   funding_sources: {
     name: 'Funding Sources',
-    permissions: [
-      'read("team:finance")',
-      'read("team:village_administrators")',
-      'create("team:finance")',
-      'create("team:village_administrators")',
-      'update("team:finance")',
-      'update("team:village_administrators")',
-      'delete("team:finance")',
-      'delete("team:village_administrators")',
-    ],
+    permissions: permissions,
     columns: [
       { key: 'name', type: 'string', size: 255, required: true },
       {
@@ -489,16 +477,7 @@ const tableSchemas = {
   },
   loans: {
     name: 'Loans',
-    permissions: [
-      'read("team:finance")',
-      'read("team:village_administrators")',
-      'create("team:finance")',
-      'create("team:village_administrators")',
-      'update("team:finance")',
-      'update("team:village_administrators")',
-      'delete("team:finance")',
-      'delete("team:village_administrators")',
-    ],
+    permissions: permissions,
     columns: [
       {
         key: 'borrower_id',
@@ -514,6 +493,23 @@ const tableSchemas = {
       { key: 'interest_rate', type: 'float', required: true },
       { key: 'term_months', type: 'integer', required: true },
       {
+        key: 'repayment_frequency',
+        type: 'enum',
+        elements: ['weekly', 'biweekly', 'monthly', 'quarterly', 'annually'],
+        required: true,
+      },
+      {
+        key: 'purpose',
+        type: 'enum',
+        elements: ['farm', 'business', 'medical', 'education', 'other'],
+        required: true,
+      },
+      { key: 'collateral_description', type: 'string', size: 500, required: false },
+      { key: 'disbursement_date', type: 'datetime', required: false },
+      { key: 'total_repayment', type: 'float', required: true },
+      { key: 'payment_amount', type: 'float', required: true },
+      { key: 'next_due_date', type: 'datetime', required: false },
+      {
         key: 'status',
         type: 'enum',
         elements: ['active', 'overdue', 'late', 'defaulted', 'paid_off'],
@@ -525,16 +521,7 @@ const tableSchemas = {
   },
   inventory: {
     name: 'Inventory',
-    permissions: [
-      'read("team:finance")',
-      'read("team:village_administrators")',
-      'create("team:finance")',
-      'create("team:village_administrators")',
-      'update("team:finance")',
-      'update("team:village_administrators")',
-      'delete("team:finance")',
-      'delete("team:village_administrators")',
-    ],
+    permissions: permissions,
     columns: [
       { key: 'item_name', type: 'string', size: 255, required: true },
       {
@@ -587,16 +574,7 @@ const tableSchemas = {
   },
   finance_transactions: {
     name: 'Finance Transactions',
-    permissions: [
-      'read("team:finance")',
-      'read("team:village_administrators")',
-      'create("team:finance")',
-      'create("team:village_administrators")',
-      'update("team:finance")',
-      'update("team:village_administrators")',
-      'delete("team:finance")',
-      'delete("team:village_administrators")',
-    ],
+    permissions: permissions,
     columns: [
       {
         key: 'type',
@@ -669,16 +647,7 @@ const tableSchemas = {
   },
   transaction_links: {
     name: 'Transaction Links',
-    permissions: [
-      'read("team:finance")',
-      'read("team:village_administrators")',
-      'create("team:finance")',
-      'create("team:village_administrators")',
-      'update("team:finance")',
-      'update("team:village_administrators")',
-      'delete("team:finance")',
-      'delete("team:village_administrators")',
-    ],
+    permissions: permissions,
     columns: [
       {
         key: 'parent_transaction_id',
@@ -726,8 +695,73 @@ const tableSchemas = {
     ],
     indexes: [],
   },
+  // Loan Management Tables
+  repayment_schedule: {
+    name: 'Repayment Schedule',
+    permissions: permissions,
+    columns: [
+      {
+        key: 'loan_id',
+        type: 'relationship',
+        relatedTable: 'loans',
+        relationType: 'manyToOne',
+        twoWay: true,
+        twoWayKey: 'repayment_schedules',
+        onDelete: 'restrict',
+        required: true,
+      },
+      { key: 'installment_number', type: 'integer', required: true },
+      { key: 'due_date', type: 'datetime', required: true },
+      { key: 'amount', type: 'float', required: true },
+      {
+        key: 'status',
+        type: 'enum',
+        elements: ['pending', 'paid', 'overdue', 'partial'],
+        required: true,
+      },
+      { key: 'paid_date', type: 'datetime', required: false },
+      { key: 'notes', type: 'string', size: 500, required: false },
+    ],
+    indexes: [],
+  },
+  loan_payments: {
+    name: 'Loan Payments',
+    permissions: permissions,
+    columns: [
+      {
+        key: 'loan_id',
+        type: 'relationship',
+        relatedTable: 'loans',
+        relationType: 'manyToOne',
+        twoWay: true,
+        twoWayKey: 'loan_payments',
+        onDelete: 'restrict',
+        required: true,
+      },
+      {
+        key: 'finance_transaction_id',
+        type: 'relationship',
+        relatedTable: 'finance_transactions',
+        relationType: 'manyToOne',
+        twoWay: false,
+        onDelete: 'restrict',
+        required: false,
+      },
+      { key: 'amount', type: 'float', required: true },
+      { key: 'payment_date', type: 'datetime', required: true },
+      {
+        key: 'payment_method',
+        type: 'enum',
+        elements: ['Bank Transfer', 'Cash', 'Cheque', 'Mobile Money', 'Other'],
+        required: true,
+      },
+      { key: 'notes', type: 'string', size: 500, required: false },
+    ],
+    indexes: [],
+  },
   farm_sales: {
     name: 'Farm Sales',
+    permissions: permissions,
     columns: [
       {
         key: 'harvest_id',
@@ -1044,8 +1078,8 @@ async function setupDatabase() {
 
     console.log('\n✅ Database setup complete!');
     console.log('\n📋 Summary:');
-    console.log('   - 17 Tables created/verified');
-    console.log('   - 120+ columns created/verified');
+    console.log('   - 19 Tables created/verified');
+    console.log('   - 130+ columns created/verified');
     console.log('   - 16 indexes created/verified');
     console.log('   - Permissions configured');
     console.log('\n🎉 You can now test the database connection at /appwrite-test');
@@ -1055,6 +1089,7 @@ async function setupDatabase() {
     console.log(
       '   Finance: finance_categories, funding_sources, loans, inventory, finance_transactions, transaction_links',
     );
+    console.log('   Loan Mgmt: repayment_schedule, loan_payments');
   } catch (error) {
     console.error('\n❌ Setup failed:', error.message);
     if (error.response) {
