@@ -1,0 +1,261 @@
+import { Client, TablesDB, Query } from 'node-appwrite';
+
+/**
+ * Appwrite Cloud Function: Wipe All Data
+ *
+ * Deletes all documents from every collection in dependency order
+ * (children before parents) using parallel batch deletions for performance.
+ * Requires System Administrator permission (verified server-side).
+ *
+ * Request body: { userId: string }
+ * Response: {
+ *   success: boolean,
+ *   message?: string,
+ *   error?: string,
+ *   deleted?: Record<string, number>
+ * }
+ *
+ * Deletion order (children first to avoid FK constraint errors):
+ *   1. transaction_links        (→ finance_transactions)
+ *   2. repayment_schedule       (→ loans, loan_payments)
+ *   3. loan_payments            (→ loans, finance_transactions)
+ *   4. farm_sales               (→ inventory, harvests, finance_transactions)
+ *   5. finance_transactions     (→ funding_sources, finance_categories)
+ *   6. loans                    (→ residents)
+ *   7. harvests                 (→ plantings, inventory)
+ *   8. inventory                (standalone after harvests/farm_sales cleared)
+ *   9. plantings                (→ plots, crops)
+ *  10. plots                    (→ soil_types, residents)
+ *  11. farm_sales already done; crops, soil_types, funding_sources,
+ *      finance_categories are reference/seed tables — cleared last
+ *  12. residents                (→ households — circular, so households cleared after)
+ *  13. households
+ *  14. village_settings         (single doc)
+ *  15. roles                    (seed table — keep last so permission check stays valid)
+ *  NOTE: users collection is intentionally NOT wiped (auth accounts remain).
+ */
+
+/**
+ * Wipe all rows in a table using a single bulk deleteRows() call.
+ * No queries = delete all rows. Not rate-limited when using an API key.
+ * Returns the count of rows that existed before deletion.
+ * @param {TablesDB} tablesDB
+ * @param {string} databaseId
+ * @param {string} tableId
+ * @param {Function} log
+ * @param {Function} error
+ * @returns {Promise<number>}
+ */
+async function wipeTable(tablesDB, databaseId, tableId, log, error) {
+  log(`Phase: Deleting ${tableId}...`);
+  let totalDeleted = 0;
+  try {
+    // Fetch IDs in batches and delete sequentially until table is empty
+    let hasMore = true;
+    while (hasMore) {
+      const response = await tablesDB.listRows({
+        databaseId,
+        tableId,
+        queries: [Query.limit(100), Query.select(['$id'])],
+      });
+      const rows = response.rows ?? [];
+      if (rows.length === 0) {
+        hasMore = false;
+        break;
+      }
+      for (const row of rows) {
+        try {
+          await tablesDB.deleteRow({ databaseId, tableId, rowId: row.$id });
+          totalDeleted++;
+        } catch (delErr) {
+          log(`Warning: Failed to delete ${tableId}/${row.$id}: ${delErr.message}`);
+        }
+      }
+      log(`Deleted ${totalDeleted} rows from ${tableId} so far...`);
+    }
+    log(`Completed: Deleted ${totalDeleted} rows from ${tableId}`);
+    return totalDeleted;
+  } catch (err) {
+    error(`Error deleting ${tableId}: ${err.message}`);
+    return totalDeleted;
+  }
+}
+
+export default async ({ req, res, log, error }) => {
+  const endpoint =
+    process.env.APPWRITE_ENDPOINT ||
+    process.env.APPWRITE_FUNCTION_ENDPOINT ||
+    'https://cloud.appwrite.io/v1';
+  const projectId = process.env.APPWRITE_FUNCTION_PROJECT_ID || '';
+  //const apiKey = process.env.APPWRITE_FUNCTION_API_KEY || '';
+  const apiKey =
+    'c5bb9bdd822a24a719320b1a6ba0b3c66bef08e7c5316b479b4446f754e49813150b1cd09dbfceb1a5a06cdb6c6c8fe6164d635e511b986e5b2a5414bdad9d86c88fec8775229079192666c61f73e2d479a38b009dd5e59273181e2927440412639c468bf8cd6585d076ef71db2038abd9c14d14d2048b2b15e912d3f39355de';
+
+  log(`Wipe function called. Endpoint: ${endpoint}, Project: ${projectId}`);
+
+  const client = new Client().setEndpoint(endpoint).setProject(projectId).setKey(apiKey);
+  const tablesDB = new TablesDB(client);
+
+  // Collection IDs from environment (fall back to schema names)
+  const databaseId = process.env.DATABASE_ID || 'villageDB';
+  const usersTableId = process.env.TABLE_USERS || 'users';
+  const rolesTableId = process.env.TABLE_ROLES || 'roles';
+  const settingsTableId = process.env.TABLE_VILLAGE_SETTINGS || 'village_settings';
+
+  log(`Using databaseId: ${databaseId}`);
+
+  try {
+    // Parse request body
+    let body = {};
+    if (req.body) {
+      try {
+        body = typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
+      } catch (parseError) {
+        error('Failed to parse request body: ' + parseError.message);
+        return res.json({ success: false, error: 'Invalid request body' }, 400);
+      }
+    }
+
+    const { userId } = body;
+    if (!userId) {
+      error('Missing userId in request');
+      return res.json({ success: false, error: 'Missing userId parameter' }, 400);
+    }
+
+    log(`Verifying permissions for user: ${userId}`);
+
+    // ============================================
+    // PERMISSION VERIFICATION (Server-Side)
+    // ============================================
+
+    // Step 1: Get user profile from users collection
+    let userProfile;
+    try {
+      userProfile = await tablesDB.getRow({
+        databaseId,
+        tableId: usersTableId,
+        rowId: userId,
+        queries: [Query.select(['*', 'role_ids.*'])],
+      });
+    } catch (userError) {
+      error(`User profile not found: ${userError.message}`);
+      return res.json({ success: false, error: 'User not found' }, 403);
+    }
+
+    // Step 2: Confirm user has roles assigned
+    // role_ids is a relationship — populated as an array of role objects
+    const userRoles = userProfile.role_ids || [];
+    if (userRoles.length === 0) {
+      error('User has no roles assigned');
+      return res.json({ success: false, error: 'Insufficient permissions' }, 403);
+    }
+
+    // Step 3: Check populated role objects for '*' (System Administrator) permission
+    let hasAdminPermission = false;
+    for (const role of userRoles) {
+      const permissions = role.permissions || [];
+      log(`Checking role: ${role.name}, permissions: ${permissions}`);
+
+      if (permissions.includes('*')) {
+        hasAdminPermission = true;
+        log(`User has System Administrator permission via role: ${role.name}`);
+        break;
+      }
+    }
+
+    if (!hasAdminPermission) {
+      error('User does not have System Administrator permission');
+      return res.json({ success: false, error: 'Only System Administrators can wipe data' }, 403);
+    }
+
+    log('Permission verified. Starting full data wipe...');
+
+    // ============================================
+    // DATA WIPE — ordered children-before-parents
+    // ============================================
+
+    const deleted = {};
+
+    // --- Finance leaf tables first ---
+    deleted.transaction_links = await wipeTable(
+      tablesDB,
+      databaseId,
+      'transaction_links',
+      log,
+      error,
+    );
+    deleted.repayment_schedule = await wipeTable(
+      tablesDB,
+      databaseId,
+      'repayment_schedule',
+      log,
+      error,
+    );
+    deleted.loan_payments = await wipeTable(tablesDB, databaseId, 'loan_payments', log, error);
+
+    // --- Farm sales (references inventory, harvests, finance_transactions) ---
+    deleted.farm_sales = await wipeTable(tablesDB, databaseId, 'farm_sales', log, error);
+
+    // --- Finance transactions (references funding_sources, finance_categories) ---
+    deleted.finance_transactions = await wipeTable(
+      tablesDB,
+      databaseId,
+      'finance_transactions',
+      log,
+      error,
+    );
+
+    // --- Loans (references residents) ---
+    deleted.loans = await wipeTable(tablesDB, databaseId, 'loans', log, error);
+
+    // --- Farm: harvests then inventory then plantings ---
+    deleted.harvests = await wipeTable(tablesDB, databaseId, 'harvests', log, error);
+    deleted.inventory = await wipeTable(tablesDB, databaseId, 'inventory', log, error);
+    deleted.plantings = await wipeTable(tablesDB, databaseId, 'plantings', log, error);
+    deleted.plots = await wipeTable(tablesDB, databaseId, 'plots', log, error);
+
+    // --- Reference / seed tables ---
+    deleted.crops = await wipeTable(tablesDB, databaseId, 'crops', log, error);
+    deleted.soil_types = await wipeTable(tablesDB, databaseId, 'soil_types', log, error);
+    deleted.finance_categories = await wipeTable(
+      tablesDB,
+      databaseId,
+      'finance_categories',
+      log,
+      error,
+    );
+    deleted.funding_sources = await wipeTable(tablesDB, databaseId, 'funding_sources', log, error);
+
+    // --- Village settings before residents (council_member_ids → residents FK restrict) ---
+    deleted.village_settings = await wipeTable(tablesDB, databaseId, settingsTableId, log, error);
+
+    // --- Core: residents before households (residents.household_id FK),
+    //     but households.head_resident_id also points back — delete residents
+    //     first to break the cycle, then households. ---
+    deleted.residents = await wipeTable(tablesDB, databaseId, 'residents', log, error);
+    deleted.households = await wipeTable(tablesDB, databaseId, 'households', log, error);
+
+    // --- Roles last (needed for the permission check above) ---
+    deleted.roles = await wipeTable(tablesDB, databaseId, rolesTableId, log, error);
+
+    const totalDeleted = Object.values(deleted).reduce((sum, n) => sum + n, 0);
+    log(`Wipe completed. Total documents deleted: ${totalDeleted}`);
+
+    return res.json({
+      success: true,
+      message: 'All data wiped successfully',
+      deleted,
+      totalDeleted,
+    });
+  } catch (err) {
+    error('Unexpected error during wipe: ' + err.message);
+    return res.json(
+      {
+        success: false,
+        error: 'An unexpected error occurred during data wipe',
+        details: err.message,
+      },
+      500,
+    );
+  }
+};

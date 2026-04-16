@@ -1,100 +1,66 @@
-import { Client, Databases, Users, Query } from 'node-appwrite';
+import { Client, TablesDB, Query } from 'node-appwrite';
 
 /**
  * Appwrite Cloud Function: Wipe All Data
  *
- * Deletes all residents, households, and resets village settings using
- * parallel batch deletions for performance.
- * Requires System Administrator permission (verified server-side).
+ * Deletes all data tables in the database by dropping them entirely, then
+ * loops until all targeted tables are gone (handles FK-blocked first-pass
+ * deletions by retrying). Schema is recreated separately via `appwrite push`.
+ *
+ * Deletion uses deleteTable (drops schema + data) rather than deleteRow to
+ * avoid per-row rate limits entirely.
  *
  * Request body: { userId: string }
- * Response: {
- *   success: boolean,
- *   message?: string,
- *   error?: string,
- *   phase?: string,
- *   totalResidents?: number,
- *   totalHouseholds?: number,
- *   deletedResidents?: number,
- *   deletedHouseholds?: number
- * }
+ * Response: { success: boolean, message?: string, error?: string, deleted?: string[] }
  */
 
-// Configuration for parallel batch deletions
-const BATCH_SIZE = 100; // Documents to fetch per query
-const PARALLEL_DELETES = 25; // Concurrent delete operations
+// Tables to wipe, in preferred order (children first reduces FK retries)
+const TABLES_TO_WIPE = [
+  'transaction_links',
+  'repayment_schedule',
+  'loan_payments',
+  'farm_sales',
+  'finance_transactions',
+  'loans',
+  'harvests',
+  'inventory',
+  'plantings',
+  'plots',
+  'crops',
+  'soil_types',
+  'finance_categories',
+  'funding_sources',
+  'village_settings',
+  'residents',
+  'households',
+];
 
-/**
- * Delete documents in parallel batches for better performance
- * @param {Databases} databases - Appwrite Databases instance
- * @param {string} databaseId - Database ID
- * @param {string} collectionId - Collection ID
- * @param {Function} log - Logging function
- * @returns {Promise<number>} Number of deleted documents
- */
-async function deleteCollectionDocuments(databases, databaseId, collectionId, log) {
-  let totalDeleted = 0;
-  let hasMore = true;
-
-  while (hasMore) {
-    // Fetch a batch of documents
-    const response = await databases.listDocuments(databaseId, collectionId, [
-      Query.limit(BATCH_SIZE),
-    ]);
-
-    if (response.documents.length === 0) {
-      hasMore = false;
-      break;
-    }
-
-    // Delete documents in parallel chunks
-    const documents = response.documents;
-    for (let i = 0; i < documents.length; i += PARALLEL_DELETES) {
-      const chunk = documents.slice(i, i + PARALLEL_DELETES);
-      const deletePromises = chunk.map((doc) =>
-        databases.deleteDocument(databaseId, collectionId, doc.$id).catch((err) => {
-          // Log but don't fail on individual delete errors
-          log(`Warning: Failed to delete ${collectionId}/${doc.$id}: ${err.message}`);
-          return null;
-        }),
-      );
-
-      await Promise.all(deletePromises);
-      totalDeleted += chunk.length;
-    }
-
-    log(`Deleted ${totalDeleted} documents from ${collectionId}...`);
-  }
-
-  return totalDeleted;
-}
+const MAX_PASSES = 5; // Safety cap on retry loop
 
 export default async ({ req, res, log, error }) => {
-  // Initialize Appwrite client with server-side credentials
   const endpoint =
     process.env.APPWRITE_ENDPOINT ||
     process.env.APPWRITE_FUNCTION_ENDPOINT ||
     'https://cloud.appwrite.io/v1';
   const projectId = process.env.APPWRITE_FUNCTION_PROJECT_ID || '';
-  const apiKey = process.env.APPWRITE_FUNCTION_API_KEY || '';
+  const apiKey = process.env.APPWRITE_API_KEY || process.env.APPWRITE_FUNCTION_API_KEY || '';
 
   log(`Wipe function called. Endpoint: ${endpoint}, Project: ${projectId}`);
 
   const client = new Client().setEndpoint(endpoint).setProject(projectId).setKey(apiKey);
+  const tablesDB = new TablesDB(client);
 
-  const databases = new Databases(client);
-  const users = new Users(client);
-
-  // Database and table IDs from environment
   const databaseId = process.env.DATABASE_ID || 'villageDB';
-  const residentsTableId = process.env.TABLE_RESIDENTS || 'residents';
-  const householdsTableId = process.env.TABLE_HOUSEHOLDS || 'households';
-  const settingsTableId = process.env.TABLE_VILLAGE_SETTINGS || 'village_settings';
   const usersTableId = process.env.TABLE_USERS || 'users';
   const rolesTableId = process.env.TABLE_ROLES || 'roles';
 
+  log(`Using databaseId: ${databaseId}`);
+
   try {
-    // Parse request body
+    // ============================================
+    // PERMISSION VERIFICATION (Server-Side)
+    // ============================================
+
     let body = {};
     if (req.body) {
       try {
@@ -106,7 +72,6 @@ export default async ({ req, res, log, error }) => {
     }
 
     const { userId } = body;
-
     if (!userId) {
       error('Missing userId in request');
       return res.json({ success: false, error: 'Missing userId parameter' }, 400);
@@ -114,115 +79,99 @@ export default async ({ req, res, log, error }) => {
 
     log(`Verifying permissions for user: ${userId}`);
 
-    // ============================================
-    // PERMISSION VERIFICATION (Server-Side)
-    // ============================================
-
-    // Step 1: Get user profile from users table
     let userProfile;
     try {
-      userProfile = await databases.getDocument(databaseId, usersTableId, userId);
+      userProfile = await tablesDB.getRow({
+        databaseId,
+        tableId: usersTableId,
+        rowId: userId,
+        queries: [Query.select(['*', 'role_ids.*'])],
+      });
     } catch (userError) {
       error(`User profile not found: ${userError.message}`);
       return res.json({ success: false, error: 'User not found' }, 403);
     }
 
-    // Step 2: Check if user has System Administrator role
-    const roleIds = userProfile.role_ids || [];
-    if (roleIds.length === 0) {
+    const userRoles = userProfile.role_ids || [];
+    if (userRoles.length === 0) {
       error('User has no roles assigned');
       return res.json({ success: false, error: 'Insufficient permissions' }, 403);
     }
 
-    // Step 3: Fetch roles and check for '*' (System Administrator) permission
     let hasAdminPermission = false;
-    for (const roleId of roleIds) {
-      try {
-        // const role = await databases.getDocument(databaseId, rolesTableId, roleId);
-        // console.log(`role: ${role}`);
-        const permissions = roleId.permissions || [];
-        console.log(`roleId: ${roleId}, permissions: ${permissions}`);
-
-        if (permissions.includes('*')) {
-          hasAdminPermission = true;
-          log(`User has System Administrator permission via role: ${role.name}`);
-          break;
-        }
-      } catch (roleError) {
-        log(`Could not fetch role ${roleId}: ${roleError.message}`);
+    for (const role of userRoles) {
+      const permissions = role.permissions || [];
+      log(`Checking role: ${role.name}, permissions: ${permissions}`);
+      if (permissions.includes('*')) {
+        hasAdminPermission = true;
+        log(`User has System Administrator permission via role: ${role.name}`);
+        break;
       }
     }
 
     if (!hasAdminPermission) {
       error('User does not have System Administrator permission');
-      return res.json(
-        {
-          success: false,
-          error: 'Only System Administrators can wipe data',
-        },
-        403,
-      );
+      return res.json({ success: false, error: 'Only System Administrators can wipe data' }, 403);
     }
 
-    log('Permission verified. Starting data wipe...');
+    log('Permission verified. Starting full data wipe...');
 
     // ============================================
-    // DATA WIPE OPERATIONS (Parallel Batch Deletions)
+    // DATA WIPE — delete tables, retry until all gone
     // ============================================
 
-    let deletedResidents = 0;
-    let deletedHouseholds = 0;
+    const deleted = [];
+    // Start with full list; each pass attempts to delete remaining tables
+    let remaining = [...TABLES_TO_WIPE];
+    // Also exclude the users table from wiping (auth accounts remain)
+    remaining = remaining.filter((t) => t !== usersTableId);
 
-    // Step 1: Delete all residents (parallel batches)
-    log('Phase: Deleting residents...');
-    try {
-      deletedResidents = await deleteCollectionDocuments(
-        databases,
-        databaseId,
-        residentsTableId,
-        log,
-      );
-      log(`Completed: Deleted ${deletedResidents} residents`);
-    } catch (residentsError) {
-      error(`Error deleting residents: ${residentsError.message}`);
-      // Continue with other deletions
+    for (let pass = 1; pass <= MAX_PASSES && remaining.length > 0; pass++) {
+      log(`Pass ${pass}: ${remaining.length} table(s) remaining — ${remaining.join(', ')}`);
+      const stillRemaining = [];
+
+      for (const tableId of remaining) {
+        try {
+          // Check if table still has rows
+          const check = await tablesDB.listRows({
+            databaseId,
+            tableId,
+            queries: [Query.limit(1)],
+          });
+          const rowCount = check.total ?? check.rows?.length ?? 0;
+
+          if (rowCount === 0) {
+            log(`${tableId}: no rows, skipping delete`);
+          } else {
+            log(`${tableId}: ${rowCount} row(s) exist, attempting deleteTable...`);
+          }
+
+          await tablesDB.deleteTable({ databaseId, tableId });
+          log(`${tableId}: deleted successfully`);
+          deleted.push(tableId);
+        } catch (err) {
+          log(`${tableId}: could not delete — ${err.message} (will retry if passes remain)`);
+          stillRemaining.push(tableId);
+        }
+      }
+
+      remaining = stillRemaining;
     }
 
-    // Step 2: Delete all households (parallel batches)
-    log('Phase: Deleting households...');
-    try {
-      deletedHouseholds = await deleteCollectionDocuments(
-        databases,
-        databaseId,
-        householdsTableId,
-        log,
-      );
-      log(`Completed: Deleted ${deletedHouseholds} households`);
-    } catch (householdsError) {
-      error(`Error deleting households: ${householdsError.message}`);
-      // Continue with settings reset
+    if (remaining.length > 0) {
+      error(`Could not delete after ${MAX_PASSES} passes: ${remaining.join(', ')}`);
+      return res.json({
+        success: false,
+        error: `Some tables could not be deleted: ${remaining.join(', ')}`,
+        deleted,
+      });
     }
 
-    // Step 3: Delete village settings (settings_root)
-    log('Phase: Resetting village settings...');
-    try {
-      await databases.deleteDocument(databaseId, settingsTableId, 'settings_root');
-      log('Village settings deleted successfully');
-    } catch (settingsError) {
-      // Settings might not exist, which is fine
-      log(`Settings deletion note: ${settingsError.message}`);
-    }
-
-    log(
-      `Wipe completed. Deleted ${deletedResidents} residents and ${deletedHouseholds} households.`,
-    );
-
+    log(`Wipe completed. Deleted tables: ${deleted.join(', ')}`);
     return res.json({
       success: true,
-      message: 'All data wiped successfully',
-      phase: 'complete',
-      deletedResidents,
-      deletedHouseholds,
+      message: 'All data wiped successfully. Run `appwrite push` to recreate the schema.',
+      deleted,
     });
   } catch (err) {
     error('Unexpected error during wipe: ' + err.message);
