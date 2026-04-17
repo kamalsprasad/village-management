@@ -89,14 +89,27 @@
               style="max-width: 400px; margin: 0 auto"
             />
             <q-linear-progress
-              v-if="seedingProgress >= 0.9"
+              v-if="seedingProgress >= 0.9 && seedingProgress < 0.95"
               :value="financeSeedingProgress"
               color="secondary"
               class="q-mb-md"
               style="max-width: 400px; margin: 0 auto"
             />
+            <q-linear-progress
+              v-if="seedingProgress >= 0.95"
+              :value="farmSeedingProgress"
+              color="accent"
+              class="q-mb-md"
+              style="max-width: 400px; margin: 0 auto"
+            />
             <p class="text-body2 text-grey-7">
-              {{ seedingProgress >= 0.9 ? financeSeedingStatus : seedingStatus }}
+              {{
+                seedingProgress >= 0.95
+                  ? farmSeedingStatus
+                  : seedingProgress >= 0.9
+                    ? financeSeedingStatus
+                    : seedingStatus
+              }}
             </p>
           </div>
         </div>
@@ -118,6 +131,8 @@ const {
   seedingStatus,
   financeSeedingProgress,
   financeSeedingStatus,
+  farmSeedingProgress,
+  farmSeedingStatus,
 } = useSampleData();
 
 const selectedOption = ref(null);

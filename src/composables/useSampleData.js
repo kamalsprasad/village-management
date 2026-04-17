@@ -4,6 +4,7 @@ import { useHouseholdsStore } from 'src/stores/households-store';
 import { useResidentsStore } from 'src/stores/residents-store';
 import { useErrorHandler } from 'src/composables/useErrorHandler';
 import { useFinanceSampleData } from 'src/composables/useFinanceSampleData';
+import { useFarmSampleData } from 'src/composables/useFarmSampleData';
 
 /**
  * Composable for seeding sample data (Katete Model Village)
@@ -17,6 +18,7 @@ export function useSampleData() {
   const residentsStore = useResidentsStore();
   const errorHandler = useErrorHandler();
   const { seedFinanceData, financeSeedingProgress, financeSeedingStatus } = useFinanceSampleData();
+  const { seedFarmData, farmSeedingProgress, farmSeedingStatus } = useFarmSampleData();
 
   const isSeeding = ref(false);
   const seedingProgress = ref(0);
@@ -40,7 +42,7 @@ export function useSampleData() {
     country_phone_code: '+260',
     yield_unit: 'kg_per_hectare',
     is_using_sample_data: true,
-    modules_enabled: ['residents', 'households', 'dashboard', 'finance', 'inventory'],
+    modules_enabled: ['residents', 'households', 'dashboard', 'finance', 'inventory', 'farm'],
     council_members: [], // Will be populated after residents are created
   };
 
@@ -426,6 +428,16 @@ export function useSampleData() {
         throw new Error(`Failed to generate finance data: ${financeResult.error}`);
       }
 
+      seedingProgress.value = 0.95;
+
+      // Step 6: Seed Farm Data (Epic 3) - depends on residents + finance categories/funding sources
+      seedingStatus.value = 'Generating farm plots, plantings, harvests and sales...';
+      const farmResult = await seedFarmData(createdResidentIds, sampleResidents);
+
+      if (!farmResult.success) {
+        throw new Error(`Failed to generate farm data: ${farmResult.error}`);
+      }
+
       seedingProgress.value = 1;
       seedingStatus.value = 'Sample data loaded successfully!';
 
@@ -451,6 +463,8 @@ export function useSampleData() {
     seedingStatus,
     financeSeedingProgress,
     financeSeedingStatus,
+    farmSeedingProgress,
+    farmSeedingStatus,
     // Export sample data for use in seed script
     sampleVillageSettings,
     sampleHouseholds,

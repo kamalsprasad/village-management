@@ -248,7 +248,7 @@ const tableSchemas = {
     name: 'Plots',
     columns: [
       { key: 'name', type: 'string', size: 100, required: true },
-      { key: 'size_hectares', type: 'integer', min: 1, max: 10000000, required: true },
+      { key: 'size_hectares', type: 'float', min: 1, max: 10000000, required: true },
       { key: 'location_description', type: 'string', size: 500, required: false },
       {
         key: 'soil_type_id',

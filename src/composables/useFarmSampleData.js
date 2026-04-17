@@ -1,0 +1,944 @@
+import { ref } from 'vue';
+import { tables } from 'src/boot/appwrite';
+import { ID, Query } from 'appwrite';
+
+/**
+ * Composable for seeding farm sample data (Epic 3)
+ *
+ * Generates a full relational farm data set:
+ * - Soil types & crops (seeded inline if missing)
+ * - Farm input inventory (seeds, fertilizer) as `farm_inputs`
+ * - Plots (mix of Active/Fallow statuses, assigned to crop managers)
+ * - Plantings (mixed states: Planted, Growing, Harvesting, Completed, Failed)
+ * - Harvests for Completed / Harvesting plantings
+ * - Farm produce inventory (`farm_produce`) auto-created from completed harvests
+ * - Farm sales linking produce → harvest → finance_transactions (income)
+ *
+ * Designed to be called from useSampleData.js AFTER residents and finance data
+ * are created, so it can link crop managers (by resident name) and use finance
+ * categories / funding sources that finance seeding created.
+ */
+export function useFarmSampleData() {
+  const isFarmSeeding = ref(false);
+  const farmSeedingProgress = ref(0);
+  const farmSeedingStatus = ref('');
+
+  // ==========================================================================
+  // CONSTANTS / STATIC SEED LISTS
+  // ==========================================================================
+
+  // Minimal soil type set (matches server/scripts/seed-soil-types.js defaults)
+  const DEFAULT_SOIL_TYPES = [
+    {
+      name: 'Sandy',
+      description: 'Light, warm, dry, acidic, low nutrients. Drains quickly.',
+      color_code: '#F4E4C1',
+      is_system_default: true,
+    },
+    {
+      name: 'Clay',
+      description: 'Heavy, nutrient-rich, wet in winter, dry in summer.',
+      color_code: '#8B7355',
+      is_system_default: true,
+    },
+    {
+      name: 'Loam',
+      description: 'Ideal soil: mix of sand, silt, clay. Fertile, well-drained.',
+      color_code: '#5D4E37',
+      is_system_default: true,
+    },
+    {
+      name: 'Silt',
+      description: 'Fertile, light, moisture-retentive.',
+      color_code: '#A89F91',
+      is_system_default: true,
+    },
+    {
+      name: 'Peaty',
+      description: 'High organic matter, acidic, moist.',
+      color_code: '#3D2914',
+      is_system_default: true,
+    },
+    {
+      name: 'Chalky',
+      description: 'Alkaline, stony, free-draining.',
+      color_code: '#E5E4E2',
+      is_system_default: true,
+    },
+    {
+      name: 'Other',
+      description: 'Unclassified or mixed soil type.',
+      color_code: '#888888',
+      is_system_default: true,
+    },
+  ];
+
+  // Minimal crop subset referenced by sample plantings (superset of what we plant).
+  // If crops table is empty at seed time we create these; otherwise we reuse whatever exists.
+  const DEFAULT_CROPS = [
+    {
+      crop_name: 'Maize',
+      category: 'Grain',
+      crop_type: 'Annual',
+      maturity_days: 120,
+      typical_yield_per_hectare: 3500,
+      growing_season: 'Warm',
+      notes: 'Staple crop in Zambia.',
+    },
+    {
+      crop_name: 'Groundnuts',
+      category: 'Legume',
+      crop_type: 'Annual',
+      maturity_days: 100,
+      typical_yield_per_hectare: 1800,
+      growing_season: 'Warm',
+      notes: 'Nitrogen-fixing legume.',
+    },
+    {
+      crop_name: 'Soybeans',
+      category: 'Legume',
+      crop_type: 'Annual',
+      maturity_days: 110,
+      typical_yield_per_hectare: 2200,
+      growing_season: 'Warm',
+      notes: 'High protein legume.',
+    },
+    {
+      crop_name: 'Tomatoes',
+      category: 'Vegetable',
+      crop_type: 'Annual',
+      maturity_days: 75,
+      typical_yield_per_hectare: 25000,
+      growing_season: 'All Year',
+      notes: 'High-value vegetable.',
+    },
+    {
+      crop_name: 'Rape',
+      category: 'Vegetable',
+      crop_type: 'Annual',
+      maturity_days: 45,
+      typical_yield_per_hectare: 8000,
+      growing_season: 'Cool',
+      notes: 'Fast-growing leafy green.',
+    },
+    {
+      crop_name: 'Sweet Potato',
+      category: 'Root',
+      crop_type: 'Annual',
+      maturity_days: 120,
+      typical_yield_per_hectare: 14000,
+      growing_season: 'All Year',
+      notes: 'Nutritious root crop.',
+    },
+    {
+      crop_name: 'Cabbage',
+      category: 'Vegetable',
+      crop_type: 'Annual',
+      maturity_days: 90,
+      typical_yield_per_hectare: 40000,
+      growing_season: 'Cool',
+      notes: 'Cool-season vegetable.',
+    },
+    {
+      crop_name: 'Onions',
+      category: 'Vegetable',
+      crop_type: 'Annual',
+      maturity_days: 120,
+      typical_yield_per_hectare: 20000,
+      growing_season: 'Cool',
+      notes: 'Good storage crop.',
+    },
+  ];
+
+  // ==========================================================================
+  // MAIN ENTRY POINT
+  // ==========================================================================
+
+  /**
+   * @param {string[]} residentIds - Ordered list of resident $ids created in useSampleData
+   * @param {Array<{first_name:string,last_name:string,isCouncilMember?:boolean,councilRole?:string}>} sampleResidents - The static sample-residents array, aligned 1:1 with residentIds
+   */
+  const seedFarmData = async (residentIds = [], sampleResidents = []) => {
+    isFarmSeeding.value = true;
+    farmSeedingProgress.value = 0;
+    farmSeedingStatus.value = 'Preparing farm data...';
+
+    try {
+      const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
+
+      // 1. Soil types (ensure present) ------------------------------------------------
+      farmSeedingStatus.value = 'Ensuring soil types...';
+      const soilTypes = await ensureSoilTypes(dbId);
+      farmSeedingProgress.value = 0.05;
+
+      // 2. Crops (ensure present) -----------------------------------------------------
+      farmSeedingStatus.value = 'Ensuring crops database...';
+      const crops = await ensureCrops(dbId);
+      farmSeedingProgress.value = 0.1;
+
+      // 3. Look up finance categories + funding sources (created earlier by finance seeding)
+      farmSeedingStatus.value = 'Linking to finance data...';
+      const [financeCategoriesRes, fundingSourcesRes] = await Promise.all([
+        tables.listRows({
+          databaseId: dbId,
+          tableId: 'finance_categories',
+          queries: [Query.limit(100)],
+        }),
+        tables.listRows({
+          databaseId: dbId,
+          tableId: 'funding_sources',
+          queries: [Query.limit(100)],
+        }),
+      ]);
+      const financeCategories = financeCategoriesRes.rows || [];
+      const fundingSources = fundingSourcesRes.rows || [];
+      farmSeedingProgress.value = 0.15;
+
+      // 4. Resolve crop managers by name ---------------------------------------------
+      const findResidentIdByName = (firstName, lastName) => {
+        const idx = sampleResidents.findIndex(
+          (r) => r.first_name === firstName && r.last_name === lastName,
+        );
+        return idx >= 0 ? residentIds[idx] : null;
+      };
+      const emmanuelId = findResidentIdByName('Emmanuel', 'Phiri');
+      const danielId = findResidentIdByName('Daniel', 'Zulu');
+
+      const soilId = (name) => soilTypes.find((s) => s.name === name)?.$id || null;
+      const cropId = (name) => crops.find((c) => c.crop_name === name)?.$id || null;
+
+      // 5. Farm Input inventory (seeds + fertilizer) ---------------------------------
+      farmSeedingStatus.value = 'Creating farm input inventory...';
+      const farmInputs = buildFarmInputs();
+      await batchInsert(dbId, 'inventory', farmInputs);
+      farmSeedingProgress.value = 0.3;
+
+      // 6. Plots ---------------------------------------------------------------------
+      farmSeedingStatus.value = 'Creating plots...';
+      const plotDefs = buildPlots({ soilId, emmanuelId, danielId });
+      const createdPlots = await batchInsert(
+        dbId,
+        'plots',
+        plotDefs.map(({ _key, ...d }) => ({ data: d, _key })),
+      );
+      const plotByKey = (key) => createdPlots.find((r) => r._key === key);
+      farmSeedingProgress.value = 0.45;
+
+      // 7. Plantings -----------------------------------------------------------------
+      farmSeedingStatus.value = 'Creating plantings (mixed states)...';
+      const plantingDefs = buildPlantings({ cropId, plotByKey });
+      const createdPlantings = await batchInsert(
+        dbId,
+        'plantings',
+        plantingDefs.map(({ _key, ...d }) => ({ data: d, _key })),
+      );
+      const plantingByKey = (key) => createdPlantings.find((r) => r._key === key);
+      farmSeedingProgress.value = 0.65;
+
+      // 8. Harvests + produce inventory + farm sales ---------------------------------
+      farmSeedingStatus.value = 'Creating harvests and produce inventory...';
+      const harvestPlans = buildHarvestPlans({ plantingByKey, cropId });
+
+      // Insert harvests first
+      const createdHarvests = await batchInsert(
+        dbId,
+        'harvests',
+        harvestPlans.map((h) => ({ data: h.harvest, _key: h._key })),
+      );
+      farmSeedingProgress.value = 0.75;
+
+      // For each completed harvest, create a produce inventory item and back-link
+      farmSeedingStatus.value = 'Creating farm produce inventory...';
+      const farmingRevenueCat = financeCategories.find((c) => c.name === 'Farming Revenue');
+      const villageFund = fundingSources.find((s) => s.name === 'Village General Fund');
+
+      for (let i = 0; i < harvestPlans.length; i++) {
+        const plan = harvestPlans[i];
+        const harvestRow = createdHarvests[i];
+        if (!plan.produce) continue;
+
+        // (a) create produce inventory row with source_reference_id = harvest.$id
+        const produceData = {
+          ...plan.produce,
+          source_reference_id: harvestRow.$id,
+          date_added: plan.harvest.harvest_date || new Date().toISOString().split('T')[0],
+        };
+        produceData.date_added = toISO(produceData.date_added);
+        produceData.last_updated = produceData.date_added;
+        const produceRow = await createRowWithRetry(dbId, 'inventory', produceData);
+
+        // (b) if plan includes a sale, create finance transaction then farm_sale
+        if (plan.sale) {
+          if (!farmingRevenueCat) {
+            console.warn('Farming Revenue category not found, skipping farm_sale');
+            continue;
+          }
+          const saleDate = plan.sale.sale_date;
+          const txData = {
+            type: 'income',
+            amount_needed: plan.sale.total_amount,
+            amount_funded: plan.sale.total_amount,
+            payment_method: plan.sale.payment_method,
+            category_id: farmingRevenueCat.$id,
+            source_module: 'Farm',
+            funding_source_id: villageFund?.$id || null,
+            date: new Date(`${saleDate}T10:00:00Z`).toISOString(),
+            description: `Farm produce sale: ${plan.sale.quantity_sold}kg to ${plan.sale.buyer_name}`,
+            status: 'completed',
+          };
+          await createRowWithRetry(dbId, 'finance_transactions', txData);
+
+          const saleData = {
+            harvest_id: harvestRow.$id,
+            buyer_type: plan.sale.buyer_type,
+            buyer_name: plan.sale.buyer_name,
+            sale_date: toISO(plan.sale.sale_date),
+            quantity_sold: plan.sale.quantity_sold,
+            unit: plan.sale.unit || 'kg',
+            price_per_unit: plan.sale.price_per_unit,
+            total_amount: plan.sale.total_amount,
+            payment_status: plan.sale.payment_status || 'completed',
+            payment_method: plan.sale.payment_method,
+            notes: plan.sale.notes,
+          };
+          await createRowWithRetry(dbId, 'farm_sales', saleData);
+
+          // Decrement produce inventory to reflect sold quantity
+          const remaining = Math.max(0, (produceData.quantity || 0) - plan.sale.quantity_sold);
+          const newStatus = deriveInventoryStatus(remaining, produceData.reorder_threshold);
+          try {
+            await tables.updateRow({
+              databaseId: dbId,
+              tableId: 'inventory',
+              rowId: produceRow.$id,
+              data: {
+                quantity: remaining,
+                estimated_value: Math.round(remaining * (produceData.unit_cost || 0) * 100) / 100,
+                status: newStatus,
+                last_updated: toISO(plan.sale.sale_date),
+              },
+            });
+          } catch (e) {
+            console.warn('Failed to update produce inventory after sale:', e.message);
+          }
+        }
+
+        // spread progress across harvest-related inserts (0.75 -> 0.98)
+        farmSeedingProgress.value = 0.75 + ((i + 1) / harvestPlans.length) * 0.23;
+      }
+
+      farmSeedingProgress.value = 1.0;
+      farmSeedingStatus.value = 'Farm data seeded successfully!';
+      return { success: true };
+    } catch (error) {
+      console.error('Error seeding farm data:', error);
+      farmSeedingStatus.value = 'Error loading farm data';
+      return { success: false, error: error.message };
+    } finally {
+      isFarmSeeding.value = false;
+    }
+  };
+
+  // ==========================================================================
+  // DATA BUILDERS
+  // ==========================================================================
+
+  function buildFarmInputs() {
+    const now = new Date();
+    const iso = (monthsAgo) => {
+      const d = new Date(now.getFullYear(), now.getMonth() - monthsAgo, 15);
+      return d.toISOString();
+    };
+
+    // Each entry has a stable `_key` used to wire plantings to the correct item.
+    // quantity represents REMAINING stock (post-plantings) so the data is internally consistent.
+    const defs = [
+      {
+        _key: 'maize_seed',
+        item_name: 'Maize Seed (SC627)',
+        item_type: 'farm_inputs',
+        quantity: 40,
+        unit: 'kg',
+        unit_cost: 55,
+        source: 'finance_purchase',
+        reorder_threshold: 20,
+        date_added: iso(8),
+      },
+      {
+        _key: 'groundnut_seed',
+        item_name: 'Groundnut Seed (MGV-4)',
+        item_type: 'farm_inputs',
+        quantity: 25,
+        unit: 'kg',
+        unit_cost: 80,
+        source: 'finance_purchase',
+        reorder_threshold: 10,
+        date_added: iso(7),
+      },
+      {
+        _key: 'soybean_seed',
+        item_name: 'Soybean Seed (Hernon-147)',
+        item_type: 'farm_inputs',
+        quantity: 18,
+        unit: 'kg',
+        unit_cost: 65,
+        source: 'finance_purchase',
+        reorder_threshold: 10,
+        date_added: iso(6),
+      },
+      {
+        _key: 'tomato_seed',
+        item_name: 'Tomato Seedlings (Roma VF)',
+        item_type: 'farm_inputs',
+        quantity: 600,
+        unit: 'seedlings',
+        unit_cost: 1.5,
+        source: 'finance_purchase',
+        reorder_threshold: 200,
+        date_added: iso(2),
+      },
+      {
+        _key: 'rape_seed',
+        item_name: 'Rape Seed (Chinese Cabbage)',
+        item_type: 'farm_inputs',
+        quantity: 3,
+        unit: 'kg',
+        unit_cost: 90,
+        source: 'donation',
+        reorder_threshold: 2,
+        date_added: iso(3),
+      },
+      {
+        _key: 'sweet_potato_vines',
+        item_name: 'Sweet Potato Vines (Orange-flesh)',
+        item_type: 'farm_inputs',
+        quantity: 0,
+        unit: 'bundles',
+        unit_cost: 20,
+        source: 'donation',
+        reorder_threshold: 10,
+        date_added: iso(5),
+      },
+      {
+        _key: 'dcompound_fert',
+        item_name: 'D-Compound Fertilizer',
+        item_type: 'farm_inputs',
+        quantity: 8,
+        unit: 'bags_50kg',
+        unit_cost: 550,
+        source: 'finance_purchase',
+        reorder_threshold: 4,
+        date_added: iso(6),
+      },
+      {
+        _key: 'urea_fert',
+        item_name: 'Urea Top-Dressing Fertilizer',
+        item_type: 'farm_inputs',
+        quantity: 5,
+        unit: 'bags_50kg',
+        unit_cost: 600,
+        source: 'finance_purchase',
+        reorder_threshold: 4,
+        date_added: iso(5),
+      },
+    ];
+
+    return defs.map((d) => ({
+      _key: d._key,
+      data: {
+        item_name: d.item_name,
+        item_type: d.item_type,
+        quantity: d.quantity,
+        unit: d.unit,
+        unit_cost: d.unit_cost,
+        estimated_value: Math.round(d.quantity * d.unit_cost * 100) / 100,
+        status: deriveInventoryStatus(d.quantity, d.reorder_threshold),
+        source: d.source,
+        reorder_threshold: d.reorder_threshold,
+        date_added: d.date_added,
+        last_updated: d.date_added,
+      },
+    }));
+  }
+
+  function buildPlots({ soilId, emmanuelId, danielId }) {
+    return [
+      {
+        _key: 'north_field',
+        name: 'North Field',
+        size_hectares: 5.0,
+        location_description: 'Largest plot along the main road, north of the village.',
+        soil_type_id: soilId('Loam'),
+        status: 'Active',
+        crop_manager_id: emmanuelId,
+      },
+      {
+        _key: 'south_field',
+        name: 'South Field',
+        size_hectares: 3.5,
+        location_description: 'Rolling land south of the river bank.',
+        soil_type_id: soilId('Sandy'),
+        status: 'Active',
+        crop_manager_id: danielId,
+      },
+      {
+        _key: 'east_garden',
+        name: 'East Garden',
+        size_hectares: 1.0,
+        location_description: 'Fenced vegetable garden near the clinic.',
+        soil_type_id: soilId('Loam'),
+        status: 'Active',
+        crop_manager_id: emmanuelId,
+      },
+      {
+        _key: 'west_plot',
+        name: 'West Plot',
+        size_hectares: 2.5,
+        location_description: 'Western plot resting after last season.',
+        soil_type_id: soilId('Clay'),
+        status: 'Fallow',
+        crop_manager_id: danielId,
+      },
+      {
+        _key: 'riverside_plot',
+        name: 'Riverside Plot',
+        size_hectares: 1.5,
+        location_description: 'Silty soil near the stream, good for moisture-loving crops.',
+        soil_type_id: soilId('Silt'),
+        status: 'Active',
+        crop_manager_id: emmanuelId,
+      },
+    ];
+  }
+
+  function buildPlantings({ cropId, plotByKey }) {
+    const today = new Date();
+    const daysAgo = (n) => {
+      const d = new Date(today);
+      d.setDate(d.getDate() - n);
+      return d.toISOString().split('T')[0];
+    };
+    const addDaysStr = (base, n) => {
+      const d = new Date(base);
+      d.setDate(d.getDate() + n);
+      return d.toISOString().split('T')[0];
+    };
+
+    const plot = (k) => plotByKey(k)?.$id;
+    const crop = (n) => cropId(n);
+
+    // NOTE: The plantings table schema uses aggregated cost fields:
+    // - quantity_planted (not seeds_used)
+    // - inputs_cost, labor_cost, other_cost (not detailed breakdowns)
+    // - notes (single text field)
+    const defs = [
+      // 1. Completed maize cycle (harvest recorded, produce sold) -- 10 months ago
+      {
+        _key: 'p_maize_completed',
+        plot_id: plot('north_field'),
+        crop_id: crop('Maize'),
+        planting_date: daysAgo(300),
+        expected_harvest_date: addDaysStr(daysAgo(300), 120),
+        quantity_planted: 60,
+        unit: 'kg',
+        inputs_cost: 3300 + 2750, // seed cost (60*55) + fertilizer
+        labor_cost: 1200,
+        other_cost: 0,
+        notes:
+          'Maize planting. Seeds from inventory (60kg). Fertilizer: 5 bags D-Compound. Labor: 8 farmhands for land prep/ploughing/planting.',
+        status: 'completed',
+      },
+      // 2. Harvesting-in-progress tomatoes (East Garden) -- planted ~80 days ago
+      {
+        _key: 'p_tomato_harvesting',
+        plot_id: plot('east_garden'),
+        crop_id: crop('Tomatoes'),
+        planting_date: daysAgo(80),
+        expected_harvest_date: addDaysStr(daysAgo(80), 75),
+        quantity_planted: 400,
+        unit: 'seedlings',
+        inputs_cost: 600 + 450, // seedlings + materials
+        labor_cost: 600,
+        other_cost: 0,
+        notes:
+          'Tomato transplanting. 400 seedlings from inventory. Materials: stakes, twine, drip parts.',
+        status: 'harvesting',
+      },
+      // 3. Growing groundnuts (South Field) -- 60 days ago
+      {
+        _key: 'p_groundnut_growing',
+        plot_id: plot('south_field'),
+        crop_id: crop('Groundnuts'),
+        planting_date: daysAgo(60),
+        expected_harvest_date: addDaysStr(daysAgo(60), 100),
+        quantity_planted: 40,
+        unit: 'kg',
+        inputs_cost: 3200, // seed cost only (40*80)
+        labor_cost: 900,
+        other_cost: 0,
+        notes: 'Groundnut planting. 40kg seed from inventory. Labor: ridging and planting.',
+        status: 'growing',
+      },
+      // 4. Freshly planted rape (East Garden second bed) -- 15 days ago
+      {
+        _key: 'p_rape_planted',
+        plot_id: plot('east_garden'),
+        crop_id: crop('Rape'),
+        planting_date: daysAgo(15),
+        expected_harvest_date: addDaysStr(daysAgo(15), 45),
+        quantity_planted: 2,
+        unit: 'kg',
+        inputs_cost: 180, // 2kg * 90
+        labor_cost: 200,
+        other_cost: 0,
+        notes: 'Rape direct seeding. 2kg seed from inventory (donated). Bed prep labor.',
+        status: 'planted',
+      },
+      // 5. Failed maize (drought) -- North Field earlier season
+      {
+        _key: 'p_maize_failed',
+        plot_id: plot('riverside_plot'),
+        crop_id: crop('Maize'),
+        planting_date: daysAgo(200),
+        expected_harvest_date: addDaysStr(daysAgo(200), 120),
+        quantity_planted: 20,
+        unit: 'kg',
+        inputs_cost: 1100 + 1100, // seed + fertilizer
+        labor_cost: 450,
+        other_cost: 0,
+        notes:
+          'Failed maize due to drought. 20kg seed from inventory. Fertilizer applied before failure observed.',
+        status: 'failed',
+      },
+      // 6. Completed sweet potatoes with donated vines (South Field) -- 240 days ago
+      {
+        _key: 'p_sp_completed',
+        plot_id: plot('south_field'),
+        crop_id: crop('Sweet Potato'),
+        planting_date: daysAgo(240),
+        expected_harvest_date: addDaysStr(daysAgo(240), 120),
+        quantity_planted: null,
+        unit: 'bundles',
+        inputs_cost: 0, // donated vines
+        labor_cost: 750,
+        other_cost: 200,
+        notes:
+          'Sweet potato using donated vines. Labor: ridging and vine planting. Tool hire cost.',
+        status: 'completed',
+      },
+      // 7. Purchased-separately soybean planting (Growing) -- 50 days ago
+      {
+        _key: 'p_soy_growing',
+        plot_id: plot('north_field'),
+        crop_id: crop('Soybeans'),
+        planting_date: daysAgo(50),
+        expected_harvest_date: addDaysStr(daysAgo(50), 110),
+        quantity_planted: null,
+        unit: 'kg',
+        inputs_cost: 1800 + 1100, // purchased seed + emergency fertilizer
+        labor_cost: 750,
+        other_cost: 0,
+        notes:
+          'Soybean with purchased seed (not from inventory). Emergency purchase of 2 bags D-Compound fertilizer.',
+        status: 'growing',
+      },
+      // 8. Newly planted cabbage (Riverside Plot) -- 20 days ago
+      {
+        _key: 'p_cabbage_planted',
+        plot_id: plot('riverside_plot'),
+        crop_id: crop('Cabbage'),
+        planting_date: daysAgo(20),
+        expected_harvest_date: addDaysStr(daysAgo(20), 90),
+        quantity_planted: null,
+        unit: 'seedlings',
+        inputs_cost: 300,
+        labor_cost: 450,
+        other_cost: 0,
+        notes: 'Cabbage planting with purchased seedlings.',
+        status: 'planted',
+      },
+    ];
+
+    // Strip null crop/plot rows defensively (if a lookup failed, drop the row rather than insert bad data).
+    return defs.filter((d) => d.plot_id && d.crop_id);
+  }
+
+  function buildHarvestPlans({ plantingByKey, cropId }) {
+    const today = new Date();
+    const daysAgo = (n) => {
+      const d = new Date(today);
+      d.setDate(d.getDate() - n);
+      return d.toISOString().split('T')[0];
+    };
+
+    const plans = [];
+
+    // Completed maize harvest (from p_maize_completed, harvested ~180 days ago)
+    const maizeCompleted = plantingByKey('p_maize_completed');
+    if (maizeCompleted) {
+      plans.push({
+        _key: 'h_maize_completed',
+        harvest: {
+          planting_id: maizeCompleted.$id,
+          harvest_date: daysAgo(180),
+          quantity_harvested: 4200,
+          unit: 'kg',
+          quality_grade: 'Grade A',
+          storage_location: 'Main Grain Shed',
+          notes:
+            'Single day harvest. Labor: 10 farmhands (1800 ZMW). Other costs: transport 400 ZMW.',
+        },
+        produce: {
+          item_name: 'Maize Grain (Harvested)',
+          item_type: 'farm_produce',
+          quantity: 4200,
+          unit: 'kg',
+          unit_cost: 3.5,
+          status: 'in_stock',
+          source: 'farm_harvest',
+          reorder_threshold: 0,
+          estimated_value: 4200 * 3.5,
+        },
+        sale: {
+          buyer_type: 'external',
+          buyer_name: 'Zambia Food Reserve Agency',
+          quantity_sold: 3000,
+          unit: 'kg',
+          price_per_unit: 450, // stored as integer (4.5 ZMW * 100)
+          total_amount: 1350000, // 13500 ZMW * 100
+          payment_method: 'Bank Transfer',
+          payment_status: 'completed',
+          sale_date: daysAgo(160),
+          notes: 'Bulk sale to FRA depot.',
+        },
+      });
+    }
+
+    // In-progress tomato harvest (Continuous Picking) -- from p_tomato_harvesting
+    const tomatoHarvesting = plantingByKey('p_tomato_harvesting');
+    if (tomatoHarvesting) {
+      plans.push({
+        _key: 'h_tomato_progress',
+        harvest: {
+          planting_id: tomatoHarvesting.$id,
+          harvest_date: daysAgo(10),
+          quantity_harvested: 850,
+          unit: 'kg',
+          quality_grade: 'Grade A',
+          storage_location: 'Cold Store A',
+          notes:
+            'Continuous picking style. Labor: 3 farmhands (450 ZMW). Other costs: crates 120 ZMW.',
+        },
+        produce: {
+          item_name: 'Tomatoes (Fresh)',
+          item_type: 'farm_produce',
+          quantity: 850,
+          unit: 'kg',
+          unit_cost: 8,
+          status: 'in_stock',
+          source: 'farm_harvest',
+          reorder_threshold: 0,
+          estimated_value: 850 * 8,
+        },
+        sale: {
+          buyer_type: 'market',
+          buyer_name: 'Katete Market Vendors',
+          quantity_sold: 600,
+          unit: 'kg',
+          price_per_unit: 1200, // 12 ZMW * 100
+          total_amount: 720000, // 7200 ZMW * 100
+          payment_method: 'Cash',
+          payment_status: 'completed',
+          sale_date: daysAgo(8),
+          notes: 'Sold to multiple market vendors.',
+        },
+      });
+    }
+
+    // Completed sweet potato harvest (from p_sp_completed)
+    const spCompleted = plantingByKey('p_sp_completed');
+    if (spCompleted) {
+      plans.push({
+        _key: 'h_sp_completed',
+        harvest: {
+          planting_id: spCompleted.$id,
+          harvest_date: daysAgo(120),
+          quantity_harvested: 3800,
+          unit: 'kg',
+          quality_grade: 'Grade B',
+          storage_location: 'Root Crop Shed',
+          notes:
+            'Multi-day aggregate harvest (started 5 days prior). Labor: 6 farmhands (900 ZMW). Other: bags/sacks 200 ZMW.',
+        },
+        produce: {
+          item_name: 'Sweet Potato (Orange-flesh)',
+          item_type: 'farm_produce',
+          quantity: 3800,
+          unit: 'kg',
+          unit_cost: 2.5,
+          status: 'in_stock',
+          source: 'farm_harvest',
+          reorder_threshold: 0,
+          estimated_value: 3800 * 2.5,
+        },
+        sale: {
+          buyer_type: 'external',
+          buyer_name: 'Chipata Urban Wholesaler',
+          quantity_sold: 2500,
+          unit: 'kg',
+          price_per_unit: 400, // 4 ZMW * 100
+          total_amount: 1000000, // 10000 ZMW * 100
+          payment_method: 'Mobile Money',
+          payment_status: 'completed',
+          sale_date: daysAgo(110),
+          notes: 'Bulk purchase for Chipata market.',
+        },
+      });
+    }
+
+    // Failed maize - produce a zero-quantity harvest record for analytics (optional)
+    const maizeFailed = plantingByKey('p_maize_failed');
+    if (maizeFailed) {
+      plans.push({
+        _key: 'h_maize_failed',
+        harvest: {
+          planting_id: maizeFailed.$id,
+          harvest_date: daysAgo(90),
+          quantity_harvested: 0,
+          unit: 'kg',
+          quality_grade: 'Failed',
+          notes: 'Drought failure - zero yield. No harvest labor required.',
+        },
+        produce: null, // No inventory created
+        sale: null,
+      });
+    }
+
+    // Reference unused to silence potential linter (cropId wired for future crop-specific variation)
+    void cropId;
+
+    return plans;
+  }
+
+  // ==========================================================================
+  // ENSURE-EXISTS HELPERS
+  // ==========================================================================
+
+  async function ensureSoilTypes(dbId) {
+    const existing = await tables.listRows({
+      databaseId: dbId,
+      tableId: 'soil_types',
+      queries: [Query.limit(100)],
+    });
+    if ((existing.rows || []).length > 0) return existing.rows;
+
+    const created = [];
+    for (const t of DEFAULT_SOIL_TYPES) {
+      const row = await createRowWithRetry(dbId, 'soil_types', t);
+      created.push(row);
+    }
+    return created;
+  }
+
+  async function ensureCrops(dbId) {
+    const existing = await tables.listRows({
+      databaseId: dbId,
+      tableId: 'crops',
+      queries: [Query.limit(100)],
+    });
+    if ((existing.rows || []).length > 0) return existing.rows;
+
+    const created = [];
+    for (const c of DEFAULT_CROPS) {
+      const row = await createRowWithRetry(dbId, 'crops', { ...c, is_active: true });
+      created.push(row);
+    }
+    return created;
+  }
+
+  // ==========================================================================
+  // LOW-LEVEL APPWRITE HELPERS (shared pattern w/ useFinanceSampleData)
+  // ==========================================================================
+
+  const MAX_RETRY_DELAY_MS = 30000; // Cap backoff at 30s so we can survive a 60s rate window
+  const PER_ROW_DELAY_MS = 120; // Gentle pacing within a batch to reduce 429 frequency
+
+  /**
+   * Create a single row with retry/backoff for rate limiting.
+   */
+  async function createRowWithRetry(dbId, tableId, data, retries = 6, delay = 2000) {
+    try {
+      return await tables.createRow({
+        databaseId: dbId,
+        tableId,
+        rowId: ID.unique(),
+        data,
+      });
+    } catch (err) {
+      if ((err.code === 429 || err.type === 'general_rate_limit_exceeded') && retries > 0) {
+        const waitMs = Math.min(delay, MAX_RETRY_DELAY_MS);
+        console.warn(
+          `Rate limit hit for ${tableId}, retrying in ${waitMs}ms (${retries} retries left)...`,
+        );
+        await new Promise((r) => setTimeout(r, waitMs));
+        return createRowWithRetry(
+          dbId,
+          tableId,
+          data,
+          retries - 1,
+          Math.min(delay * 2, MAX_RETRY_DELAY_MS),
+        );
+      }
+      console.error(`Error inserting into ${tableId}:`, data, err);
+      throw err;
+    }
+  }
+
+  /**
+   * Batch insert items with rate-limit-aware pacing.
+   * items: Array<{ data: object, _key?: string }>  OR plain object array.
+   * Returns an array of the created rows, preserving input order, with `_key`
+   * copied onto each returned row for later lookup.
+   */
+  async function batchInsert(dbId, tableId, items, batchSize = 5, interBatchDelayMs = 1000) {
+    const results = [];
+    for (let i = 0; i < items.length; i += batchSize) {
+      const batch = items.slice(i, i + batchSize);
+      for (let j = 0; j < batch.length; j++) {
+        const entry = batch[j];
+        const payload = entry && typeof entry === 'object' && 'data' in entry ? entry.data : entry;
+        const row = await createRowWithRetry(dbId, tableId, payload);
+        if (entry && entry._key) row._key = entry._key;
+        results.push(row);
+        // Gentle pacing between rows inside a batch
+        if (j < batch.length - 1) {
+          await new Promise((r) => setTimeout(r, PER_ROW_DELAY_MS));
+        }
+      }
+      if (i + batchSize < items.length) {
+        await new Promise((r) => setTimeout(r, interBatchDelayMs));
+      }
+    }
+    return results;
+  }
+
+  function deriveInventoryStatus(quantity, reorderThreshold) {
+    if (!quantity || quantity <= 0) return 'out_of_stock';
+    if (reorderThreshold != null && quantity <= reorderThreshold) return 'low_stock';
+    return 'in_stock';
+  }
+
+  function toISO(dateLike) {
+    if (!dateLike) return new Date().toISOString();
+    if (typeof dateLike === 'string' && dateLike.includes('T')) return dateLike;
+    // date-only string -> add midday UTC
+    return new Date(`${dateLike}T12:00:00Z`).toISOString();
+  }
+
+  return {
+    seedFarmData,
+    isFarmSeeding,
+    farmSeedingProgress,
+    farmSeedingStatus,
+  };
+}

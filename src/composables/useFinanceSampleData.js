@@ -501,9 +501,11 @@ export function useFinanceSampleData() {
 
   const batchInsert = async (dbId, tableId, items, batchSize = 5) => {
     const results = [];
+    const MAX_RETRY_DELAY_MS = 30000; // Cap backoff at 30s so we can survive a 60s rate window
+    const PER_ROW_DELAY_MS = 120; // Gentle pacing within a batch to reduce 429 frequency
 
     // Helper to create a single row with retry logic for rate limiting
-    const createRowWithRetry = async (item, idx, retries = 3, delay = 1000) => {
+    const createRowWithRetry = async (item, idx, retries = 6, delay = 2000) => {
       try {
         return await tables.createRow({
           databaseId: dbId,
@@ -514,9 +516,17 @@ export function useFinanceSampleData() {
       } catch (err) {
         // Retry on rate limit (429) or network errors
         if ((err.code === 429 || err.type === 'general_rate_limit_exceeded') && retries > 0) {
-          console.warn(`Rate limit hit for ${tableId} item ${idx}, retrying in ${delay}ms...`);
-          await new Promise((resolve) => setTimeout(resolve, delay));
-          return createRowWithRetry(item, idx, retries - 1, delay * 2); // Exponential backoff
+          const waitMs = Math.min(delay, MAX_RETRY_DELAY_MS);
+          console.warn(
+            `Rate limit hit for ${tableId} item ${idx}, retrying in ${waitMs}ms (${retries} retries left)...`,
+          );
+          await new Promise((resolve) => setTimeout(resolve, waitMs));
+          return createRowWithRetry(
+            item,
+            idx,
+            retries - 1,
+            Math.min(delay * 2, MAX_RETRY_DELAY_MS),
+          );
         }
         console.error(`Error inserting into ${tableId}, batch item ${idx}:`, item.data || item);
         throw err;
@@ -531,6 +541,10 @@ export function useFinanceSampleData() {
       for (let j = 0; j < batch.length; j++) {
         const res = await createRowWithRetry(batch[j], i + j);
         batchResults.push(res);
+        // Gentle pacing between rows inside a batch
+        if (j < batch.length - 1) {
+          await new Promise((resolve) => setTimeout(resolve, PER_ROW_DELAY_MS));
+        }
       }
 
       // Map back the tempIndex so we can link them later
