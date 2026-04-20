@@ -97,9 +97,7 @@
         </template>
 
         <template #body-cell-investment="{ row }">
-          <q-td class="text-right">
-            ZMW {{ calculateInvestment(row).toFixed(2) }}
-          </q-td>
+          <q-td class="text-right"> ZMW {{ calculateInvestment(row).toFixed(2) }} </q-td>
         </template>
 
         <template #body-cell-actions="{ row }">
@@ -234,11 +232,7 @@ function getStatusColor(status) {
 }
 
 function calculateInvestment(planting) {
-  return (
-    (planting.seed_cost || 0) +
-    (planting.planting_labor_cost || 0) +
-    (planting.planting_other_costs || 0)
-  );
+  return (planting.inputs_cost || 0) + (planting.labor_cost || 0) + (planting.other_cost || 0);
 }
 
 function formatDate(dateString) {

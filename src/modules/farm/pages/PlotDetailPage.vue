@@ -119,83 +119,77 @@
                 />
               </div>
 
-              <!-- Active Planting Display -->
-              <div v-if="activePlanting" class="q-gutter-y-md">
-                <div class="row items-center">
-                  <div class="col">
-                    <router-link
-                      :to="`/farm/plantings/${activePlanting.$id}`"
-                      class="text-h6 text-primary"
-                    >
-                      {{ getCropName(activePlanting.crop_id) }}
-                    </router-link>
-                    <q-badge :color="getStatusColor(activePlanting.status)" class="q-ml-sm">
-                      {{ activePlanting.status }}
-                    </q-badge>
-                  </div>
-                </div>
-
-                <div class="row q-col-gutter-md">
-                  <div class="col-6 col-md-3">
-                    <div class="text-grey text-caption">Planted</div>
-                    <div>{{ formatDate(activePlanting.planting_date) }}</div>
-                  </div>
-                  <div class="col-6 col-md-3">
-                    <div class="text-grey text-caption">Expected Harvest</div>
-                    <div>
-                      {{ formatDate(activePlanting.expected_harvest_date) }}
-                      <q-badge
-                        v-if="daysUntilHarvest !== null"
-                        :color="harvestBadgeColor"
-                        class="q-ml-xs"
+              <!-- Active Plantings Display -->
+              <div v-if="activePlantings.length > 0" class="q-gutter-y-md">
+                <div v-for="planting in activePlantings" :key="planting.$id" class="q-gutter-y-md">
+                  <q-separator v-if="activePlantings.length > 1" />
+                  <div class="row items-center">
+                    <div class="col">
+                      <router-link
+                        :to="`/farm/plantings/${planting.$id}`"
+                        class="text-h6 text-primary"
                       >
-                        {{ daysUntilHarvestText }}
+                        {{ getCropName(planting.crop_id) }}
+                      </router-link>
+                      <q-badge :color="getStatusColor(planting.status)" class="q-ml-sm">
+                        {{ planting.status }}
                       </q-badge>
                     </div>
                   </div>
-                  <div class="col-6 col-md-3">
-                    <div class="text-grey text-caption">Investment</div>
-                    <div>ZMW {{ calculateInvestment(activePlanting).toFixed(2) }}</div>
-                  </div>
-                  <div class="col-6 col-md-3 text-right">
-                    <q-btn
-                      flat
-                      color="primary"
-                      icon="visibility"
-                      label="View Details"
-                      :to="`/farm/plantings/${activePlanting.$id}`"
-                    />
-                  </div>
-                </div>
 
-                <!-- Cost Breakdown (Collapsible) -->
-                <q-expansion-item
-                  icon="payments"
-                  label="Cost Breakdown"
-                  caption="Click to expand"
-                  dense
-                >
-                  <q-list dense>
-                    <q-item>
-                      <q-item-section>Seed Cost</q-item-section>
-                      <q-item-section side>
-                        ZMW {{ (activePlanting.seed_cost || 0).toFixed(2) }}
-                      </q-item-section>
-                    </q-item>
-                    <q-item>
-                      <q-item-section>Labor Cost</q-item-section>
-                      <q-item-section side>
-                        ZMW {{ (activePlanting.planting_labor_cost || 0).toFixed(2) }}
-                      </q-item-section>
-                    </q-item>
-                    <q-item>
-                      <q-item-section>Other Costs</q-item-section>
-                      <q-item-section side>
-                        ZMW {{ (activePlanting.planting_other_costs || 0).toFixed(2) }}
-                      </q-item-section>
-                    </q-item>
-                  </q-list>
-                </q-expansion-item>
+                  <div class="row q-col-gutter-md">
+                    <div class="col-6 col-md-3">
+                      <div class="text-grey text-caption">Planted</div>
+                      <div>{{ formatDate(planting.planting_date) }}</div>
+                    </div>
+                    <div class="col-6 col-md-3">
+                      <div class="text-grey text-caption">Expected Harvest</div>
+                      <div>{{ formatDate(planting.expected_harvest_date) }}</div>
+                    </div>
+                    <div class="col-6 col-md-3">
+                      <div class="text-grey text-caption">Investment</div>
+                      <div>ZMW {{ calculateInvestment(planting).toFixed(2) }}</div>
+                    </div>
+                    <div class="col-6 col-md-3 text-right">
+                      <q-btn
+                        flat
+                        color="primary"
+                        icon="visibility"
+                        label="View Details"
+                        :to="`/farm/plantings/${planting.$id}`"
+                      />
+                    </div>
+                  </div>
+
+                  <!-- Cost Breakdown (Collapsible) -->
+                  <q-expansion-item
+                    icon="payments"
+                    label="Cost Breakdown"
+                    caption="Click to expand"
+                    dense
+                  >
+                    <q-list dense>
+                      <q-item>
+                        <q-item-section>Inputs Cost</q-item-section>
+                        <q-item-section side>
+                          ZMW {{ (planting.inputs_cost || 0).toFixed(2) }}
+                        </q-item-section>
+                      </q-item>
+                      <q-item>
+                        <q-item-section>Labor Cost</q-item-section>
+                        <q-item-section side>
+                          ZMW {{ (planting.labor_cost || 0).toFixed(2) }}
+                        </q-item-section>
+                      </q-item>
+                      <q-item>
+                        <q-item-section>Other Costs</q-item-section>
+                        <q-item-section side>
+                          ZMW {{ (planting.other_cost || 0).toFixed(2) }}
+                        </q-item-section>
+                      </q-item>
+                    </q-list>
+                  </q-expansion-item>
+                </div>
               </div>
 
               <!-- Empty State -->
@@ -341,9 +335,11 @@ const hasActivePlanting = computed(() => {
   return farmStore.hasActivePlanting(plotId.value);
 });
 
-const activePlanting = computed(() => {
-  if (!plotId.value) return null;
-  return farmStore.getActivePlantingForPlot(plotId.value);
+const activePlantings = computed(() => {
+  if (!plotId.value || !farmStore.plantingsLoaded) return [];
+  return plotPlantings.value.filter((p) =>
+    ['Planted', 'Growing', 'Harvesting', 'planted', 'growing', 'harvesting'].includes(p.status),
+  );
 });
 
 const plotPlantings = computed(() => {
@@ -352,36 +348,9 @@ const plotPlantings = computed(() => {
 });
 
 const completedPlantings = computed(() => {
-  return plotPlantings.value.filter((p) => ['Completed', 'Failed'].includes(p.status));
-});
-
-const daysUntilHarvest = computed(() => {
-  if (!activePlanting.value?.expected_harvest_date) return null;
-  try {
-    const today = new Date();
-    const harvestDate = new Date(activePlanting.value.expected_harvest_date);
-    const diffTime = harvestDate - today;
-    return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-  } catch {
-    return null;
-  }
-});
-
-const daysUntilHarvestText = computed(() => {
-  const days = daysUntilHarvest.value;
-  if (days === null) return '';
-  if (days < 0) return `${days} days overdue`;
-  if (days === 0) return 'Today!';
-  if (days === 1) return 'Tomorrow';
-  return `In ${days} days`;
-});
-
-const harvestBadgeColor = computed(() => {
-  const days = daysUntilHarvest.value;
-  if (days === null) return 'grey';
-  if (days < 0) return 'negative';
-  if (days <= 7) return 'warning';
-  return 'positive';
+  return plotPlantings.value.filter((p) =>
+    ['Completed', 'Failed', 'completed', 'failed'].includes(p.status),
+  );
 });
 
 onMounted(async () => {
@@ -458,11 +427,7 @@ function getStatusColor(status) {
 }
 
 function calculateInvestment(planting) {
-  return (
-    (planting.seed_cost || 0) +
-    (planting.planting_labor_cost || 0) +
-    (planting.planting_other_costs || 0)
-  );
+  return (planting.inputs_cost || 0) + (planting.labor_cost || 0) + (planting.other_cost || 0);
 }
 
 function confirmDelete() {

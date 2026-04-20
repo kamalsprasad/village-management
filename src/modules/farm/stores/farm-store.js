@@ -91,10 +91,12 @@ export const useFarmStore = defineStore('farm', {
       }, {});
     },
     activePlantings: (state) =>
-      state.plantings.filter((p) => ['planted', 'growing', 'harvesting'].includes(p.status)),
+      state.plantings.filter((p) =>
+        ['Planted', 'Growing', 'Harvesting', 'planted', 'growing', 'harvesting'].includes(p.status),
+      ),
     readyForHarvest: (state) =>
       state.plantings.filter((p) => {
-        if (p.status !== 'growing') return false;
+        if (!['Growing', 'growing'].includes(p.status)) return false;
         const expectedDate = new Date(p.expected_harvest_date);
         const today = new Date();
         const daysDiff = Math.ceil((expectedDate - today) / (1000 * 60 * 60 * 24));
@@ -115,15 +117,42 @@ export const useFarmStore = defineStore('farm', {
     // Active planting check for a plot (Story 3.3)
     hasActivePlanting: (state) => (plotId) => {
       return state.plantings.some(
-        (p) => p.plot_id === plotId && ['Planted', 'Growing', 'Harvesting'].includes(p.status),
+        (p) =>
+          p.plot_id === plotId &&
+          ['Planted', 'Growing', 'Harvesting', 'planted', 'growing', 'harvesting'].includes(
+            p.status,
+          ),
       );
     },
 
     // Get active planting for a specific plot
     getActivePlantingForPlot: (state) => (plotId) => {
-      return state.plantings.find(
-        (p) => p.plot_id === plotId && ['Planted', 'Growing', 'Harvesting'].includes(p.status),
+      const activePlantings = state.plantings.filter(
+        (p) =>
+          p.plot_id === plotId &&
+          ['Planted', 'Growing', 'Harvesting', 'planted', 'growing', 'harvesting'].includes(
+            p.status,
+          ),
       );
+      if (activePlantings.length === 0) return null;
+      if (activePlantings.length === 1) return activePlantings[0];
+
+      // Prioritize by status: Harvesting > Growing > Planted
+      const statusPriority = {
+        Harvesting: 3,
+        harvesting: 3,
+        Growing: 2,
+        growing: 2,
+        Planted: 1,
+        planted: 1,
+      };
+
+      return activePlantings.sort((a, b) => {
+        const priorityDiff = statusPriority[b.status] - statusPriority[a.status];
+        if (priorityDiff !== 0) return priorityDiff;
+        // If same priority, use date (more recent first)
+        return new Date(b.planting_date) - new Date(a.planting_date);
+      })[0];
     },
   },
 
@@ -428,6 +457,7 @@ export const useFarmStore = defineStore('farm', {
           (p) => !this.plantings.some((existing) => existing.$id === p.$id),
         );
         this.plantings = [...this.plantings, ...newPlantings];
+        this.plantingsLoaded = true; // Set the flag here too!
         return { success: true, data: response.rows };
       } catch (error) {
         console.error('Error fetching plantings by plot:', error);

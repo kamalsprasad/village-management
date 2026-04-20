@@ -284,7 +284,7 @@ export function useFarmSampleData() {
             funding_source_id: villageFund?.$id || null,
             date: new Date(`${saleDate}T10:00:00Z`).toISOString(),
             description: `Farm produce sale: ${plan.sale.quantity_sold}kg to ${plan.sale.buyer_name}`,
-            status: 'completed',
+            status: 'Completed',
           };
           await createRowWithRetry(dbId, 'finance_transactions', txData);
 
@@ -546,7 +546,7 @@ export function useFarmSampleData() {
         other_cost: 0,
         notes:
           'Maize planting. Seeds from inventory (60kg). Fertilizer: 5 bags D-Compound. Labor: 8 farmhands for land prep/ploughing/planting.',
-        status: 'completed',
+        status: 'Completed',
       },
       // 2. Harvesting-in-progress tomatoes (East Garden) -- planted ~80 days ago
       {
@@ -562,7 +562,7 @@ export function useFarmSampleData() {
         other_cost: 0,
         notes:
           'Tomato transplanting. 400 seedlings from inventory. Materials: stakes, twine, drip parts.',
-        status: 'harvesting',
+        status: 'Harvesting',
       },
       // 3. Growing groundnuts (South Field) -- 60 days ago
       {
@@ -577,7 +577,7 @@ export function useFarmSampleData() {
         labor_cost: 900,
         other_cost: 0,
         notes: 'Groundnut planting. 40kg seed from inventory. Labor: ridging and planting.',
-        status: 'growing',
+        status: 'Growing',
       },
       // 4. Freshly planted rape (East Garden second bed) -- 15 days ago
       {
@@ -592,7 +592,7 @@ export function useFarmSampleData() {
         labor_cost: 200,
         other_cost: 0,
         notes: 'Rape direct seeding. 2kg seed from inventory (donated). Bed prep labor.',
-        status: 'planted',
+        status: 'Planted',
       },
       // 5. Failed maize (drought) -- North Field earlier season
       {
@@ -608,7 +608,7 @@ export function useFarmSampleData() {
         other_cost: 0,
         notes:
           'Failed maize due to drought. 20kg seed from inventory. Fertilizer applied before failure observed.',
-        status: 'failed',
+        status: 'Failed',
       },
       // 6. Completed sweet potatoes with donated vines (South Field) -- 240 days ago
       {
@@ -624,7 +624,7 @@ export function useFarmSampleData() {
         other_cost: 200,
         notes:
           'Sweet potato using donated vines. Labor: ridging and vine planting. Tool hire cost.',
-        status: 'completed',
+        status: 'Completed',
       },
       // 7. Purchased-separately soybean planting (Growing) -- 50 days ago
       {
@@ -640,7 +640,7 @@ export function useFarmSampleData() {
         other_cost: 0,
         notes:
           'Soybean with purchased seed (not from inventory). Emergency purchase of 2 bags D-Compound fertilizer.',
-        status: 'growing',
+        status: 'Growing',
       },
       // 8. Newly planted cabbage (Riverside Plot) -- 20 days ago
       {
@@ -655,7 +655,7 @@ export function useFarmSampleData() {
         labor_cost: 450,
         other_cost: 0,
         notes: 'Cabbage planting with purchased seedlings.',
-        status: 'planted',
+        status: 'Planted',
       },
     ];
 
@@ -707,7 +707,7 @@ export function useFarmSampleData() {
           price_per_unit: 450, // stored as integer (4.5 ZMW * 100)
           total_amount: 1350000, // 13500 ZMW * 100
           payment_method: 'Bank Transfer',
-          payment_status: 'completed',
+          payment_status: 'Completed',
           sale_date: daysAgo(160),
           notes: 'Bulk sale to FRA depot.',
         },
@@ -748,7 +748,7 @@ export function useFarmSampleData() {
           price_per_unit: 1200, // 12 ZMW * 100
           total_amount: 720000, // 7200 ZMW * 100
           payment_method: 'Cash',
-          payment_status: 'completed',
+          payment_status: 'Completed',
           sale_date: daysAgo(8),
           notes: 'Sold to multiple market vendors.',
         },
@@ -789,7 +789,7 @@ export function useFarmSampleData() {
           price_per_unit: 400, // 4 ZMW * 100
           total_amount: 1000000, // 10000 ZMW * 100
           payment_method: 'Mobile Money',
-          payment_status: 'completed',
+          payment_status: 'Completed',
           sale_date: daysAgo(110),
           notes: 'Bulk purchase for Chipata market.',
         },
