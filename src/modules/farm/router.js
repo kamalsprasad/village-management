@@ -118,7 +118,18 @@ const farmRoutes = [
     },
   },
 
-  // Future routes for Farm module (Stories 3.4-3.9):
+  // Planting edit (Story 3.4)
+  {
+    path: 'farm/plantings/:id/edit',
+    name: 'farm-planting-edit',
+    component: () => import('./pages/PlantingEditPage.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresPermission: 'farm:write',
+    },
+  },
+
+  // Future routes for Farm module (Stories 3.5-3.9):
   // - /farm/harvests (Harvest records)
   // - /farm/sales (Farm sales)
   // - /farm/reports (Farm reports)

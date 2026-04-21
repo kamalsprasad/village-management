@@ -1,8 +1,9 @@
 <!--
   PlantingsListPage.vue
   List page for all planting records with filtering.
-  
+
   Story 3.3: Farm Module - Planting Records
+  Story 3.4: Planting Status Tracking and Lifecycle Management
 -->
 <template>
   <q-page class="q-pa-md">
@@ -10,7 +11,10 @@
     <div class="row items-center justify-between q-mb-lg">
       <div>
         <h5 class="q-my-none">Plantings</h5>
-        <p class="text-grey q-mt-xs q-mb-none">Track all crop plantings across the farm</p>
+        <p class="text-grey q-mt-xs q-mb-none">
+          {{ activePlantingsCount }} active
+          <span v-if="overdueCount" class="text-negative"> · {{ overdueCount }} overdue </span>
+        </p>
       </div>
       <q-btn
         v-if="canWrite"
@@ -144,6 +148,19 @@
             <q-btn flat dense icon="visibility" color="primary" @click.stop="viewPlanting(row)">
               <q-tooltip>View Details</q-tooltip>
             </q-btn>
+            <q-btn
+              v-if="canWrite"
+              flat
+              dense
+              icon="swap_horiz"
+              color="primary"
+              :disable="isTerminal(row.status)"
+              @click.stop="openStatusDialog(row)"
+            >
+              <q-tooltip>{{
+                isTerminal(row.status) ? 'No further status changes' : 'Update Status'
+              }}</q-tooltip>
+            </q-btn>
           </q-td>
         </template>
 
@@ -160,6 +177,15 @@
         </template>
       </q-table>
     </q-card>
+
+    <!-- Update Status Dialog -->
+    <UpdateStatusDialog
+      v-if="statusDialogTarget"
+      v-model="statusDialogOpen"
+      :planting-id="statusDialogTarget.$id"
+      :current-status="statusDialogTarget.status"
+      @updated="onStatusUpdated"
+    />
   </q-page>
 </template>
 
@@ -168,6 +194,7 @@ import { ref, computed, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { useFarmStore } from '../stores/farm-store';
 import { usePermissions } from 'src/composables/usePermissions';
+import UpdateStatusDialog from '../components/UpdateStatusDialog.vue';
 
 const router = useRouter();
 const farmStore = useFarmStore();
@@ -178,6 +205,10 @@ const canWrite = computed(() => hasPermission('farm:write'));
 // Plot selector dialog state
 const plotSelectorOpen = ref(false);
 const selectedPlotId = ref(null);
+
+// Status dialog state
+const statusDialogOpen = ref(false);
+const statusDialogTarget = ref(null);
 
 // Filters
 const filters = ref({
@@ -233,6 +264,21 @@ const cropOptions = computed(() => {
 
 const hasActiveFilters = computed(() => {
   return filters.value.plotId || filters.value.cropId || filters.value.status;
+});
+
+const activePlantingsCount = computed(() => {
+  return farmStore.plantings.filter((p) =>
+    ['planted', 'growing', 'harvesting'].includes(p.status?.toLowerCase()),
+  ).length;
+});
+
+const overdueCount = computed(() => {
+  const today = new Date();
+  return farmStore.plantings.filter((p) => {
+    if (!['planted', 'growing', 'harvesting'].includes(p.status?.toLowerCase())) return false;
+    if (!p.expected_harvest_date) return false;
+    return new Date(p.expected_harvest_date) < today;
+  }).length;
 });
 
 const filteredPlantings = computed(() => {
@@ -310,6 +356,20 @@ function formatDate(dateString) {
 
 function viewPlanting(planting) {
   router.push(`/farm/plantings/${planting.$id}`);
+}
+
+function isTerminal(status) {
+  const s = status?.toLowerCase();
+  return s === 'completed' || s === 'failed';
+}
+
+function openStatusDialog(planting) {
+  statusDialogTarget.value = planting;
+  statusDialogOpen.value = true;
+}
+
+function onStatusUpdated() {
+  statusDialogTarget.value = null;
 }
 
 function clearFilters() {

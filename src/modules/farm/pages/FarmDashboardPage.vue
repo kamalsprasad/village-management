@@ -1,8 +1,9 @@
 <!--
   FarmDashboardPage.vue
   Dashboard page for the Farm module with overview widgets and stats.
-  
+
   Story 3.1: Farm Module - Plot Management
+  Story 3.4: Planting Status Tracking and Lifecycle Management
 -->
 <template>
   <q-page class="q-pa-md">
@@ -26,7 +27,7 @@
         <q-card bordered>
           <q-card-section>
             <div class="text-caption text-grey">Total Plots</div>
-            <div class="text-h4 text-weight-bold">{{ stats.totalPlots }}</div>
+            <div class="text-h4 text-weight-bold">{{ farmStore.plots.length }}</div>
           </q-card-section>
         </q-card>
       </div>
@@ -57,19 +58,118 @@
     </div>
 
     <!-- Widgets Row -->
-    <div class="row q-col-gutter-md">
+    <div class="row q-col-gutter-md q-mb-md">
       <div class="col-12 col-md-6">
         <PlotsOverviewWidget />
       </div>
-      <!-- Future widgets can be added here -->
       <div class="col-12 col-md-6">
-        <q-card class="full-height" style="min-height: 300px">
-          <q-card-section class="text-center text-grey flex flex-center" style="height: 100%">
-            <div>
-              <q-icon name="agriculture" size="3em" class="q-mb-md" />
-              <div>More dashboard widgets coming in future stories</div>
-            </div>
-          </q-card-section>
+        <PlantingStatusWidget />
+      </div>
+    </div>
+
+    <!-- Harvest Alerts Row -->
+    <div class="row q-col-gutter-md q-mb-lg">
+      <!-- Ready for Harvest -->
+      <div class="col-12 col-md-6">
+        <q-card>
+          <q-expansion-item
+            :default-opened="$q.screen.gt.sm"
+            :header-class="readyForHarvest.length ? 'text-positive' : ''"
+          >
+            <template #header>
+              <q-item-section avatar>
+                <q-icon name="agriculture" :color="readyForHarvest.length ? 'positive' : 'grey'" />
+              </q-item-section>
+              <q-item-section>
+                <q-item-label class="text-weight-medium">
+                  Ready for Harvest
+                  <q-badge v-if="readyForHarvest.length" color="positive" class="q-ml-sm">{{
+                    readyForHarvest.length
+                  }}</q-badge>
+                </q-item-label>
+              </q-item-section>
+            </template>
+
+            <q-list separator>
+              <q-item
+                v-for="p in readyForHarvest"
+                :key="p.$id"
+                clickable
+                @click="$router.push(`/farm/plantings/${p.$id}`)"
+              >
+                <q-item-section>
+                  <q-item-label
+                    >{{ getCropName(p.crop_id) }} on {{ getPlotName(p.plot_id) }}</q-item-label
+                  >
+                  <q-item-label caption>
+                    Harvest expected {{ formatDate(p.expected_harvest_date) }}
+                    <span class="text-positive">
+                      · {{ getDaysLabel(p.expected_harvest_date) }}</span
+                    >
+                  </q-item-label>
+                </q-item-section>
+                <q-item-section side>
+                  <q-icon name="chevron_right" color="grey" />
+                </q-item-section>
+              </q-item>
+              <q-item v-if="readyForHarvest.length === 0">
+                <q-item-section class="text-grey text-caption text-center q-py-sm">
+                  No harvests due in the next 7 days
+                </q-item-section>
+              </q-item>
+            </q-list>
+          </q-expansion-item>
+        </q-card>
+      </div>
+
+      <!-- Overdue Harvest -->
+      <div class="col-12 col-md-6">
+        <q-card>
+          <q-expansion-item
+            :default-opened="$q.screen.gt.sm"
+            :header-class="overdueHarvest.length ? 'text-negative' : ''"
+          >
+            <template #header>
+              <q-item-section avatar>
+                <q-icon name="warning" :color="overdueHarvest.length ? 'negative' : 'grey'" />
+              </q-item-section>
+              <q-item-section>
+                <q-item-label class="text-weight-medium">
+                  Overdue Harvest
+                  <q-badge v-if="overdueHarvest.length" color="negative" class="q-ml-sm">{{
+                    overdueHarvest.length
+                  }}</q-badge>
+                </q-item-label>
+              </q-item-section>
+            </template>
+
+            <q-list separator>
+              <q-item
+                v-for="p in overdueHarvest"
+                :key="p.$id"
+                clickable
+                @click="$router.push(`/farm/plantings/${p.$id}`)"
+              >
+                <q-item-section>
+                  <q-item-label
+                    >{{ getCropName(p.crop_id) }} on {{ getPlotName(p.plot_id) }}</q-item-label
+                  >
+                  <q-item-label caption class="text-negative">
+                    Was due {{ formatDate(p.expected_harvest_date) }} ·
+                    {{ getOverdueLabel(p.expected_harvest_date) }}
+                  </q-item-label>
+                </q-item-section>
+                <q-item-section side>
+                  <q-icon name="chevron_right" color="grey" />
+                </q-item-section>
+              </q-item>
+              <q-item v-if="overdueHarvest.length === 0">
+                <q-item-section class="text-grey text-caption text-center q-py-sm">
+                  No overdue harvests
+                </q-item-section>
+              </q-item>
+            </q-list>
+          </q-expansion-item>
         </q-card>
       </div>
     </div>
@@ -101,26 +201,86 @@
 
 <script setup>
 import { computed, onMounted } from 'vue';
+import { useQuasar } from 'quasar';
 import { useFarmStore } from '../stores/farm-store';
+import { format, parseISO, differenceInDays } from 'date-fns';
 import PlotsOverviewWidget from '../components/PlotsOverviewWidget.vue';
+import PlantingStatusWidget from '../components/PlantingStatusWidget.vue';
 
+const $q = useQuasar();
 const farmStore = useFarmStore();
 
-const stats = computed(() => ({
-  totalPlots: farmStore.plots.length,
-}));
+const activePlotsCount = computed(
+  () => farmStore.plots.filter((p) => p.status === 'Active').length,
+);
+const fallowPlotsCount = computed(
+  () => farmStore.plots.filter((p) => p.status === 'Fallow').length,
+);
+const retiredPlotsCount = computed(
+  () => farmStore.plots.filter((p) => p.status === 'Retired').length,
+);
 
-const activePlotsCount = computed(() => {
-  return farmStore.plots.filter(p => p.status === 'Active').length;
+const activePlantingStatuses = ['planted', 'growing', 'harvesting'];
+
+const readyForHarvest = computed(() => {
+  const today = new Date();
+  const in7 = new Date();
+  in7.setDate(today.getDate() + 7);
+  return farmStore.plantings.filter((p) => {
+    if (!activePlantingStatuses.includes(p.status?.toLowerCase())) return false;
+    if (!p.expected_harvest_date) return false;
+    const d = new Date(p.expected_harvest_date);
+    return d >= today && d <= in7;
+  });
 });
 
-const fallowPlotsCount = computed(() => {
-  return farmStore.plots.filter(p => p.status === 'Fallow').length;
+const overdueHarvest = computed(() => {
+  const today = new Date();
+  return farmStore.plantings.filter((p) => {
+    if (!activePlantingStatuses.includes(p.status?.toLowerCase())) return false;
+    if (!p.expected_harvest_date) return false;
+    return new Date(p.expected_harvest_date) < today;
+  });
 });
 
-const retiredPlotsCount = computed(() => {
-  return farmStore.plots.filter(p => p.status === 'Retired').length;
-});
+function getCropName(cropId) {
+  return farmStore.getCropNameById(cropId);
+}
+
+function getPlotName(plotId) {
+  return farmStore.plots.find((p) => p.$id === plotId)?.name || plotId;
+}
+
+function formatDate(dateString) {
+  if (!dateString) return '-';
+  try {
+    return format(parseISO(dateString), 'MMM d, yyyy');
+  } catch {
+    return dateString;
+  }
+}
+
+function getDaysLabel(dateString) {
+  if (!dateString) return '';
+  try {
+    const days = differenceInDays(parseISO(dateString), new Date());
+    if (days === 0) return 'Today';
+    if (days === 1) return 'Tomorrow';
+    return `in ${days} days`;
+  } catch {
+    return '';
+  }
+}
+
+function getOverdueLabel(dateString) {
+  if (!dateString) return '';
+  try {
+    const days = Math.abs(differenceInDays(parseISO(dateString), new Date()));
+    return `${days} day${days !== 1 ? 's' : ''} overdue`;
+  } catch {
+    return '';
+  }
+}
 
 const moduleLinks = [
   {
@@ -128,35 +288,37 @@ const moduleLinks = [
     description: 'Manage farm plots and assignments',
     route: '/farm/plots',
     icon: 'grid_on',
-    color: 'green'
+    color: 'green',
   },
   {
     name: 'Plantings',
-    description: 'Track what\'s planted and growing',
+    description: "Track what's planted and growing",
     route: '/farm/plantings',
     icon: 'spa',
-    color: 'green-7'
+    color: 'green-7',
   },
   {
     name: 'Harvests',
     description: 'Record and track harvests',
     route: '/farm/harvests',
     icon: 'agriculture',
-    color: 'orange'
+    color: 'orange',
   },
   {
     name: 'Sales',
     description: 'Farm produce sales and revenue',
     route: '/farm/sales',
     icon: 'point_of_sale',
-    color: 'blue'
-  }
+    color: 'blue',
+  },
 ];
 
 onMounted(async () => {
-  if (!farmStore.plotsLoaded) {
-    await farmStore.fetchPlots();
-  }
+  const loaders = [];
+  if (!farmStore.plotsLoaded) loaders.push(farmStore.fetchPlots());
+  if (!farmStore.plantingsLoaded) loaders.push(farmStore.fetchPlantings());
+  if (!farmStore.cropsLoaded) loaders.push(farmStore.fetchCrops());
+  if (loaders.length) await Promise.all(loaders);
 });
 </script>
 

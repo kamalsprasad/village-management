@@ -554,6 +554,66 @@ export const useFarmStore = defineStore('farm', {
       this.currentPlanting = null;
     },
 
+    // Story 3.4: Status lifecycle management
+    async updatePlantingStatus(
+      plantingId,
+      newStatus,
+      { failureReason = null, additionalNotes = '' } = {},
+    ) {
+      const ALLOWED_TRANSITIONS = {
+        planted: ['growing', 'failed'],
+        growing: ['harvesting', 'failed'],
+        harvesting: ['completed', 'failed'],
+      };
+
+      const current = this.plantings.find((p) => p.$id === plantingId) || this.currentPlanting;
+      const currentStatus = current?.status?.toLowerCase();
+      const allowed = ALLOWED_TRANSITIONS[currentStatus] || [];
+
+      if (!allowed.includes(newStatus)) {
+        return {
+          success: false,
+          error: `Invalid status transition: ${currentStatus} → ${newStatus}`,
+        };
+      }
+
+      // Build updated notes with failure prefix if needed
+      let updatedNotes = current?.notes || '';
+      if (newStatus === 'failed' && failureReason) {
+        const prefix = additionalNotes
+          ? `[FAILURE: ${failureReason}] ${additionalNotes}`
+          : `[FAILURE: ${failureReason}]`;
+        updatedNotes = updatedNotes ? `${prefix}\n${updatedNotes}` : prefix;
+      }
+
+      const result = await this.updatePlanting(plantingId, {
+        status: newStatus,
+        notes: updatedNotes,
+      });
+
+      if (!result.success) return result;
+
+      // Cascade plot status to Fallow if no other active plantings remain (best-effort)
+      const plotId = current?.plot_id;
+      if (plotId && ['completed', 'failed'].includes(newStatus)) {
+        const otherActive = this.plantings.filter(
+          (p) =>
+            p.plot_id === plotId &&
+            p.$id !== plantingId &&
+            ['planted', 'growing', 'harvesting'].includes(p.status?.toLowerCase()),
+        );
+        if (otherActive.length === 0) {
+          try {
+            await this.updatePlot(plotId, { status: 'Fallow' });
+          } catch (err) {
+            console.error('Plot status cascade failed (non-blocking):', err);
+          }
+        }
+      }
+
+      return result;
+    },
+
     // Harvest management (Story 3.5-3.6)
     async fetchHarvests() {
       this.isHarvestsLoading = true;
