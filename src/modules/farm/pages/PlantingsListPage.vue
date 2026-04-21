@@ -180,10 +180,9 @@
 
     <!-- Update Status Dialog -->
     <UpdateStatusDialog
-      v-if="statusDialogTarget"
       v-model="statusDialogOpen"
-      :planting-id="statusDialogTarget.$id"
-      :current-status="statusDialogTarget.status"
+      :planting-id="statusDialogTarget?.$id || ''"
+      :current-status="statusDialogTarget?.status || ''"
       @updated="onStatusUpdated"
     />
   </q-page>

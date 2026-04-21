@@ -5,7 +5,7 @@
   Story 3.4: Farm Module - Planting Status Tracking and Lifecycle Management
 -->
 <template>
-  <q-dialog v-model="isOpen" persistent>
+  <q-dialog v-if="props.plantingId" v-model="isOpen" persistent>
     <q-card style="min-width: 380px; max-width: 480px">
       <q-card-section class="row items-center q-pb-none">
         <div class="text-h6">Update Planting Status</div>
@@ -66,7 +66,6 @@
       <q-card-actions align="right" class="q-pt-none q-pb-md q-px-md">
         <q-btn flat label="Cancel" :disable="isSaving" v-close-popup />
         <q-btn
-          color="primary"
           :label="selectedStatus === 'failed' ? 'Mark as Failed' : 'Save Status'"
           :color="selectedStatus === 'failed' ? 'negative' : 'primary'"
           :loading="isSaving"
@@ -90,11 +89,11 @@ const props = defineProps({
   },
   plantingId: {
     type: String,
-    required: true,
+    default: '',
   },
   currentStatus: {
     type: String,
-    required: true,
+    default: '',
   },
 });
 
@@ -180,14 +179,10 @@ async function saveStatus() {
 
   isSaving.value = true;
   try {
-    const result = await farmStore.updatePlantingStatus(
-      props.plantingId,
-      selectedStatus.value,
-      {
-        failureReason: failureReason.value,
-        additionalNotes: additionalNotes.value,
-      },
-    );
+    const result = await farmStore.updatePlantingStatus(props.plantingId, selectedStatus.value, {
+      failureReason: failureReason.value,
+      additionalNotes: additionalNotes.value,
+    });
 
     if (result.success) {
       $q.notify({
@@ -204,7 +199,7 @@ async function saveStatus() {
         position: 'top',
       });
     }
-  } catch (err) {
+  } catch {
     $q.notify({
       type: 'negative',
       message: 'An unexpected error occurred. Please try again.',

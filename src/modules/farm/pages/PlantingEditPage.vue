@@ -28,9 +28,7 @@
         <q-btn icon="arrow_back" flat dense class="q-mr-md" @click="cancel" />
         <div>
           <h5 class="q-my-none">Edit Planting</h5>
-          <p class="text-grey q-mt-xs q-mb-none">
-            {{ cropName }} on {{ plotName }}
-          </p>
+          <p class="text-grey q-mt-xs q-mb-none">{{ cropName }} on {{ plotName }}</p>
         </div>
       </div>
 
@@ -159,20 +157,14 @@
                   :counter="form.notes && form.notes.length > 800"
                   hint="Seed source, vendor, labor details, etc."
                 />
+
+                <div class="row justify-end q-gutter-sm q-pt-sm">
+                  <q-btn flat label="Cancel" :disable="isSaving" @click="cancel" />
+                  <q-btn color="primary" label="Save Changes" :loading="isSaving" type="submit" />
+                </div>
               </q-form>
             </q-card-section>
           </q-card>
-
-          <!-- Action buttons -->
-          <div class="row justify-end q-gutter-sm q-mt-md">
-            <q-btn flat label="Cancel" :disable="isSaving" @click="cancel" />
-            <q-btn
-              color="primary"
-              label="Save Changes"
-              :loading="isSaving"
-              @click="save"
-            />
-          </div>
         </div>
       </div>
     </template>
@@ -214,7 +206,9 @@ const crop = computed(() => {
   return farmStore.crops.find((c) => c.$id === planting.value.crop_id);
 });
 
-const cropName = computed(() => crop.value?.crop_name || farmStore.getCropNameById(planting.value?.crop_id));
+const cropName = computed(
+  () => crop.value?.crop_name || farmStore.getCropNameById(planting.value?.crop_id),
+);
 const plotName = computed(() => plot.value?.name || planting.value?.plot_id || '');
 
 const statusColor = computed(() => {
@@ -230,16 +224,21 @@ const statusColor = computed(() => {
 
 const dateError = computed(() => {
   if (!form.value.expected_harvest_date || !planting.value?.planting_date) return null;
-  const harvest = new Date(form.value.expected_harvest_date);
-  const planting_date = new Date(planting.value.planting_date);
-  if (harvest < planting_date) {
-    return 'Expected harvest date must be on or after the planting date';
+  try {
+    const harvest = parseISO(form.value.expected_harvest_date);
+    const planting_date = parseISO(planting.value.planting_date);
+    if (harvest < planting_date) {
+      return 'Expected harvest date must be on or after the planting date';
+    }
+  } catch {
+    return null;
   }
   return null;
 });
 
 onMounted(async () => {
   isLoading.value = true;
+  farmStore.clearCurrentPlanting();
   try {
     // If currentPlanting is already the right one, skip fetch
     if (farmStore.currentPlanting?.$id !== plantingId.value) {
@@ -263,13 +262,19 @@ onMounted(async () => {
 
 function prefillForm() {
   if (!planting.value) return;
+  let notes = planting.value.notes || '';
+  // Strip structured failure reason prefix so user doesn't accidentally delete audit data
+  const failureMatch = notes.match(/^\[FAILURE:\s*[^\]]+\](.*?)($|\n)/s);
+  if (failureMatch) {
+    notes = notes.slice(failureMatch[0].length).trim();
+  }
   form.value = {
     expected_harvest_date: planting.value.expected_harvest_date
       ? planting.value.expected_harvest_date.substring(0, 10)
       : '',
     labor_cost: planting.value.labor_cost ?? null,
     other_cost: planting.value.other_cost ?? null,
-    notes: planting.value.notes || '',
+    notes,
   };
 }
 
@@ -279,8 +284,14 @@ async function save() {
   isSaving.value = true;
   try {
     const updateData = {
-      labor_cost: form.value.labor_cost !== null && form.value.labor_cost !== '' ? Number(form.value.labor_cost) : 0,
-      other_cost: form.value.other_cost !== null && form.value.other_cost !== '' ? Number(form.value.other_cost) : 0,
+      labor_cost:
+        form.value.labor_cost !== null && form.value.labor_cost !== ''
+          ? Number(form.value.labor_cost)
+          : 0,
+      other_cost:
+        form.value.other_cost !== null && form.value.other_cost !== ''
+          ? Number(form.value.other_cost)
+          : 0,
       notes: form.value.notes || null,
     };
 
@@ -296,7 +307,11 @@ async function save() {
       $q.notify({ type: 'positive', message: 'Planting updated successfully', position: 'top' });
       router.push(`/farm/plantings/${plantingId.value}`);
     } else {
-      $q.notify({ type: 'negative', message: result.error || 'Failed to save changes', position: 'top' });
+      $q.notify({
+        type: 'negative',
+        message: result.error || 'Failed to save changes',
+        position: 'top',
+      });
     }
   } catch (err) {
     console.error('Error saving planting:', err);

@@ -526,7 +526,14 @@ export const useFarmStore = defineStore('farm', {
         return { success: true, data: response };
       } catch (error) {
         console.error('Error updating planting:', error);
-        return { success: false, error: error.message };
+        const isConflict =
+          error.code === 409 || error.type?.includes('conflict') || error.response?.status === 409;
+        return {
+          success: false,
+          error: isConflict
+            ? 'This planting was recently updated. Please refresh and try again.'
+            : error.message,
+        };
       }
     },
 

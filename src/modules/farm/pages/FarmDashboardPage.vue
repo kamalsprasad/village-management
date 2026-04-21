@@ -264,6 +264,7 @@ function getDaysLabel(dateString) {
   if (!dateString) return '';
   try {
     const days = differenceInDays(parseISO(dateString), new Date());
+    if (days < 0) return 'Overdue';
     if (days === 0) return 'Today';
     if (days === 1) return 'Tomorrow';
     return `in ${days} days`;

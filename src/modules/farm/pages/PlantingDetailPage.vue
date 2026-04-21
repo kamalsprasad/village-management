@@ -53,7 +53,11 @@
       <!-- Status / Progress Section -->
       <div class="q-mb-md">
         <!-- Completed banner -->
-        <q-banner v-if="planting.status === 'completed'" rounded class="bg-positive text-white">
+        <q-banner
+          v-if="planting.status?.toLowerCase() === 'completed'"
+          rounded
+          class="bg-positive text-white"
+        >
           <template #avatar>
             <q-icon name="check_circle" />
           </template>
@@ -61,7 +65,11 @@
         </q-banner>
 
         <!-- Failed banner -->
-        <q-banner v-else-if="planting.status === 'failed'" rounded class="bg-negative text-white">
+        <q-banner
+          v-else-if="planting.status?.toLowerCase() === 'failed'"
+          rounded
+          class="bg-negative text-white"
+        >
           <template #avatar>
             <q-icon name="cancel" />
           </template>
@@ -419,6 +427,7 @@ onMounted(async () => {
 
 async function loadPlanting() {
   isLoading.value = true;
+  farmStore.clearCurrentPlanting();
   try {
     const result = await farmStore.fetchPlantingById(plantingId.value);
     if (!result.success) {
