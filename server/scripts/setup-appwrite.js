@@ -425,11 +425,32 @@ const tableSchemas = {
         twoWay: false,
         required: true,
       },
-      { key: 'harvest_date', type: 'datetime', required: true },
-      { key: 'quantity_harvested', type: 'integer', min: 0, max: 1000000000000, required: true },
-      { key: 'unit', type: 'string', size: 20, required: true, default: 'kg' },
-      { key: 'quality_grade', type: 'string', size: 50, required: false },
-      { key: 'storage_location', type: 'string', size: 200, required: false },
+      {
+        key: 'harvest_type',
+        type: 'enum',
+        elements: ['Single Day', 'Multi-Day Aggregate'],
+        required: true,
+      },
+      // Single Day fields
+      { key: 'harvest_date', type: 'datetime', required: false },
+      // Multi-Day fields
+      { key: 'harvest_start_date', type: 'datetime', required: false },
+      { key: 'harvest_end_date', type: 'datetime', required: false },
+      // Totals (auto-calculated from daily entries for multi-day)
+      { key: 'total_quantity_kg', type: 'float', min: 0, required: true },
+      { key: 'total_labor_cost', type: 'float', min: 0, required: false, default: 0 },
+      { key: 'total_other_costs', type: 'float', min: 0, required: false, default: 0 },
+      // Daily breakdown for multi-day harvests (JSON array)
+      { key: 'daily_breakdown', type: 'object', required: false, array: true },
+      // Status tracking for partial harvests
+      {
+        key: 'status',
+        type: 'enum',
+        elements: ['In Progress', 'Completed'],
+        required: true,
+        default: 'In Progress',
+      },
+      // Notes
       { key: 'notes', type: 'string', size: 1000, required: false },
     ],
     indexes: [
@@ -437,6 +458,53 @@ const tableSchemas = {
         key: 'idx_harvests_date',
         type: 'key',
         columns: ['harvest_date'],
+        orders: ['DESC'],
+      },
+      {
+        key: 'idx_harvests_planting',
+        type: 'key',
+        columns: ['planting_id'],
+        orders: ['ASC'],
+      },
+      {
+        key: 'idx_harvests_status',
+        type: 'key',
+        columns: ['status'],
+        orders: ['ASC'],
+      },
+    ],
+  },
+  // Partial harvest entries for multi-day tracking
+  harvest_entries: {
+    name: 'Harvest Entries',
+    columns: [
+      {
+        key: 'harvest_id',
+        type: 'relationship',
+        relatedTable: 'harvests',
+        relationType: 'manyToOne',
+        twoWay: false,
+        required: true,
+      },
+      { key: 'entry_date', type: 'datetime', required: true },
+      { key: 'quantity_kg', type: 'float', min: 0, required: true },
+      { key: 'farmhands_count', type: 'integer', min: 0, required: false },
+      { key: 'labor_cost', type: 'float', min: 0, required: false, default: 0 },
+      { key: 'other_costs', type: 'float', min: 0, required: false, default: 0 },
+      { key: 'other_costs_notes', type: 'string', size: 500, required: false },
+      { key: 'notes', type: 'string', size: 500, required: false },
+    ],
+    indexes: [
+      {
+        key: 'idx_harvest_entries_harvest',
+        type: 'key',
+        columns: ['harvest_id'],
+        orders: ['ASC'],
+      },
+      {
+        key: 'idx_harvest_entries_date',
+        type: 'key',
+        columns: ['entry_date'],
         orders: ['DESC'],
       },
     ],
@@ -1079,14 +1147,16 @@ async function setupDatabase() {
 
     console.log('\n✅ Database setup complete!');
     console.log('\n📋 Summary:');
-    console.log('   - 19 Tables created/verified');
+    console.log('   - 20 Tables created/verified');
     console.log('   - 130+ columns created/verified');
     console.log('   - 16 indexes created/verified');
     console.log('   - Permissions configured');
     console.log('\n🎉 You can now test the database connection at /appwrite-test');
     console.log('\n📦 Tables created:');
     console.log('   Core: users, residents, households, roles, village_settings');
-    console.log('   Farm: soil_types, plots, crops, plantings, harvests, farm_sales');
+    console.log(
+      '   Farm: soil_types, plots, crops, plantings, harvests, harvest_entries, farm_sales',
+    );
     console.log(
       '   Finance: finance_categories, funding_sources, loans, inventory, finance_transactions, transaction_links',
     );

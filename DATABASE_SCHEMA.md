@@ -145,26 +145,53 @@ Records crop plantings with aggregated cost tracking. Costs are stored as intege
 
 ### harvests
 
-Records harvest data with labor cost tracking for profitability analysis.
+Records harvest records for planting completions. Supports single-day and multi-day aggregate harvests with status tracking for partial harvest workflows.
 
-| Column                      | Type     | Constraints                                                               | Description                          |
-| --------------------------- | -------- | ------------------------------------------------------------------------- | ------------------------------------ |
-| `id`                        | string   | Primary Key, Auto-generated                                               | Unique harvest identifier            |
-| `planting_id`               | string   | Required, Foreign Key → plantings.id, Indexed                             | Reference to planting                |
-| `harvest_type`              | string   | Required, Enum: 'Single Day', 'Multi-Day Aggregate', 'Continuous Picking' | Harvest type                         |
-| `harvest_date`              | date     | Required (for single day)                                                 | Harvest date                         |
-| `harvest_start_date`        | date     | Optional                                                                  | Start date for multi-day             |
-| `harvest_end_date`          | date     | Optional                                                                  | End date for multi-day               |
-| `total_quantity_kg`         | float    | Required, Min: 0                                                          | Total harvest quantity               |
-| `daily_breakdown`           | object[] | Optional                                                                  | Array of daily details for multi-day |
-| `harvest_labor_farmhands`   | integer  | Optional, Min: 0                                                          | Workers for harvest                  |
-| `harvest_labor_cost`        | float    | Optional, Min: 0                                                          | Labor cost for harvest               |
-| `harvest_other_costs`       | float    | Optional, Min: 0                                                          | Miscellaneous costs                  |
-| `harvest_other_costs_notes` | string   | Optional                                                                  | Notes about other costs              |
-| `status`                    | string   | Required, Enum: 'In Progress', 'Completed'                                | Current status                       |
-| `inventory_item_id`         | string   | Optional, Foreign Key → inventory.id                                      | Auto-created inventory reference     |
-| `created_at`                | datetime | Auto-generated                                                            | Creation timestamp                   |
-| `updated_at`                | datetime | Auto-updated                                                              | Modification timestamp               |
+| Column               | Type     | Constraints                                                        | Description                                 |
+| -------------------- | -------- | ------------------------------------------------------------------ | ------------------------------------------- |
+| `id`                 | string   | Primary Key, Auto-generated                                        | Unique harvest identifier                   |
+| `planting_id`        | string   | Required, Foreign Key → plantings.id, Indexed                      | Reference to planting                       |
+| `harvest_type`       | string   | Required, Enum: 'Single Day', 'Multi-Day Aggregate'                | Type of harvest (Continuous Picking in 3.6) |
+| `harvest_date`       | datetime | Optional                                                           | Single day harvest date                     |
+| `harvest_start_date` | datetime | Optional                                                           | Multi-day start date                        |
+| `harvest_end_date`   | datetime | Optional                                                           | Multi-day end date                          |
+| `total_quantity_kg`  | float    | Required, Min: 0                                                   | Total harvested quantity (auto-summed)      |
+| `total_labor_cost`   | float    | Optional, Min: 0, Default: 0                                       | Total labor cost (auto-summed)              |
+| `total_other_costs`  | float    | Optional, Min: 0, Default: 0                                       | Total other costs (auto-summed)             |
+| `daily_breakdown`    | object[] | Optional                                                           | Summary of daily entries (cached)           |
+| `status`             | string   | Required, Enum: 'In Progress', 'Completed', Default: 'In Progress' | Harvest status for partial workflows        |
+| `notes`              | string   | Optional, Max: 1000                                                | General harvest notes                       |
+| `created_at`         | datetime | Auto-generated                                                     | Creation timestamp                          |
+| `updated_at`         | datetime | Auto-updated                                                       | Modification timestamp                      |
+
+**Indexes:**
+
+- `idx_harvests_date` - For date-based queries
+- `idx_harvests_planting` - For finding harvests by planting
+- `idx_harvests_status` - For filtering by In Progress vs Completed
+
+### harvest_entries
+
+Individual harvest entries for multi-day and partial harvest recording. Each entry represents one day's harvest or a partial harvest addition to an in-progress harvest.
+
+| Column              | Type     | Constraints                                  | Description                      |
+| ------------------- | -------- | -------------------------------------------- | -------------------------------- |
+| `id`                | string   | Primary Key, Auto-generated                  | Unique entry identifier          |
+| `harvest_id`        | string   | Required, Foreign Key → harvests.id, Indexed | Parent harvest record            |
+| `entry_date`        | datetime | Required                                     | Date of this harvest entry       |
+| `quantity_kg`       | float    | Required, Min: 0                             | Quantity harvested this entry    |
+| `farmhands_count`   | integer  | Optional, Min: 0                             | Workers for this entry           |
+| `labor_cost`        | float    | Optional, Min: 0, Default: 0                 | Labor cost for this entry (ZMW)  |
+| `other_costs`       | float    | Optional, Min: 0, Default: 0                 | Other costs for this entry (ZMW) |
+| `other_costs_notes` | string   | Optional, Max: 500                           | Notes about other costs          |
+| `notes`             | string   | Optional, Max: 500                           | Entry-specific notes             |
+| `created_at`        | datetime | Auto-generated                               | Creation timestamp               |
+| `updated_at`        | datetime | Auto-updated                                 | Modification timestamp           |
+
+**Indexes:**
+
+- `idx_harvest_entries_harvest` - For finding entries by harvest
+- `idx_harvest_entries_date` - For date-based queries
 
 ### farm_sales
 
@@ -350,6 +377,7 @@ The database uses a normalized schema with ID-based relationships:
 - **plantings → crops**: Many-to-one via `plantings.crop_id` referencing `crops.id`
 - **plantings → inventory**: Many-to-one via `plantings.seed_inventory_id` referencing `inventory.id`
 - **harvests → plantings**: Many-to-one via `harvests.planting_id` referencing `plantings.id`
+- **harvest_entries → harvests**: Many-to-one via `harvest_entries.harvest_id` referencing `harvests.id`
 - **harvests → inventory**: One-to-one via `harvests.inventory_item_id` referencing `inventory.id`
 - **farm_sales → inventory**: Many-to-one via `farm_sales.inventory_item_id` referencing `inventory.id`
 - **farm_sales → harvests**: Many-to-one via `farm_sales.harvest_id` referencing `harvests.id`
