@@ -122,27 +122,26 @@ Stores crop information and characteristics for the crop database.
 
 ### plantings
 
-Records crop plantings with seed inventory and labor cost tracking.
+Records crop plantings with aggregated cost tracking. Costs are stored as integers (ZMW whole numbers). Multiple crops can be planted on the same plot simultaneously; `area_used_hectares` tracks the portion of the plot used. Seed source, vendor, and labor details are captured in the free-text `notes` field.
 
-| Column                       | Type     | Constraints                                                                     | Description                            |
-| ---------------------------- | -------- | ------------------------------------------------------------------------------- | -------------------------------------- |
-| `id`                         | string   | Primary Key, Auto-generated                                                     | Unique planting identifier             |
-| `plot_id`                    | string   | Required, Foreign Key → plots.id, Indexed                                       | Reference to plot                      |
-| `crop_id`                    | string   | Required, Foreign Key → crops.id, Indexed                                       | Reference to crop                      |
-| `planting_date`              | date     | Required                                                                        | When crop was planted                  |
-| `expected_harvest_date`      | date     | Calculated                                                                      | Auto-calculated from crop maturity     |
-| `seed_inventory_id`          | string   | Optional, Foreign Key → inventory.id                                            | Seed source from inventory             |
-| `seed_cost`                  | float    | Optional, Min: 0                                                                | Cost of seeds if purchased separately  |
-| `seed_source`                | string   | Optional, Enum: 'From Inventory', 'Purchased Separately', 'Donated'             | Origin of seeds                        |
-| `planting_labor_farmhands`   | integer  | Optional, Min: 0                                                                | Number of workers for planting         |
-| `planting_labor_cost`        | float    | Optional, Min: 0                                                                | Total labor cost for planting          |
-| `planting_labor_notes`       | string   | Optional                                                                        | Notes about labor                      |
-| `planting_other_costs`       | float    | Optional, Min: 0                                                                | Miscellaneous costs (fertilizer, etc.) |
-| `planting_other_costs_notes` | string   | Optional                                                                        | Notes about other costs                |
-| `status`                     | string   | Required, Enum: 'Planted', 'Growing', 'Harvesting', 'Completed', 'Failed'       | Current status                         |
-| `failure_reason`             | string   | Optional, Enum: 'Drought', 'Pests', 'Disease', 'Flooding', 'Poor Soil', 'Other' | Reason if failed                       |
-| `created_at`                 | datetime | Auto-generated                                                                  | Creation timestamp                     |
-| `updated_at`                 | datetime | Auto-updated                                                                    | Modification timestamp                 |
+| Column                  | Type     | Constraints                                                                     | Description                                    |
+| ----------------------- | -------- | ------------------------------------------------------------------------------- | ---------------------------------------------- |
+| `id`                    | string   | Primary Key, Auto-generated                                                     | Unique planting identifier                     |
+| `plot_id`               | string   | Required, Foreign Key → plots.id, Indexed                                       | Reference to plot                              |
+| `crop_id`               | string   | Required, Foreign Key → crops.id, Indexed                                       | Reference to crop                              |
+| `planting_date`         | datetime | Required                                                                        | When crop was planted                          |
+| `expected_harvest_date` | datetime | Optional, auto-calculated from crop maturity days                               | Expected harvest date                          |
+| `actual_harvest_date`   | datetime | Optional                                                                        | Actual harvest date (set when harvested)       |
+| `area_used_hectares`    | float    | Optional, Min: 0                                                                | Portion of plot used (supports multi-crop)     |
+| `quantity_planted`      | integer  | Optional, Min: 1                                                                | Quantity of seeds/seedlings/cuttings planted   |
+| `unit`                  | string   | Optional, Max: 20, Default: 'kg'                                                | Unit for quantity_planted (kg, seedlings, etc) |
+| `inputs_cost`           | integer  | Optional, Min: 0                                                                | Total inputs cost: seeds + fertilizer (ZMW)    |
+| `labor_cost`            | integer  | Optional, Min: 0                                                                | Total labor cost for planting activity (ZMW)   |
+| `other_cost`            | integer  | Optional, Min: 0                                                                | Miscellaneous costs (ZMW)                      |
+| `notes`                 | string   | Optional, Max: 1000                                                             | Free-text: seed source, vendor, labor details  |
+| `status`                | string   | Required, Enum: 'planned','planted','growing','harvesting','completed','failed' | Current planting status (lowercase)            |
+| `created_at`            | datetime | Auto-generated                                                                  | Creation timestamp                             |
+| `updated_at`            | datetime | Auto-updated                                                                    | Modification timestamp                         |
 
 ### harvests
 

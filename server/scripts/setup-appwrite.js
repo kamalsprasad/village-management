@@ -386,6 +386,7 @@ const tableSchemas = {
       { key: 'unit', type: 'string', size: 20, required: false, default: 'kg' },
       { key: 'expected_harvest_date', type: 'datetime', required: false },
       { key: 'actual_harvest_date', type: 'datetime', required: false },
+      { key: 'area_used_hectares', type: 'float', min: 0, max: 100000, required: false },
       { key: 'inputs_cost', type: 'integer', min: 0, max: 1000000000000, required: false },
       { key: 'labor_cost', type: 'integer', min: 0, max: 1000000000000, required: false },
       { key: 'other_cost', type: 'integer', min: 0, max: 1000000000000, required: false },

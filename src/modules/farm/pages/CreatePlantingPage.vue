@@ -3,6 +3,8 @@
   Form for recording new plantings with seed inventory and labor tracking.
   
   Story 3.3: Farm Module - Planting Records with Seed Inventory and Labor Tracking
+  Plot is locked from route param (:id). Plot selection happens before navigation
+  (via plot detail page button or plantings list dialog).
 -->
 <template>
   <q-page class="q-pa-md">
@@ -21,26 +23,6 @@
       </div>
     </div>
 
-    <!-- Active Planting Warning -->
-    <div v-else-if="hasActivePlanting" class="flex flex-center q-pa-xl">
-      <q-card class="text-center q-pa-lg" style="max-width: 500px">
-        <q-card-section>
-          <q-icon name="warning" size="3em" color="warning" class="q-mb-md" />
-          <div class="text-h6">Active Planting Exists</div>
-          <p class="q-mt-sm">
-            {{ plot?.name }} already has an active
-            <strong>{{ activePlanting?.crop?.crop_name || 'crop' }}</strong>
-            planting (status: {{ activePlanting?.status }}).
-          </p>
-          <p>Mark the existing planting as Completed or Failed before creating a new one.</p>
-        </q-card-section>
-        <q-card-actions align="center">
-          <q-btn flat color="primary" label="View Active Planting" @click="viewActivePlanting" />
-          <q-btn flat label="Back to Plot" @click="goBackToPlot" />
-        </q-card-actions>
-      </q-card>
-    </div>
-
     <!-- Form Content -->
     <template v-else>
       <!-- Header -->
@@ -49,20 +31,30 @@
         <div>
           <h5 class="q-my-none">Record New Planting</h5>
           <p v-if="plot" class="text-grey q-mt-xs q-mb-none">
-            Plot: {{ plot.name }} ({{ formatSize(plot.size_hectares) }} hectares)
+            Plot: <strong>{{ plot.name }}</strong> ({{ formatSize(plot.size_hectares) }} ha total)
           </p>
         </div>
       </div>
 
-      <q-form @submit="handleSubmit">
+      <!-- Active planting warning banner (non-blocking — multiple crops allowed) -->
+      <q-banner v-if="hasActivePlanting" class="bg-warning text-dark q-mb-md" rounded dense>
+        <template #avatar><q-icon name="info" /></template>
+        This plot has an active planting ({{ activePlantingCropName }}). Recording another planting
+        is allowed for multi-crop plots — use <em>Area Used</em> to track the portion of the plot.
+        <template #action>
+          <q-btn flat dense label="View Active" @click="viewActivePlanting" />
+        </template>
+      </q-banner>
+
+      <q-form @submit.prevent="handleSubmit">
         <div class="row q-col-gutter-md">
-          <!-- Core Fields Column -->
+          <!-- Left Column: Core Details + Labor -->
           <div class="col-12 col-md-6">
+            <!-- Planting Details Card -->
             <q-card>
               <q-card-section>
                 <div class="text-subtitle1 text-weight-medium q-mb-md">Planting Details</div>
 
-                <!-- Crop Selection -->
                 <q-select
                   v-model="form.crop_id"
                   :options="cropOptions"
@@ -75,10 +67,8 @@
                   :error-message="errors.crop_id"
                   outlined
                   class="q-mb-md"
-                  :rules="[(val) => !!val || 'Crop is required']"
                 />
 
-                <!-- Planting Date -->
                 <q-input
                   v-model="form.planting_date"
                   type="date"
@@ -89,7 +79,6 @@
                   class="q-mb-md"
                 />
 
-                <!-- Expected Harvest Date -->
                 <q-input
                   v-model="form.expected_harvest_date"
                   type="date"
@@ -107,81 +96,74 @@
                   </template>
                 </q-input>
 
-                <!-- Notes -->
+                <div class="row q-col-gutter-sm q-mb-md">
+                  <div class="col-6">
+                    <q-input
+                      v-model.number="form.area_used_hectares"
+                      type="number"
+                      label="Area Used (ha)"
+                      outlined
+                      min="0"
+                      :max="plot?.size_hectares || undefined"
+                      hint="Portion of plot used for this crop"
+                    />
+                  </div>
+                  <div class="col-6">
+                    <q-input
+                      v-model.number="form.quantity_planted"
+                      type="number"
+                      label="Quantity Planted"
+                      outlined
+                      min="0"
+                    >
+                      <template #append>
+                        <q-select
+                          v-model="form.unit"
+                          :options="unitOptions"
+                          dense
+                          borderless
+                          style="min-width: 90px"
+                        />
+                      </template>
+                    </q-input>
+                  </div>
+                </div>
+
                 <q-input
                   v-model="form.notes"
                   type="textarea"
                   label="Notes"
                   outlined
                   rows="3"
-                  hint="General planting notes, observations, etc."
+                  hint="Observations, vendor details, donor name, special conditions, etc."
                 />
               </q-card-section>
             </q-card>
 
-            <!-- Labor Costs Card -->
+            <!-- Labor Cost Card -->
             <q-card class="q-mt-md">
               <q-card-section>
-                <div class="row items-center justify-between q-mb-md">
-                  <div class="text-subtitle1 text-weight-medium">Labor Costs</div>
-                  <q-icon name="info" color="grey" size="sm">
-                    <q-tooltip
-                      >Record total labor cost for this planting. Per-worker tracking available in
-                      future updates.</q-tooltip
-                    >
-                  </q-icon>
-                </div>
-
-                <div class="row q-col-gutter-sm">
-                  <div class="col-6">
-                    <q-input
-                      v-model.number="form.planting_labor_farmhands"
-                      type="number"
-                      label="Number of Farmhands"
-                      outlined
-                      min="0"
-                    />
-                  </div>
-                  <div class="col-6">
-                    <q-input
-                      v-model.number="form.planting_labor_cost"
-                      type="number"
-                      label="Labor Cost (ZMW)"
-                      outlined
-                      min="0"
-                      prefix="ZMW"
-                    />
-                  </div>
-                </div>
-
-                <q-banner v-if="errors.laborWarning" class="q-mt-sm bg-warning text-dark" dense>
-                  <template #avatar>
-                    <q-icon name="warning" />
-                  </template>
-                  {{ errors.laborWarning }}
-                </q-banner>
-
+                <div class="text-subtitle1 text-weight-medium q-mb-md">Labor Cost</div>
                 <q-input
-                  v-model="form.planting_labor_notes"
-                  type="textarea"
-                  label="Labor Notes"
+                  v-model.number="form.labor_cost"
+                  type="number"
+                  label="Labor Cost (ZMW)"
                   outlined
-                  rows="2"
-                  class="q-mt-sm"
-                  hint="Task description, worker names, hours worked, etc."
+                  min="0"
+                  prefix="ZMW"
+                  hint="Total labor cost for planting activity (farmhands, days worked, etc.)"
                 />
               </q-card-section>
             </q-card>
           </div>
 
-          <!-- Seed & Costs Column -->
+          <!-- Right Column: Seed Source + Other Costs + Summary -->
           <div class="col-12 col-md-6">
-            <!-- Seed Source Card -->
+            <!-- Seed / Inputs Source Card -->
             <q-card>
               <q-card-section>
-                <div class="text-subtitle1 text-weight-medium q-mb-md">Seed Source</div>
+                <div class="text-subtitle1 text-weight-medium q-mb-md">Seed / Inputs Source</div>
 
-                <!-- Seed Source Selection -->
                 <q-option-group
                   v-model="form.seed_source"
                   :options="seedSourceOptions"
@@ -190,16 +172,16 @@
                   class="q-mb-md"
                 />
 
-                <!-- From Inventory Fields -->
+                <!-- From Inventory -->
                 <template v-if="isFromInventory">
                   <q-select
                     v-model="form.seed_inventory_id"
-                    :options="availableSeedInventory"
+                    :options="enhancedInventoryOptions"
                     option-value="$id"
                     option-label="displayLabel"
                     emit-value
                     map-options
-                    label="Select Seed Inventory *"
+                    label="Select Seed/Input Item *"
                     :error="!!errors.seed_inventory_id"
                     :error-message="errors.seed_inventory_id"
                     outlined
@@ -209,86 +191,65 @@
                   <q-input
                     v-model.number="form.seeds_used"
                     type="number"
-                    label="Seeds Used *"
+                    label="Quantity Used *"
                     :error="!!errors.seeds_used"
                     :error-message="errors.seeds_used"
                     outlined
                     class="q-mb-md"
                     :suffix="selectedInventory?.unit || ''"
+                    hint="Will be deducted from inventory stock"
                   />
 
-                  <!-- Calculated vs Override Seed Cost -->
                   <div class="row items-center q-mb-md">
                     <q-input
-                      v-model.number="form.seed_cost"
+                      v-model.number="form.inputs_cost"
                       type="number"
-                      label="Seed Cost (ZMW)"
+                      label="Inputs Cost (ZMW)"
                       outlined
                       class="col"
                       prefix="ZMW"
-                      :disable="!form.seed_cost_override"
+                      :disable="!form.inputs_cost_override"
+                      hint="Seeds + fertilizer + other inputs"
                     />
                     <q-checkbox
-                      v-model="form.seed_cost_override"
-                      label="Override cost"
+                      v-model="form.inputs_cost_override"
+                      label="Override"
                       class="q-ml-sm"
                     />
                   </div>
 
                   <q-banner
-                    v-if="!form.seed_cost_override && calculatedSeedCost > 0"
+                    v-if="!form.inputs_cost_override && calculatedInputsCost > 0"
                     dense
-                    class="bg-info"
+                    class="bg-blue-1 text-blue-9 q-mb-sm"
                   >
-                    <template #avatar>
-                      <q-icon name="calculate" />
-                    </template>
+                    <template #avatar><q-icon name="calculate" color="blue" /></template>
                     Auto-calculated: {{ selectedInventory?.unit_cost }} × {{ form.seeds_used }} =
-                    ZMW {{ calculatedSeedCost.toFixed(2) }}
+                    ZMW {{ calculatedInputsCost.toFixed(2) }}
                   </q-banner>
                 </template>
 
-                <!-- Purchased Separately Fields -->
+                <!-- Purchased Separately -->
                 <template v-if="isPurchased">
                   <q-input
-                    v-model.number="form.seed_cost"
+                    v-model.number="form.inputs_cost"
                     type="number"
-                    label="Seed Cost (ZMW) *"
-                    :error="!!errors.seed_cost"
-                    :error-message="errors.seed_cost"
+                    label="Inputs Cost (ZMW) *"
+                    :error="!!errors.inputs_cost"
+                    :error-message="errors.inputs_cost"
                     outlined
                     class="q-mb-md"
                     prefix="ZMW"
-                  />
-
-                  <q-input
-                    v-model="form.seed_vendor"
-                    label="Vendor/Supplier"
-                    outlined
-                    class="q-mb-md"
-                  />
-
-                  <q-input
-                    v-model="form.seed_notes"
-                    type="textarea"
-                    label="Purchase Notes"
-                    outlined
-                    rows="2"
+                    hint="Total cost of purchased seeds + any other inputs"
                   />
                 </template>
 
-                <!-- Donated Fields -->
+                <!-- Donated -->
                 <template v-if="isDonated">
-                  <q-input v-model="form.seed_donor" label="Donor Name" outlined class="q-mb-md" />
-
-                  <q-input
-                    v-model="form.seed_notes"
-                    type="textarea"
-                    label="Donation Notes"
-                    outlined
-                    rows="2"
-                    hint="Seed cost will be recorded as ZMW 0"
-                  />
+                  <q-banner dense class="bg-green-1 text-green-9">
+                    <template #avatar><q-icon name="volunteer_activism" color="green" /></template>
+                    Inputs cost recorded as ZMW 0. Add donor/source details in Notes.
+                  </q-banner>
                 </template>
               </q-card-section>
             </q-card>
@@ -297,37 +258,27 @@
             <q-card class="q-mt-md">
               <q-card-section>
                 <div class="text-subtitle1 text-weight-medium q-mb-md">Other Costs</div>
-
                 <q-input
-                  v-model.number="form.planting_other_costs"
+                  v-model.number="form.other_cost"
                   type="number"
                   label="Other Costs (ZMW)"
                   outlined
-                  class="q-mb-md"
+                  min="0"
                   prefix="ZMW"
-                  hint="Fertilizer, pesticides, equipment rental, etc."
-                />
-
-                <q-input
-                  v-model="form.planting_other_costs_notes"
-                  type="textarea"
-                  label="Cost Details"
-                  outlined
-                  rows="2"
-                  hint="Breakdown of other expenses"
+                  hint="Equipment rental, transport, miscellaneous expenses"
                 />
               </q-card-section>
             </q-card>
 
-            <!-- Cost Summary Card -->
+            <!-- Investment Summary Card -->
             <q-card class="q-mt-md bg-primary text-white">
               <q-card-section>
                 <div class="text-subtitle1 text-weight-medium">Total Planting Investment</div>
                 <div class="text-h4 q-mt-sm">ZMW {{ totalPlantingInvestment.toFixed(2) }}</div>
                 <div class="text-caption q-mt-xs">
-                  Seed: ZMW {{ finalSeedCost.toFixed(2) }} + Labor: ZMW
-                  {{ (form.planting_labor_cost || 0).toFixed(2) }} + Other: ZMW
-                  {{ (form.planting_other_costs || 0).toFixed(2) }}
+                  Inputs: ZMW {{ (form.inputs_cost || 0).toFixed(2) }} + Labor: ZMW
+                  {{ (form.labor_cost || 0).toFixed(2) }} + Other: ZMW
+                  {{ (form.other_cost || 0).toFixed(2) }}
                 </div>
               </q-card-section>
             </q-card>
@@ -368,7 +319,6 @@ const plot = computed(() => farmStore.currentPlot);
 const isLoading = ref(true);
 const loadError = ref(null);
 
-// Initialize form composable
 const {
   form,
   isSubmitting,
@@ -378,8 +328,7 @@ const {
   isFromInventory,
   isPurchased,
   isDonated,
-  calculatedSeedCost,
-  finalSeedCost,
+  calculatedInputsCost,
   totalPlantingInvestment,
   submit,
   loadData,
@@ -387,64 +336,51 @@ const {
   getDaysUntilHarvest,
 } = usePlantingForm(plotId.value);
 
-// Computed for template
-const hasActivePlanting = computed(() => {
-  if (!plotId.value || !farmStore.plantingsLoaded) return false;
-  return farmStore.hasActivePlanting(plotId.value);
-});
+const hasActivePlanting = computed(
+  () => plotId.value && farmStore.plantingsLoaded && farmStore.hasActivePlanting(plotId.value),
+);
 
-const activePlanting = computed(() => {
-  if (!plotId.value) return null;
-  return farmStore.getActivePlantingForPlot(plotId.value);
+const activePlantingCropName = computed(() => {
+  const active = farmStore.getActivePlantingForPlot(plotId.value);
+  return active ? farmStore.getCropNameById(active.crop_id) : '';
 });
 
 const daysUntilHarvest = computed(() => getDaysUntilHarvest());
 
-const cropOptions = computed(() => {
-  return farmStore.activeCrops.map((crop) => ({
+const cropOptions = computed(() =>
+  farmStore.activeCrops.map((crop) => ({
     ...crop,
-    displayLabel: `${crop.crop_name} (${crop.category}) - ${crop.maturity_days} days to harvest`,
-  }));
-});
+    displayLabel: `${crop.crop_name} (${crop.category}) — ${crop.maturity_days} days`,
+  })),
+);
+
+const enhancedInventoryOptions = computed(() =>
+  availableSeedInventory.value.map((item) => ({
+    ...item,
+    displayLabel: formatInventoryOption(item),
+  })),
+);
 
 const seedSourceOptions = [
   { label: 'From Inventory', value: SEED_SOURCES.FROM_INVENTORY },
-  { label: 'Purchased Separately', value: SEED_SOURCES.PURCHASED_SEPARATELY },
+  { label: 'Purchased', value: SEED_SOURCES.PURCHASED_SEPARATELY },
   { label: 'Donated', value: SEED_SOURCES.DONATED },
 ];
 
-// Enhance inventory options with display label
-const enhancedInventoryOptions = computed(() => {
-  return availableSeedInventory.value.map((item) => ({
-    ...item,
-    displayLabel: formatInventoryOption(item),
-  }));
-});
+const unitOptions = ['kg', 'g', 'seedlings', 'cuttings', 'bundles', 'bags', 'litres', 'units'];
 
-onMounted(async () => {
-  await loadPageData();
-});
+onMounted(loadPageData);
 
 async function loadPageData() {
   isLoading.value = true;
   loadError.value = null;
-
   try {
-    // Load plot data
     const plotResult = await farmStore.fetchPlotById(plotId.value);
     if (!plotResult.success) {
       loadError.value = 'Failed to load plot data';
       return;
     }
-
-    // Load plantings for this plot to check active status
-    await farmStore.fetchPlantingsByPlot(plotId.value);
-
-    // Load form dependencies (crops, inventory)
-    await loadData();
-
-    // Enhance inventory options
-    form.value.availableInventory = enhancedInventoryOptions.value;
+    await Promise.all([farmStore.fetchPlantingsByPlot(plotId.value), loadData()]);
   } catch (error) {
     console.error('Error loading page data:', error);
     loadError.value = error.message || 'Failed to load data';
@@ -455,12 +391,10 @@ async function loadPageData() {
 
 async function handleSubmit() {
   const result = await submit();
-
   if (result.success) {
-    const cropName = farmStore.getCropNameById(form.value.crop_id);
     $q.notify({
       type: 'positive',
-      message: `${cropName} planting recorded on ${plot.value?.name}. Expected harvest: ${form.value.expected_harvest_date}`,
+      message: `${farmStore.getCropNameById(form.value.crop_id)} planting recorded on ${plot.value?.name}. Expected harvest: ${form.value.expected_harvest_date || 'TBD'}.`,
       position: 'top',
     });
     router.push(`/farm/plots/${plotId.value}`);
@@ -478,9 +412,8 @@ function goBackToPlot() {
 }
 
 function viewActivePlanting() {
-  if (activePlanting.value?.$id) {
-    router.push(`/farm/plantings/${activePlanting.value.$id}`);
-  }
+  const active = farmStore.getActivePlantingForPlot(plotId.value);
+  if (active?.$id) router.push(`/farm/plantings/${active.$id}`);
 }
 
 function formatSize(size) {

@@ -28,13 +28,7 @@
           </div>
         </div>
         <div class="row q-gutter-sm">
-          <q-btn
-            v-if="canWrite"
-            color="primary"
-            icon="edit"
-            label="Edit"
-            @click="editPlanting"
-          />
+          <q-btn v-if="canWrite" color="primary" icon="edit" label="Edit" @click="editPlanting" />
         </div>
       </div>
 
@@ -72,7 +66,11 @@
                   <div class="col-5 text-grey">Expected Harvest:</div>
                   <div class="col-7">
                     {{ formatDate(planting.expected_harvest_date) }}
-                    <q-badge v-if="daysUntilHarvest !== null" :color="harvestBadgeColor" class="q-ml-sm">
+                    <q-badge
+                      v-if="daysUntilHarvest !== null"
+                      :color="harvestBadgeColor"
+                      class="q-ml-sm"
+                    >
                       {{ daysUntilHarvestText }}
                     </q-badge>
                   </div>
@@ -83,54 +81,33 @@
                     <q-badge :color="statusColor">{{ planting.status }}</q-badge>
                   </div>
                 </div>
-                <div v-if="planting.notes" class="row">
-                  <div class="col-5 text-grey">Notes:</div>
-                  <div class="col-7">{{ planting.notes }}</div>
-                </div>
               </div>
             </q-card-section>
           </q-card>
 
-          <!-- Seed Information Card -->
+          <!-- Planting Details Card -->
           <q-card class="q-mt-md">
             <q-card-section>
-              <div class="text-subtitle1 text-weight-medium q-mb-md">Seed Information</div>
+              <div class="text-subtitle1 text-weight-medium q-mb-md">Planting Details</div>
 
               <div class="q-gutter-y-sm">
-                <div class="row">
-                  <div class="col-5 text-grey">Source:</div>
-                  <div class="col-7">{{ planting.seed_source || 'Not specified' }}</div>
+                <div v-if="planting.area_used_hectares" class="row">
+                  <div class="col-5 text-grey">Area Used:</div>
+                  <div class="col-7">{{ planting.area_used_hectares }} ha</div>
                 </div>
 
-                <div v-if="planting.seed_inventory_id && inventoryItem" class="row">
-                  <div class="col-5 text-grey">From Inventory:</div>
+                <div v-if="planting.quantity_planted" class="row">
+                  <div class="col-5 text-grey">Qty Planted:</div>
                   <div class="col-7">
-                    <router-link :to="`/inventory/${inventoryItem.$id}`" class="text-primary">
-                      {{ inventoryItem.item_name }}
-                    </router-link>
+                    {{ planting.quantity_planted }} {{ planting.unit || 'kg' }}
                   </div>
                 </div>
 
-                <div v-if="planting.seeds_used" class="row">
-                  <div class="col-5 text-grey">Quantity Used:</div>
-                  <div class="col-7">
-                    {{ planting.seeds_used }} {{ inventoryItem?.unit || 'units' }}
-                  </div>
-                </div>
-
-                <div class="row">
-                  <div class="col-5 text-grey">Seed Cost:</div>
-                  <div class="col-7">ZMW {{ (planting.seed_cost || 0).toFixed(2) }}</div>
-                </div>
-
-                <div v-if="planting.seed_vendor" class="row">
-                  <div class="col-5 text-grey">Vendor:</div>
-                  <div class="col-7">{{ planting.seed_vendor }}</div>
-                </div>
-
-                <div v-if="planting.seed_notes" class="row">
+                <div v-if="planting.notes" class="row">
                   <div class="col-5 text-grey">Notes:</div>
-                  <div class="col-7">{{ planting.seed_notes }}</div>
+                  <div class="col-7 text-body2" style="white-space: pre-line">
+                    {{ planting.notes }}
+                  </div>
                 </div>
               </div>
             </q-card-section>
@@ -146,31 +123,23 @@
 
               <q-list dense>
                 <q-item>
-                  <q-item-section>Seed Cost</q-item-section>
-                  <q-item-section side>ZMW {{ (planting.seed_cost || 0).toFixed(2) }}</q-item-section>
+                  <q-item-section>Inputs Cost</q-item-section>
+                  <q-item-section side
+                    >ZMW {{ (planting.inputs_cost || 0).toFixed(2) }}</q-item-section
+                  >
                 </q-item>
 
                 <q-item>
-                  <q-item-section>
-                    Labor Cost
-                    <span v-if="planting.planting_labor_farmhands" class="text-grey text-caption">
-                      ({{ planting.planting_labor_farmhands }} farmhands)
-                    </span>
-                  </q-item-section>
+                  <q-item-section>Labor Cost</q-item-section>
                   <q-item-section side>
-                    ZMW {{ (planting.planting_labor_cost || 0).toFixed(2) }}
+                    ZMW {{ (planting.labor_cost || 0).toFixed(2) }}
                   </q-item-section>
                 </q-item>
 
                 <q-item>
-                  <q-item-section>
-                    Other Costs
-                    <span v-if="planting.planting_other_costs_notes" class="text-grey text-caption">
-                      ({{ planting.planting_other_costs_notes }})
-                    </span>
-                  </q-item-section>
+                  <q-item-section>Other Costs</q-item-section>
                   <q-item-section side>
-                    ZMW {{ (planting.planting_other_costs || 0).toFixed(2) }}
+                    ZMW {{ (planting.other_cost || 0).toFixed(2) }}
                   </q-item-section>
                 </q-item>
 
@@ -183,42 +152,6 @@
                   </q-item-section>
                 </q-item>
               </q-list>
-            </q-card-section>
-          </q-card>
-
-          <!-- Labor Details Card -->
-          <q-card v-if="hasLaborDetails" class="q-mt-md">
-            <q-card-section>
-              <div class="text-subtitle1 text-weight-medium q-mb-md">Labor Details</div>
-
-              <div class="q-gutter-y-sm">
-                <div v-if="planting.planting_labor_farmhands" class="row">
-                  <div class="col-5 text-grey">Farmhands:</div>
-                  <div class="col-7">{{ planting.planting_labor_farmhands }}</div>
-                </div>
-                <div v-if="planting.planting_labor_notes" class="row">
-                  <div class="col-5 text-grey">Notes:</div>
-                  <div class="col-7">{{ planting.planting_labor_notes }}</div>
-                </div>
-              </div>
-            </q-card-section>
-          </q-card>
-
-          <!-- Other Costs Details Card -->
-          <q-card v-if="hasOtherCostsDetails" class="q-mt-md">
-            <q-card-section>
-              <div class="text-subtitle1 text-weight-medium q-mb-md">Other Expenses</div>
-
-              <div class="q-gutter-y-sm">
-                <div v-if="planting.planting_other_costs" class="row">
-                  <div class="col-5 text-grey">Amount:</div>
-                  <div class="col-7">ZMW {{ planting.planting_other_costs.toFixed(2) }}</div>
-                </div>
-                <div v-if="planting.planting_other_costs_notes" class="row">
-                  <div class="col-5 text-grey">Details:</div>
-                  <div class="col-7">{{ planting.planting_other_costs_notes }}</div>
-                </div>
-              </div>
             </q-card-section>
           </q-card>
 
@@ -259,7 +192,6 @@ import { ref, computed, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useQuasar } from 'quasar';
 import { useFarmStore } from '../stores/farm-store';
-import { useInventoryStore } from 'src/stores/inventory-store';
 import { usePermissions } from 'src/composables/usePermissions';
 import { format, parseISO, differenceInDays } from 'date-fns';
 
@@ -267,11 +199,9 @@ const route = useRoute();
 const router = useRouter();
 const $q = useQuasar();
 const farmStore = useFarmStore();
-const inventoryStore = useInventoryStore();
 const { hasPermission } = usePermissions();
 
 const isLoading = ref(true);
-const inventoryItem = ref(null);
 const harvest = ref(null); // Placeholder for future harvest integration
 
 const plantingId = computed(() => route.params.id);
@@ -295,30 +225,22 @@ const cropName = computed(() => {
 
 const statusColor = computed(() => {
   const colors = {
-    Planted: 'info',
-    Growing: 'positive',
-    Harvesting: 'warning',
-    Completed: 'positive',
-    Failed: 'negative',
+    planted: 'info',
+    growing: 'positive',
+    harvesting: 'warning',
+    completed: 'positive',
+    failed: 'negative',
   };
-  return colors[planting.value?.status] || 'grey';
+  return colors[planting.value?.status?.toLowerCase()] || 'grey';
 });
 
 const totalInvestment = computed(() => {
   if (!planting.value) return 0;
   return (
-    (planting.value.seed_cost || 0) +
-    (planting.value.planting_labor_cost || 0) +
-    (planting.value.planting_other_costs || 0)
+    (planting.value.inputs_cost || 0) +
+    (planting.value.labor_cost || 0) +
+    (planting.value.other_cost || 0)
   );
-});
-
-const hasLaborDetails = computed(() => {
-  return planting.value?.planting_labor_farmhands || planting.value?.planting_labor_notes;
-});
-
-const hasOtherCostsDetails = computed(() => {
-  return planting.value?.planting_other_costs || planting.value?.planting_other_costs_notes;
 });
 
 const daysUntilHarvest = computed(() => {
@@ -372,18 +294,6 @@ async function loadPlanting() {
     }
     if (planting.value?.crop_id && !farmStore.cropsLoaded) {
       await farmStore.fetchCrops();
-    }
-
-    // Load inventory item if referenced
-    if (planting.value?.seed_inventory_id) {
-      try {
-        const invResult = await inventoryStore.fetchItemById(planting.value.seed_inventory_id);
-        if (invResult.success) {
-          inventoryItem.value = invResult.data;
-        }
-      } catch (e) {
-        console.warn('Failed to load inventory item:', e);
-      }
     }
   } catch (error) {
     console.error('Error loading planting:', error);

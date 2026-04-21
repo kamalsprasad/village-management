@@ -452,12 +452,11 @@ export const useFarmStore = defineStore('farm', {
             Query.orderDesc('planting_date'),
           ],
         });
-        // Merge with existing plantings to maintain cache
-        const newPlantings = response.rows.filter(
-          (p) => !this.plantings.some((existing) => existing.$id === p.$id),
-        );
-        this.plantings = [...this.plantings, ...newPlantings];
-        this.plantingsLoaded = true; // Set the flag here too!
+        // Replace or insert: update existing records and append new ones
+        const fetchedIds = new Set(response.rows.map((p) => p.$id));
+        const retained = this.plantings.filter((p) => !fetchedIds.has(p.$id));
+        this.plantings = [...retained, ...response.rows];
+        this.plantingsLoaded = true;
         return { success: true, data: response.rows };
       } catch (error) {
         console.error('Error fetching plantings by plot:', error);
@@ -495,7 +494,7 @@ export const useFarmStore = defineStore('farm', {
           rowId: ID.unique(),
           data: {
             ...plantingData,
-            status: plantingData.status || 'Planted',
+            status: plantingData.status || 'planted',
           },
         });
         // Add to local state

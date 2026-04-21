@@ -12,7 +12,46 @@
         <h5 class="q-my-none">Plantings</h5>
         <p class="text-grey q-mt-xs q-mb-none">Track all crop plantings across the farm</p>
       </div>
+      <q-btn
+        v-if="canWrite"
+        color="positive"
+        icon="add"
+        label="Record Planting"
+        @click="openPlotSelector"
+      />
     </div>
+
+    <!-- Plot Selector Dialog -->
+    <q-dialog v-model="plotSelectorOpen" persistent>
+      <q-card style="min-width: 340px">
+        <q-card-section>
+          <div class="text-h6">Select a Plot</div>
+          <div class="text-grey text-caption">Choose the plot to record a planting for</div>
+        </q-card-section>
+        <q-card-section>
+          <q-select
+            v-model="selectedPlotId"
+            :options="plotOptions"
+            option-value="$id"
+            option-label="name"
+            emit-value
+            map-options
+            label="Plot *"
+            outlined
+            autofocus
+          />
+        </q-card-section>
+        <q-card-actions align="right">
+          <q-btn flat label="Cancel" v-close-popup />
+          <q-btn
+            color="primary"
+            label="Continue"
+            :disable="!selectedPlotId"
+            @click="navigateToCreatePlanting"
+          />
+        </q-card-actions>
+      </q-card>
+    </q-dialog>
 
     <!-- Filters -->
     <q-card class="q-mb-md">
@@ -128,9 +167,17 @@
 import { ref, computed, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { useFarmStore } from '../stores/farm-store';
+import { usePermissions } from 'src/composables/usePermissions';
 
 const router = useRouter();
 const farmStore = useFarmStore();
+const { hasPermission } = usePermissions();
+
+const canWrite = computed(() => hasPermission('farm:write'));
+
+// Plot selector dialog state
+const plotSelectorOpen = ref(false);
+const selectedPlotId = ref(null);
 
 // Filters
 const filters = ref({
@@ -139,7 +186,7 @@ const filters = ref({
   status: null,
 });
 
-const statusOptions = ['Planted', 'Growing', 'Harvesting', 'Completed', 'Failed'];
+const statusOptions = ['planted', 'growing', 'harvesting', 'completed', 'failed'];
 
 const pagination = ref({
   rowsPerPage: 25,
@@ -192,7 +239,8 @@ const filteredPlantings = computed(() => {
   return farmStore.plantings.filter((planting) => {
     if (filters.value.plotId && planting.plot_id !== filters.value.plotId) return false;
     if (filters.value.cropId && planting.crop_id !== filters.value.cropId) return false;
-    if (filters.value.status && planting.status !== filters.value.status) return false;
+    if (filters.value.status && planting.status?.toLowerCase() !== filters.value.status)
+      return false;
     return true;
   });
 });
@@ -221,18 +269,30 @@ function getCropName(cropId) {
 }
 
 function getStatusColor(status) {
+  const key = status?.toLowerCase();
   const colors = {
-    Planted: 'info',
-    Growing: 'positive',
-    Harvesting: 'warning',
-    Completed: 'positive',
-    Failed: 'negative',
+    planted: 'info',
+    growing: 'positive',
+    harvesting: 'warning',
+    completed: 'positive',
+    failed: 'negative',
   };
-  return colors[status] || 'grey';
+  return colors[key] || 'grey';
 }
 
 function calculateInvestment(planting) {
   return (planting.inputs_cost || 0) + (planting.labor_cost || 0) + (planting.other_cost || 0);
+}
+
+function openPlotSelector() {
+  selectedPlotId.value = null;
+  plotSelectorOpen.value = true;
+}
+
+function navigateToCreatePlanting() {
+  if (!selectedPlotId.value) return;
+  plotSelectorOpen.value = false;
+  router.push(`/farm/plots/${selectedPlotId.value}/plantings/new`);
 }
 
 function formatDate(dateString) {

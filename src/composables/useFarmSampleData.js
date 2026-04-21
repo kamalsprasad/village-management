@@ -539,6 +539,7 @@ export function useFarmSampleData() {
         crop_id: crop('Maize'),
         planting_date: daysAgo(300),
         expected_harvest_date: addDaysStr(daysAgo(300), 120),
+        area_used_hectares: 1.5,
         quantity_planted: 60,
         unit: 'kg',
         inputs_cost: 3300 + 2750, // seed cost (60*55) + fertilizer
@@ -555,6 +556,7 @@ export function useFarmSampleData() {
         crop_id: crop('Tomatoes'),
         planting_date: daysAgo(80),
         expected_harvest_date: addDaysStr(daysAgo(80), 75),
+        area_used_hectares: 0.5,
         quantity_planted: 400,
         unit: 'seedlings',
         inputs_cost: 600 + 450, // seedlings + materials
@@ -571,6 +573,7 @@ export function useFarmSampleData() {
         crop_id: crop('Groundnuts'),
         planting_date: daysAgo(60),
         expected_harvest_date: addDaysStr(daysAgo(60), 100),
+        area_used_hectares: 1.0,
         quantity_planted: 40,
         unit: 'kg',
         inputs_cost: 3200, // seed cost only (40*80)
@@ -586,6 +589,7 @@ export function useFarmSampleData() {
         crop_id: crop('Rape'),
         planting_date: daysAgo(15),
         expected_harvest_date: addDaysStr(daysAgo(15), 45),
+        area_used_hectares: 0.3,
         quantity_planted: 2,
         unit: 'kg',
         inputs_cost: 180, // 2kg * 90
@@ -594,13 +598,14 @@ export function useFarmSampleData() {
         notes: 'Rape direct seeding. 2kg seed from inventory (donated). Bed prep labor.',
         status: 'Planted',
       },
-      // 5. Failed maize (drought) -- North Field earlier season
+      // 5. Failed maize (drought) -- Riverside Plot earlier season
       {
         _key: 'p_maize_failed',
         plot_id: plot('riverside_plot'),
         crop_id: crop('Maize'),
         planting_date: daysAgo(200),
         expected_harvest_date: addDaysStr(daysAgo(200), 120),
+        area_used_hectares: 0.8,
         quantity_planted: 20,
         unit: 'kg',
         inputs_cost: 1100 + 1100, // seed + fertilizer
@@ -617,6 +622,7 @@ export function useFarmSampleData() {
         crop_id: crop('Sweet Potato'),
         planting_date: daysAgo(240),
         expected_harvest_date: addDaysStr(daysAgo(240), 120),
+        area_used_hectares: 1.2,
         quantity_planted: null,
         unit: 'bundles',
         inputs_cost: 0, // donated vines
@@ -633,6 +639,7 @@ export function useFarmSampleData() {
         crop_id: crop('Soybeans'),
         planting_date: daysAgo(50),
         expected_harvest_date: addDaysStr(daysAgo(50), 110),
+        area_used_hectares: 0.5,
         quantity_planted: null,
         unit: 'kg',
         inputs_cost: 1800 + 1100, // purchased seed + emergency fertilizer
@@ -649,6 +656,7 @@ export function useFarmSampleData() {
         crop_id: crop('Cabbage'),
         planting_date: daysAgo(20),
         expected_harvest_date: addDaysStr(daysAgo(20), 90),
+        area_used_hectares: 0.7,
         quantity_planted: null,
         unit: 'seedlings',
         inputs_cost: 300,

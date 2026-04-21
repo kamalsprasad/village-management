@@ -27,7 +27,7 @@
         </div>
         <div class="row q-gutter-sm">
           <q-btn
-            v-if="canWrite && !hasActivePlanting"
+            v-if="canWrite"
             color="positive"
             icon="add"
             label="Record Planting"
@@ -110,7 +110,7 @@
               <div class="row items-center justify-between q-mb-md">
                 <div class="text-subtitle1 text-weight-medium">Current Planting</div>
                 <q-btn
-                  v-if="canWrite && !hasActivePlanting"
+                  v-if="canWrite"
                   size="sm"
                   color="positive"
                   icon="add"
@@ -330,11 +330,6 @@ const canWrite = computed(() => hasPermission('farm:write'));
 const canDelete = computed(() => hasPermission('farm:delete'));
 
 // Planting-related computed properties
-const hasActivePlanting = computed(() => {
-  if (!plotId.value) return false;
-  return farmStore.hasActivePlanting(plotId.value);
-});
-
 const activePlantings = computed(() => {
   if (!plotId.value || !farmStore.plantingsLoaded) return [];
   return plotPlantings.value.filter((p) =>
@@ -416,14 +411,15 @@ function getCropName(cropId) {
 }
 
 function getStatusColor(status) {
+  const key = status?.toLowerCase();
   const colors = {
-    Planted: 'info',
-    Growing: 'positive',
-    Harvesting: 'warning',
-    Completed: 'positive',
-    Failed: 'negative',
+    planted: 'info',
+    growing: 'positive',
+    harvesting: 'warning',
+    completed: 'positive',
+    failed: 'negative',
   };
-  return colors[status] || 'grey';
+  return colors[key] || 'grey';
 }
 
 function calculateInvestment(planting) {
