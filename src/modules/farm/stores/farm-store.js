@@ -666,6 +666,263 @@ export const useFarmStore = defineStore('farm', {
       }
     },
 
+    async fetchHarvestsByPlanting(plantingId) {
+      try {
+        const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
+        const response = await tables.listRows({
+          databaseId: dbId,
+          tableId: 'harvests',
+          queries: [
+            Query.equal('planting_id', plantingId),
+            Query.orderDesc('harvest_date'),
+            Query.limit(50),
+          ],
+        });
+
+        // Update local state - replace existing harvests for this planting
+        const otherHarvests = this.harvests.filter((h) => h.planting_id !== plantingId);
+        this.harvests = [...otherHarvests, ...response.rows];
+
+        return { success: true, data: response.rows };
+      } catch (error) {
+        console.error('Error fetching harvests by planting:', error);
+        return { success: false, error: error.message };
+      }
+    },
+
+    async fetchHarvestById(harvestId) {
+      try {
+        const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
+        const harvestResponse = await tables.getRow({
+          databaseId: dbId,
+          tableId: 'harvests',
+          rowId: harvestId,
+        });
+
+        // Fetch entries for multi-day harvests
+        let entries = [];
+        if (harvestResponse.harvest_type === 'Multi-Day Aggregate') {
+          const entriesResponse = await tables.listRows({
+            databaseId: dbId,
+            tableId: 'harvest_entries',
+            queries: [
+              Query.equal('harvest_id', harvestId),
+              Query.orderAsc('entry_date'),
+              Query.limit(100),
+            ],
+          });
+          entries = entriesResponse.rows;
+        }
+
+        const harvestWithEntries = {
+          ...harvestResponse,
+          entries,
+        };
+
+        // Update local state
+        const index = this.harvests.findIndex((h) => h.$id === harvestId);
+        if (index !== -1) {
+          this.harvests[index] = harvestWithEntries;
+        } else {
+          this.harvests.push(harvestWithEntries);
+        }
+
+        return { success: true, data: harvestWithEntries };
+      } catch (error) {
+        console.error('Error fetching harvest by ID:', error);
+        return { success: false, error: error.message };
+      }
+    },
+
+    async createHarvest(harvestData) {
+      try {
+        const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
+
+        // Ensure status defaults to 'In Progress' if not provided
+        const harvestPayload = {
+          ...harvestData,
+          status: harvestData.status || 'In Progress',
+          total_quantity_kg: harvestData.total_quantity_kg || 0,
+          total_labor_cost: harvestData.total_labor_cost || 0,
+          total_other_costs: harvestData.total_other_costs || 0,
+        };
+
+        const response = await tables.createRow({
+          databaseId: dbId,
+          tableId: 'harvests',
+          rowId: ID.unique(),
+          data: harvestPayload,
+        });
+
+        // Add to local state
+        this.harvests.unshift(response);
+
+        return { success: true, data: response };
+      } catch (error) {
+        console.error('Error creating harvest:', error);
+        return { success: false, error: error.message };
+      }
+    },
+
+    async addHarvestEntry(harvestId, entryData) {
+      try {
+        const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
+
+        // Create the entry
+        const entryResponse = await tables.createRow({
+          databaseId: dbId,
+          tableId: 'harvest_entries',
+          rowId: ID.unique(),
+          data: {
+            ...entryData,
+            harvest_id: harvestId,
+            labor_cost: entryData.labor_cost || 0,
+            other_costs: entryData.other_costs || 0,
+          },
+        });
+
+        // Fetch all entries for this harvest to recalculate totals
+        const entriesResponse = await tables.listRows({
+          databaseId: dbId,
+          tableId: 'harvest_entries',
+          queries: [Query.equal('harvest_id', harvestId), Query.limit(200)],
+        });
+
+        // Calculate new totals
+        const entries = entriesResponse.rows;
+        const totalQuantity = entries.reduce(
+          (sum, entry) => sum + (parseFloat(entry.quantity_kg) || 0),
+          0,
+        );
+        const totalLaborCost = entries.reduce(
+          (sum, entry) => sum + (parseFloat(entry.labor_cost) || 0),
+          0,
+        );
+        const totalOtherCosts = entries.reduce(
+          (sum, entry) => sum + (parseFloat(entry.other_costs) || 0),
+          0,
+        );
+
+        // Update harvest with new totals
+        const harvestUpdate = await tables.updateRow({
+          databaseId: dbId,
+          tableId: 'harvests',
+          rowId: harvestId,
+          data: {
+            total_quantity_kg: totalQuantity,
+            total_labor_cost: totalLaborCost,
+            total_other_costs: totalOtherCosts,
+            // Update end date if this entry is later than current end date
+            harvest_end_date:
+              entries.length > 0
+                ? Math.max(...entries.map((e) => new Date(e.entry_date).getTime()))
+                : null,
+          },
+        });
+
+        // Update local state
+        const harvestIndex = this.harvests.findIndex((h) => h.$id === harvestId);
+        if (harvestIndex !== -1) {
+          this.harvests[harvestIndex] = {
+            ...this.harvests[harvestIndex],
+            ...harvestUpdate,
+            entries: entries,
+          };
+        }
+
+        return { success: true, data: entryResponse };
+      } catch (error) {
+        console.error('Error adding harvest entry:', error);
+        return { success: false, error: error.message };
+      }
+    },
+
+    async markHarvestComplete(harvestId) {
+      try {
+        const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
+
+        // Get harvest details before updating
+        const harvest = this.harvests.find((h) => h.$id === harvestId);
+        if (!harvest) {
+          return { success: false, error: 'Harvest not found' };
+        }
+
+        // Update harvest status to 'Completed'
+        const harvestUpdate = await tables.updateRow({
+          databaseId: dbId,
+          tableId: 'harvests',
+          rowId: harvestId,
+          data: { status: 'Completed' },
+        });
+
+        // Update local state
+        const harvestIndex = this.harvests.findIndex((h) => h.$id === harvestId);
+        if (harvestIndex !== -1) {
+          this.harvests[harvestIndex] = { ...this.harvests[harvestIndex], ...harvestUpdate };
+        }
+
+        // Call updatePlantingStatus to transition planting to 'completed'
+        const plantingResult = await this.updatePlantingStatus(harvest.planting_id, 'completed');
+        if (!plantingResult.success) {
+          console.warn('Failed to update planting status to completed:', plantingResult.error);
+        }
+
+        return { success: true, data: harvestUpdate };
+      } catch (error) {
+        console.error('Error marking harvest complete:', error);
+        return { success: false, error: error.message };
+      }
+    },
+
+    async deleteHarvest(harvestId) {
+      try {
+        const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
+
+        // Get harvest details
+        const harvest = this.harvests.find((h) => h.$id === harvestId);
+        if (!harvest) {
+          return { success: false, error: 'Harvest not found' };
+        }
+
+        // Only allow deletion for 'In Progress' harvests
+        if (harvest.status !== 'In Progress') {
+          return {
+            success: false,
+            error: 'Only harvests with "In Progress" status can be deleted',
+          };
+        }
+
+        // Check if harvest has any entries
+        const entriesResponse = await tables.listRows({
+          databaseId: dbId,
+          tableId: 'harvest_entries',
+          queries: [Query.equal('harvest_id', harvestId), Query.limit(1)],
+        });
+
+        if (entriesResponse.total > 0) {
+          return {
+            success: false,
+            error: 'Cannot delete harvest with existing entries',
+          };
+        }
+
+        // Delete the harvest
+        await tables.deleteRow({
+          databaseId: dbId,
+          tableId: 'harvests',
+          rowId: harvestId,
+        });
+
+        // Remove from local state
+        this.harvests = this.harvests.filter((h) => h.$id !== harvestId);
+
+        return { success: true };
+      } catch (error) {
+        console.error('Error deleting harvest:', error);
+        return { success: false, error: error.message };
+      }
+    },
+
     // Dashboard stats
     async fetchStats() {
       try {

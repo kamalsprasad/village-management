@@ -59,11 +59,14 @@
 
     <!-- Widgets Row -->
     <div class="row q-col-gutter-md q-mb-md">
-      <div class="col-12 col-md-6">
+      <div class="col-12 col-md-6 col-lg-4">
         <PlotsOverviewWidget />
       </div>
-      <div class="col-12 col-md-6">
+      <div class="col-12 col-md-6 col-lg-4">
         <PlantingStatusWidget />
+      </div>
+      <div class="col-12 col-lg-4">
+        <RecentHarvestsWidget />
       </div>
     </div>
 
@@ -206,6 +209,7 @@ import { useFarmStore } from '../stores/farm-store';
 import { format, parseISO, differenceInDays } from 'date-fns';
 import PlotsOverviewWidget from '../components/PlotsOverviewWidget.vue';
 import PlantingStatusWidget from '../components/PlantingStatusWidget.vue';
+import RecentHarvestsWidget from '../components/RecentHarvestsWidget.vue';
 
 const $q = useQuasar();
 const farmStore = useFarmStore();
@@ -319,6 +323,7 @@ onMounted(async () => {
   if (!farmStore.plotsLoaded) loaders.push(farmStore.fetchPlots());
   if (!farmStore.plantingsLoaded) loaders.push(farmStore.fetchPlantings());
   if (!farmStore.cropsLoaded) loaders.push(farmStore.fetchCrops());
+  if (!farmStore.harvestsLoaded) loaders.push(farmStore.fetchHarvests());
   if (loaders.length) await Promise.all(loaders);
 });
 </script>

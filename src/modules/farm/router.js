@@ -129,8 +129,36 @@ const farmRoutes = [
     },
   },
 
-  // Future routes for Farm module (Stories 3.5-3.9):
-  // - /farm/harvests (Harvest records)
+  // Harvests (Story 3.5)
+  {
+    path: 'farm/plantings/:id/harvests/new',
+    name: 'create-harvest',
+    component: () => import('./pages/CreateHarvestPage.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresPermission: 'farm:write',
+    },
+  },
+  {
+    path: 'farm/harvests',
+    name: 'harvests-list',
+    component: () => import('./pages/HarvestsListPage.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresPermission: 'farm:read',
+    },
+  },
+  {
+    path: 'farm/harvests/:id',
+    name: 'harvest-detail',
+    component: () => import('./pages/HarvestDetailPage.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresPermission: 'farm:read',
+    },
+  },
+
+  // Future routes for Farm module (Stories 3.6-3.9):
   // - /farm/sales (Farm sales)
   // - /farm/reports (Farm reports)
 ];

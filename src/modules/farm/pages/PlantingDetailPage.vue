@@ -47,6 +47,17 @@
           >
             <q-tooltip v-if="isTerminalStatus">No further status changes available</q-tooltip>
           </q-btn>
+          <q-btn
+            v-if="canWrite && canRecordHarvest"
+            color="positive"
+            icon="agriculture"
+            label="Record Harvest"
+            @click="recordHarvest"
+          >
+            <q-tooltip v-if="!canRecordHarvest"
+              >Planting must be in 'Harvesting' status to record harvest</q-tooltip
+            >
+          </q-btn>
         </div>
       </div>
 
@@ -248,19 +259,65 @@
             </q-card-section>
           </q-card>
 
-          <!-- Harvest Info Placeholder -->
+          <!-- Harvests Section -->
           <q-card class="q-mt-md">
-            <q-card-section>
-              <div class="text-subtitle1 text-weight-medium q-mb-md">Harvest</div>
-              <div v-if="!harvest" class="text-grey text-center q-pa-md">
-                <q-icon name="agriculture" size="2em" class="q-mb-sm" />
-                <div>No harvest recorded yet</div>
-                <div class="text-caption">Harvest recording coming in Story 3.5</div>
+            <q-card-section class="row items-center justify-between">
+              <div class="text-subtitle1 text-weight-medium">Harvests</div>
+              <q-btn
+                v-if="canWrite && canRecordHarvest"
+                size="sm"
+                color="positive"
+                icon="add"
+                label="Record Another Harvest"
+                @click="recordHarvest"
+              />
+            </q-card-section>
+
+            <q-separator />
+
+            <!-- Harvest Complete Summary -->
+            <q-card-section v-if="planting.status?.toLowerCase() === 'completed'">
+              <div class="text-center text-positive q-pa-md">
+                <q-icon name="check_circle" size="2em" class="q-mb-sm" />
+                <div class="text-h6">Harvest Complete</div>
+                <div class="text-body2 q-mt-sm">
+                  Total harvested: {{ totalHarvestedQuantity }} kg across
+                  {{ harvests.length }} harvest(s)
+                </div>
               </div>
-              <div v-else>
-                <router-link :to="`/farm/harvests/${harvest.$id}`" class="text-primary">
-                  View Harvest Record
-                </router-link>
+            </q-card-section>
+
+            <!-- Harvests List -->
+            <q-list v-else-if="harvests.length > 0">
+              <q-item
+                v-for="harvest in harvests"
+                :key="harvest.$id"
+                clickable
+                @click="goToHarvest(harvest.$id)"
+              >
+                <q-item-section>
+                  <div class="text-weight-medium">
+                    {{ getHarvestDateDisplay(harvest) }}
+                  </div>
+                  <div class="text-caption text-grey-7">
+                    {{ harvest.harvest_type }} | {{ harvest.total_quantity_kg }} kg
+                  </div>
+                </q-item-section>
+                <q-item-section side>
+                  <HarvestStatusBadge :status="harvest.status" />
+                </q-item-section>
+              </q-item>
+            </q-list>
+
+            <!-- No Harvests -->
+            <q-card-section v-else class="text-center text-grey-6">
+              <q-icon name="agriculture" size="2em" class="q-mb-sm" />
+              <div>No harvest recorded yet</div>
+              <div v-if="canRecordHarvest" class="text-caption">
+                Click "Record Harvest" to get started
+              </div>
+              <div v-else class="text-caption">
+                Planting must be in "Harvesting" status to record harvest
               </div>
             </q-card-section>
           </q-card>
@@ -296,6 +353,7 @@ import { useFarmStore } from '../stores/farm-store';
 import { usePermissions } from 'src/composables/usePermissions';
 import { format, parseISO, differenceInDays } from 'date-fns';
 import UpdateStatusDialog from '../components/UpdateStatusDialog.vue';
+import HarvestStatusBadge from '../components/HarvestStatusBadge.vue';
 
 const route = useRoute();
 const router = useRouter();
@@ -305,7 +363,6 @@ const { hasPermission } = usePermissions();
 
 const isLoading = ref(true);
 const statusDialogOpen = ref(false);
-const harvest = ref(null); // Placeholder for Story 3.5
 
 const plantingId = computed(() => route.params.id);
 const planting = computed(() => farmStore.currentPlanting);
@@ -421,6 +478,20 @@ const harvestBadgeColor = computed(() => {
   return 'positive';
 });
 
+// Harvest-related computed properties (Story 3.5)
+const canRecordHarvest = computed(() => {
+  return planting.value?.status?.toLowerCase() === 'harvesting';
+});
+
+const harvests = computed(() => {
+  if (!planting.value) return [];
+  return farmStore.harvestsByPlanting(planting.value.$id);
+});
+
+const totalHarvestedQuantity = computed(() => {
+  return harvests.value.reduce((total, harvest) => total + (harvest.total_quantity_kg || 0), 0);
+});
+
 onMounted(async () => {
   await loadPlanting();
 });
@@ -443,7 +514,13 @@ async function loadPlanting() {
     const loaders = [];
     if (!farmStore.plotsLoaded) loaders.push(farmStore.fetchPlots());
     if (!farmStore.cropsLoaded) loaders.push(farmStore.fetchCrops());
+    if (!farmStore.harvestsLoaded) loaders.push(farmStore.fetchHarvests());
     if (loaders.length) await Promise.all(loaders);
+
+    // Fetch harvests for this specific planting
+    if (result.success) {
+      await farmStore.fetchHarvestsByPlanting(result.data.$id);
+    }
   } catch (error) {
     console.error('Error loading planting:', error);
     $q.notify({
@@ -487,5 +564,25 @@ function openStatusDialog() {
 
 function onStatusUpdated() {
   // currentPlanting is already updated reactively by the store action
+}
+
+// Harvest-related functions (Story 3.5)
+function recordHarvest() {
+  if (!planting.value) return;
+  router.push(`/farm/plantings/${planting.value.$id}/harvests/new`);
+}
+
+function goToHarvest(harvestId) {
+  router.push(`/farm/harvests/${harvestId}`);
+}
+
+function getHarvestDateDisplay(harvest) {
+  if (harvest.harvest_type === 'Single Day') {
+    return formatDate(harvest.harvest_date);
+  } else {
+    const start = formatDate(harvest.harvest_start_date);
+    const end = harvest.harvest_end_date ? formatDate(harvest.harvest_end_date) : 'Ongoing';
+    return `${start} - ${end}`;
+  }
 }
 </script>
