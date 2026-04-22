@@ -206,7 +206,8 @@
 import { computed, onMounted } from 'vue';
 import { useQuasar } from 'quasar';
 import { useFarmStore } from '../stores/farm-store';
-import { format, parseISO, differenceInDays } from 'date-fns';
+import { parseISO, differenceInDays } from 'date-fns';
+import { formatDate } from 'src/utils/dateUtils';
 import PlotsOverviewWidget from '../components/PlotsOverviewWidget.vue';
 import PlantingStatusWidget from '../components/PlantingStatusWidget.vue';
 import RecentHarvestsWidget from '../components/RecentHarvestsWidget.vue';
@@ -253,15 +254,6 @@ function getCropName(cropId) {
 
 function getPlotName(plotId) {
   return farmStore.plots.find((p) => p.$id === plotId)?.name || plotId;
-}
-
-function formatDate(dateString) {
-  if (!dateString) return '-';
-  try {
-    return format(parseISO(dateString), 'MMM d, yyyy');
-  } catch {
-    return dateString;
-  }
 }
 
 function getDaysLabel(dateString) {

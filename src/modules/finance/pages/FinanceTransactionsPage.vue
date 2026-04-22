@@ -558,6 +558,7 @@ import { ref, computed, onMounted, watch } from 'vue';
 import { useQuasar } from 'quasar';
 import { useRouter, useRoute } from 'vue-router';
 import { format, parseISO } from 'date-fns';
+import { formatDate } from 'src/utils/dateUtils';
 import { useFinanceStore } from '../stores/finance-store';
 import { useSettingsStore } from 'src/stores/settings-store';
 import { useInventoryStore } from 'src/stores/inventory-store';
@@ -771,16 +772,6 @@ function formatCurrency(amount) {
     currency: 'ZMW',
     minimumFractionDigits: 2,
   }).format(amount);
-}
-
-// Format date for display
-function formatDate(dateString) {
-  if (!dateString) return 'N/A';
-  try {
-    return format(parseISO(dateString), 'dd MMM yyyy');
-  } catch {
-    return dateString;
-  }
 }
 
 // Format date short (for date range)

@@ -254,7 +254,7 @@
 import { ref, computed, onMounted } from 'vue';
 import { useRoute } from 'vue-router';
 import { useQuasar } from 'quasar';
-import { format } from 'date-fns';
+import { formatDate } from 'src/utils/dateUtils';
 import { useFinanceStore } from '../stores/finance-store';
 import { tables } from 'src/boot/appwrite';
 import { Query } from 'appwrite';
@@ -397,11 +397,6 @@ function formatCurrency(amount) {
     minimumFractionDigits: 0,
     maximumFractionDigits: 0,
   }).format(amount || 0);
-}
-
-function formatDate(dateStr) {
-  if (!dateStr) return 'N/A';
-  return format(new Date(dateStr), 'MMM d, yyyy');
 }
 
 function getStatusColor(status) {

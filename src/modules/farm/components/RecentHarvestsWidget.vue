@@ -18,14 +18,7 @@
           <q-icon name="pending" class="q-mr-xs" />
           {{ inProgressCount }} In Progress
         </q-badge>
-        <q-btn
-          flat
-          dense
-          color="primary"
-          icon="refresh"
-          @click="refreshData"
-          :loading="loading"
-        >
+        <q-btn flat dense color="primary" icon="refresh" @click="refreshData" :loading="loading">
           <q-tooltip>Refresh</q-tooltip>
         </q-btn>
       </div>
@@ -71,12 +64,7 @@
 
     <!-- Footer Actions -->
     <q-card-actions align="right" class="q-pa-md">
-      <q-btn
-        flat
-        color="primary"
-        label="View All"
-        @click="goToHarvestsList"
-      />
+      <q-btn flat color="primary" label="View All" @click="goToHarvestsList" />
     </q-card-actions>
   </q-card>
 </template>
@@ -86,7 +74,7 @@ import { ref, computed, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { useQuasar } from 'quasar';
 import { useFarmStore } from '../stores/farm-store';
-import { format, parseISO } from 'date-fns';
+import { formatDate } from 'src/utils/dateUtils';
 
 // Components
 import HarvestStatusBadge from './HarvestStatusBadge.vue';
@@ -111,18 +99,18 @@ const inProgressCount = computed(() => {
 async function loadData() {
   try {
     loading.value = true;
-    
+
     // Load harvests if not already loaded
     if (!farmStore.harvestsLoaded) {
       await farmStore.fetchHarvests();
     }
-    
+
     // Also ensure plantings, crops, and plots are loaded for display names
     const loaders = [];
     if (!farmStore.plantingsLoaded) loaders.push(farmStore.fetchPlantings());
     if (!farmStore.cropsLoaded) loaders.push(farmStore.fetchCrops());
     if (!farmStore.plotsLoaded) loaders.push(farmStore.fetchPlots());
-    
+
     if (loaders.length > 0) {
       await Promise.all(loaders);
     }
@@ -158,14 +146,14 @@ function goToInProgressHarvests() {
 
 // Helper functions
 function getCropName(plantingId) {
-  const planting = farmStore.plantings.find(p => p.$id === plantingId);
+  const planting = farmStore.plantings.find((p) => p.$id === plantingId);
   return planting ? farmStore.getCropNameById(planting.crop_id) : 'Unknown';
 }
 
 function getPlotName(plantingId) {
-  const planting = farmStore.plantings.find(p => p.$id === plantingId);
+  const planting = farmStore.plantings.find((p) => p.$id === plantingId);
   if (!planting) return 'Unknown';
-  const plot = farmStore.plots.find(p => p.$id === planting.plot_id);
+  const plot = farmStore.plots.find((p) => p.$id === planting.plot_id);
   return plot?.name || 'Unknown';
 }
 
@@ -176,15 +164,6 @@ function getHarvestDateDisplay(harvest) {
     const start = formatDate(harvest.harvest_start_date);
     const end = harvest.harvest_end_date ? formatDate(harvest.harvest_end_date) : 'Ongoing';
     return `${start} - ${end}`;
-  }
-}
-
-function formatDate(dateString) {
-  if (!dateString) return '';
-  try {
-    return format(parseISO(dateString), 'MMM dd');
-  } catch {
-    return dateString;
   }
 }
 

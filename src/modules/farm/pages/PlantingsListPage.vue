@@ -190,6 +190,7 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue';
+import { formatDate } from 'src/utils/dateUtils';
 import { useRouter } from 'vue-router';
 import { useFarmStore } from '../stores/farm-store';
 import { usePermissions } from 'src/composables/usePermissions';
@@ -338,19 +339,6 @@ function navigateToCreatePlanting() {
   if (!selectedPlotId.value) return;
   plotSelectorOpen.value = false;
   router.push(`/farm/plots/${selectedPlotId.value}/plantings/new`);
-}
-
-function formatDate(dateString) {
-  if (!dateString) return '-';
-  try {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-    });
-  } catch {
-    return dateString;
-  }
 }
 
 function viewPlanting(planting) {

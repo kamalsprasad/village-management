@@ -309,7 +309,7 @@ import { useQuasar } from 'quasar';
 import { useFarmStore } from '../stores/farm-store';
 import { usePermissions } from 'src/composables/usePermissions';
 import { useResidentsStore } from 'src/stores/residents-store';
-import { format } from 'date-fns';
+import { formatDate } from 'src/utils/dateUtils';
 import PlotStatusBadge from '../components/PlotStatusBadge.vue';
 
 const route = useRoute();
@@ -377,15 +377,6 @@ async function loadPlot() {
 function formatSize(size) {
   if (size === null || size === undefined) return '-';
   return Number(size).toFixed(2);
-}
-
-function formatDate(dateString) {
-  if (!dateString) return '-';
-  try {
-    return format(new Date(dateString), 'MMM d, yyyy');
-  } catch {
-    return dateString;
-  }
 }
 
 function getCropManagerName(managerId) {

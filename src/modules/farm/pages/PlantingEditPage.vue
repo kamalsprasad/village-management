@@ -176,7 +176,8 @@ import { ref, computed, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useQuasar } from 'quasar';
 import { useFarmStore } from '../stores/farm-store';
-import { format, parseISO } from 'date-fns';
+import { parseISO } from 'date-fns';
+import { formatDate } from 'src/utils/dateUtils';
 
 const route = useRoute();
 const router = useRouter();
@@ -323,14 +324,5 @@ async function save() {
 
 function cancel() {
   router.push(`/farm/plantings/${plantingId.value}`);
-}
-
-function formatDate(dateString) {
-  if (!dateString) return '-';
-  try {
-    return format(parseISO(dateString), 'MMM d, yyyy');
-  } catch {
-    return dateString;
-  }
 }
 </script>

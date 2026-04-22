@@ -6,9 +6,7 @@
 -->
 <template>
   <div class="single-day-harvest-form">
-    <div class="text-subtitle1 text-weight-medium q-mb-md">
-      Single Day Harvest Details
-    </div>
+    <div class="text-subtitle1 text-weight-medium q-mb-md">Single Day Harvest Details</div>
 
     <q-form ref="formRef" @submit="onSubmit" greedy>
       <div class="row q-col-gutter-md">
@@ -17,7 +15,7 @@
           <q-date
             v-model="formData.harvest_date"
             label="Harvest Date *"
-            :rules="[val => !!val || 'Harvest date is required']"
+            :rules="[(val) => !!val || 'Harvest date is required']"
             :max="maxDate"
             :min="minDate"
             today-btn
@@ -33,8 +31,8 @@
             step="0.1"
             min="0"
             :rules="[
-              val => val !== null && val !== undefined || 'Quantity is required',
-              val => val > 0 || 'Quantity must be greater than 0'
+              (val) => (val !== null && val !== undefined) || 'Quantity is required',
+              (val) => val > 0 || 'Quantity must be greater than 0',
             ]"
             suffix="kg"
           />
@@ -47,7 +45,10 @@
             label="Farmhands Count"
             type="number"
             min="0"
-            :rules="[val => val === null || val === undefined || val >= 0 || 'Count must be non-negative']"
+            :rules="[
+              (val) =>
+                val === null || val === undefined || val >= 0 || 'Count must be non-negative',
+            ]"
             hint="Number of workers who helped with the harvest"
           />
         </div>
@@ -60,7 +61,9 @@
             type="number"
             step="0.01"
             min="0"
-            :rules="[val => val === null || val === undefined || val >= 0 || 'Cost must be non-negative']"
+            :rules="[
+              (val) => val === null || val === undefined || val >= 0 || 'Cost must be non-negative',
+            ]"
             prefix="ZMW"
             hint="Total labor cost for the harvest"
           />
@@ -74,22 +77,11 @@
             type="number"
             step="0.01"
             min="0"
-            :rules="[val => val === null || val === undefined || val >= 0 || 'Cost must be non-negative']"
+            :rules="[
+              (val) => val === null || val === undefined || val >= 0 || 'Cost must be non-negative',
+            ]"
             prefix="ZMW"
             hint="Transport, equipment, and other costs"
-          />
-        </div>
-
-        <!-- Other Costs Notes -->
-        <div class="col-12">
-          <q-input
-            v-model="formData.other_costs_notes"
-            label="Other Costs Notes"
-            type="textarea"
-            rows="2"
-            maxlength="500"
-            counter
-            hint="Details about other costs (e.g., transport, equipment rental)"
           />
         </div>
 
@@ -111,17 +103,8 @@
       <div class="row q-mt-lg">
         <div class="col-12">
           <div class="row q-gutter-sm justify-end">
-            <q-btn
-              label="Cancel"
-              outline
-              @click="onCancel"
-            />
-            <q-btn
-              label="Continue"
-              type="submit"
-              color="primary"
-              :loading="loading"
-            />
+            <q-btn label="Cancel" outline @click="onCancel" />
+            <q-btn label="Continue" type="submit" color="primary" :loading="loading" />
           </div>
         </div>
       </div>
@@ -160,7 +143,6 @@ const formData = ref({
   farmhands_count: null,
   total_labor_cost: 0,
   total_other_costs: 0,
-  other_costs_notes: '',
   notes: '',
 });
 

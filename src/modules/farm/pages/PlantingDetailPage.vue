@@ -351,7 +351,8 @@ import { useRoute, useRouter } from 'vue-router';
 import { useQuasar } from 'quasar';
 import { useFarmStore } from '../stores/farm-store';
 import { usePermissions } from 'src/composables/usePermissions';
-import { format, parseISO, differenceInDays } from 'date-fns';
+import { parseISO, differenceInDays } from 'date-fns';
+import { formatDate } from 'src/utils/dateUtils';
 import UpdateStatusDialog from '../components/UpdateStatusDialog.vue';
 import HarvestStatusBadge from '../components/HarvestStatusBadge.vue';
 
@@ -530,15 +531,6 @@ async function loadPlanting() {
     });
   } finally {
     isLoading.value = false;
-  }
-}
-
-function formatDate(dateString) {
-  if (!dateString) return '-';
-  try {
-    return format(parseISO(dateString), 'MMM d, yyyy');
-  } catch {
-    return dateString;
   }
 }
 

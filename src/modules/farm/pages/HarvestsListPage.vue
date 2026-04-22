@@ -255,7 +255,8 @@ import { useRouter } from 'vue-router';
 import { useQuasar } from 'quasar';
 import { useFarmStore } from '../stores/farm-store';
 import { usePermissions } from 'src/composables/usePermissions';
-import { format, parseISO } from 'date-fns';
+import { parseISO } from 'date-fns';
+import { formatDate } from 'src/utils/dateUtils';
 
 // Components
 import HarvestStatusBadge from '../components/HarvestStatusBadge.vue';
@@ -263,7 +264,8 @@ import HarvestStatusBadge from '../components/HarvestStatusBadge.vue';
 const router = useRouter();
 const $q = useQuasar();
 const farmStore = useFarmStore();
-const { canWrite } = usePermissions();
+const { hasPermission } = usePermissions();
+const canWrite = computed(() => hasPermission('farm:write'));
 
 // State
 const loading = ref(false);
@@ -510,15 +512,6 @@ function getPlotName(plantingId) {
   if (!planting) return 'Unknown';
   const plot = farmStore.plots.find((p) => p.$id === planting.plot_id);
   return plot?.name || 'Unknown';
-}
-
-function formatDate(dateString) {
-  if (!dateString) return '';
-  try {
-    return format(parseISO(dateString), 'MMM dd, yyyy');
-  } catch {
-    return dateString;
-  }
 }
 
 // Initialize

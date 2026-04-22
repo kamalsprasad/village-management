@@ -9,6 +9,7 @@
  */
 
 import { format } from 'date-fns';
+import { formatDate as _formatDate } from 'src/utils/dateUtils';
 
 /**
  * Donor Report Service
@@ -78,8 +79,7 @@ export class DonorReportService {
    * Format date for reports
    */
   formatDate(dateStr) {
-    if (!dateStr) return 'N/A';
-    return format(new Date(dateStr), 'MMM d, yyyy');
+    return _formatDate(dateStr, 'N/A');
   }
 
   filterTransactionsByDateRange(transactions = [], options = {}) {

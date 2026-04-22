@@ -107,10 +107,6 @@
           <div v-if="harvestData.farmhands_count" class="text-body1">
             Farmhands: {{ harvestData.farmhands_count }}
           </div>
-          <div v-if="harvestData.other_costs_notes" class="text-body1">
-            <div class="text-weight-medium">Other Costs Notes:</div>
-            <div class="text-grey-8">{{ harvestData.other_costs_notes }}</div>
-          </div>
           <div v-if="harvestData.notes" class="text-body1">
             <div class="text-weight-medium">General Notes:</div>
             <div class="text-grey-8">{{ harvestData.notes }}</div>
@@ -140,7 +136,7 @@
 
 <script setup>
 import { computed } from 'vue';
-import { format, parseISO } from 'date-fns';
+import { formatDate } from 'src/utils/dateUtils';
 
 const props = defineProps({
   modelValue: {
@@ -171,11 +167,7 @@ const dialogOpen = computed({
 
 // Check if there's additional information to show
 const hasAdditionalInfo = computed(() => {
-  return (
-    props.harvestData.farmhands_count ||
-    props.harvestData.other_costs_notes ||
-    props.harvestData.notes
-  );
+  return props.harvestData.farmhands_count || props.harvestData.notes;
 });
 
 // Calculate total cost for single day harvests
@@ -197,10 +189,6 @@ function onBack() {
 }
 
 // Helper function
-function formatDate(dateString) {
-  if (!dateString) return '';
-  return format(parseISO(dateString), 'MMM dd, yyyy');
-}
 </script>
 
 <style scoped>

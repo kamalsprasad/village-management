@@ -85,35 +85,38 @@
           <q-card>
             <q-card-section>
               <div class="text-subtitle1 text-weight-medium q-mb-md">Harvest Information</div>
-              
+
               <div class="q-gutter-y-sm">
                 <div class="row">
                   <div class="col-5 text-grey">Type:</div>
                   <div class="col-7">{{ harvest.harvest_type }}</div>
                 </div>
-                
+
                 <div v-if="harvest.harvest_type === 'Single Day'" class="row">
                   <div class="col-5 text-grey">Harvest Date:</div>
                   <div class="col-7">{{ formatDate(harvest.harvest_date) }}</div>
                 </div>
-                
+
                 <div v-else class="row">
                   <div class="col-5 text-grey">Start Date:</div>
                   <div class="col-7">{{ formatDate(harvest.harvest_start_date) }}</div>
                 </div>
-                
-                <div v-if="harvest.harvest_type === 'Multi-Day Aggregate' && harvest.harvest_end_date" class="row">
+
+                <div
+                  v-if="harvest.harvest_type === 'Multi-Day Aggregate' && harvest.harvest_end_date"
+                  class="row"
+                >
                   <div class="col-5 text-grey">End Date:</div>
                   <div class="col-7">{{ formatDate(harvest.harvest_end_date) }}</div>
                 </div>
-                
+
                 <div class="row">
                   <div class="col-5 text-grey">Status:</div>
                   <div class="col-7">
                     <HarvestStatusBadge :status="harvest.status" />
                   </div>
                 </div>
-                
+
                 <div v-if="harvest.notes" class="row">
                   <div class="col-5 text-grey">Notes:</div>
                   <div class="col-7 text-body2" style="white-space: pre-line">
@@ -128,7 +131,7 @@
           <q-card class="q-mt-md">
             <q-card-section>
               <div class="text-subtitle1 text-weight-medium q-mb-md">Linked Planting</div>
-              
+
               <div class="q-gutter-y-sm">
                 <div class="row">
                   <div class="col-5 text-grey">Crop:</div>
@@ -138,7 +141,7 @@
                     </router-link>
                   </div>
                 </div>
-                
+
                 <div class="row">
                   <div class="col-5 text-grey">Plot:</div>
                   <div class="col-7">
@@ -147,12 +150,12 @@
                     </router-link>
                   </div>
                 </div>
-                
+
                 <div class="row">
                   <div class="col-5 text-grey">Planting Date:</div>
                   <div class="col-7">{{ formatDate(planting?.planting_date) }}</div>
                 </div>
-                
+
                 <div class="row">
                   <div class="col-5 text-grey">Expected Harvest:</div>
                   <div class="col-7">{{ formatDate(planting?.expected_harvest_date) }}</div>
@@ -168,31 +171,29 @@
           <q-card>
             <q-card-section>
               <div class="text-subtitle1 text-weight-medium q-mb-md">Cost Breakdown</div>
-              
+
               <q-list dense>
                 <q-item>
                   <q-item-section>Total Quantity</q-item-section>
-                  <q-item-section side>
-                    {{ harvest.total_quantity_kg }} kg
-                  </q-item-section>
+                  <q-item-section side> {{ harvest.total_quantity_kg }} kg </q-item-section>
                 </q-item>
-                
+
                 <q-item>
                   <q-item-section>Labor Cost</q-item-section>
                   <q-item-section side>
                     ZMW {{ (harvest.total_labor_cost || 0).toFixed(2) }}
                   </q-item-section>
                 </q-item>
-                
+
                 <q-item>
                   <q-item-section>Other Costs</q-item-section>
                   <q-item-section side>
                     ZMW {{ (harvest.total_other_costs || 0).toFixed(2) }}
                   </q-item-section>
                 </q-item>
-                
+
                 <q-separator class="q-my-sm" />
-                
+
                 <q-item class="text-weight-bold">
                   <q-item-section>Total Cost</q-item-section>
                   <q-item-section side class="text-primary">
@@ -216,17 +217,17 @@
                 @click="openEntryDialog"
               />
             </q-card-section>
-            
+
             <q-separator />
-            
+
             <q-list v-if="entries.length > 0">
               <q-item v-for="entry in entries" :key="entry.$id">
                 <q-item-section>
                   <div class="text-weight-medium">{{ formatDate(entry.entry_date) }}</div>
                   <div class="text-caption text-grey-7">
-                    Quantity: {{ entry.quantity_kg }}kg | 
-                    Labor: ZMW {{ (entry.labor_cost || 0).toFixed(2) }} |
-                    Other: ZMW {{ (entry.other_costs || 0).toFixed(2) }}
+                    Quantity: {{ entry.quantity_kg }}kg | Labor: ZMW
+                    {{ (entry.labor_cost || 0).toFixed(2) }} | Other: ZMW
+                    {{ (entry.other_costs || 0).toFixed(2) }}
                   </div>
                   <div v-if="entry.notes" class="text-caption text-grey-6 q-mt-xs">
                     {{ entry.notes }}
@@ -242,7 +243,7 @@
                 </q-item-section>
               </q-item>
             </q-list>
-            
+
             <q-card-section v-else class="text-center text-grey-6">
               <q-icon name="event_busy" size="2em" class="q-mb-sm" />
               <div>No entries recorded yet</div>
@@ -280,7 +281,7 @@ import { useRoute, useRouter } from 'vue-router';
 import { useQuasar } from 'quasar';
 import { useFarmStore } from '../stores/farm-store';
 import { usePermissions } from 'src/composables/usePermissions';
-import { format, parseISO } from 'date-fns';
+import { formatDate } from 'src/utils/dateUtils';
 
 // Components
 import HarvestStatusBadge from '../components/HarvestStatusBadge.vue';
@@ -290,7 +291,8 @@ const route = useRoute();
 const router = useRouter();
 const $q = useQuasar();
 const farmStore = useFarmStore();
-const { canWrite } = usePermissions();
+const { hasPermission } = usePermissions();
+const canWrite = computed(() => hasPermission('farm:write'));
 
 // State
 const isLoading = ref(true);
@@ -322,7 +324,7 @@ const cropName = computed(() => {
 });
 
 const plotName = computed(() => {
-  const plot = farmStore.plots.find(p => p.$id === planting.value?.plot_id);
+  const plot = farmStore.plots.find((p) => p.$id === planting.value?.plot_id);
   return plot?.name || 'Unknown Plot';
 });
 
@@ -362,7 +364,6 @@ async function loadHarvest() {
     if (!farmStore.plotsLoaded) {
       await farmStore.fetchPlots();
     }
-
   } catch (err) {
     console.error('Error loading harvest:', err);
     error.value = 'Failed to load harvest data';
@@ -393,7 +394,7 @@ async function onAddEntry(entryData) {
     harvest.value = {
       ...harvest.value,
       ...result.data.harvestUpdate,
-      entries: result.data.entries
+      entries: result.data.entries,
     };
 
     $q.notify({
@@ -403,7 +404,6 @@ async function onAddEntry(entryData) {
     });
 
     closeEntryDialog();
-
   } catch (err) {
     console.error('Error adding entry:', err);
     $q.notify({
@@ -425,10 +425,10 @@ function confirmMarkComplete() {
         Are you sure you want to mark this harvest as complete?
       </div>
       <div class="q-gutter-y-sm">
-        <div><strong>Total Quantity:</strong> {{ harvest.value.total_quantity_kg }} kg</div>
-        <div><strong>Total Labor Cost:</strong> ZMW {{ (harvest.value.total_labor_cost || 0).toFixed(2) }}</div>
-        <div><strong>Total Other Costs:</strong> ZMW {{ (harvest.value.total_other_costs || 0).toFixed(2) }}</div>
-        <div><strong>Number of Entries:</strong> {{ entries.value.length }}</div>
+        <div><strong>Total Quantity:</strong> ${harvest.value.total_quantity_kg} kg</div>
+        <div><strong>Total Labor Cost:</strong> ZMW ${(harvest.value.total_labor_cost || 0).toFixed(2)}</div>
+        <div><strong>Total Other Costs:</strong> ZMW ${(harvest.value.total_other_costs || 0).toFixed(2)}</div>
+        <div><strong>Number of Entries:</strong> ${entries.value.length}</div>
       </div>
       <div class="q-mt-md text-orange-7">
         This will also mark the linked planting as completed.
@@ -466,7 +466,6 @@ async function markHarvestComplete() {
       message: 'Harvest marked as complete!',
       position: 'top',
     });
-
   } catch (err) {
     console.error('Error marking harvest complete:', err);
     $q.notify({
@@ -519,7 +518,6 @@ async function deleteHarvest() {
     } else {
       goToHarvestsList();
     }
-
   } catch (err) {
     console.error('Error deleting harvest:', err);
     $q.notify({
@@ -546,10 +544,6 @@ function goToHarvestsList() {
 }
 
 // Helper functions
-function formatDate(dateString) {
-  if (!dateString) return '';
-  return format(parseISO(dateString), 'MMM dd, yyyy');
-}
 
 function calculateEntryCost(entry) {
   const laborCost = parseFloat(entry.labor_cost) || 0;

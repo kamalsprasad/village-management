@@ -164,7 +164,7 @@ import { ref, onMounted } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { useHouseholdsStore } from 'src/stores/households-store';
 import { usePermissions } from 'src/composables/usePermissions';
-import { format } from 'date-fns';
+import { formatDate } from 'src/utils/dateUtils';
 import HouseholdForm from 'src/components/households/HouseholdForm.vue';
 import HouseholdResidentsTable from 'src/components/households/HouseholdResidentsTable.vue';
 
@@ -185,15 +185,6 @@ function getTypeColor(type) {
     Other: 'grey',
   };
   return colors[type] || 'grey';
-}
-
-function formatDate(dateString) {
-  if (!dateString) return 'N/A';
-  try {
-    return format(new Date(dateString), 'MMMM dd, yyyy');
-  } catch {
-    return 'Invalid date';
-  }
 }
 
 function addResident() {

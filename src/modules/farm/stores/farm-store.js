@@ -744,7 +744,7 @@ export const useFarmStore = defineStore('farm', {
           status: harvestData.status || 'In Progress',
           total_quantity_kg: harvestData.total_quantity_kg || 0,
           total_labor_cost: harvestData.total_labor_cost || 0,
-          total_other_costs: harvestData.total_other_costs || 0,
+          //total_other_costs: harvestData.total_other_costs || 0,
         };
 
         const response = await tables.createRow({
@@ -777,7 +777,7 @@ export const useFarmStore = defineStore('farm', {
             ...entryData,
             harvest_id: harvestId,
             labor_cost: entryData.labor_cost || 0,
-            other_costs: entryData.other_costs || 0,
+            //other_costs: entryData.other_costs || 0,
           },
         });
 
@@ -798,10 +798,10 @@ export const useFarmStore = defineStore('farm', {
           (sum, entry) => sum + (parseFloat(entry.labor_cost) || 0),
           0,
         );
-        const totalOtherCosts = entries.reduce(
-          (sum, entry) => sum + (parseFloat(entry.other_costs) || 0),
-          0,
-        );
+        // const totalOtherCosts = entries.reduce(
+        //   (sum, entry) => sum + (parseFloat(entry.other_costs) || 0),
+        //   0,
+        // );
 
         // Update harvest with new totals
         const harvestUpdate = await tables.updateRow({
@@ -811,7 +811,7 @@ export const useFarmStore = defineStore('farm', {
           data: {
             total_quantity_kg: totalQuantity,
             total_labor_cost: totalLaborCost,
-            total_other_costs: totalOtherCosts,
+            // total_other_costs: totalOtherCosts,
             // Update end date if this entry is later than current end date
             harvest_end_date:
               entries.length > 0

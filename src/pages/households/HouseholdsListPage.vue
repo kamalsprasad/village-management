@@ -192,7 +192,7 @@ import { ref, computed, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { useHouseholdsStore } from 'src/stores/households-store';
 import { usePermissions } from 'src/composables/usePermissions';
-import { format } from 'date-fns';
+import { formatDate } from 'src/utils/dateUtils';
 import HouseholdForm from 'src/components/households/HouseholdForm.vue';
 
 const router = useRouter();
@@ -279,15 +279,6 @@ function getTypeColor(type) {
     Other: 'grey',
   };
   return colors[type] || 'grey';
-}
-
-function formatDate(dateString) {
-  if (!dateString) return 'N/A';
-  try {
-    return format(new Date(dateString), 'MMM dd, yyyy');
-  } catch {
-    return 'Invalid date';
-  }
 }
 
 function viewHousehold(householdId) {

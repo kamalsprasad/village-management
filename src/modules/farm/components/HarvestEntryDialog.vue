@@ -161,7 +161,8 @@
 
 <script setup>
 import { ref, computed, watch } from 'vue';
-import { format, parseISO, isAfter, isBefore } from 'date-fns';
+import { format, parseISO, isBefore, isAfter } from 'date-fns';
+import { formatDate } from 'src/utils/dateUtils';
 
 const props = defineProps({
   modelValue: {
@@ -284,10 +285,6 @@ function onCancel() {
 }
 
 // Helper functions
-function formatDate(dateString) {
-  if (!dateString) return '';
-  return format(parseISO(dateString), 'MMM dd, yyyy');
-}
 
 function getCropName(cropName) {
   return cropName || 'Unknown Crop';

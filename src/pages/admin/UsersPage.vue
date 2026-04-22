@@ -68,7 +68,7 @@
 import { ref, onMounted } from 'vue';
 import { tables } from 'src/boot/appwrite';
 import { useErrorHandler } from 'src/composables/useErrorHandler';
-import { format } from 'date-fns';
+import { formatDate } from 'src/utils/dateUtils';
 import { Query } from 'appwrite';
 
 const { notifyError } = useErrorHandler();
@@ -191,18 +191,6 @@ function getRoleColor(roleName) {
     Guest: 'grey',
   };
   return colorMap[roleName] || 'grey';
-}
-
-/**
- * Format date for display
- */
-function formatDate(dateString) {
-  if (!dateString) return 'N/A';
-  try {
-    return format(new Date(dateString), 'MMM d, yyyy');
-  } catch {
-    return 'Invalid date';
-  }
 }
 
 onMounted(() => {

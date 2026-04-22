@@ -207,7 +207,8 @@ import { ref, onMounted } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { useResidentsStore } from 'src/stores/residents-store';
 import { usePermissions } from 'src/composables/usePermissions';
-import { format, differenceInYears } from 'date-fns';
+import { differenceInYears } from 'date-fns';
+import { formatDate } from 'src/utils/dateUtils';
 import ResidentForm from 'src/components/residents/ResidentForm.vue';
 
 const router = useRouter();
@@ -226,15 +227,6 @@ function getFullName(resident) {
   }
   parts.push(resident.last_name);
   return parts.join(' ');
-}
-
-function formatDate(dateString) {
-  if (!dateString) return 'N/A';
-  try {
-    return format(new Date(dateString), 'MMM dd, yyyy');
-  } catch {
-    return 'Invalid date';
-  }
 }
 
 function calculateAge(dob) {
