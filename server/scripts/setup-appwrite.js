@@ -441,7 +441,7 @@ const tableSchemas = {
       { key: 'total_labor_cost', type: 'float', min: 0, required: false, default: 0 },
       { key: 'total_other_costs', type: 'float', min: 0, required: false, default: 0 },
       // Daily breakdown for multi-day harvests (JSON array)
-      { key: 'daily_breakdown', type: 'object', required: false, array: true },
+      { key: 'daily_breakdown', type: 'string', size: 10000, required: false, array: true },
       // Status tracking for partial harvests
       {
         key: 'status',
@@ -459,12 +459,6 @@ const tableSchemas = {
         type: 'key',
         columns: ['harvest_date'],
         orders: ['DESC'],
-      },
-      {
-        key: 'idx_harvests_planting',
-        type: 'key',
-        columns: ['planting_id'],
-        orders: ['ASC'],
       },
       {
         key: 'idx_harvests_status',
@@ -495,12 +489,6 @@ const tableSchemas = {
       { key: 'notes', type: 'string', size: 500, required: false },
     ],
     indexes: [
-      {
-        key: 'idx_harvest_entries_harvest',
-        type: 'key',
-        columns: ['harvest_id'],
-        orders: ['ASC'],
-      },
       {
         key: 'idx_harvest_entries_date',
         type: 'key',

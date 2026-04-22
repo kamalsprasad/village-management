@@ -405,7 +405,25 @@ export function useSampleData() {
 
       seedingProgress.value = 0.85;
 
-      // Step 4: Create village settings with council members
+      // Step 4: Seed Finance Data (Epic 2)
+      seedingStatus.value = 'Generating 1.5 years of financial history...';
+      const financeResult = await seedFinanceData(createdResidentIds, createdHouseholdIds);
+
+      if (!financeResult.success) {
+        throw new Error(`Failed to generate finance data: ${financeResult.error}`);
+      }
+
+      seedingProgress.value = 0.95;
+
+      // Step 4: Seed Farm Data (Epic 3) - depends on residents + finance categories/funding sources
+      seedingStatus.value = 'Generating farm plots, plantings, harvests and sales...';
+      const farmResult = await seedFarmData(createdResidentIds, sampleResidents);
+
+      if (!farmResult.success) {
+        throw new Error(`Failed to generate farm data: ${farmResult.error}`);
+      }
+
+      // Step 6: Create village settings with council members
       seedingStatus.value = 'Configuring village settings...';
       const settingsData = {
         ...sampleVillageSettings,
@@ -416,26 +434,6 @@ export function useSampleData() {
 
       if (!settingsResult.success) {
         throw new Error('Failed to create village settings');
-      }
-
-      seedingProgress.value = 0.9;
-
-      // Step 5: Seed Finance Data (Epic 2)
-      seedingStatus.value = 'Generating 1.5 years of financial history...';
-      const financeResult = await seedFinanceData(createdResidentIds, createdHouseholdIds);
-
-      if (!financeResult.success) {
-        throw new Error(`Failed to generate finance data: ${financeResult.error}`);
-      }
-
-      seedingProgress.value = 0.95;
-
-      // Step 6: Seed Farm Data (Epic 3) - depends on residents + finance categories/funding sources
-      seedingStatus.value = 'Generating farm plots, plantings, harvests and sales...';
-      const farmResult = await seedFarmData(createdResidentIds, sampleResidents);
-
-      if (!farmResult.success) {
-        throw new Error(`Failed to generate farm data: ${farmResult.error}`);
       }
 
       seedingProgress.value = 1;

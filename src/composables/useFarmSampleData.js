@@ -284,7 +284,7 @@ export function useFarmSampleData() {
             funding_source_id: villageFund?.$id || null,
             date: new Date(`${saleDate}T10:00:00Z`).toISOString(),
             description: `Farm produce sale: ${plan.sale.quantity_sold}kg to ${plan.sale.buyer_name}`,
-            status: 'Completed',
+            status: 'completed',
           };
           await createRowWithRetry(dbId, 'finance_transactions', txData);
 
@@ -547,7 +547,7 @@ export function useFarmSampleData() {
         other_cost: 0,
         notes:
           'Maize planting. Seeds from inventory (60kg). Fertilizer: 5 bags D-Compound. Labor: 8 farmhands for land prep/ploughing/planting.',
-        status: 'Completed',
+        status: 'completed',
       },
       // 2. Harvesting-in-progress tomatoes (East Garden) -- planted ~80 days ago
       {
@@ -564,7 +564,7 @@ export function useFarmSampleData() {
         other_cost: 0,
         notes:
           'Tomato transplanting. 400 seedlings from inventory. Materials: stakes, twine, drip parts.',
-        status: 'Harvesting',
+        status: 'harvesting',
       },
       // 3. Growing groundnuts (South Field) -- 60 days ago
       {
@@ -580,7 +580,7 @@ export function useFarmSampleData() {
         labor_cost: 900,
         other_cost: 0,
         notes: 'Groundnut planting. 40kg seed from inventory. Labor: ridging and planting.',
-        status: 'Growing',
+        status: 'growing',
       },
       // 4. Freshly planted rape (East Garden second bed) -- 15 days ago
       {
@@ -596,7 +596,7 @@ export function useFarmSampleData() {
         labor_cost: 200,
         other_cost: 0,
         notes: 'Rape direct seeding. 2kg seed from inventory (donated). Bed prep labor.',
-        status: 'Planted',
+        status: 'planted',
       },
       // 5. Failed maize (drought) -- Riverside Plot earlier season
       {
@@ -613,7 +613,7 @@ export function useFarmSampleData() {
         other_cost: 0,
         notes:
           'Failed maize due to drought. 20kg seed from inventory. Fertilizer applied before failure observed.',
-        status: 'Failed',
+        status: 'failed',
       },
       // 6. Completed sweet potatoes with donated vines (South Field) -- 240 days ago
       {
@@ -630,7 +630,7 @@ export function useFarmSampleData() {
         other_cost: 200,
         notes:
           'Sweet potato using donated vines. Labor: ridging and vine planting. Tool hire cost.',
-        status: 'Completed',
+        status: 'completed',
       },
       // 7. Purchased-separately soybean planting (Growing) -- 50 days ago
       {
@@ -647,7 +647,7 @@ export function useFarmSampleData() {
         other_cost: 0,
         notes:
           'Soybean with purchased seed (not from inventory). Emergency purchase of 2 bags D-Compound fertilizer.',
-        status: 'Growing',
+        status: 'growing',
       },
       // 8. Newly planted cabbage (Riverside Plot) -- 20 days ago
       {
@@ -663,7 +663,7 @@ export function useFarmSampleData() {
         labor_cost: 450,
         other_cost: 0,
         notes: 'Cabbage planting with purchased seedlings.',
-        status: 'Planted',
+        status: 'planted',
       },
     ];
 
@@ -688,13 +688,14 @@ export function useFarmSampleData() {
         _key: 'h_maize_completed',
         harvest: {
           planting_id: maizeCompleted.$id,
+          harvest_type: 'Single Day',
           harvest_date: daysAgo(180),
-          quantity_harvested: 4200,
-          unit: 'kg',
-          quality_grade: 'Grade A',
-          storage_location: 'Main Grain Shed',
+          total_quantity_kg: 4200,
+          total_labor_cost: 1800,
+          total_other_costs: 400,
+          status: 'Completed',
           notes:
-            'Single day harvest. Labor: 10 farmhands (1800 ZMW). Other costs: transport 400 ZMW.',
+            'Single day harvest. Labor: 10 farmhands (1800 ZMW). Other costs: transport 400 ZMW. Grade A quality stored in Main Grain Shed.',
         },
         produce: {
           item_name: 'Maize Grain (Harvested)',
@@ -729,13 +730,14 @@ export function useFarmSampleData() {
         _key: 'h_tomato_progress',
         harvest: {
           planting_id: tomatoHarvesting.$id,
+          harvest_type: 'Single Day',
           harvest_date: daysAgo(10),
-          quantity_harvested: 850,
-          unit: 'kg',
-          quality_grade: 'Grade A',
-          storage_location: 'Cold Store A',
+          total_quantity_kg: 850,
+          total_labor_cost: 450,
+          total_other_costs: 120,
+          status: 'In Progress',
           notes:
-            'Continuous picking style. Labor: 3 farmhands (450 ZMW). Other costs: crates 120 ZMW.',
+            'Continuous picking style. Labor: 3 farmhands (450 ZMW). Other costs: crates 120 ZMW. Grade A quality stored in Cold Store A.',
         },
         produce: {
           item_name: 'Tomatoes (Fresh)',
@@ -770,13 +772,15 @@ export function useFarmSampleData() {
         _key: 'h_sp_completed',
         harvest: {
           planting_id: spCompleted.$id,
-          harvest_date: daysAgo(120),
-          quantity_harvested: 3800,
-          unit: 'kg',
-          quality_grade: 'Grade B',
-          storage_location: 'Root Crop Shed',
+          harvest_type: 'Multi-Day Aggregate',
+          harvest_start_date: daysAgo(125),
+          harvest_end_date: daysAgo(120),
+          total_quantity_kg: 3800,
+          total_labor_cost: 900,
+          total_other_costs: 200,
+          status: 'Completed',
           notes:
-            'Multi-day aggregate harvest (started 5 days prior). Labor: 6 farmhands (900 ZMW). Other: bags/sacks 200 ZMW.',
+            'Multi-day aggregate harvest (started 5 days prior). Labor: 6 farmhands (900 ZMW). Other: bags/sacks 200 ZMW. Grade B quality stored in Root Crop Shed.',
         },
         produce: {
           item_name: 'Sweet Potato (Orange-flesh)',
@@ -811,11 +815,13 @@ export function useFarmSampleData() {
         _key: 'h_maize_failed',
         harvest: {
           planting_id: maizeFailed.$id,
+          harvest_type: 'Single Day',
           harvest_date: daysAgo(90),
-          quantity_harvested: 0,
-          unit: 'kg',
-          quality_grade: 'Failed',
-          notes: 'Drought failure - zero yield. No harvest labor required.',
+          total_quantity_kg: 0,
+          total_labor_cost: 0,
+          total_other_costs: 0,
+          status: 'Completed',
+          notes: 'Drought failure - zero yield. No harvest labor required. Failed quality grade.',
         },
         produce: null, // No inventory created
         sale: null,

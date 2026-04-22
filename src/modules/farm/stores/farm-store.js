@@ -154,6 +154,30 @@ export const useFarmStore = defineStore('farm', {
         return new Date(b.planting_date) - new Date(a.planting_date);
       })[0];
     },
+
+    // Harvest getters (Story 3.5)
+    harvestsByPlanting: (state) => (plantingId) => {
+      return state.harvests.filter((h) => h.planting_id === plantingId);
+    },
+
+    inProgressHarvests: (state) => {
+      return state.harvests.filter((h) => h.status === 'In Progress');
+    },
+
+    completedHarvests: (state) => {
+      return state.harvests.filter((h) => h.status === 'Completed');
+    },
+
+    recentHarvests: (state) => {
+      return state.harvests
+        .filter((h) => h.status === 'Completed')
+        .sort((a, b) => {
+          const dateA = a.harvest_date || a.harvest_end_date;
+          const dateB = b.harvest_date || b.harvest_end_date;
+          return new Date(dateB) - new Date(dateA);
+        })
+        .slice(0, 5);
+    },
   },
 
   actions: {
