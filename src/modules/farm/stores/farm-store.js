@@ -4,6 +4,7 @@
 import { defineStore } from 'pinia';
 import { tables } from 'src/boot/appwrite';
 import { ID, Query } from 'appwrite';
+import { useInventoryStore } from 'src/stores/inventory-store';
 
 export const useFarmStore = defineStore('farm', {
   state: () => ({
@@ -172,8 +173,9 @@ export const useFarmStore = defineStore('farm', {
       return state.harvests
         .filter((h) => h.status === 'Completed')
         .sort((a, b) => {
-          const dateA = a.harvest_date || a.harvest_end_date;
-          const dateB = b.harvest_date || b.harvest_end_date;
+          // Sort by end date (final pick day) descending; fall back to start date
+          const dateA = a.harvest_end_date || a.harvest_start_date;
+          const dateB = b.harvest_end_date || b.harvest_start_date;
           return new Date(dateB) - new Date(dateA);
         })
         .slice(0, 5);
@@ -494,10 +496,11 @@ export const useFarmStore = defineStore('farm', {
       this.isPlantingsLoading = true;
       try {
         const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
+        const rowId = typeof plantingId === 'object' ? plantingId.$id : plantingId;
         const response = await tables.getRow({
           databaseId: dbId,
           tableId: 'plantings',
-          rowId: plantingId,
+          rowId: rowId,
         });
         this.currentPlanting = response;
         return { success: true, data: response };
@@ -533,18 +536,19 @@ export const useFarmStore = defineStore('farm', {
     async updatePlanting(plantingId, updateData) {
       try {
         const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
+        const rowId = typeof plantingId === 'object' ? plantingId.$id : plantingId;
         const response = await tables.updateRow({
           databaseId: dbId,
           tableId: 'plantings',
-          rowId: plantingId,
+          rowId: rowId,
           data: updateData,
         });
         // Update local state
-        const index = this.plantings.findIndex((p) => p.$id === plantingId);
+        const index = this.plantings.findIndex((p) => p.$id === rowId);
         if (index !== -1) {
           this.plantings[index] = response;
         }
-        if (this.currentPlanting?.$id === plantingId) {
+        if (this.currentPlanting?.$id === rowId) {
           this.currentPlanting = response;
         }
         return { success: true, data: response };
@@ -592,16 +596,27 @@ export const useFarmStore = defineStore('farm', {
       { failureReason = null, additionalNotes = '' } = {},
     ) {
       const ALLOWED_TRANSITIONS = {
-        planted: ['growing', 'failed'],
-        growing: ['harvesting', 'failed'],
+        planted: ['growing', 'failed', 'completed'],
+        growing: ['harvesting', 'failed', 'completed'],
         harvesting: ['completed', 'failed'],
       };
 
-      const current = this.plantings.find((p) => p.$id === plantingId) || this.currentPlanting;
+      let current = this.plantings.find((p) => p.$id === plantingId) || this.currentPlanting;
+
+      // If not found in local state, fetch from database
+      if (!current) {
+        const rowId = typeof plantingId === 'object' ? plantingId.$id : plantingId;
+        const fetchResult = await this.fetchPlantingById(rowId);
+        if (fetchResult.success) {
+          current = fetchResult.data;
+        }
+      }
+
       const currentStatus = current?.status?.toLowerCase();
       const allowed = ALLOWED_TRANSITIONS[currentStatus] || [];
 
-      if (!allowed.includes(newStatus)) {
+      // Allow 'completed' transition even if current status is undefined (data quality issue)
+      if (!allowed.includes(newStatus) && !(newStatus === 'completed' && !currentStatus)) {
         return {
           success: false,
           error: `Invalid status transition: ${currentStatus} → ${newStatus}`,
@@ -645,7 +660,19 @@ export const useFarmStore = defineStore('farm', {
       return result;
     },
 
-    // Harvest management (Story 3.5-3.6)
+    // ---------------------------------------------------------------------------
+    // Harvest management (Story 3.5 refactor — unified entry-based model)
+    //
+    // Business rules:
+    //  - A harvest is a parent record composed of one or more harvest_entries.
+    //  - Type ("Single Day" / "Multi-Day") is derived from entries.length, not stored.
+    //  - Only one In Progress harvest is allowed per planting at a time.
+    //  - Every entry upserts the aggregated farm-produce inventory row for the
+    //    (planting, crop) tuple. Marking a harvest complete has NO inventory side-effect.
+    //  - Entries are immutable. Deletion is allowed only if inventory still has
+    //    enough quantity to reverse (no sales/transfers have consumed it).
+    // ---------------------------------------------------------------------------
+
     async fetchHarvests() {
       this.isHarvestsLoading = true;
       try {
@@ -653,7 +680,7 @@ export const useFarmStore = defineStore('farm', {
         const response = await tables.listRows({
           databaseId: dbId,
           tableId: 'harvests',
-          queries: [Query.limit(200), Query.orderDesc('harvest_date')],
+          queries: [Query.limit(200), Query.orderDesc('$createdAt')],
         });
         this.harvests = response.rows;
         this.harvestsLoaded = true;
@@ -674,12 +701,12 @@ export const useFarmStore = defineStore('farm', {
           tableId: 'harvests',
           queries: [
             Query.equal('planting_id', plantingId),
-            Query.orderDesc('harvest_date'),
+            Query.orderDesc('$createdAt'),
             Query.limit(50),
           ],
         });
 
-        // Update local state - replace existing harvests for this planting
+        // Replace existing harvests for this planting in local state
         const otherHarvests = this.harvests.filter((h) => h.planting_id !== plantingId);
         this.harvests = [...otherHarvests, ...response.rows];
 
@@ -699,27 +726,22 @@ export const useFarmStore = defineStore('farm', {
           rowId: harvestId,
         });
 
-        // Fetch entries for multi-day harvests
-        let entries = [];
-        if (harvestResponse.harvest_type === 'Multi-Day Aggregate') {
-          const entriesResponse = await tables.listRows({
-            databaseId: dbId,
-            tableId: 'harvest_entries',
-            queries: [
-              Query.equal('harvest_id', harvestId),
-              Query.orderAsc('entry_date'),
-              Query.limit(100),
-            ],
-          });
-          entries = entriesResponse.rows;
-        }
+        // Always fetch entries — every harvest is entry-based now
+        const entriesResponse = await tables.listRows({
+          databaseId: dbId,
+          tableId: 'harvest_entries',
+          queries: [
+            Query.equal('harvest_id', harvestId),
+            Query.orderAsc('entry_date'),
+            Query.limit(100),
+          ],
+        });
 
         const harvestWithEntries = {
           ...harvestResponse,
-          entries,
+          entries: entriesResponse.rows,
         };
 
-        // Update local state
         const index = this.harvests.findIndex((h) => h.$id === harvestId);
         if (index !== -1) {
           this.harvests[index] = harvestWithEntries;
@@ -734,120 +756,468 @@ export const useFarmStore = defineStore('farm', {
       }
     },
 
-    async createHarvest(harvestData) {
+    /**
+     * Fetch entries for a given harvest without replacing the harvest record.
+     * @param {string} harvestId
+     */
+    async fetchHarvestEntries(harvestId) {
       try {
         const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
-
-        // Ensure status defaults to 'In Progress' if not provided
-        const harvestPayload = {
-          ...harvestData,
-          status: harvestData.status || 'In Progress',
-          total_quantity_kg: harvestData.total_quantity_kg || 0,
-          total_labor_cost: harvestData.total_labor_cost || 0,
-          //total_other_costs: harvestData.total_other_costs || 0,
-        };
-
-        const response = await tables.createRow({
+        const response = await tables.listRows({
           databaseId: dbId,
-          tableId: 'harvests',
-          rowId: ID.unique(),
-          data: harvestPayload,
+          tableId: 'harvest_entries',
+          queries: [
+            Query.equal('harvest_id', harvestId),
+            Query.orderAsc('entry_date'),
+            Query.limit(200),
+          ],
         });
 
-        // Add to local state
-        this.harvests.unshift(response);
+        const index = this.harvests.findIndex((h) => h.$id === harvestId);
+        if (index !== -1) {
+          this.harvests[index] = { ...this.harvests[index], entries: response.rows };
+        }
 
-        return { success: true, data: response };
+        return { success: true, data: response.rows };
       } catch (error) {
-        console.error('Error creating harvest:', error);
+        console.error('Error fetching harvest entries:', error);
         return { success: false, error: error.message };
       }
     },
 
-    async addHarvestEntry(harvestId, entryData) {
-      try {
-        const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
+    /**
+     * Internal helper: resolve (planting, crop) context for inventory operations.
+     * Prefers cached store data; falls back to fresh fetches if missing.
+     * @private
+     */
+    async _resolveHarvestContext(plantingId) {
+      let planting = this.plantings.find((p) => p.$id === plantingId);
+      if (!planting) {
+        const res = await this.fetchPlantingById(plantingId);
+        if (!res.success) return { success: false, error: res.error };
+        planting = res.data;
+      }
 
-        // Create the entry
-        const entryResponse = await tables.createRow({
+      let crop = this.crops.find((c) => c.$id === planting.crop_id);
+      if (!crop) {
+        if (!this.cropsLoaded) {
+          await this.fetchCrops();
+          crop = this.crops.find((c) => c.$id === planting.crop_id);
+        }
+      }
+      if (!crop) {
+        return { success: false, error: 'Crop not found for planting' };
+      }
+
+      return { success: true, planting, crop };
+    },
+
+    /**
+     * Atomically create a harvest parent record with its first entry and the
+     * aggregated farm-produce inventory row.
+     *
+     * Best-effort rollback: if any step after harvest creation fails, previously
+     * created rows are deleted so no orphans remain.
+     *
+     * @param {string} plantingId
+     * @param {Object} entryData - { entry_date, quantity_kg, farmhands_count, labor_cost,
+     *                               other_costs, other_costs_notes, notes }
+     * @param {Object} [options] - { harvestNotes?: string }
+     */
+    async createHarvestWithFirstEntry(plantingId, entryData, options = {}) {
+      const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
+      const inventoryStore = useInventoryStore();
+
+      // 1. Resolve planting + crop context
+      const ctx = await this._resolveHarvestContext(plantingId);
+      if (!ctx.success) return { success: false, error: ctx.error };
+      const { planting, crop } = ctx;
+
+      // 2. Defensive check: ensure no in-progress harvest already exists for this planting
+      const existingInProgress = this.harvests.find(
+        (h) => h.planting_id === plantingId && h.status === 'In Progress',
+      );
+      if (existingInProgress) {
+        return {
+          success: false,
+          error: 'An in-progress harvest already exists for this planting',
+        };
+      }
+
+      const quantityKg = parseFloat(entryData.quantity_kg) || 0;
+      const laborCost = parseFloat(entryData.labor_cost) || 0;
+      const otherCosts = parseFloat(entryData.other_costs) || 0;
+
+      // 3. Create harvest parent row
+      let harvestRow;
+      try {
+        harvestRow = await tables.createRow({
+          databaseId: dbId,
+          tableId: 'harvests',
+          rowId: ID.unique(),
+          data: {
+            planting_id: plantingId,
+            harvest_start_date: entryData.entry_date,
+            harvest_end_date: entryData.entry_date,
+            total_quantity_kg: quantityKg,
+            total_labor_cost: laborCost,
+            total_other_costs: otherCosts,
+            status: 'In Progress',
+            notes: options.harvestNotes || null,
+          },
+        });
+      } catch (error) {
+        console.error('Error creating harvest:', error);
+        return { success: false, error: error.message };
+      }
+
+      // 4. Create first entry
+      let entryRow;
+      try {
+        entryRow = await tables.createRow({
           databaseId: dbId,
           tableId: 'harvest_entries',
           rowId: ID.unique(),
           data: {
-            ...entryData,
-            harvest_id: harvestId,
-            labor_cost: entryData.labor_cost || 0,
-            //other_costs: entryData.other_costs || 0,
+            harvest_id: harvestRow.$id,
+            entry_date: entryData.entry_date,
+            quantity_kg: quantityKg,
+            farmhands_count: entryData.farmhands_count || null,
+            labor_cost: laborCost,
+            other_costs: otherCosts,
+            other_costs_notes: entryData.other_costs_notes || null,
+            notes: entryData.notes || null,
           },
         });
+      } catch (error) {
+        console.error('Error creating first entry, rolling back harvest:', error);
+        await this._rollbackHarvestRow(harvestRow.$id);
+        return { success: false, error: error.message };
+      }
 
-        // Fetch all entries for this harvest to recalculate totals
-        const entriesResponse = await tables.listRows({
+      // 5. Upsert inventory row
+      const invResult = await inventoryStore.createOrUpdateFarmProduceFromHarvest({
+        planting,
+        crop,
+        entry: entryRow,
+        harvestTotals: {
+          total_quantity_kg: quantityKg,
+          total_labor_cost: laborCost,
+          total_other_costs: otherCosts,
+        },
+      });
+
+      if (!invResult.success) {
+        console.error('Inventory upsert failed, rolling back entry + harvest:', invResult.error);
+        await this._rollbackEntryRow(entryRow.$id);
+        await this._rollbackHarvestRow(harvestRow.$id);
+        return {
+          success: false,
+          error: `Inventory update failed: ${invResult.error}. Harvest not created.`,
+        };
+      }
+
+      // 6. Update local state
+      const harvestWithEntries = { ...harvestRow, entries: [entryRow] };
+      this.harvests.unshift(harvestWithEntries);
+
+      return { success: true, data: harvestWithEntries };
+    },
+
+    async _rollbackHarvestRow(harvestId) {
+      try {
+        const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
+        await tables.deleteRow({ databaseId: dbId, tableId: 'harvests', rowId: harvestId });
+      } catch (e) {
+        console.error('Rollback of harvest row failed:', e.message);
+      }
+    },
+
+    async _rollbackEntryRow(entryId) {
+      try {
+        const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
+        await tables.deleteRow({ databaseId: dbId, tableId: 'harvest_entries', rowId: entryId });
+      } catch (e) {
+        console.error('Rollback of entry row failed:', e.message);
+      }
+    },
+
+    /**
+     * Add a subsequent entry to an existing in-progress harvest.
+     * Updates harvest totals, extends end_date if needed, and upserts inventory.
+     *
+     * @param {string} harvestId
+     * @param {Object} entryData
+     */
+    async addHarvestEntry(harvestId, entryData) {
+      const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
+      const inventoryStore = useInventoryStore();
+
+      const harvest = this.harvests.find((h) => h.$id === harvestId);
+      if (!harvest) return { success: false, error: 'Harvest not found in local state' };
+      if (harvest.status !== 'In Progress') {
+        return { success: false, error: 'Cannot add entries to a completed harvest' };
+      }
+
+      const ctx = await this._resolveHarvestContext(harvest.planting_id);
+      if (!ctx.success) return { success: false, error: ctx.error };
+      const { planting, crop } = ctx;
+
+      // 1. Create the entry
+      let entryRow;
+      try {
+        entryRow = await tables.createRow({
           databaseId: dbId,
           tableId: 'harvest_entries',
-          queries: [Query.equal('harvest_id', harvestId), Query.limit(200)],
+          rowId: ID.unique(),
+          data: {
+            harvest_id: harvestId,
+            entry_date: entryData.entry_date,
+            quantity_kg: parseFloat(entryData.quantity_kg) || 0,
+            farmhands_count: entryData.farmhands_count || null,
+            labor_cost: parseFloat(entryData.labor_cost) || 0,
+            other_costs: parseFloat(entryData.other_costs) || 0,
+            other_costs_notes: entryData.other_costs_notes || null,
+            notes: entryData.notes || null,
+          },
         });
+      } catch (error) {
+        console.error('Error creating harvest entry:', error);
+        return { success: false, error: error.message };
+      }
 
-        // Calculate new totals
-        const entries = entriesResponse.rows;
-        const totalQuantity = entries.reduce(
-          (sum, entry) => sum + (parseFloat(entry.quantity_kg) || 0),
-          0,
-        );
-        const totalLaborCost = entries.reduce(
-          (sum, entry) => sum + (parseFloat(entry.labor_cost) || 0),
-          0,
-        );
-        // const totalOtherCosts = entries.reduce(
-        //   (sum, entry) => sum + (parseFloat(entry.other_costs) || 0),
-        //   0,
-        // );
+      // 2. Fetch all entries to recompute totals
+      const entriesResponse = await tables.listRows({
+        databaseId: dbId,
+        tableId: 'harvest_entries',
+        queries: [Query.equal('harvest_id', harvestId), Query.limit(200)],
+      });
+      const entries = entriesResponse.rows;
 
-        // Update harvest with new totals
-        const harvestUpdate = await tables.updateRow({
+      const totals = this._computeHarvestTotals(entries);
+      const newEndDate = entries.reduce((max, e) => {
+        const t = new Date(e.entry_date).getTime();
+        return t > max ? t : max;
+      }, 0);
+      const newStartDate = entries.reduce((min, e) => {
+        const t = new Date(e.entry_date).getTime();
+        return t < min || min === 0 ? t : min;
+      }, 0);
+
+      // 3. Update harvest with new totals and date range
+      let harvestUpdate;
+      try {
+        harvestUpdate = await tables.updateRow({
           databaseId: dbId,
           tableId: 'harvests',
           rowId: harvestId,
           data: {
-            total_quantity_kg: totalQuantity,
-            total_labor_cost: totalLaborCost,
-            // total_other_costs: totalOtherCosts,
-            // Update end date if this entry is later than current end date
-            harvest_end_date:
-              entries.length > 0
-                ? Math.max(...entries.map((e) => new Date(e.entry_date).getTime()))
-                : null,
+            total_quantity_kg: totals.total_quantity_kg,
+            total_labor_cost: totals.total_labor_cost,
+            total_other_costs: totals.total_other_costs,
+            harvest_start_date: new Date(newStartDate).toISOString(),
+            harvest_end_date: new Date(newEndDate).toISOString(),
           },
         });
-
-        // Update local state
-        const harvestIndex = this.harvests.findIndex((h) => h.$id === harvestId);
-        if (harvestIndex !== -1) {
-          this.harvests[harvestIndex] = {
-            ...this.harvests[harvestIndex],
-            ...harvestUpdate,
-            entries: entries,
-          };
-        }
-
-        return { success: true, data: entryResponse };
       } catch (error) {
-        console.error('Error adding harvest entry:', error);
+        console.error('Failed to update harvest totals, rolling back entry:', error);
+        await this._rollbackEntryRow(entryRow.$id);
         return { success: false, error: error.message };
       }
+
+      // 4. Upsert inventory
+      const invResult = await inventoryStore.createOrUpdateFarmProduceFromHarvest({
+        planting,
+        crop,
+        entry: entryRow,
+        harvestTotals: totals,
+      });
+
+      if (!invResult.success) {
+        // Roll back entry + re-sync harvest totals to pre-entry state
+        console.error('Inventory upsert failed, rolling back entry:', invResult.error);
+        await this._rollbackEntryRow(entryRow.$id);
+        const priorEntries = entries.filter((e) => e.$id !== entryRow.$id);
+        const priorTotals = this._computeHarvestTotals(priorEntries);
+        try {
+          await tables.updateRow({
+            databaseId: dbId,
+            tableId: 'harvests',
+            rowId: harvestId,
+            data: {
+              total_quantity_kg: priorTotals.total_quantity_kg,
+              total_labor_cost: priorTotals.total_labor_cost,
+              total_other_costs: priorTotals.total_other_costs,
+            },
+          });
+        } catch (e) {
+          console.error('Rollback of harvest totals failed; data may be inconsistent:', e.message);
+        }
+        return { success: false, error: `Inventory update failed: ${invResult.error}` };
+      }
+
+      // 5. Update local state
+      const harvestIndex = this.harvests.findIndex((h) => h.$id === harvestId);
+      if (harvestIndex !== -1) {
+        this.harvests[harvestIndex] = {
+          ...this.harvests[harvestIndex],
+          ...harvestUpdate,
+          entries,
+        };
+      }
+
+      return { success: true, data: { entry: entryRow, harvest: harvestUpdate, entries } };
+    },
+
+    /**
+     * Delete an individual harvest entry.
+     * Blocked if inventory does not have enough quantity remaining to reverse
+     * (meaning produce has already been sold or transferred).
+     *
+     * @param {string} harvestId
+     * @param {string} entryId
+     */
+    async deleteHarvestEntry(harvestId, entryId) {
+      const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
+      const inventoryStore = useInventoryStore();
+
+      const harvest = this.harvests.find((h) => h.$id === harvestId);
+      if (!harvest) return { success: false, error: 'Harvest not found' };
+      if (harvest.status !== 'In Progress') {
+        return { success: false, error: 'Cannot delete entries from a completed harvest' };
+      }
+
+      const ctx = await this._resolveHarvestContext(harvest.planting_id);
+      if (!ctx.success) return { success: false, error: ctx.error };
+      const { planting, crop } = ctx;
+
+      // Fetch current entries to locate the one being deleted and compute updated totals
+      const entriesResponse = await tables.listRows({
+        databaseId: dbId,
+        tableId: 'harvest_entries',
+        queries: [Query.equal('harvest_id', harvestId), Query.limit(200)],
+      });
+      const entries = entriesResponse.rows;
+      const entry = entries.find((e) => e.$id === entryId);
+      if (!entry) return { success: false, error: 'Entry not found' };
+
+      if (entries.length <= 1) {
+        return {
+          success: false,
+          error: 'Cannot delete the only entry of a harvest. Delete the entire harvest instead.',
+        };
+      }
+
+      const remainingEntries = entries.filter((e) => e.$id !== entryId);
+      const updatedTotals = this._computeHarvestTotals(remainingEntries);
+
+      // 1. Check inventory reversibility and perform reversal FIRST.
+      //    If we deleted the entry first and reversal failed, we'd be in an inconsistent state.
+      const reverseResult = await inventoryStore.reverseFarmProduceFromHarvest({
+        planting,
+        crop,
+        entry,
+        updatedHarvestTotals: updatedTotals,
+      });
+
+      if (!reverseResult.success) {
+        return { success: false, error: reverseResult.error, reason: reverseResult.reason };
+      }
+
+      // 2. Delete the entry row
+      try {
+        await tables.deleteRow({
+          databaseId: dbId,
+          tableId: 'harvest_entries',
+          rowId: entryId,
+        });
+      } catch (error) {
+        // Try to re-apply inventory (best-effort) since entry delete failed
+        console.error(
+          'Entry delete failed after inventory reversal; re-applying inventory:',
+          error,
+        );
+        await inventoryStore.createOrUpdateFarmProduceFromHarvest({
+          planting,
+          crop,
+          entry,
+          harvestTotals: this._computeHarvestTotals(entries),
+        });
+        return { success: false, error: error.message };
+      }
+
+      // 3. Update harvest totals + dates
+      const newEndDate = remainingEntries.length
+        ? new Date(
+            remainingEntries.reduce((max, e) => Math.max(max, new Date(e.entry_date).getTime()), 0),
+          ).toISOString()
+        : null;
+      const newStartDate = remainingEntries.length
+        ? new Date(
+            remainingEntries.reduce((min, e) => {
+              const t = new Date(e.entry_date).getTime();
+              return min === 0 || t < min ? t : min;
+            }, 0),
+          ).toISOString()
+        : null;
+
+      let harvestUpdate;
+      try {
+        harvestUpdate = await tables.updateRow({
+          databaseId: dbId,
+          tableId: 'harvests',
+          rowId: harvestId,
+          data: {
+            total_quantity_kg: updatedTotals.total_quantity_kg,
+            total_labor_cost: updatedTotals.total_labor_cost,
+            total_other_costs: updatedTotals.total_other_costs,
+            harvest_start_date: newStartDate,
+            harvest_end_date: newEndDate,
+          },
+        });
+      } catch (error) {
+        console.error('Failed to update harvest totals after entry delete:', error);
+        // Non-fatal: totals can be re-synced; surface a warning.
+        return {
+          success: true,
+          data: { entries: remainingEntries },
+          warning: 'Entry deleted but harvest totals may be stale until next refresh',
+        };
+      }
+
+      const harvestIndex = this.harvests.findIndex((h) => h.$id === harvestId);
+      if (harvestIndex !== -1) {
+        this.harvests[harvestIndex] = {
+          ...this.harvests[harvestIndex],
+          ...harvestUpdate,
+          entries: remainingEntries,
+        };
+      }
+
+      return { success: true, data: { entries: remainingEntries, harvest: harvestUpdate } };
+    },
+
+    _computeHarvestTotals(entries) {
+      return entries.reduce(
+        (acc, e) => {
+          acc.total_quantity_kg += parseFloat(e.quantity_kg) || 0;
+          acc.total_labor_cost += parseFloat(e.labor_cost) || 0;
+          acc.total_other_costs += parseFloat(e.other_costs) || 0;
+          return acc;
+        },
+        { total_quantity_kg: 0, total_labor_cost: 0, total_other_costs: 0 },
+      );
     },
 
     async markHarvestComplete(harvestId) {
       try {
         const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
 
-        // Get harvest details before updating
         const harvest = this.harvests.find((h) => h.$id === harvestId);
         if (!harvest) {
           return { success: false, error: 'Harvest not found' };
         }
 
-        // Update harvest status to 'Completed'
         const harvestUpdate = await tables.updateRow({
           databaseId: dbId,
           tableId: 'harvests',
@@ -855,13 +1225,12 @@ export const useFarmStore = defineStore('farm', {
           data: { status: 'Completed' },
         });
 
-        // Update local state
         const harvestIndex = this.harvests.findIndex((h) => h.$id === harvestId);
         if (harvestIndex !== -1) {
           this.harvests[harvestIndex] = { ...this.harvests[harvestIndex], ...harvestUpdate };
         }
 
-        // Call updatePlantingStatus to transition planting to 'completed'
+        // Transition planting to 'completed'
         const plantingResult = await this.updatePlantingStatus(harvest.planting_id, 'completed');
         if (!plantingResult.success) {
           console.warn('Failed to update planting status to completed:', plantingResult.error);
@@ -874,53 +1243,126 @@ export const useFarmStore = defineStore('farm', {
       }
     },
 
+    /**
+     * Delete an in-progress harvest and all its entries.
+     * Blocked if the aggregated inventory row has been partially consumed
+     * (cannot fully reverse produce that has been sold).
+     *
+     * @param {string} harvestId
+     */
     async deleteHarvest(harvestId) {
+      const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
+      const inventoryStore = useInventoryStore();
+
+      const harvest = this.harvests.find((h) => h.$id === harvestId);
+      if (!harvest) return { success: false, error: 'Harvest not found' };
+      if (harvest.status !== 'In Progress') {
+        return {
+          success: false,
+          error: 'Only In Progress harvests can be deleted',
+        };
+      }
+
+      const ctx = await this._resolveHarvestContext(harvest.planting_id);
+      if (!ctx.success) return { success: false, error: ctx.error };
+      const { planting, crop } = ctx;
+
+      // 1. Verify inventory reversibility: existing inventory.quantity must be >=
+      //    total_quantity_kg so the full harvest can be unwound without leaving
+      //    negative inventory. Sales would already have dropped inventory below that.
+      const inventoryRow = await inventoryStore.findFarmProduceRow(planting.$id, crop.$id);
+      const harvestQty = Number(harvest.total_quantity_kg) || 0;
+      if (inventoryRow && Number(inventoryRow.quantity) < harvestQty) {
+        return {
+          success: false,
+          reason: 'insufficient',
+          error:
+            'Cannot delete harvest: some of its produce has already been sold or transferred. ' +
+            `Inventory has ${inventoryRow.quantity}kg on hand but harvest recorded ${harvestQty}kg.`,
+        };
+      }
+
+      // 2. Fetch all entries (authoritative source — don't trust cached state)
+      const entriesResponse = await tables.listRows({
+        databaseId: dbId,
+        tableId: 'harvest_entries',
+        queries: [Query.equal('harvest_id', harvestId), Query.limit(200)],
+      });
+      const entries = entriesResponse.rows;
+
+      // 3. Delete each entry (manual cascade — works regardless of schema-level cascade)
+      for (const entry of entries) {
+        try {
+          await tables.deleteRow({
+            databaseId: dbId,
+            tableId: 'harvest_entries',
+            rowId: entry.$id,
+          });
+        } catch (error) {
+          console.error(`Failed to delete entry ${entry.$id}:`, error);
+          return {
+            success: false,
+            error: `Failed to delete entry ${entry.$id}: ${error.message}`,
+          };
+        }
+      }
+
+      // 4. Reverse inventory for the full harvest quantity. We do this as a single
+      //    decrement instead of per-entry reversal to avoid redundant lookups.
+      if (inventoryRow) {
+        const newQty = Number(inventoryRow.quantity) - harvestQty;
+        if (newQty > 0) {
+          // Partial rollback (shouldn't happen given the pre-check above, but defensive).
+          try {
+            await tables.updateRow({
+              databaseId: dbId,
+              tableId: 'inventory',
+              rowId: inventoryRow.$id,
+              data: {
+                quantity: newQty,
+                status: inventoryStore._deriveInventoryStatus(
+                  newQty,
+                  inventoryRow.reorder_threshold,
+                ),
+                estimated_value:
+                  Math.round(newQty * (Number(inventoryRow.unit_cost) || 0) * 100) / 100,
+                last_updated: new Date().toISOString(),
+              },
+            });
+          } catch (e) {
+            console.warn('Failed to decrement inventory after harvest delete:', e.message);
+          }
+        } else {
+          // Quantity dropped to 0 — remove the aggregated row entirely.
+          try {
+            await tables.deleteRow({
+              databaseId: dbId,
+              tableId: 'inventory',
+              rowId: inventoryRow.$id,
+            });
+            inventoryStore.items = inventoryStore.items.filter((i) => i.$id !== inventoryRow.$id);
+          } catch (e) {
+            console.warn('Failed to delete empty inventory row:', e.message);
+          }
+        }
+      }
+
+      // 5. Delete the harvest row itself
       try {
-        const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
-
-        // Get harvest details
-        const harvest = this.harvests.find((h) => h.$id === harvestId);
-        if (!harvest) {
-          return { success: false, error: 'Harvest not found' };
-        }
-
-        // Only allow deletion for 'In Progress' harvests
-        if (harvest.status !== 'In Progress') {
-          return {
-            success: false,
-            error: 'Only harvests with "In Progress" status can be deleted',
-          };
-        }
-
-        // Check if harvest has any entries
-        const entriesResponse = await tables.listRows({
-          databaseId: dbId,
-          tableId: 'harvest_entries',
-          queries: [Query.equal('harvest_id', harvestId), Query.limit(1)],
-        });
-
-        if (entriesResponse.total > 0) {
-          return {
-            success: false,
-            error: 'Cannot delete harvest with existing entries',
-          };
-        }
-
-        // Delete the harvest
         await tables.deleteRow({
           databaseId: dbId,
           tableId: 'harvests',
           rowId: harvestId,
         });
-
-        // Remove from local state
-        this.harvests = this.harvests.filter((h) => h.$id !== harvestId);
-
-        return { success: true };
       } catch (error) {
-        console.error('Error deleting harvest:', error);
+        console.error('Error deleting harvest row:', error);
         return { success: false, error: error.message };
       }
+
+      // 6. Update local state
+      this.harvests = this.harvests.filter((h) => h.$id !== harvestId);
+
+      return { success: true, data: { deletedEntryCount: entries.length } };
     },
 
     // Dashboard stats

@@ -145,30 +145,34 @@ Records crop plantings with aggregated cost tracking. Costs are stored as intege
 
 ### harvests
 
-Records harvest records for planting completions. Supports single-day and multi-day aggregate harvests with status tracking for partial harvest workflows.
+Records harvest events for plantings. Each harvest is composed of one or more `harvest_entries` (daily picks). A harvest is "Single Day" when it has exactly one entry and has been marked complete; "Multi-Day" when it has multiple entries. The type is **derived**, not stored. Only one `In Progress` harvest is allowed per planting at a time (enforced in UI).
 
-| Column               | Type     | Constraints                                                        | Description                                 |
-| -------------------- | -------- | ------------------------------------------------------------------ | ------------------------------------------- |
-| `id`                 | string   | Primary Key, Auto-generated                                        | Unique harvest identifier                   |
-| `planting_id`        | string   | Required, Foreign Key → plantings.id, Indexed                      | Reference to planting                       |
-| `harvest_type`       | string   | Required, Enum: 'Single Day', 'Multi-Day Aggregate'                | Type of harvest (Continuous Picking in 3.6) |
-| `harvest_date`       | datetime | Optional                                                           | Single day harvest date                     |
-| `harvest_start_date` | datetime | Optional                                                           | Multi-day start date                        |
-| `harvest_end_date`   | datetime | Optional                                                           | Multi-day end date                          |
-| `total_quantity_kg`  | float    | Required, Min: 0                                                   | Total harvested quantity (auto-summed)      |
-| `total_labor_cost`   | float    | Optional, Min: 0, Default: 0                                       | Total labor cost (auto-summed)              |
-| `total_other_costs`  | float    | Optional, Min: 0, Default: 0                                       | Total other costs (auto-summed)             |
-| `daily_breakdown`    | object[] | Optional                                                           | Summary of daily entries (cached)           |
-| `status`             | string   | Required, Enum: 'In Progress', 'Completed', Default: 'In Progress' | Harvest status for partial workflows        |
-| `notes`              | string   | Optional, Max: 1000                                                | General harvest notes                       |
-| `created_at`         | datetime | Auto-generated                                                     | Creation timestamp                          |
-| `updated_at`         | datetime | Auto-updated                                                       | Modification timestamp                      |
+| Column               | Type     | Constraints                                                        | Description                                     |
+| -------------------- | -------- | ------------------------------------------------------------------ | ----------------------------------------------- |
+| `id`                 | string   | Primary Key, Auto-generated                                        | Unique harvest identifier                       |
+| `planting_id`        | string   | Required, Foreign Key → plantings.id, Indexed                      | Reference to planting                           |
+| `harvest_start_date` | datetime | Required                                                           | First entry date (derived, maintained by store) |
+| `harvest_end_date`   | datetime | Optional                                                           | Last entry date (derived, maintained by store)  |
+| `total_quantity_kg`  | float    | Required, Min: 0, Default: 0                                       | Total harvested quantity (sum of entries)       |
+| `total_labor_cost`   | float    | Optional, Min: 0, Default: 0                                       | Total labor cost (sum of entries)               |
+| `total_other_costs`  | float    | Optional, Min: 0, Default: 0                                       | Total other costs (sum of entries)              |
+| `status`             | string   | Required, Enum: 'In Progress', 'Completed', Default: 'In Progress' | Harvest status                                  |
+| `notes`              | string   | Optional, Max: 1000                                                | General harvest notes                           |
+| `created_at`         | datetime | Auto-generated                                                     | Creation timestamp                              |
+| `updated_at`         | datetime | Auto-updated                                                       | Modification timestamp                          |
+
+**Removed from schema (Story 3.5 refactor):**
+
+- `harvest_type` — type is now derived from `entries.length`
+- `harvest_date` — redundant with entry dates; use first entry for single-day
+- `daily_breakdown` — entries table is authoritative
+- `expected_total_quantity` — never read; planning use case deferred
 
 **Indexes:**
 
-- `idx_harvests_date` - For date-based queries
 - `idx_harvests_planting` - For finding harvests by planting
 - `idx_harvests_status` - For filtering by In Progress vs Completed
+- `idx_harvests_start_date` - For date-based queries
 
 ### harvest_entries
 
@@ -358,11 +362,15 @@ Tracks physical village assets, supplies, and harvested goods.
 | `status`              | string   | Required, Enum: 'In Stock', 'Low Stock', 'Out of Stock', 'Reserved', 'Available for Sale' | Current status                                                                                                       |
 | `source`              | string   | Required                                                                                  | Source: 'Finance Purchase', 'Farm Harvest', 'Donation', 'Other'                                                      |
 | `source_reference_id` | string   | Optional                                                                                  | ID of source (expense transaction, harvest, etc.)                                                                    |
+| `planting_id`         | string   | Optional, Foreign Key → plantings.id, Indexed                                             | Source planting (farm produce only). Enables (planting, crop) inventory aggregation for harvest entries.             |
+| `crop_id`             | string   | Optional, Foreign Key → crops.id, Indexed                                                 | Source crop (farm produce only). Paired with `planting_id` to locate the aggregated produce row.                     |
 | `reorder_threshold`   | integer  | Required, Min: 0                                                                          | Alert threshold for low stock                                                                                        |
 | `transaction_id`      | string   | Optional, Foreign Key → finance_transactions.id                                           | Linked purchase transaction                                                                                          |
 | `date_added`          | datetime | Required                                                                                  | When item was added to inventory                                                                                     |
 | `created_at`          | datetime | Auto-generated                                                                            | Record creation timestamp                                                                                            |
 | `updated_at`          | datetime | Auto-updated                                                                              | Last modification timestamp                                                                                          |
+
+**Farm Produce Aggregation Rule (Story 3.5):** When a harvest entry is recorded, the store finds or creates exactly one inventory row keyed by `(planting_id, crop_id, item_type = 'Farm Produce')` and increments its quantity. `unit_cost` stores the weighted-average cost across all entries of the parent harvest.
 
 ## Relationships
 
@@ -377,8 +385,9 @@ The database uses a normalized schema with ID-based relationships:
 - **plantings → crops**: Many-to-one via `plantings.crop_id` referencing `crops.id`
 - **plantings → inventory**: Many-to-one via `plantings.seed_inventory_id` referencing `inventory.id`
 - **harvests → plantings**: Many-to-one via `harvests.planting_id` referencing `plantings.id`
-- **harvest_entries → harvests**: Many-to-one via `harvest_entries.harvest_id` referencing `harvests.id`
-- **harvests → inventory**: One-to-one via `harvests.inventory_item_id` referencing `inventory.id`
+- **harvest_entries → harvests**: Many-to-one via `harvest_entries.harvest_id` referencing `harvests.id`. Should use `onDelete: cascade` so deleting a harvest removes its entries.
+- **inventory → plantings**: Optional many-to-one via `inventory.planting_id` (farm produce only)
+- **inventory → crops**: Optional many-to-one via `inventory.crop_id` (farm produce only)
 - **farm_sales → inventory**: Many-to-one via `farm_sales.inventory_item_id` referencing `inventory.id`
 - **farm_sales → harvests**: Many-to-one via `farm_sales.harvest_id` referencing `harvests.id`
 - **farm_sales → finance_transactions**: Many-to-one via `farm_sales.finance_transaction_id` referencing `finance_transactions.id`

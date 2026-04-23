@@ -53,3 +53,15 @@ This document tracks deferred improvements, upgrades, and refactoring items that
 - **Added**: Story 3.3 (deferred from MVP requirements)
 
 ---
+
+### FIFO Cost Basis for Harvest Inventory Sales
+
+- **Current state**: Harvest entries flow produce into an aggregated inventory row per `(planting_id, crop_id)`. When a sale occurs, cost basis is derived using a weighted-average of all entries on that planting at report time.
+- **Improvement**: Implement FIFO (First-In-First-Out) cost basis tracking so that sales consume the oldest harvest entry's cost first, producing more accurate per-sale margin reporting.
+- **Schema change**: Likely requires a consumption ledger linking sales to entries, or batch-level inventory rows instead of aggregated rows.
+- **Benefits**: Precise per-sale gross margin, better seasonal price analysis, accurate cost-of-goods-sold accounting.
+- **Risk**: Increased model complexity; only worth it if reporting demands precision beyond weighted-average.
+- **Effort**: Medium-High
+- **Added**: Story 3.5 (Harvest Recording refactor)
+
+---
