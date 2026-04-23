@@ -187,16 +187,15 @@ async function onSubmit() {
   if (!isValid) return;
 
   // Prepare data for submission
+  // eslint-disable-next-line no-unused-vars
+  const { expected_total_quantity, ...formRest } = formData.value;
   const submitData = {
-    ...formData.value,
+    ...formRest,
     // Multi-day harvests start with 0 totals (will be calculated from entries)
     total_quantity_kg: 0,
     total_labor_cost: 0,
     total_other_costs: 0,
-    // Convert expected quantity if provided
-    expected_total_quantity: formData.value.expected_total_quantity
-      ? parseFloat(formData.value.expected_total_quantity)
-      : null,
+    farmhands_count: 0,
   };
 
   emit('submit', submitData);
