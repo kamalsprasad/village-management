@@ -690,7 +690,7 @@ export const useInventoryStore = defineStore('inventory', {
 
           return { success: true, data: updated };
         }
-        console.log(`entry`, entry);
+
         // Create new farm produce row
         const newItem = {
           item_name: crop.crop_name || 'Farm Produce',
