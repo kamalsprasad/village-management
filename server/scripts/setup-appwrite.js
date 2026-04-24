@@ -425,12 +425,6 @@ const tableSchemas = {
         twoWay: false,
         required: true,
       },
-      {
-        key: 'harvest_type',
-        type: 'enum',
-        elements: ['Single Day', 'Multi-Day Aggregate'],
-        required: true,
-      },
       // Single Day fields
       { key: 'harvest_date', type: 'datetime', required: false },
       // Multi-Day fields
@@ -599,6 +593,15 @@ const tableSchemas = {
       { key: 'unit', type: 'string', size: 20, required: true },
       { key: 'unit_cost', type: 'float', required: false },
       { key: 'estimated_value', type: 'float', required: false },
+      {
+        key: 'planting_id',
+        type: 'relationship',
+        relatedTable: 'plantings',
+        relationType: 'manyToOne',
+        twoWay: false,
+        onDelete: 'restrict',
+        required: false,
+      },
       {
         key: 'status',
         type: 'enum',

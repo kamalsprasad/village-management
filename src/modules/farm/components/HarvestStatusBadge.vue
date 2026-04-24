@@ -5,16 +5,8 @@
   Story 3.5: Farm Module - Harvest Recording
 -->
 <template>
-  <q-badge
-    :color="statusColor"
-    :text-color="statusTextColor"
-    class="harvest-status-badge"
-  >
-    <q-icon
-      :name="statusIcon"
-      size="14px"
-      class="q-mr-xs"
-    />
+  <q-badge :color="statusColor" :text-color="statusTextColor" class="harvest-status-badge">
+    <q-icon :name="statusIcon" size="14px" class="q-mr-xs" />
     {{ status }}
   </q-badge>
 </template>
@@ -26,11 +18,6 @@ const props = defineProps({
   status: {
     type: String,
     required: true,
-  },
-  size: {
-    type: String,
-    default: 'md',
-    validator: (value) => ['xs', 'sm', 'md', 'lg'].includes(value),
   },
 });
 

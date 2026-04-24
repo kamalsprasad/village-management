@@ -711,13 +711,8 @@ async function loadPlanting() {
 
       // If the harvest is completed, fetch the aggregated produce inventory row
       // for the "X kg available in inventory" link.
-      if (harvestList[0].status === 'Completed' && result.data.crop_id) {
-        const cropId =
-          typeof result.data.crop_id === 'object' ? result.data.crop_id.$id : result.data.crop_id;
-        produceInventoryRow.value = await inventoryStore.findFarmProduceRow(
-          result.data.$id,
-          cropId,
-        );
+      if (harvestList[0].status === 'Completed') {
+        produceInventoryRow.value = await inventoryStore.findFarmProduceRow(result.data.$id);
       }
     }
   } catch (error) {
@@ -829,14 +824,17 @@ function confirmMarkComplete() {
       });
       return;
     }
+    if (result.warning) {
+      $q.notify({
+        type: 'warning',
+        message: result.warning,
+        position: 'top',
+        timeout: 8000,
+      });
+    }
     $q.notify({ type: 'positive', message: 'Harvest completed', position: 'top' });
     // Re-fetch the inventory row for the completed-view link
-    if (crop.value) {
-      produceInventoryRow.value = await inventoryStore.findFarmProduceRow(
-        planting.value.$id,
-        crop.value.$id,
-      );
-    }
+    produceInventoryRow.value = await inventoryStore.findFarmProduceRow(planting.value.$id);
   });
 }
 

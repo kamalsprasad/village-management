@@ -108,7 +108,7 @@ export const useFarmStore = defineStore('farm', {
     filteredPlantings: (state) => {
       return state.plantings.filter((planting) => {
         if (state.filters.plotId && planting.plot_id !== state.filters.plotId) return false;
-        if (state.filters.cropId && planting.crop_id !== state.filters.cropId) return false;
+        // if (state.filters.cropId && planting.crop_id !== state.filters.cropId) return false;
         if (state.filters.status && planting.status !== state.filters.status) return false;
         // Date filtering logic can be added here
         return true;
@@ -710,7 +710,11 @@ export const useFarmStore = defineStore('farm', {
         });
 
         // Replace existing harvests for this planting in local state
-        const otherHarvests = this.harvests.filter((h) => h.planting_id !== plantingId);
+        const otherHarvests = this.harvests.filter((h) => {
+          const hPlantingId =
+            typeof h.planting_id === 'object' ? h.planting_id?.$id : h.planting_id;
+          return hPlantingId !== plantingId;
+        });
         this.harvests = [...otherHarvests, ...response.rows];
 
         return { success: true, data: response.rows };
@@ -813,6 +817,7 @@ export const useFarmStore = defineStore('farm', {
       }
 
       return { success: true, planting, crop };
+      //return { success: true, planting };
     },
 
     /**
@@ -1201,7 +1206,7 @@ export const useFarmStore = defineStore('farm', {
       return { success: true, data: { entries: remainingEntries, harvest: harvestUpdate } };
     },
 
-    _computeHarvestTotals(entries) {
+    _computeHarvestTotals(entries = []) {
       return entries.reduce(
         (acc, e) => {
           acc.total_quantity_kg += parseFloat(e.quantity_kg) || 0;
@@ -1238,6 +1243,11 @@ export const useFarmStore = defineStore('farm', {
         const plantingResult = await this.updatePlantingStatus(harvest.planting_id, 'completed');
         if (!plantingResult.success) {
           console.warn('Failed to update planting status to completed:', plantingResult.error);
+          return {
+            success: true,
+            data: harvestUpdate,
+            warning: `Harvest marked complete, but planting status update failed: ${plantingResult.error}. Please refresh and update manually.`,
+          };
         }
 
         return { success: true, data: harvestUpdate };
@@ -1269,21 +1279,14 @@ export const useFarmStore = defineStore('farm', {
 
       const ctx = await this._resolveHarvestContext(harvest.planting_id);
       if (!ctx.success) return { success: false, error: ctx.error };
-      const { planting, crop } = ctx;
+      const { planting } = ctx;
 
-      // 1. Verify inventory reversibility: existing inventory.quantity must be >=
-      //    total_quantity_kg so the full harvest can be unwound without leaving
-      //    negative inventory. Sales would already have dropped inventory below that.
-      const inventoryRow = await inventoryStore.findFarmProduceRow(planting.$id, crop.$id);
-      const harvestQty = Number(harvest.total_quantity_kg) || 0;
-      if (inventoryRow && Number(inventoryRow.quantity) < harvestQty) {
-        return {
-          success: false,
-          reason: 'insufficient',
-          error:
-            'Cannot delete harvest: some of its produce has already been sold or transferred. ' +
-            `Inventory has ${inventoryRow.quantity}kg on hand but harvest recorded ${harvestQty}kg.`,
-        };
+      // 1. Reverse inventory first (via inventory store). This is a best-effort
+      //    approach: if entry deletion fails later, inventory will be out of sync
+      //    until the page is refreshed. Fail-fast if inventory is not reversible.
+      const invResult = await inventoryStore.deleteFarmProduceForHarvest(harvest, planting);
+      if (!invResult.success) {
+        return invResult; // passes through reason:'insufficient' and error message
       }
 
       // 2. Fetch all entries (authoritative source — don't trust cached state)
@@ -1311,47 +1314,7 @@ export const useFarmStore = defineStore('farm', {
         }
       }
 
-      // 4. Reverse inventory for the full harvest quantity. We do this as a single
-      //    decrement instead of per-entry reversal to avoid redundant lookups.
-      if (inventoryRow) {
-        const newQty = Number(inventoryRow.quantity) - harvestQty;
-        if (newQty > 0) {
-          // Partial rollback (shouldn't happen given the pre-check above, but defensive).
-          try {
-            await tables.updateRow({
-              databaseId: dbId,
-              tableId: 'inventory',
-              rowId: inventoryRow.$id,
-              data: {
-                quantity: newQty,
-                status: inventoryStore._deriveInventoryStatus(
-                  newQty,
-                  inventoryRow.reorder_threshold,
-                ),
-                estimated_value:
-                  Math.round(newQty * (Number(inventoryRow.unit_cost) || 0) * 100) / 100,
-                last_updated: new Date().toISOString(),
-              },
-            });
-          } catch (e) {
-            console.warn('Failed to decrement inventory after harvest delete:', e.message);
-          }
-        } else {
-          // Quantity dropped to 0 — remove the aggregated row entirely.
-          try {
-            await tables.deleteRow({
-              databaseId: dbId,
-              tableId: 'inventory',
-              rowId: inventoryRow.$id,
-            });
-            inventoryStore.items = inventoryStore.items.filter((i) => i.$id !== inventoryRow.$id);
-          } catch (e) {
-            console.warn('Failed to delete empty inventory row:', e.message);
-          }
-        }
-      }
-
-      // 5. Delete the harvest row itself
+      // 4. Delete the harvest row itself
       try {
         await tables.deleteRow({
           databaseId: dbId,

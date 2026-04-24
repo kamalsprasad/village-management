@@ -65,3 +65,31 @@ This document tracks deferred improvements, upgrades, and refactoring items that
 - **Added**: Story 3.5 (Harvest Recording refactor)
 
 ---
+
+## Architecture & Design (Story 3.5)
+
+### Decouple Farm Store from Inventory Store
+
+- **Current state**: `farm-store.js` directly calls `inventoryStore.createOrUpdateFarmProduceFromHarvest()`, `reverseFarmProduceFromHarvest()`, and `deleteFarmProduceForHarvest()`. This creates a hard dependency from farm → inventory.
+- **Improvement**: Introduce an event bus or callback-based hook pattern where the farm store emits harvest events (`entryAdded`, `entryDeleted`, `harvestDeleted`, `harvestCompleted`) and the inventory store subscribes to them. This decouples the two modules.
+- **Benefits**: Farm module can be tested without inventory, inventory schema changes don't break farm code, easier to swap inventory backends.
+- **Effort**: Medium
+- **Added**: Story 3.5 (code review)
+
+### Batch Harvest+Entries Fetch
+
+- **Current state**: `fetchHarvestById` fetches the harvest row, then fetches entries in a second sequential call. The planting detail page requires both.
+- **Improvement**: Add a Cloud Function or backend aggregation endpoint that returns a harvest with all its entries in a single query. Alternatively, use Appwrite's nested document fetching if/when available.
+- **Benefits**: Fewer round trips, faster page loads, reduced cascade failure risk.
+- **Effort**: Low-Medium
+- **Added**: Story 3.5 (code review)
+
+### Server-Side Validation for One In-Progress Harvest Per Planting
+
+- **Current state**: The check is client-side only (`this.harvests.find(...)`). Two concurrent users could both create an in-progress harvest for the same planting.
+- **Improvement**: Add a unique composite constraint or Cloud Function pre-creation check that enforces at most one `In Progress` harvest per `planting_id` at the database level.
+- **Benefits**: Eliminates race condition, data integrity guaranteed regardless of client state.
+- **Effort**: Low
+- **Added**: Story 3.5 (code review)
+
+---

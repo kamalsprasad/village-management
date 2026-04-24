@@ -589,13 +589,12 @@ export const useInventoryStore = defineStore('inventory', {
     },
 
     /**
-     * Find the aggregated farm produce inventory row for a given (planting, crop).
+     * Find the aggregated farm produce inventory row for a given planting.
      * Returns the row if it exists, otherwise null.
      * @param {string} plantingId
-     * @param {string} cropId
      * @returns {Promise<Object|null>}
      */
-    async findFarmProduceRow(plantingId, cropId) {
+    async findFarmProduceRow(plantingId) {
       try {
         const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
         const inventoryCollectionId = import.meta.env.VITE_APPWRITE_TABLE_INVENTORY || 'inventory';
@@ -605,7 +604,6 @@ export const useInventoryStore = defineStore('inventory', {
           tableId: inventoryCollectionId,
           queries: [
             Query.equal('planting_id', plantingId),
-            Query.equal('crop_id', cropId),
             Query.equal('item_type', 'farm_produce'),
             Query.limit(1),
           ],
@@ -632,7 +630,7 @@ export const useInventoryStore = defineStore('inventory', {
      * Upsert the aggregated farm produce inventory row when a harvest entry is recorded.
      *
      * Behavior:
-     *  - Finds existing row by (planting_id, crop_id, item_type='Farm Produce').
+     *  - Finds existing row by (planting_id, item_type='Farm Produce').
      *  - If found: increments quantity by entry.quantity_kg; recomputes weighted-average
      *    unit_cost from the provided harvest totals; updates estimated_value and status.
      *  - If not found: creates a new row with quantity = entry.quantity_kg.
@@ -654,7 +652,7 @@ export const useInventoryStore = defineStore('inventory', {
           return { success: false, error: 'Missing required planting/crop/entry data' };
         }
 
-        const existing = await this.findFarmProduceRow(planting.$id, crop.$id);
+        const existing = await this.findFarmProduceRow(planting.$id);
 
         // Weighted-average unit cost across full harvest so far
         const totalHarvestQty = Number(harvestTotals?.total_quantity_kg) || 0;
@@ -701,9 +699,11 @@ export const useInventoryStore = defineStore('inventory', {
           estimated_value: Math.round(entryQty * unitCost * 100) / 100,
           status: this._deriveInventoryStatus(entryQty, 0),
           source: 'farm_harvest',
-          source_reference_id: entry.harvest_id.$id || null,
+          source_reference_id:
+            (typeof entry.harvest_id === 'object' ? entry.harvest_id?.$id : entry.harvest_id) ||
+            null,
           planting_id: planting.$id,
-          crop_id: crop.$id,
+
           reorder_threshold: 0,
           date_added: nowIso,
           last_updated: nowIso,
@@ -728,7 +728,7 @@ export const useInventoryStore = defineStore('inventory', {
      * Reverse a harvest entry's contribution to farm produce inventory.
      *
      * Behavior:
-     *  - Finds the aggregated row by (planting_id, crop_id).
+     *  - Finds the aggregated row by (planting_id).
      *  - If current quantity < entry.quantity_kg: returns { success: false, reason: 'insufficient' }.
      *    This indicates produce has been sold/transferred and reversal is not possible.
      *  - Otherwise decrements quantity by entry.quantity_kg and recomputes unit_cost from
@@ -754,9 +754,9 @@ export const useInventoryStore = defineStore('inventory', {
           return { success: false, error: 'Missing required planting/crop/entry data' };
         }
 
-        const existing = await this.findFarmProduceRow(planting.$id, crop.$id);
+        const existing = await this.findFarmProduceRow(planting.$id);
         if (!existing) {
-          return { success: false, error: 'Inventory row not found for this planting/crop' };
+          return { success: false, error: 'Inventory row not found for this planting' };
         }
 
         const currentQty = Number(existing.quantity) || 0;
@@ -805,20 +805,92 @@ export const useInventoryStore = defineStore('inventory', {
     },
 
     /**
-     * Delete the aggregated farm produce row for a planting+crop if it exists
-     * and has full quantity remaining (no sales). Used when a harvest is deleted
-     * and all its entries have been reversed.
+     * Handle inventory reversal when an entire harvest is deleted.
+     * Checks if the aggregated inventory row has enough quantity to reverse,
+     * then either decrements the quantity or deletes the row entirely.
      *
-     * @param {string} plantingId
-     * @param {string} cropId
-     * @returns {Promise<{success:boolean, error?:string}>}
+     * @param {Object} harvest - The harvest object being deleted (needs total_quantity_kg)
+     * @param {Object} planting - The planting object (needs $id)
+     * @returns {Promise<{success:boolean, data?:Object, error?:string, reason?:string}>}
      */
-    async deleteFarmProduceRowIfEmpty(plantingId, cropId) {
+    async deleteFarmProduceForHarvest(harvest, planting) {
       try {
         const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
         const inventoryCollectionId = import.meta.env.VITE_APPWRITE_TABLE_INVENTORY || 'inventory';
 
-        const existing = await this.findFarmProduceRow(plantingId, cropId);
+        const inventoryRow = await this.findFarmProduceRow(planting.$id);
+        const harvestQty = Number(harvest.total_quantity_kg) || 0;
+
+        if (inventoryRow && Number(inventoryRow.quantity) < harvestQty) {
+          return {
+            success: false,
+            reason: 'insufficient',
+            error:
+              'Cannot delete harvest: some of its produce has already been sold or transferred. ' +
+              `Inventory has ${inventoryRow.quantity}kg on hand but harvest recorded ${harvestQty}kg.`,
+          };
+        }
+
+        if (!inventoryRow) {
+          return { success: true, data: { deletedInventoryRow: false } };
+        }
+
+        const newQty = Number(inventoryRow.quantity) - harvestQty;
+        if (newQty > 0) {
+          try {
+            const updated = await tables.updateRow({
+              databaseId: dbId,
+              tableId: inventoryCollectionId,
+              rowId: inventoryRow.$id,
+              data: {
+                quantity: newQty,
+                status: this._deriveInventoryStatus(newQty, inventoryRow.reorder_threshold),
+                estimated_value:
+                  Math.round(newQty * (Number(inventoryRow.unit_cost) || 0) * 100) / 100,
+                last_updated: new Date().toISOString(),
+              },
+            });
+
+            const idx = this.items.findIndex((i) => i.$id === updated.$id);
+            if (idx !== -1) this.items[idx] = updated;
+
+            return { success: true, data: { deletedInventoryRow: false, newQuantity: newQty } };
+          } catch (e) {
+            return { success: false, error: `Failed to decrement inventory: ${e.message}` };
+          }
+        } else {
+          try {
+            await tables.deleteRow({
+              databaseId: dbId,
+              tableId: inventoryCollectionId,
+              rowId: inventoryRow.$id,
+            });
+            this.items = this.items.filter((i) => i.$id !== inventoryRow.$id);
+            return { success: true, data: { deletedInventoryRow: true } };
+          } catch (e) {
+            return { success: false, error: `Failed to delete inventory row: ${e.message}` };
+          }
+        }
+      } catch (error) {
+        console.error('Error in deleteFarmProduceForHarvest:', error);
+        return { success: false, error: error.message };
+      }
+    },
+
+    /**
+     * Delete the aggregated farm produce row for a planting if it exists
+     * and has full quantity remaining (no sales). Used when a harvest is deleted
+     * and all its entries have been reversed.
+     *
+     * @param {string} plantingId
+     * @returns {Promise<{success:boolean, error?:string}>}
+     */
+    async deleteFarmProduceRowIfEmpty(plantingId) {
+      try {
+        const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
+        const inventoryCollectionId = import.meta.env.VITE_APPWRITE_TABLE_INVENTORY || 'inventory';
+
+        const existing = await this.findFarmProduceRow(plantingId);
         if (!existing) return { success: true };
 
         if ((Number(existing.quantity) || 0) > 0) {

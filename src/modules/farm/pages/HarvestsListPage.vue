@@ -27,10 +27,10 @@
         <div class="row q-col-gutter-md">
           <!-- Date Range Filter -->
           <div class="col-12 col-sm-6 col-md-3">
-            <q-date v-model="filters.dateFrom" label="From Date" clearable max-date="today" />
+            <q-input v-model="filters.dateFrom" label="From Date" type="date" clearable />
           </div>
           <div class="col-12 col-sm-6 col-md-3">
-            <q-date v-model="filters.dateTo" label="To Date" clearable max-date="today" />
+            <q-input v-model="filters.dateTo" label="To Date" type="date" clearable />
           </div>
 
           <!-- Crop Filter -->
@@ -77,12 +77,6 @@
         <div class="row q-mt-md">
           <div class="col-12">
             <div class="row q-gutter-sm">
-              <q-btn
-                color="primary"
-                label="Apply Filters"
-                @click="applyFilters"
-                :loading="loading"
-              />
               <q-btn outline label="Clear Filters" @click="clearFilters" />
             </div>
           </div>
@@ -320,6 +314,7 @@ const filteredHarvests = computed(() => {
   if (filters.value.dateFrom || filters.value.dateTo) {
     filtered = filtered.filter((harvest) => {
       const harvestDate = getHarvestDate(harvest);
+      if (!harvestDate) return false;
 
       if (filters.value.dateFrom && harvestDate < parseISO(filters.value.dateFrom)) {
         return false;
@@ -364,12 +359,12 @@ const filteredHarvests = computed(() => {
 });
 
 const hasActiveFilters = computed(() => {
-  return Object.values(filters.value).some((value) => value !== null);
+  return Object.values(filters.value).some((v) => v !== null && v !== '' && v !== undefined);
 });
 
 // Filter options
 const cropOptions = computed(() => {
-  return farmStore.activeCrops.map((crop) => ({
+  return farmStore.crops.map((crop) => ({
     label: crop.crop_name,
     value: crop.$id,
   }));
@@ -432,15 +427,6 @@ async function loadData() {
 }
 
 // Filter functions
-function applyFilters() {
-  // Filters are reactive, just trigger a notification
-  $q.notify({
-    type: 'positive',
-    message: 'Filters applied',
-    position: 'top',
-  });
-}
-
 function clearFilters() {
   filters.value = {
     dateFrom: null,
@@ -477,7 +463,7 @@ function getPlantingId(harvest) {
 }
 
 function getHarvestDate(harvest) {
-  return harvest.harvest_start_date ? parseISO(harvest.harvest_start_date) : new Date(0);
+  return harvest.harvest_start_date ? parseISO(harvest.harvest_start_date) : null;
 }
 
 function getHarvestDateDisplay(harvest) {

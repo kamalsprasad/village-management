@@ -285,7 +285,6 @@ export function useFarmSampleData() {
           ...plan.produce,
           source_reference_id: harvestRow.$id,
           planting_id: plan.planting_id,
-          crop_id: plan.crop_id,
           date_added:
             plan.harvest.harvest_end_date ||
             plan.harvest.harvest_start_date ||

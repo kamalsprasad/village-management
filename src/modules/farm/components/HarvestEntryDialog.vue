@@ -67,7 +67,8 @@
                 step="0.1"
                 min="0"
                 :rules="[
-                  (val) => (val !== null && val !== undefined && val !== '') || 'Quantity is required',
+                  (val) =>
+                    (val !== null && val !== undefined && val !== '') || 'Quantity is required',
                   (val) => val > 0 || 'Quantity must be greater than 0',
                 ]"
                 suffix="kg"
@@ -83,7 +84,10 @@
                 min="0"
                 :rules="[
                   (val) =>
-                    val === null || val === undefined || val === '' || val >= 0 ||
+                    val === null ||
+                    val === undefined ||
+                    val === '' ||
+                    val >= 0 ||
                     'Count must be non-negative',
                 ]"
                 hint="Number of workers for this entry"
@@ -100,7 +104,10 @@
                 min="0"
                 :rules="[
                   (val) =>
-                    val === null || val === undefined || val === '' || val >= 0 ||
+                    val === null ||
+                    val === undefined ||
+                    val === '' ||
+                    val >= 0 ||
                     'Cost must be non-negative',
                 ]"
                 prefix="ZMW"
@@ -118,7 +125,10 @@
                 min="0"
                 :rules="[
                   (val) =>
-                    val === null || val === undefined || val === '' || val >= 0 ||
+                    val === null ||
+                    val === undefined ||
+                    val === '' ||
+                    val >= 0 ||
                     'Cost must be non-negative',
                 ]"
                 prefix="ZMW"
@@ -208,8 +218,8 @@ const formData = ref({
   entry_date: todayStr(),
   quantity_kg: null,
   farmhands_count: null,
-  labor_cost: 0,
-  other_costs: 0,
+  labor_cost: null,
+  other_costs: null,
   other_costs_notes: '',
   notes: '',
 });
@@ -246,11 +256,9 @@ const plantingDateLabel = computed(() => {
 });
 
 const runningTotalKg = computed(() => {
-  if (!props.existingEntries.length) return null;
-  return props.existingEntries.reduce(
-    (sum, e) => sum + (parseFloat(e.quantity_kg) || 0),
-    0,
-  );
+  const entries = props.harvest?.entries || props.existingEntries || [];
+  if (!entries.length) return null;
+  return entries.reduce((sum, e) => sum + (parseFloat(e.quantity_kg) || 0), 0);
 });
 
 const hasDuplicateDate = computed(() => {
@@ -271,8 +279,8 @@ watch(
         entry_date: todayStr(),
         quantity_kg: null,
         farmhands_count: null,
-        labor_cost: 0,
-        other_costs: 0,
+        labor_cost: null,
+        other_costs: null,
         other_costs_notes: '',
         notes: '',
       };
