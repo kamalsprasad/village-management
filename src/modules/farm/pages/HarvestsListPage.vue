@@ -192,27 +192,14 @@
         <!-- Crop Column -->
         <template #body-cell-crop="props">
           <q-td :props="props">
-            {{ getCropName(props.row.planting_id) }}
+            {{ getCropName(getPlantingId(props.row)) }}
           </q-td>
         </template>
 
         <!-- Plot Column -->
         <template #body-cell-plot="props">
           <q-td :props="props">
-            {{ getPlotName(props.row.planting_id) }}
-          </q-td>
-        </template>
-
-        <!-- Type Column -->
-        <template #body-cell-type="props">
-          <q-td :props="props">
-            <q-chip
-              :color="props.row.harvest_type === 'Single Day' ? 'blue' : 'purple'"
-              text-color="white"
-              size="sm"
-            >
-              {{ props.row.harvest_type }}
-            </q-chip>
+            {{ getPlotName(getPlantingId(props.row)) }}
           </q-td>
         </template>
 
@@ -238,9 +225,9 @@
               dense
               color="primary"
               icon="visibility"
-              @click.stop="viewHarvest(props.row.$id)"
+              @click.stop="viewHarvest(props.row)"
             >
-              <q-tooltip>View Details</q-tooltip>
+              <q-tooltip>View Planting & Harvest</q-tooltip>
             </q-btn>
           </q-td>
         </template>
@@ -282,7 +269,7 @@ const columns = [
   {
     name: 'date',
     label: 'Harvest Date',
-    field: 'harvest_date',
+    field: 'harvest_start_date',
     align: 'left',
     sortable: true,
   },
@@ -299,13 +286,6 @@ const columns = [
     field: 'plot_id',
     align: 'left',
     sortable: false,
-  },
-  {
-    name: 'type',
-    label: 'Type',
-    field: 'harvest_type',
-    align: 'left',
-    sortable: true,
   },
   {
     name: 'quantity',
@@ -356,16 +336,22 @@ const filteredHarvests = computed(() => {
   // Crop filter
   if (filters.value.cropId) {
     filtered = filtered.filter((harvest) => {
-      const planting = farmStore.plantings.find((p) => p.$id === harvest.planting_id);
-      return planting?.crop_id === filters.value.cropId;
+      const planting = farmStore.plantings.find((p) => p.$id === getPlantingId(harvest));
+      if (!planting) return false;
+      const cropId =
+        typeof planting.crop_id === 'object' ? planting.crop_id?.$id : planting.crop_id;
+      return cropId === filters.value.cropId;
     });
   }
 
   // Plot filter
   if (filters.value.plotId) {
     filtered = filtered.filter((harvest) => {
-      const planting = farmStore.plantings.find((p) => p.$id === harvest.planting_id);
-      return planting?.plot_id === filters.value.plotId;
+      const planting = farmStore.plantings.find((p) => p.$id === getPlantingId(harvest));
+      if (!planting) return false;
+      const plotId =
+        typeof planting.plot_id === 'object' ? planting.plot_id?.$id : planting.plot_id;
+      return plotId === filters.value.plotId;
     });
   }
 
@@ -475,42 +461,45 @@ function goToNewHarvest() {
   router.push('/farm/plantings');
 }
 
-function viewHarvest(harvestId) {
-  router.push(`/farm/harvests/${harvestId}`);
+function viewHarvest(harvest) {
+  const plantingId = getPlantingId(harvest);
+  if (!plantingId) return;
+  router.push(`/farm/plantings/${plantingId}`);
 }
 
 function onRowClick(evt, row) {
-  viewHarvest(row.$id);
+  viewHarvest(row);
 }
 
 // Helper functions
+function getPlantingId(harvest) {
+  return typeof harvest.planting_id === 'object' ? harvest.planting_id?.$id : harvest.planting_id;
+}
+
 function getHarvestDate(harvest) {
-  if (harvest.harvest_type === 'Single Day') {
-    return parseISO(harvest.harvest_date);
-  } else {
-    return parseISO(harvest.harvest_start_date);
-  }
+  return harvest.harvest_start_date ? parseISO(harvest.harvest_start_date) : new Date(0);
 }
 
 function getHarvestDateDisplay(harvest) {
-  if (harvest.harvest_type === 'Single Day') {
-    return formatDate(harvest.harvest_date);
-  } else {
-    const start = formatDate(harvest.harvest_start_date);
-    const end = harvest.harvest_end_date ? formatDate(harvest.harvest_end_date) : 'Ongoing';
-    return `${start} - ${end}`;
-  }
+  const start = harvest.harvest_start_date ? formatDate(harvest.harvest_start_date) : null;
+  const end = harvest.harvest_end_date ? formatDate(harvest.harvest_end_date) : null;
+  if (!start) return '—';
+  if (!end || start === end) return start;
+  return `${start} - ${end}`;
 }
 
 function getCropName(plantingId) {
   const planting = farmStore.plantings.find((p) => p.$id === plantingId);
-  return planting ? farmStore.getCropNameById(planting.crop_id) : 'Unknown';
+  if (!planting) return 'Unknown';
+  const cropId = typeof planting.crop_id === 'object' ? planting.crop_id?.$id : planting.crop_id;
+  return farmStore.getCropNameById(cropId);
 }
 
 function getPlotName(plantingId) {
   const planting = farmStore.plantings.find((p) => p.$id === plantingId);
   if (!planting) return 'Unknown';
-  const plot = farmStore.plots.find((p) => p.$id === planting.plot_id);
+  const plotId = typeof planting.plot_id === 'object' ? planting.plot_id?.$id : planting.plot_id;
+  const plot = farmStore.plots.find((p) => p.$id === plotId);
   return plot?.name || 'Unknown';
 }
 

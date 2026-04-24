@@ -158,7 +158,10 @@ export const useFarmStore = defineStore('farm', {
 
     // Harvest getters (Story 3.5)
     harvestsByPlanting: (state) => (plantingId) => {
-      return state.harvests.filter((h) => h.planting_id === plantingId);
+      return state.harvests.filter((h) => {
+        const hPlantingId = typeof h.planting_id === 'object' ? h.planting_id?.$id : h.planting_id;
+        return hPlantingId === plantingId;
+      });
     },
 
     inProgressHarvests: (state) => {
@@ -834,9 +837,10 @@ export const useFarmStore = defineStore('farm', {
       const { planting, crop } = ctx;
 
       // 2. Defensive check: ensure no in-progress harvest already exists for this planting
-      const existingInProgress = this.harvests.find(
-        (h) => h.planting_id === plantingId && h.status === 'In Progress',
-      );
+      const existingInProgress = this.harvests.find((h) => {
+        const hPlantingId = typeof h.planting_id === 'object' ? h.planting_id?.$id : h.planting_id;
+        return hPlantingId === plantingId && h.status === 'In Progress';
+      });
       if (existingInProgress) {
         return {
           success: false,

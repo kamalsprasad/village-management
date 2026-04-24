@@ -119,7 +119,9 @@
                   :class="daysUntilHarvest !== null && daysUntilHarvest < 0 ? 'text-negative' : ''"
                 >
                   <span v-if="daysUntilHarvest === null">—</span>
-                  <span v-else-if="daysUntilHarvest < 0">{{ Math.abs(daysUntilHarvest) }}d overdue</span>
+                  <span v-else-if="daysUntilHarvest < 0"
+                    >{{ Math.abs(daysUntilHarvest) }}d overdue</span
+                  >
                   <span v-else-if="daysUntilHarvest === 0">Today!</span>
                   <span v-else>{{ daysUntilHarvest }}d</span>
                 </div>
@@ -221,15 +223,21 @@
               <q-list dense>
                 <q-item>
                   <q-item-section>Inputs Cost</q-item-section>
-                  <q-item-section side>ZMW {{ (planting.inputs_cost || 0).toFixed(2) }}</q-item-section>
+                  <q-item-section side
+                    >ZMW {{ (planting.inputs_cost || 0).toFixed(2) }}</q-item-section
+                  >
                 </q-item>
                 <q-item>
                   <q-item-section>Labor Cost</q-item-section>
-                  <q-item-section side>ZMW {{ (planting.labor_cost || 0).toFixed(2) }}</q-item-section>
+                  <q-item-section side
+                    >ZMW {{ (planting.labor_cost || 0).toFixed(2) }}</q-item-section
+                  >
                 </q-item>
                 <q-item>
                   <q-item-section>Other Costs</q-item-section>
-                  <q-item-section side>ZMW {{ (planting.other_cost || 0).toFixed(2) }}</q-item-section>
+                  <q-item-section side
+                    >ZMW {{ (planting.other_cost || 0).toFixed(2) }}</q-item-section
+                  >
                 </q-item>
 
                 <q-separator class="q-my-sm" />
@@ -250,7 +258,11 @@
               <div class="text-subtitle1 text-weight-medium">
                 <q-icon name="agriculture" class="q-mr-xs" />
                 Harvest
-                <HarvestStatusBadge v-if="currentHarvest" :status="currentHarvest.status" class="q-ml-sm" />
+                <HarvestStatusBadge
+                  v-if="currentHarvest"
+                  :status="currentHarvest.status"
+                  class="q-ml-sm"
+                />
               </div>
 
               <!-- No harvest yet: primary CTA -->
@@ -263,7 +275,10 @@
               />
 
               <!-- In-progress actions -->
-              <div v-else-if="canWrite && currentHarvest?.status === 'In Progress'" class="row q-gutter-xs">
+              <div
+                v-else-if="canWrite && currentHarvest?.status === 'In Progress'"
+                class="row q-gutter-xs"
+              >
                 <q-btn
                   size="sm"
                   color="primary"
@@ -278,13 +293,7 @@
                   label="Mark Complete"
                   @click="confirmMarkComplete"
                 />
-                <q-btn
-                  size="sm"
-                  color="negative"
-                  icon="delete"
-                  flat
-                  @click="confirmDeleteHarvest"
-                >
+                <q-btn size="sm" color="negative" icon="delete" flat @click="confirmDeleteHarvest">
                   <q-tooltip>Delete entire harvest</q-tooltip>
                 </q-btn>
               </div>
@@ -293,10 +302,7 @@
             <q-separator />
 
             <!-- No harvest yet -->
-            <q-card-section
-              v-if="!currentHarvest"
-              class="text-center text-grey-6"
-            >
+            <q-card-section v-if="!currentHarvest" class="text-center text-grey-6">
               <q-icon name="agriculture" size="2em" class="q-mb-sm" />
               <div v-if="isTerminalStatus">No harvest was recorded for this planting.</div>
               <div v-else>No harvest recorded yet.</div>
@@ -358,7 +364,8 @@
                         ({{ cumulativeTotals[entry.$id]?.toFixed(1) }} kg cumulative)
                       </span>
                       <span v-if="entry.labor_cost || entry.other_costs" class="text-grey-7">
-                        · ZMW {{ ((entry.labor_cost || 0) + (entry.other_costs || 0)).toFixed(2) }} cost
+                        · ZMW
+                        {{ ((entry.labor_cost || 0) + (entry.other_costs || 0)).toFixed(2) }} cost
                       </span>
                       <span v-if="entry.farmhands_count" class="text-grey-7">
                         · {{ entry.farmhands_count }} farmhands
@@ -369,7 +376,11 @@
                     </q-item-label>
                   </q-item-section>
                   <q-item-section
-                    v-if="canWrite && currentHarvest.status === 'In Progress' && sortedEntries.length > 1"
+                    v-if="
+                      canWrite &&
+                      currentHarvest.status === 'In Progress' &&
+                      sortedEntries.length > 1
+                    "
                     side
                   >
                     <q-btn
@@ -400,10 +411,7 @@
                   <q-icon name="inventory_2" class="q-mr-xs" />
                   <span>
                     {{ produceInventoryRow.quantity }} kg available in
-                    <router-link
-                      :to="`/inventory/${produceInventoryRow.$id}`"
-                      class="text-primary"
-                    >
+                    <router-link :to="`/inventory/${produceInventoryRow.$id}`" class="text-primary">
                       inventory
                     </router-link>
                   </span>
@@ -705,9 +713,7 @@ async function loadPlanting() {
       // for the "X kg available in inventory" link.
       if (harvestList[0].status === 'Completed' && result.data.crop_id) {
         const cropId =
-          typeof result.data.crop_id === 'object'
-            ? result.data.crop_id.$id
-            : result.data.crop_id;
+          typeof result.data.crop_id === 'object' ? result.data.crop_id.$id : result.data.crop_id;
         produceInventoryRow.value = await inventoryStore.findFarmProduceRow(
           result.data.$id,
           cropId,
@@ -772,9 +778,10 @@ function openAddEntryDialog() {
  */
 async function onEntrySubmit(entryData) {
   entrySubmitting.value = true;
+  const isCreateMode = !currentHarvest.value;
   try {
     let result;
-    if (!currentHarvest.value) {
+    if (isCreateMode) {
       // Create mode: build a new harvest from this first entry
       result = await farmStore.createHarvestWithFirstEntry(planting.value.$id, entryData);
     } else {
@@ -794,7 +801,7 @@ async function onEntrySubmit(entryData) {
 
     $q.notify({
       type: 'positive',
-      message: currentHarvest.value ? 'Entry added' : 'Harvest started',
+      message: isCreateMode ? 'Harvest started' : 'Entry added',
       position: 'top',
     });
     entryDialogOpen.value = false;

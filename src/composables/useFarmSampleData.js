@@ -235,19 +235,43 @@ export function useFarmSampleData() {
       const plantingByKey = (key) => createdPlantings.find((r) => r._key === key);
       farmSeedingProgress.value = 0.65;
 
-      // 8. Harvests + produce inventory + farm sales ---------------------------------
-      farmSeedingStatus.value = 'Creating harvests and produce inventory...';
+      // 8. Harvests + entries + produce inventory + farm sales ----------------------
+      //
+      // New unified model (Story 3.5 refactor): each harvest parent record is
+      // composed of one or more harvest_entries. The aggregated produce
+      // inventory row links back to (planting_id, crop_id) rather than the
+      // harvest, matching the runtime upsert rule in the inventory store.
+      farmSeedingStatus.value = 'Creating harvests and entries...';
       const harvestPlans = buildHarvestPlans({ plantingByKey, cropId });
 
-      // Insert harvests first
+      // Insert harvest parents first
       const createdHarvests = await batchInsert(
         dbId,
         'harvests',
         harvestPlans.map((h) => ({ data: h.harvest, _key: h._key })),
       );
-      farmSeedingProgress.value = 0.75;
+      farmSeedingProgress.value = 0.72;
 
-      // For each completed harvest, create a produce inventory item and back-link
+      // Insert entries for each harvest (each plan carries an `entries` array)
+      farmSeedingStatus.value = 'Creating harvest entries...';
+      for (let i = 0; i < harvestPlans.length; i++) {
+        const plan = harvestPlans[i];
+        const harvestRow = createdHarvests[i];
+        const entryRows = (plan.entries || []).map((e) => ({
+          ...e,
+          harvest_id: harvestRow.$id,
+        }));
+        if (entryRows.length) {
+          await batchInsert(
+            dbId,
+            'harvest_entries',
+            entryRows.map((data) => ({ data })),
+          );
+        }
+      }
+      farmSeedingProgress.value = 0.8;
+
+      // For each harvest with produce, create the aggregated farm_produce row.
       farmSeedingStatus.value = 'Creating farm produce inventory...';
       const farmingRevenueCat = financeCategories.find((c) => c.name === 'Farming Revenue');
       const villageFund = fundingSources.find((s) => s.name === 'Village General Fund');
@@ -257,11 +281,15 @@ export function useFarmSampleData() {
         const harvestRow = createdHarvests[i];
         if (!plan.produce) continue;
 
-        // (a) create produce inventory row with source_reference_id = harvest.$id
         const produceData = {
           ...plan.produce,
           source_reference_id: harvestRow.$id,
-          date_added: plan.harvest.harvest_date || new Date().toISOString().split('T')[0],
+          planting_id: plan.planting_id,
+          crop_id: plan.crop_id,
+          date_added:
+            plan.harvest.harvest_end_date ||
+            plan.harvest.harvest_start_date ||
+            new Date().toISOString().split('T')[0],
         };
         produceData.date_added = toISO(produceData.date_added);
         produceData.last_updated = produceData.date_added;
@@ -681,24 +709,39 @@ export function useFarmSampleData() {
 
     const plans = [];
 
-    // Completed maize harvest (from p_maize_completed, harvested ~180 days ago)
+    // --- Completed maize harvest (single-entry) ------------------------------
+    // 1 entry of 4200 kg recorded on harvest day.
     const maizeCompleted = plantingByKey('p_maize_completed');
-    if (maizeCompleted) {
+    const maizeCropId = cropId('Maize');
+    if (maizeCompleted && maizeCropId) {
+      const harvestDate = daysAgo(180);
       plans.push({
         _key: 'h_maize_completed',
+        planting_id: maizeCompleted.$id,
+        crop_id: maizeCropId,
         harvest: {
           planting_id: maizeCompleted.$id,
-          harvest_type: 'Single Day',
-          harvest_date: daysAgo(180),
+          harvest_start_date: harvestDate,
+          harvest_end_date: harvestDate,
           total_quantity_kg: 4200,
           total_labor_cost: 1800,
           total_other_costs: 400,
           status: 'Completed',
-          notes:
-            'Single day harvest. Labor: 10 farmhands (1800 ZMW). Other costs: transport 400 ZMW. Grade A quality stored in Main Grain Shed.',
+          notes: 'Grade A quality stored in Main Grain Shed.',
         },
+        entries: [
+          {
+            entry_date: harvestDate,
+            quantity_kg: 4200,
+            farmhands_count: 10,
+            labor_cost: 1800,
+            other_costs: 400,
+            other_costs_notes: 'Transport to grain shed',
+            notes: 'Full-field single-day pick.',
+          },
+        ],
         produce: {
-          item_name: 'Maize Grain (Harvested)',
+          item_name: 'Maize',
           item_type: 'farm_produce',
           quantity: 4200,
           unit: 'kg',
@@ -713,8 +756,8 @@ export function useFarmSampleData() {
           buyer_name: 'Zambia Food Reserve Agency',
           quantity_sold: 3000,
           unit: 'kg',
-          price_per_unit: 450, // stored as integer (4.5 ZMW * 100)
-          total_amount: 1350000, // 13500 ZMW * 100
+          price_per_unit: 450,
+          total_amount: 1350000,
           payment_method: 'Bank Transfer',
           payment_status: 'Completed',
           sale_date: daysAgo(160),
@@ -723,24 +766,57 @@ export function useFarmSampleData() {
       });
     }
 
-    // In-progress tomato harvest (Continuous Picking) -- from p_tomato_harvesting
+    // --- In-progress tomato harvest (multi-entry continuous picking) --------
+    // 3 entries spread across 10 days totaling 850 kg.
     const tomatoHarvesting = plantingByKey('p_tomato_harvesting');
-    if (tomatoHarvesting) {
+    const tomatoCropId = cropId('Tomatoes');
+    if (tomatoHarvesting && tomatoCropId) {
+      const startDate = daysAgo(10);
+      const midDate = daysAgo(5);
+      const endDate = daysAgo(1);
       plans.push({
         _key: 'h_tomato_progress',
+        planting_id: tomatoHarvesting.$id,
+        crop_id: tomatoCropId,
         harvest: {
           planting_id: tomatoHarvesting.$id,
-          harvest_type: 'Single Day',
-          harvest_date: daysAgo(10),
+          harvest_start_date: startDate,
+          harvest_end_date: endDate,
           total_quantity_kg: 850,
           total_labor_cost: 450,
           total_other_costs: 120,
           status: 'In Progress',
-          notes:
-            'Continuous picking style. Labor: 3 farmhands (450 ZMW). Other costs: crates 120 ZMW. Grade A quality stored in Cold Store A.',
+          notes: 'Continuous picking. Grade A stored in Cold Store A.',
         },
+        entries: [
+          {
+            entry_date: startDate,
+            quantity_kg: 300,
+            farmhands_count: 3,
+            labor_cost: 150,
+            other_costs: 40,
+            other_costs_notes: 'Crates',
+            notes: 'First pick.',
+          },
+          {
+            entry_date: midDate,
+            quantity_kg: 280,
+            farmhands_count: 3,
+            labor_cost: 150,
+            other_costs: 40,
+            notes: 'Mid-season pick.',
+          },
+          {
+            entry_date: endDate,
+            quantity_kg: 270,
+            farmhands_count: 3,
+            labor_cost: 150,
+            other_costs: 40,
+            notes: 'Latest pick.',
+          },
+        ],
         produce: {
-          item_name: 'Tomatoes (Fresh)',
+          item_name: 'Tomatoes',
           item_type: 'farm_produce',
           quantity: 850,
           unit: 'kg',
@@ -755,8 +831,8 @@ export function useFarmSampleData() {
           buyer_name: 'Katete Market Vendors',
           quantity_sold: 600,
           unit: 'kg',
-          price_per_unit: 1200, // 12 ZMW * 100
-          total_amount: 720000, // 7200 ZMW * 100
+          price_per_unit: 1200,
+          total_amount: 720000,
           payment_method: 'Cash',
           payment_status: 'Completed',
           sale_date: daysAgo(8),
@@ -765,25 +841,57 @@ export function useFarmSampleData() {
       });
     }
 
-    // Completed sweet potato harvest (from p_sp_completed)
+    // --- Completed sweet potato harvest (multi-entry aggregate) -------------
+    // 3 entries over 5 days totaling 3800 kg.
     const spCompleted = plantingByKey('p_sp_completed');
-    if (spCompleted) {
+    const spCropId = cropId('Sweet Potato');
+    if (spCompleted && spCropId) {
+      const startDate = daysAgo(125);
+      const midDate = daysAgo(123);
+      const endDate = daysAgo(120);
       plans.push({
         _key: 'h_sp_completed',
+        planting_id: spCompleted.$id,
+        crop_id: spCropId,
         harvest: {
           planting_id: spCompleted.$id,
-          harvest_type: 'Multi-Day Aggregate',
-          harvest_start_date: daysAgo(125),
-          harvest_end_date: daysAgo(120),
+          harvest_start_date: startDate,
+          harvest_end_date: endDate,
           total_quantity_kg: 3800,
           total_labor_cost: 900,
           total_other_costs: 200,
           status: 'Completed',
-          notes:
-            'Multi-day aggregate harvest (started 5 days prior). Labor: 6 farmhands (900 ZMW). Other: bags/sacks 200 ZMW. Grade B quality stored in Root Crop Shed.',
+          notes: 'Multi-day aggregate. Grade B stored in Root Crop Shed.',
         },
+        entries: [
+          {
+            entry_date: startDate,
+            quantity_kg: 1200,
+            farmhands_count: 6,
+            labor_cost: 300,
+            other_costs: 70,
+            other_costs_notes: 'Bags',
+            notes: 'Day 1 lifting.',
+          },
+          {
+            entry_date: midDate,
+            quantity_kg: 1400,
+            farmhands_count: 6,
+            labor_cost: 300,
+            other_costs: 60,
+            notes: 'Day 3 lifting.',
+          },
+          {
+            entry_date: endDate,
+            quantity_kg: 1200,
+            farmhands_count: 6,
+            labor_cost: 300,
+            other_costs: 70,
+            notes: 'Final day lifting.',
+          },
+        ],
         produce: {
-          item_name: 'Sweet Potato (Orange-flesh)',
+          item_name: 'Sweet Potato',
           item_type: 'farm_produce',
           quantity: 3800,
           unit: 'kg',
@@ -798,8 +906,8 @@ export function useFarmSampleData() {
           buyer_name: 'Chipata Urban Wholesaler',
           quantity_sold: 2500,
           unit: 'kg',
-          price_per_unit: 400, // 4 ZMW * 100
-          total_amount: 1000000, // 10000 ZMW * 100
+          price_per_unit: 400,
+          total_amount: 1000000,
           payment_method: 'Mobile Money',
           payment_status: 'Completed',
           sale_date: daysAgo(110),
@@ -808,28 +916,9 @@ export function useFarmSampleData() {
       });
     }
 
-    // Failed maize - produce a zero-quantity harvest record for analytics (optional)
-    const maizeFailed = plantingByKey('p_maize_failed');
-    if (maizeFailed) {
-      plans.push({
-        _key: 'h_maize_failed',
-        harvest: {
-          planting_id: maizeFailed.$id,
-          harvest_type: 'Single Day',
-          harvest_date: daysAgo(90),
-          total_quantity_kg: 0,
-          total_labor_cost: 0,
-          total_other_costs: 0,
-          status: 'Completed',
-          notes: 'Drought failure - zero yield. No harvest labor required. Failed quality grade.',
-        },
-        produce: null, // No inventory created
-        sale: null,
-      });
-    }
-
-    // Reference unused to silence potential linter (cropId wired for future crop-specific variation)
-    void cropId;
+    // NOTE: The previously-seeded "failed maize" harvest has been dropped.
+    // Failed plantings no longer get a zero-yield harvest record; their
+    // `status = 'failed'` on the planting itself carries that meaning.
 
     return plans;
   }

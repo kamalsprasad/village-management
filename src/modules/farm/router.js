@@ -129,16 +129,10 @@ const farmRoutes = [
     },
   },
 
-  // Harvests (Story 3.5)
-  {
-    path: 'farm/plantings/:id/harvests/new',
-    name: 'create-harvest',
-    component: () => import('./pages/CreateHarvestPage.vue'),
-    meta: {
-      requiresAuth: true,
-      requiresPermission: 'farm:write',
-    },
-  },
+  // Harvests (Story 3.5 — entry-based model)
+  // NOTE: Harvest detail now lives inline on the planting detail page
+  // (at most one harvest per planting). Creating a harvest happens via a
+  // dialog on the planting detail page, not a separate route.
   {
     path: 'farm/harvests',
     name: 'harvests-list',
@@ -148,14 +142,16 @@ const farmRoutes = [
       requiresPermission: 'farm:read',
     },
   },
+  // Legacy route compatibility: redirect /farm/harvests/:id to the planting
+  // detail page. Because we don't have the planting ID in the URL, we fall
+  // back to the harvests list (user will re-click through).
   {
     path: 'farm/harvests/:id',
-    name: 'harvest-detail',
-    component: () => import('./pages/HarvestDetailPage.vue'),
-    meta: {
-      requiresAuth: true,
-      requiresPermission: 'farm:read',
-    },
+    redirect: () => ({ name: 'harvests-list' }),
+  },
+  {
+    path: 'farm/plantings/:id/harvests/new',
+    redirect: (to) => `/farm/plantings/${to.params.id}`,
   },
 
   // Future routes for Farm module (Stories 3.6-3.9):

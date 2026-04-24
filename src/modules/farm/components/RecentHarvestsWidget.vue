@@ -44,13 +44,13 @@
         v-for="harvest in recentHarvests"
         :key="harvest.$id"
         clickable
-        @click="goToHarvest(harvest.$id)"
+        @click="goToPlanting(getPlantingId(harvest))"
         class="harvest-item"
       >
         <q-item-section>
-          <div class="text-weight-medium">{{ getCropName(harvest.planting_id) }}</div>
+          <div class="text-weight-medium">{{ getCropName(getPlantingId(harvest)) }}</div>
           <div class="text-caption text-grey-7">
-            {{ getPlotName(harvest.planting_id) }} | {{ getHarvestDateDisplay(harvest) }}
+            {{ getPlotName(getPlantingId(harvest)) }} | {{ getHarvestDateDisplay(harvest) }}
           </div>
         </q-item-section>
         <q-item-section side>
@@ -131,8 +131,9 @@ function refreshData() {
 }
 
 // Navigation functions
-function goToHarvest(harvestId) {
-  router.push(`/farm/harvests/${harvestId}`);
+function goToPlanting(plantingId) {
+  if (!plantingId) return;
+  router.push(`/farm/plantings/${plantingId}`);
 }
 
 function goToHarvestsList() {
@@ -144,27 +145,32 @@ function goToInProgressHarvests() {
   // The list page will automatically filter to show in-progress harvests
 }
 
+function getPlantingId(harvest) {
+  return typeof harvest.planting_id === 'object' ? harvest.planting_id?.$id : harvest.planting_id;
+}
+
 // Helper functions
 function getCropName(plantingId) {
   const planting = farmStore.plantings.find((p) => p.$id === plantingId);
-  return planting ? farmStore.getCropNameById(planting.crop_id) : 'Unknown';
+  if (!planting) return 'Unknown';
+  const cropId = typeof planting.crop_id === 'object' ? planting.crop_id?.$id : planting.crop_id;
+  return farmStore.getCropNameById(cropId);
 }
 
 function getPlotName(plantingId) {
   const planting = farmStore.plantings.find((p) => p.$id === plantingId);
   if (!planting) return 'Unknown';
-  const plot = farmStore.plots.find((p) => p.$id === planting.plot_id);
+  const plotId = typeof planting.plot_id === 'object' ? planting.plot_id?.$id : planting.plot_id;
+  const plot = farmStore.plots.find((p) => p.$id === plotId);
   return plot?.name || 'Unknown';
 }
 
 function getHarvestDateDisplay(harvest) {
-  if (harvest.harvest_type === 'Single Day') {
-    return formatDate(harvest.harvest_date);
-  } else {
-    const start = formatDate(harvest.harvest_start_date);
-    const end = harvest.harvest_end_date ? formatDate(harvest.harvest_end_date) : 'Ongoing';
-    return `${start} - ${end}`;
-  }
+  const start = harvest.harvest_start_date ? formatDate(harvest.harvest_start_date) : null;
+  const end = harvest.harvest_end_date ? formatDate(harvest.harvest_end_date) : null;
+  if (!start) return '—';
+  if (!end || start === end) return start;
+  return `${start} - ${end}`;
 }
 
 // Initialize
