@@ -846,6 +846,180 @@ This document outlines all tests that need to be implemented for the Village Man
 
 ---
 
+## Story 3.6: Farm Module - Continuous Picking Harvests for Perennial Crops - Testing Requirements
+
+### Unit Tests (Post-MVP)
+
+#### `src/modules/farm/stores/farm-store.js`
+
+**Test Suite: Continuous Picking Actions**
+
+1. **Test: createContinuousPickingHarvest()**
+   - Setup: Perennial crop planting
+   - Action: Call with valid harvest data
+   - Verify: Harvest created with is_continuous_picking=true, correct sequence number
+
+2. **Test: getNextHarvestSequence()**
+   - Setup: Planting with 3 existing harvests
+   - Action: Call function
+   - Expected: Returns 4
+
+3. **Test: getPerennialHarvestStats()**
+   - Setup: Perennial planting with multiple harvests
+   - Action: Call function
+   - Verify: Returns cumulativeYield, averageYield, frequency, lastHarvestDate
+
+4. **Test: getActivePerennialPlantings()**
+   - Setup: Mix of perennial and annual plantings
+   - Action: Call function
+   - Verify: Returns only perennial plantings in 'harvesting' status
+
+#### `src/modules/farm/components/ActivePerennialsWidget.vue`
+
+**Test Suite: Widget Functionality**
+
+1. **Test: Counts active perennials correctly**
+   - Setup: 3 perennial plantings in harvesting status
+   - Action: Component renders
+   - Verify: Shows count of 3
+
+2. **Test: Breakdown by crop type**
+   - Setup: 2 banana, 1 mango perennial plantings
+   - Action: Component renders
+   - Verify: Shows breakdown: Banana: 2, Mango: 1
+
+3. **Test: Navigation on click**
+   - Action: Click widget
+   - Verify: Navigates to filtered plantings list
+
+#### `src/modules/farm/components/HarvestFrequencyChart.vue`
+
+**Test Suite: Frequency Analytics**
+
+1. **Test: Calculates average frequency**
+   - Setup: Harvests at 90-day intervals
+   - Action: Chart renders
+   - Verify: Shows 90-day average frequency
+
+2. **Test: Shows trend analysis**
+   - Setup: Harvests getting faster over time
+   - Action: Chart renders
+   - Verify: Trend line shows decreasing intervals
+
+### Integration Tests (Post-MVP)
+
+#### Continuous Picking Workflow
+
+1. **Test: Complete perennial lifecycle**
+   - Setup: Perennial crop planting
+   - Actions: Create harvest 1 → complete → create harvest 2 → complete → mark planting complete
+   - Verify: All status transitions correct, cumulative tracking works
+
+2. **Test: Annual vs perennial behavior**
+   - Setup: Annual and perennial plantings
+   - Actions: Complete harvest on both
+   - Verify: Annual planting status = 'completed', perennial = 'harvesting'
+
+3. **Test: Harvest sequence numbering**
+   - Setup: Perennial planting
+   - Actions: Create 3 harvests sequentially
+   - Verify: Sequences are 1, 2, 3
+
+4. **Test: Inventory aggregation**
+   - Setup: Perennial planting with multiple harvests
+   - Actions: Complete all harvests
+   - Verify: Inventory shows cumulative quantity
+
+### E2E Tests (Post-MVP)
+
+#### User Journey Tests
+
+1. **Test: Plant perennial → continuous picking workflow**
+   - Actions: Navigate to planting → record harvest → see continuous picking option → record multiple harvests → view analytics
+   - Verify: All UI elements work, data persists correctly
+
+2. **Test: Dashboard widget interaction**
+   - Actions: Navigate to dashboard → view active perennials widget → click → navigate to filtered list
+   - Verify: Widget shows correct data, navigation works
+
+3. **Test: Mobile responsive continuous picking**
+   - Actions: On mobile device → record continuous picking harvest → view history
+   - Verify: UI works correctly on small screens
+
+4. **Test: Frequency alerts and recommendations**
+   - Actions: Create perennial planting → wait past frequency → navigate to planting
+   - Verify: Overdue harvest alert shown
+
+### Manual Testing (MVP)
+
+#### Continuous Picking Creation
+
+- [ ] Continuous picking checkbox appears for perennial crops only
+- [ ] Checkbox pre-checked based on crop defaults
+- [ ] Help text displays correctly
+- [ ] Checkbox hidden for annual crops
+- [ ] "Add Another Harvest" button appears for continuous picking
+- [ ] Harvest sequence numbers increment correctly
+
+#### Perennial Status Management
+
+- [ ] Perennial planting remains 'harvesting' after first harvest
+- [ ] Annual planting changes to 'completed' after first harvest
+- [ ] "Mark Planting Complete" button works for perennials
+- [ ] Plot status stays 'Active' while perennials are harvesting
+
+#### Planting Detail Page Enhancements
+
+- [ ] Harvest history shows all perennial harvests
+- [ ] Cumulative yield calculated correctly
+- [ ] Average yield per harvest displayed
+- [ ] Harvest frequency calculated and shown
+- [ ] Cumulative labor cost tracked
+- [ ] Days since last harvest displayed
+- [ ] "Continuous Picking Active" indicator shown
+
+#### Dashboard Widget
+
+- [ ] Active Perennials Widget displays on farm dashboard
+- [ ] Count of active perennials is accurate
+- [ ] Breakdown by crop type correct
+- [ ] Number ready for harvest calculated based on frequency
+- [ ] Number overdue for harvest flagged
+- [ ] Click navigation works to filtered plantings list
+
+#### Harvest List Page
+
+- [ ] Filter by crop type (Annual/Perennial) works
+- [ ] Filter by continuous picking works
+- [ ] Harvest sequence numbers displayed
+- [ ] Continuous picking harvests marked with icon/badge
+- [ ] Export includes perennial data
+
+#### Frequency Analytics
+
+- [ ] Average days between harvests calculated
+- [ ] Next expected harvest date shown
+- [ ] Harvest frequency trend displayed
+- [ ] Comparison to recommended frequency shown
+- [ ] Overdue harvest alerts appear
+
+#### Inventory Integration
+
+- [ ] Each harvest updates inventory correctly
+- [ ] Inventory items show cumulative quantity
+- [ ] Inventory history shows individual harvest contributions
+- [ ] No duplicate inventory creation
+
+#### Sample Data Verification
+
+- [ ] Banana planting example has 3 harvests with correct data
+- [ ] Mango planting shows frequency analysis (90-120 day intervals)
+- [ ] Papaya planting demonstrates shorter frequency (60 days)
+- [ ] Labor cost tracking works per harvest
+- [ ] Cumulative yield tracking works across harvests
+
+---
+
 ## Story 2.1: Finance Module - Income Transaction Recording - Testing Requirements
 
 ### Unit Tests
