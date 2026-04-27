@@ -446,6 +446,9 @@ const tableSchemas = {
       },
       // Notes
       { key: 'notes', type: 'string', size: 1000, required: false },
+      // Story 3.6: Continuous Picking for Perennials
+      { key: 'is_continuous_picking', type: 'boolean', required: false, default: false },
+      { key: 'harvest_sequence', type: 'integer', min: 1, required: false },
     ],
     indexes: [
       {
@@ -458,6 +461,18 @@ const tableSchemas = {
         key: 'idx_harvests_status',
         type: 'key',
         columns: ['status'],
+        orders: ['ASC'],
+      },
+      {
+        key: 'idx_harvests_planting',
+        type: 'key',
+        columns: ['planting_id'],
+        orders: ['ASC'],
+      },
+      {
+        key: 'idx_harvests_continuous',
+        type: 'key',
+        columns: ['is_continuous_picking'],
         orders: ['ASC'],
       },
     ],

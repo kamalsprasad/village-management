@@ -59,13 +59,17 @@
 
     <!-- Widgets Row -->
     <div class="row q-col-gutter-md q-mb-md">
-      <div class="col-12 col-md-6 col-lg-4">
+      <div class="col-12 col-md-6 col-lg-3">
         <PlotsOverviewWidget />
       </div>
-      <div class="col-12 col-md-6 col-lg-4">
+      <div class="col-12 col-md-6 col-lg-3">
         <PlantingStatusWidget />
       </div>
-      <div class="col-12 col-lg-4">
+      <!-- Story 3.6: Active Perennials Widget -->
+      <div class="col-12 col-md-6 col-lg-3">
+        <ActivePerennialsWidget />
+      </div>
+      <div class="col-12 col-md-6 col-lg-3">
         <RecentHarvestsWidget />
       </div>
     </div>
@@ -211,6 +215,8 @@ import { formatDate } from 'src/utils/dateUtils';
 import PlotsOverviewWidget from '../components/PlotsOverviewWidget.vue';
 import PlantingStatusWidget from '../components/PlantingStatusWidget.vue';
 import RecentHarvestsWidget from '../components/RecentHarvestsWidget.vue';
+// Story 3.6: Active Perennials Widget
+import ActivePerennialsWidget from '../components/ActivePerennialsWidget.vue';
 
 const $q = useQuasar();
 const farmStore = useFarmStore();

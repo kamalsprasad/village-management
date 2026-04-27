@@ -148,6 +148,47 @@ export function useFarmSampleData() {
       growing_season: 'Cool',
       notes: 'Good storage crop.',
     },
+    // Story 3.6: Perennial crops for continuous picking examples
+    {
+      crop_name: 'Banana',
+      category: 'Fruit',
+      crop_type: 'Perennial',
+      maturity_days: 365,
+      harvest_frequency_days: 90,
+      typical_yield_per_hectare: 20000,
+      growing_season: 'All Year',
+      notes: 'Continuous production perennial with multiple harvest cycles.',
+    },
+    {
+      crop_name: 'Mango',
+      category: 'Fruit',
+      crop_type: 'Perennial',
+      maturity_days: 730,
+      harvest_frequency_days: 365,
+      typical_yield_per_hectare: 15000,
+      growing_season: 'Warm',
+      notes: 'Long-term perennial with annual harvests after maturity.',
+    },
+    {
+      crop_name: 'Papaya',
+      category: 'Fruit',
+      crop_type: 'Perennial',
+      maturity_days: 180,
+      harvest_frequency_days: 60,
+      typical_yield_per_hectare: 30000,
+      growing_season: 'All Year',
+      notes: 'Fast-producing perennial with frequent harvests.',
+    },
+    {
+      crop_name: 'Moringa',
+      category: 'Leafy Green',
+      crop_type: 'Perennial',
+      maturity_days: 240,
+      harvest_frequency_days: 45,
+      typical_yield_per_hectare: 25000,
+      growing_season: 'All Year',
+      notes: 'Nutrient-dense perennial with frequent leaf harvests.',
+    },
   ];
 
   // ==========================================================================
@@ -692,6 +733,58 @@ export function useFarmSampleData() {
         notes: 'Cabbage planting with purchased seedlings.',
         status: 'planted',
       },
+      // Story 3.6: Perennial crop examples for continuous picking
+      // 9. Banana planting with 2 completed harvests, 3rd in progress (North Field) -- planted 1 year ago
+      {
+        _key: 'p_banana_harvesting',
+        plot_id: plot('north_field'),
+        crop_id: crop('Banana'),
+        planting_date: daysAgo(365),
+        expected_harvest_date: addDaysStr(daysAgo(365), 90),
+        area_used_hectares: 1.0,
+        quantity_planted: 50,
+        unit: 'suckers',
+        inputs_cost: 2000,
+        labor_cost: 1500,
+        other_cost: 500,
+        notes:
+          'Banana plantation established. Multiple harvest cycles demonstrating continuous picking.',
+        status: 'harvesting',
+      },
+      // 10. Papaya with high-frequency harvests (East Garden) -- planted 6 months ago
+      {
+        _key: 'p_papaya_harvesting',
+        plot_id: plot('east_garden'),
+        crop_id: crop('Papaya'),
+        planting_date: daysAgo(180),
+        expected_harvest_date: addDaysStr(daysAgo(180), 60),
+        area_used_hectares: 0.4,
+        quantity_planted: 15,
+        unit: 'seedlings',
+        inputs_cost: 800,
+        labor_cost: 600,
+        other_cost: 200,
+        notes:
+          'Papaya showing frequent harvest cycles (60-day frequency). High labor tracking per harvest.',
+        status: 'harvesting',
+      },
+      // 11. Moringa with leaf harvests (West Plot) -- planted 8 months ago
+      {
+        _key: 'p_moringa_harvesting',
+        plot_id: plot('west_plot'),
+        crop_id: crop('Moringa'),
+        planting_date: daysAgo(240),
+        expected_harvest_date: addDaysStr(daysAgo(240), 45),
+        area_used_hectares: 0.2,
+        quantity_planted: 30,
+        unit: 'seedlings',
+        inputs_cost: 400,
+        labor_cost: 800,
+        other_cost: 100,
+        notes:
+          'Moringa for leaf harvest. Short 45-day frequency demonstrates intensive continuous picking.',
+        status: 'harvesting',
+      },
     ];
 
     // Strip null crop/plot rows defensively (if a lookup failed, drop the row rather than insert bad data).
@@ -912,6 +1005,250 @@ export function useFarmSampleData() {
           sale_date: daysAgo(110),
           notes: 'Bulk purchase for Chipata market.',
         },
+      });
+    }
+
+    // Story 3.6: Perennial crop harvest examples with continuous picking
+    // --- Banana: 3 harvests over 9 months demonstrating 90-day frequency ---
+    const bananaPlanting = plantingByKey('p_banana_harvesting');
+    const bananaCropId = cropId('Banana');
+    if (bananaPlanting && bananaCropId) {
+      // Harvest 1: 9 months ago
+      const h1Date = daysAgo(270);
+      plans.push({
+        _key: 'h_banana_1',
+        planting_id: bananaPlanting.$id,
+        crop_id: bananaCropId,
+        harvest: {
+          planting_id: bananaPlanting.$id,
+          harvest_start_date: h1Date,
+          harvest_end_date: h1Date,
+          total_quantity_kg: 120,
+          total_labor_cost: 150,
+          total_other_costs: 30,
+          status: 'Completed',
+          is_continuous_picking: true,
+          harvest_sequence: 1,
+          notes: 'First banana harvest cycle.',
+        },
+        entries: [
+          {
+            entry_date: h1Date,
+            quantity_kg: 120,
+            farmhands_count: 2,
+            labor_cost: 150,
+            other_costs: 30,
+            notes: 'First harvest from young plantation.',
+          },
+        ],
+        produce: {
+          item_name: 'Banana',
+          item_type: 'farm_produce',
+          quantity: 120,
+          unit: 'kg',
+          unit_cost: 5,
+          status: 'in_stock',
+          source: 'farm_harvest',
+          reorder_threshold: 0,
+          estimated_value: 120 * 5,
+        },
+      });
+
+      // Harvest 2: 6 months ago
+      const h2Date = daysAgo(180);
+      plans.push({
+        _key: 'h_banana_2',
+        planting_id: bananaPlanting.$id,
+        crop_id: bananaCropId,
+        harvest: {
+          planting_id: bananaPlanting.$id,
+          harvest_start_date: h2Date,
+          harvest_end_date: h2Date,
+          total_quantity_kg: 180,
+          total_labor_cost: 160,
+          total_other_costs: 35,
+          status: 'Completed',
+          is_continuous_picking: true,
+          harvest_sequence: 2,
+          notes: 'Second harvest cycle.',
+        },
+        entries: [
+          {
+            entry_date: h2Date,
+            quantity_kg: 180,
+            farmhands_count: 2,
+            labor_cost: 160,
+            other_costs: 35,
+            notes: 'Increased yield as plantation matures.',
+          },
+        ],
+        produce: {
+          item_name: 'Banana',
+          item_type: 'farm_produce',
+          quantity: 180,
+          unit: 'kg',
+          unit_cost: 5,
+          status: 'in_stock',
+          source: 'farm_harvest',
+          reorder_threshold: 0,
+          estimated_value: 180 * 5,
+        },
+      });
+
+      // Harvest 3: In progress (3 months ago)
+      const h3Date = daysAgo(90);
+      plans.push({
+        _key: 'h_banana_3',
+        planting_id: bananaPlanting.$id,
+        crop_id: bananaCropId,
+        harvest: {
+          planting_id: bananaPlanting.$id,
+          harvest_start_date: h3Date,
+          harvest_end_date: h3Date,
+          total_quantity_kg: 200,
+          total_labor_cost: 170,
+          total_other_costs: 40,
+          status: 'Completed',
+          is_continuous_picking: true,
+          harvest_sequence: 3,
+          notes: 'Third harvest - peak production.',
+        },
+        entries: [
+          {
+            entry_date: h3Date,
+            quantity_kg: 200,
+            farmhands_count: 2,
+            labor_cost: 170,
+            other_costs: 40,
+            notes: 'Peak harvest period.',
+          },
+        ],
+        produce: {
+          item_name: 'Banana',
+          item_type: 'farm_produce',
+          quantity: 200,
+          unit: 'kg',
+          unit_cost: 5,
+          status: 'in_stock',
+          source: 'farm_harvest',
+          reorder_threshold: 0,
+          estimated_value: 200 * 5,
+        },
+      });
+    }
+
+    // --- Papaya: High-frequency harvests demonstrating 60-day cycle ---
+    const papayaPlanting = plantingByKey('p_papaya_harvesting');
+    const papayaCropId = cropId('Papaya');
+    if (papayaPlanting && papayaCropId) {
+      // 3 completed harvests at 60-day intervals
+      const papayaHarvests = [
+        { days: 120, qty: 45, labor: 80, seq: 1 },
+        { days: 60, qty: 60, labor: 90, seq: 2 },
+        { days: 1, qty: 75, labor: 100, seq: 3 },
+      ];
+
+      papayaHarvests.forEach((h) => {
+        const hDate = daysAgo(h.days);
+        plans.push({
+          _key: `h_papaya_${h.seq}`,
+          planting_id: papayaPlanting.$id,
+          crop_id: papayaCropId,
+          harvest: {
+            planting_id: papayaPlanting.$id,
+            harvest_start_date: hDate,
+            harvest_end_date: hDate,
+            total_quantity_kg: h.qty,
+            total_labor_cost: h.labor,
+            total_other_costs: 20,
+            status: h.seq === 3 ? 'In Progress' : 'Completed',
+            is_continuous_picking: true,
+            harvest_sequence: h.seq,
+            notes: `Papaya harvest ${h.seq} - 60-day frequency.`,
+          },
+          entries: [
+            {
+              entry_date: hDate,
+              quantity_kg: h.qty,
+              farmhands_count: 1,
+              labor_cost: h.labor,
+              other_costs: 20,
+              notes: `Harvest ${h.seq} - frequent picking cycle.`,
+            },
+          ],
+          produce:
+            h.seq !== 3
+              ? {
+                  item_name: 'Papaya',
+                  item_type: 'farm_produce',
+                  quantity: h.qty,
+                  unit: 'kg',
+                  unit_cost: 8,
+                  status: 'in_stock',
+                  source: 'farm_harvest',
+                  reorder_threshold: 0,
+                  estimated_value: h.qty * 8,
+                }
+              : undefined,
+        });
+      });
+    }
+
+    // --- Moringa: Very high-frequency leaf harvests at 45-day cycle ---
+    const moringaPlanting = plantingByKey('p_moringa_harvesting');
+    const moringaCropId = cropId('Moringa');
+    if (moringaPlanting && moringaCropId) {
+      // 4 harvests at 45-day intervals demonstrating intensive continuous picking
+      const moringaHarvests = [
+        { days: 135, qty: 30, labor: 50, seq: 1 },
+        { days: 90, qty: 35, labor: 55, seq: 2 },
+        { days: 45, qty: 40, labor: 60, seq: 3 },
+        { days: 3, qty: 42, labor: 65, seq: 4 },
+      ];
+
+      moringaHarvests.forEach((h) => {
+        const hDate = daysAgo(h.days);
+        plans.push({
+          _key: `h_moringa_${h.seq}`,
+          planting_id: moringaPlanting.$id,
+          crop_id: moringaCropId,
+          harvest: {
+            planting_id: moringaPlanting.$id,
+            harvest_start_date: hDate,
+            harvest_end_date: hDate,
+            total_quantity_kg: h.qty,
+            total_labor_cost: h.labor,
+            total_other_costs: 10,
+            status: h.seq === 4 ? 'In Progress' : 'Completed',
+            is_continuous_picking: true,
+            harvest_sequence: h.seq,
+            notes: `Moringa leaf harvest ${h.seq} - 45-day frequency.`,
+          },
+          entries: [
+            {
+              entry_date: hDate,
+              quantity_kg: h.qty,
+              farmhands_count: 2,
+              labor_cost: h.labor,
+              other_costs: 10,
+              notes: `Leaf harvest ${h.seq} - nutrient-dense greens.`,
+            },
+          ],
+          produce:
+            h.seq !== 4
+              ? {
+                  item_name: 'Moringa',
+                  item_type: 'farm_produce',
+                  quantity: h.qty,
+                  unit: 'kg',
+                  unit_cost: 12,
+                  status: 'in_stock',
+                  source: 'farm_harvest',
+                  reorder_threshold: 0,
+                  estimated_value: h.qty * 12,
+                }
+              : undefined,
+        });
       });
     }
 

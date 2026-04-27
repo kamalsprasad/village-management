@@ -10,7 +10,9 @@
   The dialog is purely presentational — it emits a `submit` event with the
   form payload and leaves store interaction to the parent.
 
-  Story 3.5: Farm Module - Harvest Recording (refactored)
+  Stories:
+    3.5: Farm Module - Harvest Recording (refactored)
+    3.6: Continuous Picking for Perennial Crops
 -->
 <template>
   <q-dialog
@@ -164,6 +166,52 @@
           </div>
 
           <!-- Warning for duplicate date -->
+          <!-- Story 3.6: Frequency guidance for perennials -->
+          <q-banner
+            v-if="frequencyGuidance"
+            rounded
+            class="q-mt-md"
+            :class="{
+              'bg-green-1 text-green-9': frequencyGuidance.type === 'positive',
+              'bg-orange-1 text-orange-9': frequencyGuidance.type === 'warning',
+              'bg-blue-1 text-blue-9': frequencyGuidance.type === 'info',
+            }"
+          >
+            <template #avatar>
+              <q-icon :name="frequencyGuidance.icon" />
+            </template>
+            {{ frequencyGuidance.message }}
+            <span v-if="props.harvestFrequency" class="text-caption q-ml-sm">
+              (Frequency: {{ props.harvestFrequency }} days)
+            </span>
+          </q-banner>
+
+          <!-- Story 3.6: Continuous picking checkbox for perennials -->
+          <div v-if="showContinuousPickingOption" class="q-mt-md">
+            <q-separator class="q-my-md" />
+            <q-checkbox
+              v-model="formData.is_continuous_picking"
+              :label="
+                isSubsequentHarvest ? 'Continue continuous picking' : 'Enable continuous picking'
+              "
+              color="primary"
+            >
+              <q-tooltip
+                >Enable for crops that produce multiple harvests over their lifetime</q-tooltip
+              >
+            </q-checkbox>
+            <div class="text-caption text-grey q-ml-lg">
+              <q-icon name="repeat" size="xs" class="q-mr-xs" />
+              <span v-if="isSubsequentHarvest"
+                >This is a subsequent harvest. Enable to continue tracking multiple harvests for
+                this planting.</span
+              >
+              <span v-else>
+                Enable continuous picking to record multiple harvests for this perennial crop.
+              </span>
+            </div>
+          </div>
+
           <q-banner v-if="hasDuplicateDate" rounded class="bg-orange-1 text-orange-9 q-mt-md">
             <template #avatar>
               <q-icon name="warning" />
@@ -205,6 +253,14 @@ const props = defineProps({
   /** Existing entries (for duplicate-date warning and running total). */
   existingEntries: { type: Array, default: () => [] },
   loading: { type: Boolean, default: false },
+  /** Story 3.6: For perennials, show continuous picking option */
+  isPerennial: { type: Boolean, default: false },
+  /** Story 3.6: Previous harvest exists - this is a subsequent harvest */
+  isSubsequentHarvest: { type: Boolean, default: false },
+  /** Story 3.6: Harvest frequency for guidance display */
+  harvestFrequency: { type: Number, default: null },
+  /** Story 3.6: Days since last harvest for overdue calculation */
+  daysSinceLastHarvest: { type: Number, default: null },
 });
 
 const emit = defineEmits(['update:modelValue', 'submit', 'cancel']);
@@ -222,6 +278,8 @@ const formData = ref({
   other_costs: null,
   other_costs_notes: '',
   notes: '',
+  // Story 3.6: Continuous picking flag
+  is_continuous_picking: false,
 });
 
 const dialogOpen = computed({
@@ -270,6 +328,54 @@ const hasDuplicateDate = computed(() => {
   });
 });
 
+// Story 3.6: Computed properties for perennial guidance
+const showContinuousPickingOption = computed(() => {
+  // Show for perennials in create mode
+  return props.isPerennial && isCreateMode.value;
+});
+
+const continuousPickingDefault = computed(() => {
+  // Default to true for most perennials (per crop defaults)
+  return props.isPerennial;
+});
+
+const frequencyGuidance = computed(() => {
+  if (!props.harvestFrequency) return null;
+
+  const frequency = props.harvestFrequency;
+  const daysSince = props.daysSinceLastHarvest;
+
+  if (daysSince === null) {
+    return {
+      type: 'info',
+      message: `Recommended harvest frequency: every ${frequency} days`,
+      icon: 'info',
+    };
+  }
+
+  const daysUntil = frequency - daysSince;
+
+  if (daysUntil <= 0) {
+    return {
+      type: 'positive',
+      message: `Ready for harvest! (${Math.abs(daysUntil)} days overdue)`,
+      icon: 'check_circle',
+    };
+  } else if (daysUntil <= 7) {
+    return {
+      type: 'warning',
+      message: `Approaching harvest window (${daysUntil} days until recommended)`,
+      icon: 'schedule',
+    };
+  } else {
+    return {
+      type: 'info',
+      message: `Next harvest recommended in ${daysUntil} days`,
+      icon: 'info',
+    };
+  }
+});
+
 // Reset form whenever the dialog is opened
 watch(
   () => props.modelValue,
@@ -283,6 +389,8 @@ watch(
         other_costs: null,
         other_costs_notes: '',
         notes: '',
+        // Story 3.6: Pre-check continuous picking for perennials based on crop defaults
+        is_continuous_picking: continuousPickingDefault.value,
       };
       // Clear any residual validation state
       formRef.value?.resetValidation?.();
@@ -302,6 +410,8 @@ async function onSubmit() {
     farmhands_count: parseInt(formData.value.farmhands_count, 10) || null,
     other_costs_notes: formData.value.other_costs_notes || null,
     notes: formData.value.notes || null,
+    // Story 3.6: Include continuous picking flag
+    is_continuous_picking: formData.value.is_continuous_picking || false,
   };
 
   emit('submit', submitData);

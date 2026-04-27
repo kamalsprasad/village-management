@@ -183,6 +183,117 @@ export const useFarmStore = defineStore('farm', {
         })
         .slice(0, 5);
     },
+
+    // Story 3.6: Continuous Picking getters
+    // Get all completed harvests for a planting (for perennials with multiple harvests)
+    completedHarvestsByPlanting: (state) => (plantingId) => {
+      return state.harvests.filter((h) => {
+        const hPlantingId = typeof h.planting_id === 'object' ? h.planting_id?.$id : h.planting_id;
+        return hPlantingId === plantingId && h.status === 'Completed';
+      });
+    },
+
+    // Check if a planting has multiple harvests (continuous picking)
+    hasMultipleHarvests: (state) => (plantingId) => {
+      const plantingHarvests = state.harvests.filter((h) => {
+        const hPlantingId = typeof h.planting_id === 'object' ? h.planting_id?.$id : h.planting_id;
+        return hPlantingId === plantingId;
+      });
+      return plantingHarvests.length > 1;
+    },
+
+    // Get active perennial plantings (in 'harvesting' status)
+    activePerennialPlantings: (state) => {
+      return state.plantings.filter((p) => {
+        const isHarvesting = ['harvesting', 'Harvesting'].includes(p.status);
+        if (!isHarvesting) return false;
+        // Check if crop is perennial
+        const crop = state.crops.find((c) => c.$id === p.crop_id);
+        return crop?.crop_type === 'Perennial';
+      });
+    },
+
+    // Get all active perennial plantings with their harvest stats
+    activePerennialsWithStats: (state) => {
+      return state.plantings
+        .filter((p) => {
+          const isHarvesting = ['harvesting', 'Harvesting'].includes(p.status);
+          if (!isHarvesting) return false;
+          const crop = state.crops.find((c) => c.$id === p.crop_id);
+          return crop?.crop_type === 'Perennial';
+        })
+        .map((p) => {
+          const crop = state.crops.find((c) => c.$id === p.crop_id);
+          const harvests = state.harvests.filter((h) => {
+            const hPlantingId =
+              typeof h.planting_id === 'object' ? h.planting_id?.$id : h.planting_id;
+            return hPlantingId === p.$id;
+          });
+          const completedHarvests = harvests.filter((h) => h.status === 'Completed');
+          const inProgressHarvest = harvests.find((h) => h.status === 'In Progress');
+
+          // Calculate stats
+          const cumulativeYield = completedHarvests.reduce(
+            (sum, h) => sum + (parseFloat(h.total_quantity_kg) || 0),
+            0,
+          );
+          const harvestCount = completedHarvests.length;
+
+          // Calculate days since last harvest
+          let daysSinceLastHarvest = null;
+          if (completedHarvests.length > 0) {
+            const lastHarvest = completedHarvests.sort(
+              (a, b) =>
+                new Date(b.harvest_end_date || b.harvest_start_date) -
+                new Date(a.harvest_end_date || a.harvest_start_date),
+            )[0];
+            const lastDate = new Date(
+              lastHarvest.harvest_end_date || lastHarvest.harvest_start_date,
+            );
+            daysSinceLastHarvest = Math.floor((new Date() - lastDate) / (1000 * 60 * 60 * 24));
+          }
+
+          // Check if ready for harvest based on frequency
+          const harvestFrequency = crop?.harvest_frequency_days || crop?.harvest_frequency || null;
+          const isReadyForHarvest =
+            harvestFrequency &&
+            daysSinceLastHarvest !== null &&
+            daysSinceLastHarvest >= harvestFrequency;
+          const isOverdue =
+            harvestFrequency &&
+            daysSinceLastHarvest !== null &&
+            daysSinceLastHarvest > harvestFrequency;
+
+          return {
+            planting: p,
+            crop,
+            harvestCount,
+            cumulativeYield,
+            daysSinceLastHarvest,
+            harvestFrequency,
+            isReadyForHarvest,
+            isOverdue,
+            hasInProgressHarvest: !!inProgressHarvest,
+          };
+        });
+    },
+
+    // Group active perennials by crop type for dashboard
+    activePerennialsByCrop: (state) => {
+      const perennials = state.plantings.filter((p) => {
+        const isHarvesting = ['harvesting', 'Harvesting'].includes(p.status);
+        if (!isHarvesting) return false;
+        const crop = state.crops.find((c) => c.$id === p.crop_id);
+        return crop?.crop_type === 'Perennial';
+      });
+
+      return perennials.reduce((acc, p) => {
+        const crop = state.crops.find((c) => c.$id === p.crop_id);
+        const cropName = crop?.crop_name || 'Unknown';
+        acc[cropName] = (acc[cropName] || 0) + 1;
+        return acc;
+      }, {});
+    },
   },
 
   actions: {
@@ -827,10 +938,12 @@ export const useFarmStore = defineStore('farm', {
      * Best-effort rollback: if any step after harvest creation fails, previously
      * created rows are deleted so no orphans remain.
      *
+     * Story 3.6: Added support for continuous picking perennials.
+     *
      * @param {string} plantingId
      * @param {Object} entryData - { entry_date, quantity_kg, farmhands_count, labor_cost,
      *                               other_costs, other_costs_notes, notes }
-     * @param {Object} [options] - { harvestNotes?: string }
+     * @param {Object} [options] - { harvestNotes?: string, isContinuousPicking?: boolean, harvestSequence?: number }
      */
     async createHarvestWithFirstEntry(plantingId, entryData, options = {}) {
       const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
@@ -842,6 +955,8 @@ export const useFarmStore = defineStore('farm', {
       const { planting, crop } = ctx;
 
       // 2. Defensive check: ensure no in-progress harvest already exists for this planting
+      // Story 3.6: For continuous picking perennials, we allow multiple completed harvests
+      // but still only one in-progress harvest at a time
       const existingInProgress = this.harvests.find((h) => {
         const hPlantingId = typeof h.planting_id === 'object' ? h.planting_id?.$id : h.planting_id;
         return hPlantingId === plantingId && h.status === 'In Progress';
@@ -858,22 +973,31 @@ export const useFarmStore = defineStore('farm', {
       const otherCosts = parseFloat(entryData.other_costs) || 0;
 
       // 3. Create harvest parent row
+      // Story 3.6: Include continuous picking fields if provided
       let harvestRow;
       try {
+        const harvestData = {
+          planting_id: plantingId,
+          harvest_start_date: entryData.entry_date,
+          harvest_end_date: entryData.entry_date,
+          total_quantity_kg: quantityKg,
+          total_labor_cost: laborCost,
+          total_other_costs: otherCosts,
+          status: 'In Progress',
+          notes: options.harvestNotes || null,
+        };
+
+        // Story 3.6: Add continuous picking fields for perennials
+        if (options.isContinuousPicking) {
+          harvestData.is_continuous_picking = true;
+          harvestData.harvest_sequence = options.harvestSequence || 1;
+        }
+
         harvestRow = await tables.createRow({
           databaseId: dbId,
           tableId: 'harvests',
           rowId: ID.unique(),
-          data: {
-            planting_id: plantingId,
-            harvest_start_date: entryData.entry_date,
-            harvest_end_date: entryData.entry_date,
-            total_quantity_kg: quantityKg,
-            total_labor_cost: laborCost,
-            total_other_costs: otherCosts,
-            status: 'In Progress',
-            notes: options.harvestNotes || null,
-          },
+          data: harvestData,
         });
       } catch (error) {
         console.error('Error creating harvest:', error);
@@ -1218,7 +1342,7 @@ export const useFarmStore = defineStore('farm', {
       );
     },
 
-    async markHarvestComplete(harvestId) {
+    async markHarvestComplete(harvestId, { isContinuousPicking = false } = {}) {
       try {
         const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
 
@@ -1226,6 +1350,9 @@ export const useFarmStore = defineStore('farm', {
         if (!harvest) {
           return { success: false, error: 'Harvest not found' };
         }
+
+        // Story 3.6: Check if this is a continuous picking harvest for a perennial
+        const shouldKeepPlantingActive = isContinuousPicking || harvest.is_continuous_picking;
 
         const harvestUpdate = await tables.updateRow({
           databaseId: dbId,
@@ -1239,20 +1366,197 @@ export const useFarmStore = defineStore('farm', {
           this.harvests[harvestIndex] = { ...this.harvests[harvestIndex], ...harvestUpdate };
         }
 
-        // Transition planting to 'completed'
-        const plantingResult = await this.updatePlantingStatus(harvest.planting_id, 'completed');
-        if (!plantingResult.success) {
-          console.warn('Failed to update planting status to completed:', plantingResult.error);
+        // Story 3.6: Only transition planting to 'completed' for annuals
+        // Perennials with continuous picking stay in 'harvesting' status
+        if (!shouldKeepPlantingActive) {
+          const plantingResult = await this.updatePlantingStatus(harvest.planting_id, 'completed');
+          if (!plantingResult.success) {
+            console.warn('Failed to update planting status to completed:', plantingResult.error);
+            return {
+              success: true,
+              data: harvestUpdate,
+              warning: `Harvest marked complete, but planting status update failed: ${plantingResult.error}. Please refresh and update manually.`,
+            };
+          }
+        }
+
+        return {
+          success: true,
+          data: harvestUpdate,
+          isContinuousPicking: shouldKeepPlantingActive,
+        };
+      } catch (error) {
+        console.error('Error marking harvest complete:', error);
+        return { success: false, error: error.message };
+      }
+    },
+
+    // ==========================================================================
+    // Story 3.6: Continuous Picking Harvests for Perennials
+    // ==========================================================================
+
+    /**
+     * Get the next harvest sequence number for a planting.
+     * Used for perennial crops with continuous picking.
+     * @param {string} plantingId
+     * @returns {Promise<number>} Next sequence number (1-based)
+     */
+    async getNextHarvestSequence(plantingId) {
+      try {
+        const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
+        const response = await tables.listRows({
+          databaseId: dbId,
+          tableId: 'harvests',
+          queries: [
+            Query.equal('planting_id', plantingId),
+            Query.limit(100),
+            Query.orderDesc('harvest_sequence'),
+          ],
+        });
+
+        const harvests = response.rows || [];
+        const maxSequence = harvests.reduce((max, h) => {
+          const seq = parseInt(h.harvest_sequence, 10);
+          return seq > max ? seq : max;
+        }, 0);
+
+        return maxSequence + 1;
+      } catch (error) {
+        console.error('Error getting next harvest sequence:', error);
+        return 1; // Default to 1 on error
+      }
+    },
+
+    /**
+     * Get comprehensive harvest statistics for a perennial planting.
+     * @param {string} plantingId
+     * @returns {Promise<Object>} Harvest stats including cumulative yield, frequency, etc.
+     */
+    async getPerennialHarvestStats(plantingId) {
+      try {
+        const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
+        const response = await tables.listRows({
+          databaseId: dbId,
+          tableId: 'harvests',
+          queries: [
+            Query.equal('planting_id', plantingId),
+            Query.equal('status', 'Completed'),
+            Query.limit(100),
+            Query.orderAsc('harvest_start_date'),
+          ],
+        });
+
+        const harvests = response.rows || [];
+        if (harvests.length === 0) {
           return {
-            success: true,
-            data: harvestUpdate,
-            warning: `Harvest marked complete, but planting status update failed: ${plantingResult.error}. Please refresh and update manually.`,
+            cumulativeYield: 0,
+            averageYield: 0,
+            harvestCount: 0,
+            averageFrequencyDays: null,
+            lastHarvestDate: null,
+            cumulativeLaborCost: 0,
+            cumulativeOtherCosts: 0,
           };
         }
 
-        return { success: true, data: harvestUpdate };
+        // Calculate cumulative and average metrics
+        const cumulativeYield = harvests.reduce(
+          (sum, h) => sum + (parseFloat(h.total_quantity_kg) || 0),
+          0,
+        );
+        const cumulativeLaborCost = harvests.reduce(
+          (sum, h) => sum + (parseFloat(h.total_labor_cost) || 0),
+          0,
+        );
+        const cumulativeOtherCosts = harvests.reduce(
+          (sum, h) => sum + (parseFloat(h.total_other_costs) || 0),
+          0,
+        );
+
+        // Calculate average frequency between harvests
+        let averageFrequencyDays = null;
+        if (harvests.length > 1) {
+          const intervals = [];
+          for (let i = 1; i < harvests.length; i++) {
+            const prevDate = new Date(
+              harvests[i - 1].harvest_start_date || harvests[i - 1].harvest_end_date,
+            );
+            const currDate = new Date(
+              harvests[i].harvest_start_date || harvests[i].harvest_end_date,
+            );
+            const daysDiff = Math.round((currDate - prevDate) / (1000 * 60 * 60 * 24));
+            if (daysDiff > 0) intervals.push(daysDiff);
+          }
+          if (intervals.length > 0) {
+            averageFrequencyDays = Math.round(
+              intervals.reduce((a, b) => a + b, 0) / intervals.length,
+            );
+          }
+        }
+
+        const lastHarvest = harvests[harvests.length - 1];
+        const lastHarvestDate = lastHarvest.harvest_end_date || lastHarvest.harvest_start_date;
+
+        return {
+          cumulativeYield,
+          averageYield: cumulativeYield / harvests.length,
+          harvestCount: harvests.length,
+          averageFrequencyDays,
+          lastHarvestDate,
+          cumulativeLaborCost,
+          cumulativeOtherCosts,
+          harvests,
+        };
       } catch (error) {
-        console.error('Error marking harvest complete:', error);
+        console.error('Error getting perennial harvest stats:', error);
+        return {
+          cumulativeYield: 0,
+          averageYield: 0,
+          harvestCount: 0,
+          averageFrequencyDays: null,
+          lastHarvestDate: null,
+          cumulativeLaborCost: 0,
+          cumulativeOtherCosts: 0,
+          error: error.message,
+        };
+      }
+    },
+
+    /**
+     * Finalize a perennial planting (mark as completed).
+     * Also marks any in-progress harvest as completed.
+     * @param {string} plantingId
+     */
+    async finalizePerennialPlanting(plantingId) {
+      try {
+        const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
+
+        // Find and complete any in-progress harvest for this planting
+        const plantingHarvests = this.harvests.filter((h) => {
+          const hPlantingId =
+            typeof h.planting_id === 'object' ? h.planting_id?.$id : h.planting_id;
+          return hPlantingId === plantingId && h.status === 'In Progress';
+        });
+
+        for (const harvest of plantingHarvests) {
+          await tables.updateRow({
+            databaseId: dbId,
+            tableId: 'harvests',
+            rowId: harvest.$id,
+            data: { status: 'Completed' },
+          });
+
+          const harvestIndex = this.harvests.findIndex((h) => h.$id === harvest.$id);
+          if (harvestIndex !== -1) {
+            this.harvests[harvestIndex] = { ...this.harvests[harvestIndex], status: 'Completed' };
+          }
+        }
+
+        // Transition planting to 'completed'
+        const result = await this.updatePlantingStatus(plantingId, 'completed');
+        return result;
+      } catch (error) {
+        console.error('Error finalizing perennial planting:', error);
         return { success: false, error: error.message };
       }
     },

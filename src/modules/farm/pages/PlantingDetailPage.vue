@@ -6,10 +6,14 @@
   planting has at most one harvest, the harvest and its entries are rendered
   inline here instead of on a separate HarvestDetailPage.
 
+  Story 3.6 adds support for multiple harvests per planting for perennial crops
+  with continuous picking.
+
   Stories:
     3.3 Farm Module - Planting Records
     3.4 Planting Status Tracking and Lifecycle Management
     3.5 Harvest Recording (entry-based unified model, inline view)
+    3.6 Continuous Picking Harvests for Perennial Crops
 -->
 <template>
   <q-page class="q-pa-md">
@@ -252,6 +256,35 @@
             </q-card-section>
           </q-card>
 
+          <!-- Story 3.6: Frequency Alert for Perennials -->
+          <q-banner
+            v-if="frequencyAlert && isPerennial && !isTerminalStatus"
+            rounded
+            class="q-mb-md"
+            :class="{
+              'bg-red-1 text-red-9': frequencyAlert.type === 'negative',
+              'bg-orange-1 text-orange-9': frequencyAlert.type === 'warning',
+              'bg-green-1 text-green-9': frequencyAlert.type === 'positive',
+              'bg-blue-1 text-blue-9': frequencyAlert.type === 'info',
+            }"
+          >
+            <template #avatar>
+              <q-icon
+                :name="
+                  frequencyAlert.type === 'negative'
+                    ? 'warning'
+                    : frequencyAlert.type === 'positive'
+                      ? 'check_circle'
+                      : 'info'
+                "
+              />
+            </template>
+            {{ frequencyAlert.message }}
+            <span v-if="daysSinceLastHarvest !== null" class="text-caption q-ml-sm">
+              ({{ daysSinceLastHarvest }} days since last harvest)
+            </span>
+          </q-banner>
+
           <!-- Harvest Section -->
           <q-card class="q-mt-md">
             <q-card-section class="row items-center justify-between">
@@ -263,6 +296,15 @@
                   :status="currentHarvest.status"
                   class="q-ml-sm"
                 />
+                <!-- Story 3.6: Continuous Picking Indicator -->
+                <q-badge v-if="isPerennial && isContinuousPicking" color="primary" class="q-ml-sm">
+                  <q-icon name="repeat" size="xs" class="q-mr-xs" />
+                  Continuous Picking
+                </q-badge>
+                <!-- Story 3.6: Harvest Sequence Number -->
+                <q-badge v-if="isPerennial && hasCompletedHarvests" color="grey" class="q-ml-sm">
+                  Harvest {{ harvestSequence }}
+                </q-badge>
               </div>
 
               <!-- No harvest yet: primary CTA -->
@@ -296,6 +338,54 @@
                 <q-btn size="sm" color="negative" icon="delete" flat @click="confirmDeleteHarvest">
                   <q-tooltip>Delete entire harvest</q-tooltip>
                 </q-btn>
+              </div>
+
+              <!-- Story 3.6: Completed continuous picking - Record Next Harvest -->
+              <div
+                v-else-if="
+                  canWrite &&
+                  currentHarvest?.status === 'Completed' &&
+                  isPerennial &&
+                  isContinuousPicking &&
+                  !isTerminalStatus
+                "
+                class="row q-gutter-xs"
+              >
+                <q-btn
+                  size="sm"
+                  color="positive"
+                  icon="add"
+                  label="Record Next Harvest"
+                  @click="openCreateDialog"
+                />
+                <q-btn
+                  size="sm"
+                  color="primary"
+                  outline
+                  icon="check_circle"
+                  label="Mark Planting Complete"
+                  @click="openFinalizeDialog"
+                />
+              </div>
+
+              <!-- Story 3.6: Perennial without continuous picking active - Mark Complete only -->
+              <div
+                v-else-if="
+                  canWrite &&
+                  currentHarvest?.status === 'Completed' &&
+                  isPerennial &&
+                  !isTerminalStatus &&
+                  (!isContinuousPicking || !hasCompletedHarvests)
+                "
+              >
+                <q-btn
+                  size="sm"
+                  color="primary"
+                  outline
+                  icon="check_circle"
+                  label="Mark Planting Complete"
+                  @click="openFinalizeDialog"
+                />
               </div>
             </q-card-section>
 
@@ -341,6 +431,43 @@
                     · {{ currentHarvest.entries.length }}
                     {{ currentHarvest.entries.length === 1 ? 'entry' : 'entries' }}
                   </span>
+                </div>
+
+                <!-- Story 3.6: Cumulative stats for perennials with multiple harvests -->
+                <div v-if="isPerennial && hasCompletedHarvests" class="q-mt-md q-pt-md border-top">
+                  <div class="text-caption text-weight-medium text-primary q-mb-xs">
+                    <q-icon name="repeat" size="xs" class="q-mr-xs" />
+                    Continuous Picking Totals ({{ completedHarvests.length }} harvests)
+                  </div>
+                  <div class="row q-col-gutter-md text-center">
+                    <div class="col-4">
+                      <div class="text-caption text-grey">Cumulative Yield</div>
+                      <div class="text-h6 text-weight-bold text-primary">
+                        {{ cumulativeYield.toFixed(1) }} kg
+                      </div>
+                    </div>
+                    <div class="col-4">
+                      <div class="text-caption text-grey">Avg per Harvest</div>
+                      <div class="text-h6 text-weight-bold">
+                        {{ (cumulativeYield / completedHarvests.length).toFixed(1) }} kg
+                      </div>
+                    </div>
+                    <div class="col-4">
+                      <div class="text-caption text-grey">Total Labor</div>
+                      <div class="text-h6 text-weight-bold">
+                        ZMW {{ cumulativeLaborCost.toFixed(2) }}
+                      </div>
+                    </div>
+                  </div>
+                  <div
+                    v-if="daysSinceLastHarvest !== null"
+                    class="text-caption text-grey text-center q-mt-xs"
+                  >
+                    {{ daysSinceLastHarvest }} days since last harvest
+                    <span v-if="crop?.harvest_frequency_days">
+                      · Frequency: {{ crop.harvest_frequency_days }} days
+                    </span>
+                  </div>
                 </div>
               </q-card-section>
 
@@ -450,8 +577,42 @@
       :harvest="currentHarvest"
       :existing-entries="currentHarvest?.entries || []"
       :loading="entrySubmitting"
+      :is-perennial="isPerennial"
+      :is-subsequent-harvest="hasCompletedHarvests"
+      :harvest-frequency="crop?.harvest_frequency_days"
+      :days-since-last-harvest="daysSinceLastHarvest"
       @submit="onEntrySubmit"
     />
+
+    <!-- Story 3.6: Confirm Mark Planting Complete Dialog -->
+    <q-dialog v-model="finalizeDialogOpen" persistent>
+      <q-card>
+        <q-card-section class="row items-center">
+          <q-avatar icon="check_circle" color="positive" text-color="white" />
+          <span class="q-ml-sm">Mark planting as complete?</span>
+        </q-card-section>
+        <q-card-section>
+          <p>
+            This will finalize the planting and mark any in-progress harvest as completed. This
+            action cannot be undone.
+          </p>
+          <p v-if="currentHarvest?.status === 'In Progress'" class="text-warning">
+            <q-icon name="info" />
+            The current harvest will also be marked as completed.
+          </p>
+        </q-card-section>
+        <q-card-actions align="right">
+          <q-btn flat label="Cancel" color="primary" v-close-popup />
+          <q-btn
+            flat
+            label="Mark Complete"
+            color="positive"
+            @click="onFinalizePlanting"
+            :loading="finalizing"
+          />
+        </q-card-actions>
+      </q-card>
+    </q-dialog>
   </q-page>
 </template>
 
@@ -676,6 +837,108 @@ const harvestDateRangeLabel = computed(() => {
 });
 
 // ---------------------------------------------------------------------------
+// Story 3.6: Perennial / Continuous Picking
+// ---------------------------------------------------------------------------
+
+const finalizeDialogOpen = ref(false);
+const finalizing = ref(false);
+
+// Check if this is a perennial crop
+const isPerennial = computed(() => {
+  return crop.value?.crop_type === 'Perennial';
+});
+
+// Get all harvests for this planting (for perennials)
+const allPlantingHarvests = computed(() => {
+  if (!planting.value) return [];
+  return farmStore.harvestsByPlanting(planting.value.$id);
+});
+
+// Get completed harvests for this planting
+const completedHarvests = computed(() => {
+  return allPlantingHarvests.value.filter((h) => h.status === 'Completed');
+});
+
+// Check if there are completed harvests (for subsequent harvest UI)
+const hasCompletedHarvests = computed(() => {
+  return completedHarvests.value.length > 0;
+});
+
+// Check if current harvest is continuous picking
+const isContinuousPicking = computed(() => {
+  return currentHarvest.value?.is_continuous_picking || false;
+});
+
+// Get harvest sequence number for display
+const harvestSequence = computed(() => {
+  return currentHarvest.value?.harvest_sequence || 1;
+});
+
+// Calculate days since last harvest for perennials
+const daysSinceLastHarvest = computed(() => {
+  if (completedHarvests.value.length === 0) return null;
+  const lastHarvest = completedHarvests.value.sort(
+    (a, b) =>
+      new Date(b.harvest_end_date || b.harvest_start_date) -
+      new Date(a.harvest_end_date || a.harvest_start_date),
+  )[0];
+  const lastDate = new Date(lastHarvest.harvest_end_date || lastHarvest.harvest_start_date);
+  return Math.floor((new Date() - lastDate) / (1000 * 60 * 60 * 24));
+});
+
+// Calculate cumulative yield across all harvests
+const cumulativeYield = computed(() => {
+  return completedHarvests.value.reduce(
+    (sum, h) => sum + (parseFloat(h.total_quantity_kg) || 0),
+    0,
+  );
+});
+
+// Calculate cumulative labor cost across all harvests
+const cumulativeLaborCost = computed(() => {
+  return completedHarvests.value.reduce((sum, h) => sum + (parseFloat(h.total_labor_cost) || 0), 0);
+});
+
+// Frequency alert for perennials
+const frequencyAlert = computed(() => {
+  if (!isPerennial.value || !crop.value?.harvest_frequency_days) return null;
+
+  const frequency = crop.value.harvest_frequency_days;
+  const daysSince = daysSinceLastHarvest.value;
+
+  if (daysSince === null) {
+    return {
+      type: 'info',
+      message: `Recommended harvest frequency: every ${frequency} days`,
+    };
+  }
+
+  const daysOverdue = daysSince - frequency;
+
+  if (daysOverdue > 7) {
+    return {
+      type: 'negative',
+      message: `Overdue for harvest by ${daysOverdue} days!`,
+    };
+  } else if (daysOverdue > 0) {
+    return {
+      type: 'warning',
+      message: `Harvest is ${daysOverdue} days overdue`,
+    };
+  } else if (daysOverdue >= -7) {
+    return {
+      type: 'positive',
+      message: `Ready for harvest (${Math.abs(daysOverdue)} days until next recommended)`,
+    };
+  } else {
+    return {
+      type: 'info',
+      message: `Next harvest recommended in ${Math.abs(daysOverdue)} days`,
+    };
+  }
+});
+
+// ---------------------------------------------------------------------------
 // Lifecycle
 // ---------------------------------------------------------------------------
 
@@ -770,6 +1033,7 @@ function openAddEntryDialog() {
 /**
  * Unified submit handler for both create-first-entry and add-entry modes.
  * The dialog doesn't know which mode it's in — it just emits the form payload.
+ * Story 3.6: Handles continuous picking flag for perennial crops.
  */
 async function onEntrySubmit(entryData) {
   entrySubmitting.value = true;
@@ -777,8 +1041,25 @@ async function onEntrySubmit(entryData) {
   try {
     let result;
     if (isCreateMode) {
+      // Story 3.6: Get next harvest sequence for perennials with continuous picking
+      let harvestSequence = 1;
+      if (isPerennial.value && entryData.is_continuous_picking) {
+        harvestSequence = await farmStore.getNextHarvestSequence(planting.value.$id);
+      }
+
       // Create mode: build a new harvest from this first entry
-      result = await farmStore.createHarvestWithFirstEntry(planting.value.$id, entryData);
+      // Include continuous picking data for perennials
+      const harvestOptions = {
+        harvestNotes: entryData.notes || null,
+        isContinuousPicking: entryData.is_continuous_picking || false,
+        harvestSequence: harvestSequence,
+      };
+
+      result = await farmStore.createHarvestWithFirstEntry(
+        planting.value.$id,
+        entryData,
+        harvestOptions,
+      );
     } else {
       // Add-entry mode: append to existing in-progress harvest
       result = await farmStore.addHarvestEntry(currentHarvest.value.$id, entryData);
@@ -806,16 +1087,37 @@ async function onEntrySubmit(entryData) {
 }
 
 function confirmMarkComplete() {
+  // Story 3.6: Different messaging for perennials with continuous picking
+  const isPerennialCrop = isPerennial.value;
+  const isContinuous = isContinuousPicking.value;
+
+  let title = 'Mark harvest complete?';
+  let message =
+    `The harvest will be finalized and no further entries can be added. ` +
+    `The planting status will move to "completed". This cannot be undone.`;
+
+  // Story 3.6: For perennials with continuous picking, show different message
+  if (isPerennialCrop && isContinuous) {
+    title = 'Complete this harvest?';
+    message =
+      `This will mark the current harvest as completed. ` +
+      `The planting will remain in "harvesting" status for the next harvest cycle. ` +
+      `You can record the next harvest or mark the planting as complete when finished.`;
+  }
+
   $q.dialog({
-    title: 'Mark harvest complete?',
-    message:
-      `The harvest will be finalized and no further entries can be added. ` +
-      `The planting status will move to "completed". This cannot be undone.`,
+    title,
+    message,
     ok: { label: 'Mark Complete', color: 'positive' },
     cancel: true,
     persistent: true,
   }).onOk(async () => {
-    const result = await farmStore.markHarvestComplete(currentHarvest.value.$id);
+    // Story 3.6: Pass continuous picking flag for perennials
+    const isContinuousHarvest = isPerennialCrop && isContinuous;
+    const result = await farmStore.markHarvestComplete(currentHarvest.value.$id, {
+      isContinuousPicking: isContinuousHarvest,
+    });
+
     if (!result.success) {
       $q.notify({
         type: 'negative',
@@ -832,10 +1134,54 @@ function confirmMarkComplete() {
         timeout: 8000,
       });
     }
-    $q.notify({ type: 'positive', message: 'Harvest completed', position: 'top' });
+
+    // Story 3.6: Different success message for continuous picking
+    if (result.isContinuousPicking) {
+      $q.notify({
+        type: 'positive',
+        message: 'Harvest completed. You can now record the next harvest.',
+        position: 'top',
+      });
+    } else {
+      $q.notify({ type: 'positive', message: 'Harvest completed', position: 'top' });
+    }
+
     // Re-fetch the inventory row for the completed-view link
     produceInventoryRow.value = await inventoryStore.findFarmProduceRow(planting.value.$id);
   });
+}
+
+/**
+ * Story 3.6: Open the finalize planting dialog for perennials
+ */
+function openFinalizeDialog() {
+  finalizeDialogOpen.value = true;
+}
+
+/**
+ * Story 3.6: Finalize a perennial planting (mark as complete)
+ */
+async function onFinalizePlanting() {
+  finalizing.value = true;
+  try {
+    const result = await farmStore.finalizePerennialPlanting(planting.value.$id);
+    if (!result.success) {
+      $q.notify({
+        type: 'negative',
+        message: result.error || 'Failed to finalize planting',
+        position: 'top',
+      });
+      return;
+    }
+    $q.notify({
+      type: 'positive',
+      message: 'Planting marked as complete',
+      position: 'top',
+    });
+    finalizeDialogOpen.value = false;
+  } finally {
+    finalizing.value = false;
+  }
 }
 
 function confirmDeleteHarvest() {
@@ -897,3 +1243,9 @@ function confirmDeleteEntry(entry) {
   });
 }
 </script>
+
+<style scoped>
+.border-top {
+  border-top: 1px solid rgba(0, 0, 0, 0.12);
+}
+</style>
