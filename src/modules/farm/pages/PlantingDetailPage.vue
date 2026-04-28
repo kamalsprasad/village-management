@@ -879,9 +879,9 @@ const isContinuousPicking = computed(() => {
 });
 
 // Get harvest sequence number for display
-const harvestSequence = computed(() => {
-  return currentHarvest.value?.harvest_sequence || 1;
-});
+// const harvestSequence = computed(() => {
+//   return currentHarvest.value?.harvest_sequence || 1;
+// });
 
 // Calculate days since last harvest for perennials
 const daysSinceLastHarvest = computed(() => {
@@ -1046,7 +1046,8 @@ function openAddEntryDialog() {
  */
 async function onEntrySubmit(entryData) {
   entrySubmitting.value = true;
-  const isCreateMode = !currentHarvest.value;
+  // Story 3.6: Create mode if no harvest OR if current harvest is completed
+  const isCreateMode = !currentHarvest.value || currentHarvest.value?.status === 'Completed';
   try {
     let result;
     if (isCreateMode) {
