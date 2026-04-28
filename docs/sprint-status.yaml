@@ -40,20 +40,20 @@ development_status:
   2-1-finance-module-income-transaction-recording: done
   2-2-finance-module-expense-transaction-recording: done
   2-3-finance-module-admin-configurable-categories: done
-  2-4-finance-module-funding-source-tracking-for-donor-accountability: ready-for-dev
-  2-5-village-lending-loan-management: backlog
+  2-4-finance-module-funding-source-tracking-for-donor-accountability: done
+  2-5-village-lending-loan-management: done
   2-6-inventory-module-core-inventory-management: done
   2-7-inventory-module-automatic-inventory-from-finance-purchases: done
-  2-8-financial-reports-basic-reports-suite: backlog
+  2-8-financial-reports-basic-reports-suite: done
   2-9-finance-dashboard-comprehensive-financial-overview: done
   epic-2-retrospective: optional
-  epic-3: backlog
-  3-1-farm-module-plot-management: backlog
-  3-2-farm-module-crops-database-and-management: backlog
-  3-3-farm-module-planting-records-with-seed-inventory-and-labor-tracking: backlog
-  3-4-farm-module-planting-status-tracking-and-lifecycle-management: backlog
-  3-5-farm-module-harvest-recording-single-day-and-multi-day-aggregate: backlog
-  3-6-farm-module-continuous-picking-harvests-for-perennial-crops: backlog
+  epic-3: contexted
+  3-1-farm-module-plot-management: done
+  3-2-farm-module-crops-database-and-management: done
+  3-3-farm-module-planting-records-with-seed-inventory-and-labor-tracking: done
+  3-4-farm-module-planting-status-tracking-and-lifecycle-management: done
+  3-5-farm-module-harvest-recording-single-day-and-multi-day-aggregate: done
+  3-6-farm-module-continuous-picking-harvests-for-perennial-crops: done
   3-7-farm-module-automatic-inventory-creation-on-harvest-completion: backlog
   3-8-farm-module-sales-recording-with-finance-and-inventory-integration: backlog
   3-9-farm-module-profitability-analysis-and-roi-calculation: backlog

@@ -92,4 +92,28 @@ This document tracks deferred improvements, upgrades, and refactoring items that
 - **Effort**: Low
 - **Added**: Story 3.5 (code review)
 
+### Atomic Harvest Sequence Number Allocation (Continuous Picking)
+
+- **Current state**: `getNextHarvestSequence` in `farm-store.js` reads max `harvest_sequence` then adds 1 client-side. Two concurrent "Record Next Harvest" requests for the same perennial planting could allocate the same sequence number, producing duplicates.
+- **Improvement**: Allocate sequence numbers via a Cloud Function that performs read+increment atomically, or use a unique composite index on `(planting_id, harvest_sequence)` so duplicates fail at the DB layer and the client retries.
+- **Benefits**: Guaranteed monotonic, unique sequence per planting regardless of concurrency.
+- **Effort**: Low
+- **Added**: Story 3.6 (code review)
+
+### Wire Up `type=perennial` Filter in PlantingsListPage
+
+- **Current state**: `ActivePerennialsWidget` was originally designed to navigate to `/farm/plantings?status=harvesting&type=perennial`, but `PlantingsListPage.vue` does not read `route.query` so the type filter is silently ignored. The widget link has been simplified to `?status=harvesting` only.
+- **Improvement**: Read `route.query.type` on mount in `PlantingsListPage.vue` and add a "Crop Type" filter (Annual/Perennial) to the page UI. Restore the `type=perennial` query param in the widget link.
+- **Benefits**: Users can quickly drill into perennial-only plantings from the dashboard.
+- **Effort**: Low
+- **Added**: Story 3.6 (code review)
+
+### HarvestsListPage Perennial Filters & Sequence Display
+
+- **Current state**: `HarvestsListPage.vue` does not surface continuous-picking metadata. Perennial harvests show no sequence number, no `repeat` icon, and there is no filter to isolate continuous-picking harvests.
+- **Improvement**: Add columns/badges for `is_continuous_picking` and `harvest_sequence`, plus filter controls on the list page.
+- **Benefits**: Faster auditing of perennial harvest cycles across all plantings.
+- **Effort**: Low
+- **Added**: Story 3.6 (deferred from MVP)
+
 ---

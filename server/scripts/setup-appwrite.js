@@ -320,6 +320,13 @@ const tableSchemas = {
         required: false,
       },
       {
+        key: 'harvest_frequency_days',
+        type: 'integer',
+        min: 1,
+        max: 365,
+        required: false,
+      },
+      {
         key: 'typical_yield_per_hectare',
         type: 'double',
         min: 0,
@@ -448,7 +455,9 @@ const tableSchemas = {
       { key: 'notes', type: 'string', size: 1000, required: false },
       // Story 3.6: Continuous Picking for Perennials
       { key: 'is_continuous_picking', type: 'boolean', required: false, default: false },
-      { key: 'harvest_sequence', type: 'integer', min: 1, required: false },
+      // Sequence number for perennial continuous picking (null/omitted for annuals).
+      // No min constraint so annual harvests don't trip integer validation.
+      { key: 'harvest_sequence', type: 'integer', required: false },
     ],
     indexes: [
       {
@@ -461,12 +470,6 @@ const tableSchemas = {
         key: 'idx_harvests_status',
         type: 'key',
         columns: ['status'],
-        orders: ['ASC'],
-      },
-      {
-        key: 'idx_harvests_planting',
-        type: 'key',
-        columns: ['planting_id'],
         orders: ['ASC'],
       },
       {

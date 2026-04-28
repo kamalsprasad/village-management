@@ -1041,17 +1041,8 @@ export function useFarmSampleData() {
             notes: 'First harvest from young plantation.',
           },
         ],
-        produce: {
-          item_name: 'Banana',
-          item_type: 'farm_produce',
-          quantity: 120,
-          unit: 'kg',
-          unit_cost: 5,
-          status: 'in_stock',
-          source: 'farm_harvest',
-          reorder_threshold: 0,
-          estimated_value: 120 * 5,
-        },
+        // Story 3.6: Inventory aggregated on the LAST completed harvest only
+        // (perennials use one farm_produce row per planting, upserted at runtime).
       });
 
       // Harvest 2: 6 months ago
@@ -1082,17 +1073,6 @@ export function useFarmSampleData() {
             notes: 'Increased yield as plantation matures.',
           },
         ],
-        produce: {
-          item_name: 'Banana',
-          item_type: 'farm_produce',
-          quantity: 180,
-          unit: 'kg',
-          unit_cost: 5,
-          status: 'in_stock',
-          source: 'farm_harvest',
-          reorder_threshold: 0,
-          estimated_value: 180 * 5,
-        },
       });
 
       // Harvest 3: In progress (3 months ago)
@@ -1123,16 +1103,18 @@ export function useFarmSampleData() {
             notes: 'Peak harvest period.',
           },
         ],
+        // Story 3.6: Cumulative produce row attached to the LAST completed harvest.
+        // Banana cumulative: 120 + 180 + 200 = 500 kg.
         produce: {
           item_name: 'Banana',
           item_type: 'farm_produce',
-          quantity: 200,
+          quantity: 500,
           unit: 'kg',
           unit_cost: 5,
           status: 'in_stock',
           source: 'farm_harvest',
           reorder_threshold: 0,
-          estimated_value: 200 * 5,
+          estimated_value: 500 * 5,
         },
       });
     }
@@ -1141,12 +1123,18 @@ export function useFarmSampleData() {
     const papayaPlanting = plantingByKey('p_papaya_harvesting');
     const papayaCropId = cropId('Papaya');
     if (papayaPlanting && papayaCropId) {
-      // 3 completed harvests at 60-day intervals
+      // 2 completed harvests at 60-day intervals + 1 in progress
       const papayaHarvests = [
         { days: 120, qty: 45, labor: 80, seq: 1 },
         { days: 60, qty: 60, labor: 90, seq: 2 },
         { days: 1, qty: 75, labor: 100, seq: 3 },
       ];
+      // Story 3.6: Cumulative quantity from completed harvests only (seq 1+2 = 105 kg)
+      const papayaCumulativeKg = papayaHarvests
+        .filter((h) => h.seq !== 3)
+        .reduce((sum, h) => sum + h.qty, 0);
+      // Last completed harvest (seq 2) carries the aggregated produce row
+      const papayaLastCompletedSeq = 2;
 
       papayaHarvests.forEach((h) => {
         const hDate = daysAgo(h.days);
@@ -1177,17 +1165,17 @@ export function useFarmSampleData() {
             },
           ],
           produce:
-            h.seq !== 3
+            h.seq === papayaLastCompletedSeq
               ? {
                   item_name: 'Papaya',
                   item_type: 'farm_produce',
-                  quantity: h.qty,
+                  quantity: papayaCumulativeKg,
                   unit: 'kg',
                   unit_cost: 8,
                   status: 'in_stock',
                   source: 'farm_harvest',
                   reorder_threshold: 0,
-                  estimated_value: h.qty * 8,
+                  estimated_value: papayaCumulativeKg * 8,
                 }
               : undefined,
         });
@@ -1198,13 +1186,19 @@ export function useFarmSampleData() {
     const moringaPlanting = plantingByKey('p_moringa_harvesting');
     const moringaCropId = cropId('Moringa');
     if (moringaPlanting && moringaCropId) {
-      // 4 harvests at 45-day intervals demonstrating intensive continuous picking
+      // 3 completed harvests at 45-day intervals + 1 in progress
       const moringaHarvests = [
         { days: 135, qty: 30, labor: 50, seq: 1 },
         { days: 90, qty: 35, labor: 55, seq: 2 },
         { days: 45, qty: 40, labor: 60, seq: 3 },
         { days: 3, qty: 42, labor: 65, seq: 4 },
       ];
+      // Story 3.6: Cumulative quantity from completed harvests only (seq 1+2+3 = 105 kg)
+      const moringaCumulativeKg = moringaHarvests
+        .filter((h) => h.seq !== 4)
+        .reduce((sum, h) => sum + h.qty, 0);
+      // Last completed harvest (seq 3) carries the aggregated produce row
+      const moringaLastCompletedSeq = 3;
 
       moringaHarvests.forEach((h) => {
         const hDate = daysAgo(h.days);
@@ -1235,17 +1229,17 @@ export function useFarmSampleData() {
             },
           ],
           produce:
-            h.seq !== 4
+            h.seq === moringaLastCompletedSeq
               ? {
                   item_name: 'Moringa',
                   item_type: 'farm_produce',
-                  quantity: h.qty,
+                  quantity: moringaCumulativeKg,
                   unit: 'kg',
                   unit_cost: 12,
                   status: 'in_stock',
                   source: 'farm_harvest',
                   reorder_threshold: 0,
-                  estimated_value: h.qty * 12,
+                  estimated_value: moringaCumulativeKg * 12,
                 }
               : undefined,
         });

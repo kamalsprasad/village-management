@@ -253,16 +253,27 @@ export const useFarmStore = defineStore('farm', {
             daysSinceLastHarvest = Math.floor((new Date() - lastDate) / (1000 * 60 * 60 * 24));
           }
 
-          // Check if ready for harvest based on frequency
-          const harvestFrequency = crop?.harvest_frequency_days || crop?.harvest_frequency || null;
+          // Story 3.6: Centralized harvest readiness logic
+          // - Ready: at/past frequency, within 7-day grace period, no in-progress harvest
+          // - Overdue: more than 7 days past frequency, no in-progress harvest
+          // - Plantings with an active in-progress harvest are NEITHER ready nor overdue
+          const harvestFrequency = crop?.harvest_frequency_days || null;
+          const OVERDUE_GRACE_DAYS = 7;
+          const daysOverdue =
+            harvestFrequency && daysSinceLastHarvest !== null
+              ? daysSinceLastHarvest - harvestFrequency
+              : null;
           const isReadyForHarvest =
             harvestFrequency &&
-            daysSinceLastHarvest !== null &&
-            daysSinceLastHarvest >= harvestFrequency;
+            daysOverdue !== null &&
+            daysOverdue >= 0 &&
+            daysOverdue <= OVERDUE_GRACE_DAYS &&
+            !inProgressHarvest;
           const isOverdue =
             harvestFrequency &&
-            daysSinceLastHarvest !== null &&
-            daysSinceLastHarvest > harvestFrequency;
+            daysOverdue !== null &&
+            daysOverdue > OVERDUE_GRACE_DAYS &&
+            !inProgressHarvest;
 
           return {
             planting: p,

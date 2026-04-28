@@ -29,20 +29,13 @@
           <span class="text-body2">{{ item.cropName }}</span>
           <q-badge :color="item.hasOverdue ? 'negative' : item.hasReady ? 'positive' : 'grey'">
             {{ item.count }}
-            <q-icon
-              v-if="item.hasOverdue"
-              name="warning"
-              size="xs"
-              class="q-ml-xs"
-            />
+            <q-icon v-if="item.hasOverdue" name="warning" size="xs" class="q-ml-xs" />
           </q-badge>
         </div>
       </div>
 
       <!-- No perennials message -->
-      <div v-else class="text-center text-grey q-py-sm">
-        No active perennial crops
-      </div>
+      <div v-else class="text-center text-grey q-py-sm">No active perennial crops</div>
 
       <!-- Harvest readiness summary -->
       <div v-if="totalCount > 0" class="q-mt-sm q-pt-sm border-top">
@@ -64,11 +57,7 @@
     </q-card-section>
 
     <!-- Alert banner for overdue harvests -->
-    <q-banner
-      v-if="overdueCount > 0"
-      class="bg-negative text-white"
-      dense
-    >
+    <q-banner v-if="overdueCount > 0" class="bg-negative text-white" dense>
       <q-icon name="warning" class="q-mr-sm" />
       {{ overdueCount }} perennial{{ overdueCount > 1 ? 's are' : ' is' }} overdue for harvest!
     </q-banner>
@@ -124,11 +113,12 @@ const perennialsByCrop = computed(() => {
   return Object.values(groups).sort((a, b) => b.count - a.count);
 });
 
-// Navigate to filtered plantings list
+// Navigate to plantings list (filtered by harvesting status).
+// Note: 'type=perennial' query param is not yet wired up in PlantingsListPage.
 function navigateToPerennials() {
   router.push({
     path: '/farm/plantings',
-    query: { status: 'harvesting', type: 'perennial' },
+    query: { status: 'harvesting' },
   });
 }
 </script>

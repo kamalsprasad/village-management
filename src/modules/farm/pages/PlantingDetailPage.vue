@@ -578,8 +578,10 @@
       v-model="entryDialogOpen"
       :planting="planting"
       :crop="crop"
-      :harvest="currentHarvest"
-      :existing-entries="currentHarvest?.entries || []"
+      :harvest="currentHarvest?.status === 'In Progress' ? currentHarvest : null"
+      :existing-entries="
+        currentHarvest?.status === 'In Progress' ? currentHarvest.entries || [] : []
+      "
       :loading="entrySubmitting"
       :is-perennial="isPerennial"
       :is-subsequent-harvest="hasCompletedHarvests"
@@ -903,7 +905,9 @@ const cumulativeLaborCost = computed(() => {
   return completedHarvests.value.reduce((sum, h) => sum + (parseFloat(h.total_labor_cost) || 0), 0);
 });
 
-// Frequency alert for perennials
+// Frequency alert for perennials.
+// Story 3.6: Aligned with farm-store OVERDUE_GRACE_DAYS = 7
+const OVERDUE_GRACE_DAYS = 7;
 const frequencyAlert = computed(() => {
   if (!isPerennial.value || !crop.value?.harvest_frequency_days) return null;
 
@@ -919,20 +923,23 @@ const frequencyAlert = computed(() => {
 
   const daysOverdue = daysSince - frequency;
 
-  if (daysOverdue > 7) {
+  if (daysOverdue > OVERDUE_GRACE_DAYS) {
     return {
       type: 'negative',
       message: `Overdue for harvest by ${daysOverdue} days!`,
     };
-  } else if (daysOverdue > 0) {
-    return {
-      type: 'warning',
-      message: `Harvest is ${daysOverdue} days overdue`,
-    };
-  } else if (daysOverdue >= -7) {
+  } else if (daysOverdue >= 0) {
     return {
       type: 'positive',
-      message: `Ready for harvest (${Math.abs(daysOverdue)} days until next recommended)`,
+      message:
+        daysOverdue === 0
+          ? 'Ready for harvest now'
+          : `Ready for harvest (${daysOverdue} days past recommended)`,
+    };
+  } else if (daysOverdue >= -OVERDUE_GRACE_DAYS) {
+    return {
+      type: 'warning',
+      message: `Approaching harvest window (${Math.abs(daysOverdue)} days until recommended)`,
     };
   } else {
     return {
@@ -971,14 +978,15 @@ async function loadPlanting() {
     loaders.push(farmStore.fetchHarvestsByPlanting(result.data.$id));
     await Promise.all(loaders);
 
-    // After harvests are loaded, pull entries for the one that exists (if any)
+    // Story 3.6: Load entries for ALL harvests (perennials may have multiple)
     const harvestList = farmStore.harvestsByPlanting(result.data.$id);
     if (harvestList.length) {
-      await farmStore.fetchHarvestEntries(harvestList[0].$id);
+      await Promise.all(harvestList.map((h) => farmStore.fetchHarvestEntries(h.$id)));
 
-      // If the harvest is completed, fetch the aggregated produce inventory row
-      // for the "X kg available in inventory" link.
-      if (harvestList[0].status === 'Completed') {
+      // If any harvest has been completed, fetch the aggregated produce
+      // inventory row for the "X kg available in inventory" link.
+      const hasCompleted = harvestList.some((h) => h.status === 'Completed');
+      if (hasCompleted) {
         produceInventoryRow.value = await inventoryStore.findFarmProduceRow(result.data.$id);
       }
     }

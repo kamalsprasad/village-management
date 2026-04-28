@@ -76,14 +76,17 @@ This story extends the harvest recording system (Story 3.5) to support perennial
 
 ### AC4: Harvest List Page with Perennial Support
 
-- [x] Harvest list page shows all harvests across all plantings with filters:
-  - Filter by crop type (Annual/Perennial) - Implemented in backend, UI deferred to post-MVP
-  - Filter by continuous picking (Yes/No) - Implemented in backend, UI deferred to post-MVP
+- [ ] Harvest list page shows all harvests across all plantings with filters: **(deferred to post-MVP)**
+  - Filter by crop type (Annual/Perennial)
+  - Filter by continuous picking (Yes/No)
   - Filter by date range
   - Filter by plot
-- [x] Continuous picking harvests marked with special icon/badge (`repeat` icon)
-- [x] Show harvest sequence number for perennials (e.g., "Harvest 3")
+- [ ] Continuous picking harvests marked with special icon/badge (`repeat` icon) **(deferred to post-MVP)**
+- [ ] Show harvest sequence number for perennials (e.g., "Harvest 3") on list page **(deferred to post-MVP)**
+- [x] Continuous picking metadata persisted on harvest rows (`is_continuous_picking`, `harvest_sequence`) — available for future list-page work
 - [x] Export functionality includes continuous picking data (included in existing export)
+
+> **Note:** AC4 UI surface is deferred. Sequence/`repeat` badges are visible on the **Planting Detail page** today; the cross-planting list page will be enhanced in a follow-up. See `docs/POST-MVP.md` → "HarvestsListPage Perennial Filters & Sequence Display".
 
 ### AC5: Farm Dashboard - Active Perennial Crops Widget
 
@@ -144,10 +147,10 @@ This story extends the harvest recording system (Story 3.5) to support perennial
 
 **Add to `harvests` table:**
 
-| Column                  | Type    | Constraints             | Description                                      |
-| ----------------------- | ------- | ----------------------- | ------------------------------------------------ |
-| `is_continuous_picking` | boolean | Default: false, Indexed | True for perennial crop continuous harvests      |
-| `harvest_sequence`      | integer | Optional, Min: 1        | Sequence number for multiple harvests (1,2,3...) |
+| Column                  | Type    | Constraints             | Description                                                                                                                                  |
+| ----------------------- | ------- | ----------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| `is_continuous_picking` | boolean | Default: false, Indexed | True for perennial crop continuous harvests                                                                                                  |
+| `harvest_sequence`      | integer | Optional (no min)       | Sequence number for multiple harvests (1,2,3...). No `min` constraint so annual harvests with `null` sequence don't trip integer validation. |
 
 **Database Setup (Fresh Install Only):**
 
@@ -588,6 +591,38 @@ Before marking this story complete:
 
 ---
 
-_Last Updated: 2026-04-24_  
+## Code Review Findings & Fixes
+
+A post-implementation code review surfaced the following issues, all addressed in the same commit cluster as the review.
+
+### Critical fixes applied
+
+- **B1 \u2014 HarvestEntryDialog wrong mode for "Record Next Harvest"**  
+  `PlantingDetailPage.vue` was passing `:harvest="currentHarvest"` unconditionally. After fixing `currentHarvest` to return the most-recent harvest (rather than `list[0]`), the most-recent harvest after a Mark Complete is a _Completed_ harvest, which made the dialog render as "Add Entry" mode (wrong title, no continuous-picking checkbox). **Fix:** pass `currentHarvest` only when `status === 'In Progress'`, otherwise pass `null`.
+- **B2 \u2014 Duplicate inventory rows for perennials in sample data**  
+  `useFarmSampleData.js` attached a `produce` block to _every_ completed harvest plan, creating 2\u20133 inventory rows per perennial planting. Runtime upserts use one row per planting (`Query.limit(1)`), so the duplicates were unreachable and the displayed quantity was non-deterministic. **Fix:** attach `produce` only to the **last completed** harvest of each perennial planting, with cumulative quantity (Banana 500 kg, Papaya 105 kg, Moringa 105 kg).
+- **B3 \u2014 Only one harvest's entries loaded on detail page**  
+  `loadPlanting()` called `fetchHarvestEntries(harvestList[0].$id)`, which is arbitrary indexing. Perennials with multiple harvests would render an empty entries list when the in-progress one wasn't index 0. **Fix:** `Promise.all(harvestList.map(h => fetchHarvestEntries(h.$id)))`, and check `harvestList.some(h => h.status === 'Completed')` for the inventory link condition.
+- **B4 \u2014 PlantingsListPage ignored `?type=perennial` query**  
+  The widget link sent users to `/farm/plantings?status=harvesting&type=perennial`, but the list page never read `route.query.type`. **Fix:** simplified the widget link to `?status=harvesting`. The `type=perennial` filter is tracked in `docs/POST-MVP.md`.
+
+### High-priority fixes applied
+
+- **H1/H2/H3 \u2014 Centralized harvest readiness logic** in `farm-store.js` `activePerennialsWithStats`:
+  - Plantings with an active in-progress harvest are now **neither** ready nor overdue.
+  - Single 7-day grace period (`OVERDUE_GRACE_DAYS = 7`) replaces overlapping `>= frequency` / `> frequency` rules.
+  - `frequencyAlert` in `PlantingDetailPage.vue` aligned with the same threshold (was inconsistently using `> 7` for negative and `> 0` for warning).
+- **H4 \u2014 `getNextHarvestSequence` race condition** documented in `docs/POST-MVP.md` (atomic allocation deferred).
+
+### Medium / low fixes applied
+
+- **M1** \u2014 AC4 list-page items reclassified as deferred (see note above) and tracked in `docs/POST-MVP.md`.
+- **M2** \u2014 Removed `min: 1` constraint on `harvest_sequence` column so annual harvests (which leave it null) don't risk Appwrite integer validation issues.
+- **L1** \u2014 `docs/sprint-status.yaml` updated to reflect actual delivery state of Epic 3 stories.
+- **L2** \u2014 Removed dead `crop?.harvest_frequency` fallback in `farm-store.js`; the schema only defines `harvest_frequency_days`.
+
+---
+
+_Last Updated: 2026-04-28_  
 _Story Template Version: 1.0_  
-_Status: Ready for Implementation_
+_Status: **Done** (with AC4 list-page UI deferred per POST-MVP.md)_
