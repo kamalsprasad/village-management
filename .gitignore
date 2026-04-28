@@ -18,14 +18,14 @@ node_modules
 /src-capacitor/node_modules
 
 # Code helpers
-/_bmad
-/.agent
-/.agents
+# /_bmad
+# /.agent
+# /.agents
 /.fallow
-/.claude
-/.github
-/.vscode
-/.windsurf
+# /.claude
+# /.github
+# /.vscode
+# /.windsurf
 
 # Log files
 npm-debug.log*
