@@ -2,8 +2,9 @@
 
 **Epic:** 3 - Farm Management and Agricultural Tracking
 **Story ID:** 3.6
-**Status:** Ready for Implementation
+**Status:** Done (with AC4 list-page UI deferred per POST-MVP.md)
 **Date:** 2026-04-24
+**Completed:** 2026-04-28
 **Author:** AI Assistant
 
 ---
