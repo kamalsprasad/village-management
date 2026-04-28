@@ -878,11 +878,6 @@ const isContinuousPicking = computed(() => {
   return currentHarvest.value?.is_continuous_picking || false;
 });
 
-// Get harvest sequence number for display
-// const harvestSequence = computed(() => {
-//   return currentHarvest.value?.harvest_sequence || 1;
-// });
-
 // Calculate days since last harvest for perennials
 const daysSinceLastHarvest = computed(() => {
   if (completedHarvests.value.length === 0) return null;
