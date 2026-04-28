@@ -302,8 +302,12 @@
                   Continuous Picking
                 </q-badge>
                 <!-- Story 3.6: Harvest Sequence Number -->
-                <q-badge v-if="isPerennial && hasCompletedHarvests" color="grey" class="q-ml-sm">
-                  Harvest {{ harvestSequence }}
+                <q-badge
+                  v-if="isPerennial && currentHarvest?.harvest_sequence"
+                  color="grey"
+                  class="q-ml-sm"
+                >
+                  Harvest {{ currentHarvest.harvest_sequence }}
                 </q-badge>
               </div>
 
@@ -787,8 +791,13 @@ const currentHarvest = computed(() => {
   if (!planting.value) return null;
   const list = farmStore.harvestsByPlanting(planting.value.$id);
   if (!list.length) return null;
-  // Prefer the in-progress one if somehow multiple exist (defensive).
-  return list.find((h) => h.status === 'In Progress') || list[0];
+  // Prefer the in-progress one if exists, otherwise most recent by date
+  const inProgress = list.find((h) => h.status === 'In Progress');
+  if (inProgress) return inProgress;
+  // Return most recent harvest by start date
+  return [...list].sort(
+    (a, b) => new Date(b.harvest_start_date).getTime() - new Date(a.harvest_start_date).getTime(),
+  )[0];
 });
 
 const sortedEntries = computed(() => {
@@ -877,7 +886,7 @@ const harvestSequence = computed(() => {
 // Calculate days since last harvest for perennials
 const daysSinceLastHarvest = computed(() => {
   if (completedHarvests.value.length === 0) return null;
-  const lastHarvest = completedHarvests.value.sort(
+  const lastHarvest = [...completedHarvests.value].sort(
     (a, b) =>
       new Date(b.harvest_end_date || b.harvest_start_date) -
       new Date(a.harvest_end_date || a.harvest_start_date),
