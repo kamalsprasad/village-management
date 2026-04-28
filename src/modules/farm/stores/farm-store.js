@@ -915,8 +915,9 @@ export const useFarmStore = defineStore('farm', {
     },
 
     /**
-     * Internal helper: resolve (planting, crop) context for inventory operations.
+     * Internal helper: resolve (planting, crop, plot) context for inventory operations.
      * Prefers cached store data; falls back to fresh fetches if missing.
+     * Story 3.7: Extended to also fetch plot for naming convention.
      * @private
      */
     async _resolveHarvestContext(plantingId) {
@@ -938,8 +939,19 @@ export const useFarmStore = defineStore('farm', {
         return { success: false, error: 'Crop not found for planting' };
       }
 
-      return { success: true, planting, crop };
-      //return { success: true, planting };
+      // Story 3.7: Fetch plot for naming convention
+      let plot = this.plots.find((p) => p.$id === planting.plot_id);
+      if (!plot) {
+        if (!this.plotsLoaded) {
+          await this.fetchPlots();
+          plot = this.plots.find((p) => p.$id === planting.plot_id);
+        }
+      }
+      if (!plot) {
+        return { success: false, error: 'Plot not found for planting' };
+      }
+
+      return { success: true, planting, crop, plot };
     },
 
     /**
@@ -960,10 +972,10 @@ export const useFarmStore = defineStore('farm', {
       const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
       const inventoryStore = useInventoryStore();
 
-      // 1. Resolve planting + crop context
+      // 1. Resolve planting + crop + plot context
       const ctx = await this._resolveHarvestContext(plantingId);
       if (!ctx.success) return { success: false, error: ctx.error };
-      const { planting, crop } = ctx;
+      const { planting, crop, plot } = ctx;
 
       // 2. Defensive check: ensure no in-progress harvest already exists for this planting
       // Story 3.6: For continuous picking perennials, we allow multiple completed harvests
@@ -1043,6 +1055,7 @@ export const useFarmStore = defineStore('farm', {
       const invResult = await inventoryStore.createOrUpdateFarmProduceFromHarvest({
         planting,
         crop,
+        plot,
         entry: entryRow,
         harvestTotals: {
           total_quantity_kg: quantityKg,
@@ -1105,7 +1118,7 @@ export const useFarmStore = defineStore('farm', {
 
       const ctx = await this._resolveHarvestContext(harvest.planting_id);
       if (!ctx.success) return { success: false, error: ctx.error };
-      const { planting, crop } = ctx;
+      const { planting, crop, plot } = ctx;
 
       // 1. Create the entry
       let entryRow;
@@ -1173,6 +1186,7 @@ export const useFarmStore = defineStore('farm', {
       const invResult = await inventoryStore.createOrUpdateFarmProduceFromHarvest({
         planting,
         crop,
+        plot,
         entry: entryRow,
         harvestTotals: totals,
       });
@@ -1233,7 +1247,7 @@ export const useFarmStore = defineStore('farm', {
 
       const ctx = await this._resolveHarvestContext(harvest.planting_id);
       if (!ctx.success) return { success: false, error: ctx.error };
-      const { planting, crop } = ctx;
+      const { planting, crop, plot } = ctx;
 
       // Fetch current entries to locate the one being deleted and compute updated totals
       const entriesResponse = await tables.listRows({
@@ -1284,6 +1298,7 @@ export const useFarmStore = defineStore('farm', {
         await inventoryStore.createOrUpdateFarmProduceFromHarvest({
           planting,
           crop,
+          plot,
           entry,
           harvestTotals: this._computeHarvestTotals(entries),
         });

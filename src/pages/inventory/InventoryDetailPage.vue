@@ -212,6 +212,41 @@
             </q-card-section>
           </q-card>
 
+          <!-- Story 3.7: Farm Harvest Source Card -->
+          <q-card v-if="item?.item_type === 'farm_produce'" flat bordered class="q-mb-md">
+            <q-card-section>
+              <div class="text-subtitle1 text-weight-medium q-mb-md">Source</div>
+
+              <div class="row q-col-gutter-md">
+                <div class="col-12 col-sm-6">
+                  <InfoRow label="Source Type" value="Farm Harvest" />
+                </div>
+                <div class="col-12 col-sm-6" v-if="item?.crop_id">
+                  <InfoRow label="Crop" :value="getCropName(item.crop_id)" />
+                </div>
+                <div class="col-12 col-sm-6" v-if="item?.planting_id">
+                  <InfoRow label="Planting" value="View Planting" />
+                  <q-btn
+                    flat
+                    dense
+                    color="primary"
+                    icon="agriculture"
+                    label="View Planting"
+                    size="sm"
+                    class="q-mt-xs"
+                    @click="$router.push(`/farm/plantings/${item.planting_id}`)"
+                  />
+                </div>
+                <div class="col-12 col-sm-6" v-if="item?.unit_cost > 0">
+                  <InfoRow label="Unit Cost" :value="formatCurrency(item.unit_cost)" />
+                </div>
+                <div class="col-12 col-sm-6" v-if="item?.estimated_value > 0">
+                  <InfoRow label="Estimated Value" :value="formatCurrency(item.estimated_value)" />
+                </div>
+              </div>
+            </q-card-section>
+          </q-card>
+
           <!-- Transaction History (Placeholder) -->
           <q-card flat bordered>
             <q-card-section>
@@ -309,6 +344,8 @@ import { ref, computed, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useInventoryStore } from 'src/stores/inventory-store';
 import { useFinanceStore } from 'src/modules/finance/stores/finance-store';
+// Story 3.7: Farm store for crop lookup
+import { useFarmStore } from 'src/modules/farm/stores/farm-store';
 import StockAdjustDialog from 'src/components/inventory/StockAdjustDialog.vue';
 import StockLevelIndicator from 'src/components/inventory/StockLevelIndicator.vue';
 import DeleteConfirmDialog from 'src/components/dialogs/DeleteConfirmDialog.vue';
@@ -321,6 +358,7 @@ const route = useRoute();
 const router = useRouter();
 const inventoryStore = useInventoryStore();
 const financeStore = useFinanceStore();
+const farmStore = useFarmStore();
 
 const isLoading = ref(false);
 const showAdjustDialog = ref(false);
@@ -508,6 +546,19 @@ function formatCurrency(value) {
 function formatDate(value) {
   if (!value) return '—';
   return date.formatDate(value, 'MMM D, YYYY h:mm A');
+}
+
+// Story 3.7: Helper to get crop name from farm store
+function getCropName(cropId) {
+  if (!cropId) return 'Unknown';
+  const crop = farmStore.crops.find((c) => c.$id === cropId);
+  if (crop) return crop.crop_name;
+  // If not in store, try to fetch it
+  farmStore.fetchCrops().then(() => {
+    const fetched = farmStore.crops.find((c) => c.$id === cropId);
+    return fetched?.crop_name || 'Unknown Crop';
+  });
+  return 'Loading...';
 }
 </script>
 

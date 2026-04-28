@@ -533,19 +533,49 @@
                 No entries. This should not happen — please contact support.
               </q-card-section>
 
-              <!-- Completed harvest footer -->
+              <!-- Story 3.7: Farm produce inventory footer (In Progress or Completed) -->
               <q-card-section
-                v-if="currentHarvest.status === 'Completed' && produceInventoryRow"
+                v-if="
+                  produceInventoryRow &&
+                  (currentHarvest.status === 'In Progress' || currentHarvest.status === 'Completed')
+                "
                 class="bg-grey-2 q-pa-sm"
               >
-                <div class="text-caption text-grey-8 row items-center">
-                  <q-icon name="inventory_2" class="q-mr-xs" />
-                  <span>
-                    {{ produceInventoryRow.quantity }} kg available in
-                    <router-link :to="`/inventory/${produceInventoryRow.$id}`" class="text-primary">
-                      inventory
-                    </router-link>
-                  </span>
+                <div class="text-caption text-grey-8">
+                  <div class="row items-center q-mb-xs">
+                    <q-icon name="inventory_2" class="q-mr-xs" />
+                    <span>
+                      {{ produceInventoryRow.quantity.toFixed(1) }} kg in inventory
+                      <router-link
+                        :to="`/inventory/${produceInventoryRow.$id}`"
+                        class="text-primary"
+                      >
+                        (View)
+                      </router-link>
+                    </span>
+                  </div>
+                  <!-- Show estimated value if unit_cost > 0 -->
+                  <div
+                    v-if="produceInventoryRow.unit_cost > 0"
+                    class="row items-center text-weight-medium"
+                  >
+                    <q-icon name="attach_money" size="xs" class="q-mr-xs" />
+                    <span
+                      >Est. Value: ZMW
+                      {{
+                        (produceInventoryRow.quantity * produceInventoryRow.unit_cost).toFixed(2)
+                      }}</span
+                    >
+                    <span class="text-grey-7 q-ml-xs"
+                      >(@ ZMW {{ produceInventoryRow.unit_cost.toFixed(2) }}/kg)</span
+                    >
+                  </div>
+                  <!-- Show status badge -->
+                  <div class="row items-center q-mt-xs">
+                    <q-badge :color="getInventoryStatusColor(produceInventoryRow.status)" outline>
+                      {{ getInventoryStatusLabel(produceInventoryRow.status) }}
+                    </q-badge>
+                  </div>
                 </div>
               </q-card-section>
             </template>
@@ -634,6 +664,8 @@ import { formatDate } from 'src/utils/dateUtils';
 import UpdateStatusDialog from '../components/UpdateStatusDialog.vue';
 import HarvestStatusBadge from '../components/HarvestStatusBadge.vue';
 import HarvestEntryDialog from '../components/HarvestEntryDialog.vue';
+// Story 3.7: Price prompt dialog for harvest completion
+import EstimatedPriceDialog from '../components/EstimatedPriceDialog.vue';
 
 const route = useRoute();
 const router = useRouter();
@@ -1099,10 +1131,67 @@ async function onEntrySubmit(entryData) {
   }
 }
 
-function confirmMarkComplete() {
+// Story 3.7: Helper functions for inventory status display
+function getInventoryStatusColor(status) {
+  const colors = {
+    in_stock: 'positive',
+    low_stock: 'warning',
+    out_of_stock: 'negative',
+  };
+  return colors[status] || 'grey';
+}
+
+function getInventoryStatusLabel(status) {
+  const labels = {
+    in_stock: 'Available for Sale',
+    low_stock: 'Low Stock',
+    out_of_stock: 'Out of Stock',
+  };
+  return labels[status] || status;
+}
+
+// Story 3.7: Check for zero quantity before completing harvest
+async function confirmMarkComplete() {
   // Story 3.6: Different messaging for perennials with continuous picking
   const isPerennialCrop = isPerennial.value;
   const isContinuous = isContinuousPicking.value;
+
+  // Story 3.7: Zero quantity guard
+  const harvestQty = currentHarvest.value?.total_quantity_kg || 0;
+  if (harvestQty <= 0) {
+    $q.notify({
+      type: 'negative',
+      message: 'Cannot complete a harvest with zero quantity. Add at least one entry.',
+      position: 'top',
+    });
+    return;
+  }
+
+  // Story 3.7: Check historical price before showing completion dialog
+  let userProvidedPrice = null;
+  const cropId = crop.value?.$id;
+
+  if (cropId) {
+    const priceResult = await inventoryStore.fetchHistoricalPriceForCrop(cropId);
+    if (priceResult.success && priceResult.saleCount === 0) {
+      // No historical sales - show price prompt dialog first
+      const dialogResult = await new Promise((resolve) => {
+        $q.dialog({
+          component: EstimatedPriceDialog,
+          componentProps: {
+            quantity: harvestQty,
+            cropName: crop.value?.crop_name,
+          },
+        })
+          .onOk((data) => resolve({ price: data.price }))
+          .onCancel(() => resolve({ skipped: true }));
+      });
+
+      if (dialogResult.price) {
+        userProvidedPrice = dialogResult.price;
+      }
+    }
+  }
 
   let title = 'Mark harvest complete?';
   let message =
@@ -1148,6 +1237,15 @@ function confirmMarkComplete() {
       });
     }
 
+    // Story 3.7: If user provided a price, update the inventory row
+    if (userProvidedPrice && produceInventoryRow.value) {
+      const qty = produceInventoryRow.value.quantity || 0;
+      await inventoryStore.updateItem(produceInventoryRow.value.$id, {
+        unit_cost: userProvidedPrice,
+        estimated_value: Math.round(qty * userProvidedPrice * 100) / 100,
+      });
+    }
+
     // Story 3.6: Different success message for continuous picking
     if (result.isContinuousPicking) {
       $q.notify({
@@ -1172,11 +1270,38 @@ function openFinalizeDialog() {
 }
 
 /**
- * Story 3.6: Finalize a perennial planting (mark as complete)
+ * Story 3.6 + 3.7: Finalize a perennial planting (mark as complete)
+ * Story 3.7: Includes price prompt and inventory item rename
  */
 async function onFinalizePlanting() {
   finalizing.value = true;
   try {
+    // Story 3.7: Check if price is set, prompt if not
+    const cropId = crop.value?.$id;
+    let userProvidedPrice = null;
+
+    if (cropId && produceInventoryRow.value && !produceInventoryRow.value.unit_cost) {
+      const priceResult = await inventoryStore.fetchHistoricalPriceForCrop(cropId);
+      if (priceResult.success && priceResult.saleCount === 0) {
+        // No historical sales and no price set - prompt user
+        const dialogResult = await new Promise((resolve) => {
+          $q.dialog({
+            component: EstimatedPriceDialog,
+            componentProps: {
+              quantity: produceInventoryRow.value.quantity || 0,
+              cropName: crop.value?.crop_name,
+            },
+          })
+            .onOk((data) => resolve({ price: data.price }))
+            .onCancel(() => resolve({ skipped: true }));
+        });
+
+        if (dialogResult.price) {
+          userProvidedPrice = dialogResult.price;
+        }
+      }
+    }
+
     const result = await farmStore.finalizePerennialPlanting(planting.value.$id);
     if (!result.success) {
       $q.notify({
@@ -1186,9 +1311,30 @@ async function onFinalizePlanting() {
       });
       return;
     }
+
+    // Story 3.7: Update inventory with price if provided
+    if (userProvidedPrice && produceInventoryRow.value) {
+      const qty = produceInventoryRow.value.quantity || 0;
+      await inventoryStore.updateItem(produceInventoryRow.value.$id, {
+        unit_cost: userProvidedPrice,
+        estimated_value: Math.round(qty * userProvidedPrice * 100) / 100,
+      });
+    }
+
+    // Story 3.7: Rename inventory item from (Ongoing) to (Complete)
+    if (produceInventoryRow.value) {
+      const currentName = produceInventoryRow.value.item_name;
+      if (currentName && currentName.includes('(Ongoing)')) {
+        const newName = currentName.replace('(Ongoing)', '(Complete)');
+        await inventoryStore.updateItem(produceInventoryRow.value.$id, {
+          item_name: newName,
+        });
+      }
+    }
+
     $q.notify({
       type: 'positive',
-      message: 'Planting marked as complete',
+      message: 'Planting marked as complete. Inventory renamed and ready for sale.',
       position: 'top',
     });
     finalizeDialogOpen.value = false;

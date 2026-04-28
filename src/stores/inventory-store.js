@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia';
 import { tables } from 'src/boot/appwrite';
+import { deriveProduceName } from 'src/modules/farm/utils/farm-utils';
 import { ID, Query } from 'appwrite';
 import { useErrorHandler } from 'src/composables/useErrorHandler';
 import { useAuthStore } from './auth-store';
@@ -31,6 +32,8 @@ export const useInventoryStore = defineStore('inventory', {
     },
     lowStockCount: 0,
     outOfStockCount: 0,
+    // Story 3.7: Dedicated farm produce items for dashboard widget
+    farmProduceItems: [],
   }),
 
   getters: {
@@ -442,6 +445,11 @@ export const useInventoryStore = defineStore('inventory', {
         if (itemData.reorder_threshold !== undefined)
           updateData.reorder_threshold = itemData.reorder_threshold;
 
+        // Story 3.7: Support unit_cost and estimated_value updates
+        if (itemData.unit_cost !== undefined) updateData.unit_cost = itemData.unit_cost;
+        if (itemData.estimated_value !== undefined)
+          updateData.estimated_value = itemData.estimated_value;
+
         // Handle source reference / transaction ID
         const txId =
           itemData.source_reference_id !== undefined
@@ -643,7 +651,7 @@ export const useInventoryStore = defineStore('inventory', {
      *   Aggregated totals across ALL entries of the parent harvest (including this one).
      * @returns {Promise<{success:boolean, data?:Object, error?:string}>}
      */
-    async createOrUpdateFarmProduceFromHarvest({ planting, crop, entry, harvestTotals }) {
+    async createOrUpdateFarmProduceFromHarvest({ planting, crop, plot, entry, harvestTotals }) {
       try {
         const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
         const inventoryCollectionId = import.meta.env.VITE_APPWRITE_TABLE_INVENTORY || 'inventory';
@@ -690,8 +698,12 @@ export const useInventoryStore = defineStore('inventory', {
         }
 
         // Create new farm produce row
+        // Story 3.7: Use naming convention with plot and season
+        const itemName = deriveProduceName(crop, plot, entry?.entry_date);
+
         const newItem = {
-          item_name: crop.crop_name || 'Farm Produce',
+          item_name: itemName,
+          crop_id: crop.$id,
           item_type: 'farm_produce',
           quantity: entryQty,
           unit: 'kg',
@@ -911,6 +923,122 @@ export const useInventoryStore = defineStore('inventory', {
       } catch (error) {
         console.error('Error deleting empty farm produce row:', error);
         return { success: false, error: error.message };
+      }
+    },
+
+    // ==========================================================================
+    // Story 3.7: Farm Produce Historical Price & Fetch Actions
+    // ==========================================================================
+
+    /**
+     * Fetch historical price for a crop from last 5 farm sales.
+     *
+     * Query chain: farm_sales → harvests → plantings → crops
+     * - Find all plantings for this crop
+     * - Find all harvests for those plantings
+     * - Find all farm_sales for those harvests (last 5 by sale_date)
+     * - Calculate weighted average price_per_kg
+     *
+     * @param {string} cropId - The crop $id to look up
+     * @returns {Promise<{success:boolean, price:number|null, saleCount:number, error?:string}>}
+     *   price: weighted average price per kg, or null if no sales
+     *   saleCount: number of historical sales found (0-5)
+     */
+    async fetchHistoricalPriceForCrop(cropId) {
+      try {
+        const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
+
+        // Step 1: Find all plantings for this crop
+        const plantingsRes = await tables.listRows({
+          databaseId: dbId,
+          tableId: 'plantings',
+          queries: [Query.equal('crop_id', cropId), Query.limit(100)],
+        });
+        const plantings = plantingsRes.rows || [];
+        if (plantings.length === 0) {
+          return { success: true, price: null, saleCount: 0 };
+        }
+
+        const plantingIds = plantings.map((p) => p.$id);
+
+        // Step 2: Find all harvests for those plantings
+        const harvestQueries = plantingIds.map((id) => Query.equal('planting_id', id));
+        const harvestsRes = await tables.listRows({
+          databaseId: dbId,
+          tableId: 'harvests',
+          queries: [Query.or(harvestQueries), Query.limit(100)],
+        });
+        const harvests = harvestsRes.rows || [];
+        if (harvests.length === 0) {
+          return { success: true, price: null, saleCount: 0 };
+        }
+
+        const harvestIds = harvests.map((h) => h.$id);
+
+        // Step 3: Find last 5 farm_sales for those harvests
+        const salesQueries = harvestIds.map((id) => Query.equal('harvest_id', id));
+        const salesRes = await tables.listRows({
+          databaseId: dbId,
+          tableId: 'farm_sales',
+          queries: [Query.or(salesQueries), Query.orderDesc('sale_date'), Query.limit(5)],
+        });
+        const sales = salesRes.rows || [];
+
+        if (sales.length === 0) {
+          return { success: true, price: null, saleCount: 0 };
+        }
+
+        // Calculate weighted average price per kg
+        let totalValue = 0;
+        let totalQty = 0;
+        for (const sale of sales) {
+          const qty = Number(sale.quantity_sold) || 0;
+          const price = Number(sale.price_per_kg) || 0;
+          totalValue += qty * price;
+          totalQty += qty;
+        }
+
+        const weightedPrice = totalQty > 0 ? totalValue / totalQty : null;
+
+        return {
+          success: true,
+          price: weightedPrice ? Math.round(weightedPrice * 100) / 100 : null,
+          saleCount: sales.length,
+        };
+      } catch (error) {
+        console.error('Error fetching historical price:', error);
+        return { success: false, price: null, saleCount: 0, error: error.message };
+      }
+    },
+
+    /**
+     * Fetch all farm_produce inventory items for the dashboard widget.
+     *
+     * @returns {Promise<{success:boolean, items:Array, error?:string}>}
+     */
+    async fetchFarmProduceItems() {
+      try {
+        const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
+        const inventoryCollectionId = import.meta.env.VITE_APPWRITE_TABLE_INVENTORY || 'inventory';
+
+        const response = await tables.listRows({
+          databaseId: dbId,
+          tableId: inventoryCollectionId,
+          queries: [Query.equal('item_type', 'farm_produce'), Query.limit(100)],
+        });
+
+        const items = response.rows || [];
+
+        // Story 3.7: Update dedicated farm produce state
+        this.farmProduceItems = items;
+
+        // Also update general items list
+        this.items = [...this.items.filter((i) => i.item_type !== 'farm_produce'), ...items];
+
+        return { success: true, items };
+      } catch (error) {
+        console.error('Error fetching farm produce items:', error);
+        return { success: false, items: [], error: error.message };
       }
     },
 

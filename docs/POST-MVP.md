@@ -116,4 +116,14 @@ This document tracks deferred improvements, upgrades, and refactoring items that
 - **Effort**: Low
 - **Added**: Story 3.6 (deferred from MVP)
 
+### Historical Price Query Optimization (Story 3.7)
+
+- **Current state**: `fetchHistoricalPriceForCrop()` performs a 3-step query chain: crop → plantings → harvests → farm_sales (last 5). This requires 3 round trips to Appwrite due to no cross-table joins.
+- **Improvement**: Add `crop_id` directly to the `farm_sales` table as a denormalized field, populated at sale creation time. This enables a single-query lookup: `Query.equal('crop_id', cropId)` + `Query.orderDesc('sale_date')` + `Query.limit(5)`.
+- **Alternative**: Create a Cloud Function that performs the 3-step aggregation server-side and caches results.
+- **Benefits**: Single query instead of 3, faster price lookup, simpler client code.
+- **Migration**: Backfill existing `farm_sales` records with `crop_id` by joining through `harvests` → `plantings`.
+- **Effort**: Low (schema change + backfill script)
+- **Added**: Story 3.7 (Historical price lookup)
+
 ---

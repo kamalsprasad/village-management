@@ -833,7 +833,8 @@ export function useFarmSampleData() {
           },
         ],
         produce: {
-          item_name: 'Maize',
+          // Story 3.7: Naming convention - Maize – North Field 2025/26 Wet Season
+          item_name: 'Maize – North Field 2025/26 Wet Season',
           item_type: 'farm_produce',
           quantity: 4200,
           unit: 'kg',
@@ -908,7 +909,8 @@ export function useFarmSampleData() {
           },
         ],
         produce: {
-          item_name: 'Tomatoes',
+          // Story 3.7: Naming convention - Tomatoes – East Garden 2025/26 Wet Season
+          item_name: 'Tomatoes – East Garden 2025/26 Wet Season',
           item_type: 'farm_produce',
           quantity: 850,
           unit: 'kg',
@@ -983,7 +985,8 @@ export function useFarmSampleData() {
           },
         ],
         produce: {
-          item_name: 'Sweet Potato',
+          // Story 3.7: Naming convention - Sweet Potato – South Field 2025/26 Wet Season
+          item_name: 'Sweet Potato – South Field 2025/26 Wet Season',
           item_type: 'farm_produce',
           quantity: 3800,
           unit: 'kg',
@@ -1106,7 +1109,8 @@ export function useFarmSampleData() {
         // Story 3.6: Cumulative produce row attached to the LAST completed harvest.
         // Banana cumulative: 120 + 180 + 200 = 500 kg.
         produce: {
-          item_name: 'Banana',
+          // Story 3.7: Naming convention for perennial - Banana – North Field (Ongoing)
+          item_name: 'Banana – North Field (Ongoing)',
           item_type: 'farm_produce',
           quantity: 500,
           unit: 'kg',
@@ -1167,7 +1171,8 @@ export function useFarmSampleData() {
           produce:
             h.seq === papayaLastCompletedSeq
               ? {
-                  item_name: 'Papaya',
+                  // Story 3.7: Naming convention for perennial - Papaya – East Garden (Ongoing)
+                  item_name: 'Papaya – East Garden (Ongoing)',
                   item_type: 'farm_produce',
                   quantity: papayaCumulativeKg,
                   unit: 'kg',
@@ -1231,7 +1236,8 @@ export function useFarmSampleData() {
           produce:
             h.seq === moringaLastCompletedSeq
               ? {
-                  item_name: 'Moringa',
+                  // Story 3.7: Naming convention for perennial - Moringa – West Plot (Ongoing)
+                  item_name: 'Moringa – West Plot (Ongoing)',
                   item_type: 'farm_produce',
                   quantity: moringaCumulativeKg,
                   unit: 'kg',
