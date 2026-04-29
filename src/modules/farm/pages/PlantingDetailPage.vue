@@ -1238,12 +1238,19 @@ async function confirmMarkComplete() {
     }
 
     // Story 3.7: If user provided a price, update the inventory row
-    if (userProvidedPrice && produceInventoryRow.value) {
-      const qty = produceInventoryRow.value.quantity || 0;
-      await inventoryStore.updateItem(produceInventoryRow.value.$id, {
-        unit_cost: userProvidedPrice,
-        estimated_value: Math.round(qty * userProvidedPrice * 100) / 100,
-      });
+    if (userProvidedPrice) {
+      let invRow = produceInventoryRow.value;
+      if (!invRow) {
+        invRow = await inventoryStore.findFarmProduceRow(planting.value.$id);
+      }
+      if (invRow) {
+        const qty = invRow.quantity || 0;
+        await inventoryStore.updateItem(invRow.$id, {
+          unit_cost: userProvidedPrice,
+          estimated_value: Math.round(qty * userProvidedPrice * 100) / 100,
+        });
+        produceInventoryRow.value = invRow;
+      }
     }
 
     // Story 3.6: Different success message for continuous picking

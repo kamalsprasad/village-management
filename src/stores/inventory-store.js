@@ -677,6 +677,14 @@ export const useInventoryStore = defineStore('inventory', {
           const estimatedValue = Math.round(newQuantity * unitCost * 100) / 100;
           const status = this._deriveInventoryStatus(newQuantity, existing.reorder_threshold);
 
+          console.log('Updating inventory item', {
+            existing,
+            newQuantity,
+            unitCost,
+            estimatedValue,
+            status,
+          });
+
           const updated = await tables.updateRow({
             databaseId: dbId,
             tableId: inventoryCollectionId,

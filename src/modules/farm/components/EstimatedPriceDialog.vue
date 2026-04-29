@@ -75,7 +75,7 @@ const props = defineProps({
   },
 });
 
-const emit = defineEmits(['submit', 'skip', 'hide']);
+const emit = defineEmits(['submit', 'skip', 'hide', 'ok']);
 
 // Quasar dialog plugin
 const { dialogRef, onDialogHide, onDialogOK, onDialogCancel } = useDialogPluginComponent();
