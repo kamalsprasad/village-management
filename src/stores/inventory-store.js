@@ -651,7 +651,7 @@ export const useInventoryStore = defineStore('inventory', {
      *   Aggregated totals across ALL entries of the parent harvest (including this one).
      * @returns {Promise<{success:boolean, data?:Object, error?:string}>}
      */
-    async createOrUpdateFarmProduceFromHarvest({ planting, crop, plot, entry, harvestTotals }) {
+    async createOrUpdateFarmProduceFromHarvest({ planting, crop, plot, entry }) {
       try {
         const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
         const inventoryCollectionId = import.meta.env.VITE_APPWRITE_TABLE_INVENTORY || 'inventory';
@@ -662,40 +662,41 @@ export const useInventoryStore = defineStore('inventory', {
 
         const existing = await this.findFarmProduceRow(planting.$id);
 
-        // Weighted-average unit cost across full harvest so far
-        const totalHarvestQty = Number(harvestTotals?.total_quantity_kg) || 0;
-        const totalHarvestCost =
-          (Number(harvestTotals?.total_labor_cost) || 0) +
-          (Number(harvestTotals?.total_other_costs) || 0);
-        const unitCost = totalHarvestQty > 0 ? totalHarvestCost / totalHarvestQty : 0;
-
         const entryQty = Number(entry.quantity_kg) || 0;
         const nowIso = new Date().toISOString();
 
         if (existing) {
           const newQuantity = (Number(existing.quantity) || 0) + entryQty;
-          const estimatedValue = Math.round(newQuantity * unitCost * 100) / 100;
           const status = this._deriveInventoryStatus(newQuantity, existing.reorder_threshold);
+
+          // Preserve existing unit_cost (may be a user-provided market price).
+          // Only recalculate estimated_value if a unit_cost was explicitly set.
+          const existingUnitCost = Number(existing.unit_cost) || 0;
+          const estimatedValue =
+            existingUnitCost > 0 ? Math.round(newQuantity * existingUnitCost * 100) / 100 : 0;
 
           console.log('Updating inventory item', {
             existing,
             newQuantity,
-            unitCost,
+            existingUnitCost,
             estimatedValue,
             status,
           });
+
+          const updateData = {
+            quantity: newQuantity,
+            status,
+            last_updated: nowIso,
+          };
+          if (existingUnitCost > 0) {
+            updateData.estimated_value = estimatedValue;
+          }
 
           const updated = await tables.updateRow({
             databaseId: dbId,
             tableId: inventoryCollectionId,
             rowId: existing.$id,
-            data: {
-              quantity: newQuantity,
-              unit_cost: Math.round(unitCost * 100) / 100,
-              estimated_value: estimatedValue,
-              status,
-              last_updated: nowIso,
-            },
+            data: updateData,
           });
 
           // Refresh local items list if present
@@ -709,14 +710,15 @@ export const useInventoryStore = defineStore('inventory', {
         // Story 3.7: Use naming convention with plot and season
         const itemName = deriveProduceName(crop, plot, entry?.entry_date);
 
+        // Do NOT auto-populate unit_cost/estimated_value from production cost.
+        // These should only be set when the user explicitly provides an estimated
+        // price via EstimatedPriceDialog or manual edit.
         const newItem = {
           item_name: itemName,
           crop_id: crop.$id,
           item_type: 'farm_produce',
           quantity: entryQty,
           unit: 'kg',
-          unit_cost: Math.round(unitCost * 100) / 100,
-          estimated_value: Math.round(entryQty * unitCost * 100) / 100,
           status: this._deriveInventoryStatus(entryQty, 0),
           source: 'farm_harvest',
           source_reference_id:
@@ -765,7 +767,7 @@ export const useInventoryStore = defineStore('inventory', {
      *   Totals AFTER subtracting this entry.
      * @returns {Promise<{success:boolean, data?:Object, error?:string, reason?:string}>}
      */
-    async reverseFarmProduceFromHarvest({ planting, crop, entry, updatedHarvestTotals }) {
+    async reverseFarmProduceFromHarvest({ planting, crop, entry }) {
       try {
         const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
         const inventoryCollectionId = import.meta.env.VITE_APPWRITE_TABLE_INVENTORY || 'inventory';
@@ -793,25 +795,25 @@ export const useInventoryStore = defineStore('inventory', {
         }
 
         const newQuantity = currentQty - entryQty;
-        const remainingQty = Number(updatedHarvestTotals?.total_quantity_kg) || 0;
-        const remainingCost =
-          (Number(updatedHarvestTotals?.total_labor_cost) || 0) +
-          (Number(updatedHarvestTotals?.total_other_costs) || 0);
-        const newUnitCost = remainingQty > 0 ? remainingCost / remainingQty : 0;
-        const estimatedValue = Math.round(newQuantity * newUnitCost * 100) / 100;
+        const existingUnitCost = Number(existing.unit_cost) || 0;
+        const estimatedValue =
+          existingUnitCost > 0 ? Math.round(newQuantity * existingUnitCost * 100) / 100 : 0;
         const status = this._deriveInventoryStatus(newQuantity, existing.reorder_threshold);
+
+        const updateData = {
+          quantity: newQuantity,
+          status,
+          last_updated: new Date().toISOString(),
+        };
+        if (existingUnitCost > 0) {
+          updateData.estimated_value = estimatedValue;
+        }
 
         const updated = await tables.updateRow({
           databaseId: dbId,
           tableId: inventoryCollectionId,
           rowId: existing.$id,
-          data: {
-            quantity: newQuantity,
-            unit_cost: Math.round(newUnitCost * 100) / 100,
-            estimated_value: estimatedValue,
-            status,
-            last_updated: new Date().toISOString(),
-          },
+          data: updateData,
         });
 
         const idx = this.items.findIndex((i) => i.$id === updated.$id);
@@ -1313,7 +1315,7 @@ export const useInventoryStore = defineStore('inventory', {
      * Format currency value
      */
     formatCurrency(value) {
-      if (value === null || value === undefined) return '\u2014';
+      if (value === null || value === undefined || value === 0) return '\u2014';
       return `ZMW ${Number(value).toFixed(2)}`;
     },
   },
