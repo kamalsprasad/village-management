@@ -621,6 +621,15 @@ const tableSchemas = {
         required: false,
       },
       {
+        key: 'crop_id',
+        type: 'relationship',
+        relatedTable: 'crops',
+        relationType: 'manyToOne',
+        twoWay: false,
+        onDelete: 'restrict',
+        required: false,
+      },
+      {
         key: 'status',
         type: 'enum',
         elements: ['in_stock', 'low_stock', 'out_of_stock', 'reserved'],
