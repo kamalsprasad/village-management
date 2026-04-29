@@ -181,7 +181,7 @@ export function useFarmSampleData() {
     },
     {
       crop_name: 'Moringa',
-      category: 'Leafy Green',
+      category: 'Vegetable',
       crop_type: 'Perennial',
       maturity_days: 240,
       harvest_frequency_days: 45,
