@@ -966,7 +966,10 @@ export const useInventoryStore = defineStore('inventory', {
         const harvestsRes = await tables.listRows({
           databaseId: dbId,
           tableId: 'harvests',
-          queries: [Query.or(harvestQueries), Query.limit(100)],
+          queries: [
+            harvestQueries.length === 1 ? harvestQueries[0] : Query.or(harvestQueries),
+            Query.limit(100),
+          ],
         });
         const harvests = harvestsRes.rows || [];
         if (harvests.length === 0) {
@@ -980,7 +983,11 @@ export const useInventoryStore = defineStore('inventory', {
         const salesRes = await tables.listRows({
           databaseId: dbId,
           tableId: 'farm_sales',
-          queries: [Query.or(salesQueries), Query.orderDesc('sale_date'), Query.limit(5)],
+          queries: [
+            salesQueries.length === 1 ? salesQueries[0] : Query.or(salesQueries),
+            Query.orderDesc('sale_date'),
+            Query.limit(5),
+          ],
         });
         const sales = salesRes.rows || [];
 

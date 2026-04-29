@@ -11,9 +11,7 @@
         <q-avatar icon="attach_money" color="primary" text-color="white" />
         <div class="q-ml-md">
           <div class="text-h6">Set Estimated Price</div>
-          <div class="text-caption text-grey">
-            No historical sales found for this crop
-          </div>
+          <div class="text-caption text-grey">No historical sales found for this crop</div>
         </div>
       </q-card-section>
 
@@ -21,8 +19,8 @@
 
       <q-card-section>
         <p class="text-body2 q-mb-md">
-          Please provide an estimated price per kg for this produce. This will be used to
-          calculate the inventory value and as a reference for future sales.
+          Please provide an estimated price per kg for this produce. This will be used to calculate
+          the inventory value and as a reference for future sales.
         </p>
 
         <q-input
@@ -77,7 +75,7 @@ const props = defineProps({
   },
 });
 
-const emit = defineEmits(['submit', 'skip']);
+const emit = defineEmits(['submit', 'skip', 'hide']);
 
 // Quasar dialog plugin
 const { dialogRef, onDialogHide, onDialogOK, onDialogCancel } = useDialogPluginComponent();
