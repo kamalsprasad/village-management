@@ -1015,10 +1015,11 @@ async function loadPlanting() {
     if (harvestList.length) {
       await Promise.all(harvestList.map((h) => farmStore.fetchHarvestEntries(h.$id)));
 
-      // If any harvest has been completed, fetch the aggregated produce
+      // If any harvest exists, fetch the aggregated produce
       // inventory row for the "X kg available in inventory" link.
-      const hasCompleted = harvestList.some((h) => h.status === 'Completed');
-      if (hasCompleted) {
+      // Story 3.7 (CRIT-2): Load whenever ANY harvest exists (In Progress or Completed),
+      // since the footer surfaces inventory state for both.
+      if (harvestList.length > 0) {
         produceInventoryRow.value = await inventoryStore.findFarmProduceRow(result.data.$id);
       }
     }
@@ -1167,32 +1168,7 @@ async function confirmMarkComplete() {
     return;
   }
 
-  // Story 3.7: Check historical price before showing completion dialog
-  let userProvidedPrice = null;
-  const cropId = crop.value?.$id;
-
-  if (cropId) {
-    const priceResult = await inventoryStore.fetchHistoricalPriceForCrop(cropId);
-    if (priceResult.success && priceResult.saleCount === 0) {
-      // No historical sales - show price prompt dialog first
-      const dialogResult = await new Promise((resolve) => {
-        $q.dialog({
-          component: EstimatedPriceDialog,
-          componentProps: {
-            quantity: harvestQty,
-            cropName: crop.value?.crop_name,
-          },
-        })
-          .onOk((data) => resolve({ price: data.price }))
-          .onCancel(() => resolve({ skipped: true }));
-      });
-
-      if (dialogResult.price) {
-        userProvidedPrice = dialogResult.price;
-      }
-    }
-  }
-
+  // Story 3.7 (MAJ-5): Show confirmation FIRST, then resolve price inside .onOk.
   let title = 'Mark harvest complete?';
   let message =
     `The harvest will be finalized and no further entries can be added. ` +
@@ -1214,6 +1190,31 @@ async function confirmMarkComplete() {
     cancel: true,
     persistent: true,
   }).onOk(async () => {
+    // Story 3.7 (CRIT-1 + MAJ-5): Resolve price AFTER user confirms.
+    // - If historical sales exist (saleCount > 0): apply weighted-average price silently.
+    // - If no history: prompt the user via EstimatedPriceDialog (skip => no price).
+    let resolvedPrice = null;
+    const cropId = crop.value?.$id;
+
+    if (cropId) {
+      const priceResult = await inventoryStore.fetchHistoricalPriceForCrop(cropId);
+      if (priceResult.success) {
+        if (priceResult.saleCount > 0 && priceResult.price) {
+          resolvedPrice = priceResult.price;
+        } else if (priceResult.saleCount === 0) {
+          const dialogResult = await new Promise((resolve) => {
+            $q.dialog({
+              component: EstimatedPriceDialog,
+              componentProps: { quantity: harvestQty },
+            })
+              .onOk((data) => resolve({ price: data.price }))
+              .onCancel(() => resolve({ skipped: true }));
+          });
+          if (dialogResult.price) resolvedPrice = dialogResult.price;
+        }
+      }
+    }
+
     // Story 3.6: Pass continuous picking flag for perennials
     const isContinuousHarvest = isPerennialCrop && isContinuous;
     const result = await farmStore.markHarvestComplete(currentHarvest.value.$id, {
@@ -1237,19 +1238,17 @@ async function confirmMarkComplete() {
       });
     }
 
-    // Story 3.7: If user provided a price, update the inventory row
-    if (userProvidedPrice) {
-      let invRow = produceInventoryRow.value;
-      if (!invRow) {
-        invRow = await inventoryStore.findFarmProduceRow(planting.value.$id);
-      }
+    // Story 3.7 (MAJ-3 + MAJ-4): If we have a price (historical or user-entered),
+    // apply it via a single updateItem call. Re-fetch row to handle null state.
+    if (resolvedPrice) {
+      const invRow =
+        produceInventoryRow.value || (await inventoryStore.findFarmProduceRow(planting.value.$id));
       if (invRow) {
-        const qty = invRow.quantity || 0;
+        const qty = Number(invRow.quantity) || 0;
         await inventoryStore.updateItem(invRow.$id, {
-          unit_cost: userProvidedPrice,
-          estimated_value: Math.round(qty * userProvidedPrice * 100) / 100,
+          unit_cost: resolvedPrice,
+          estimated_value: Math.round(qty * resolvedPrice * 100) / 100,
         });
-        produceInventoryRow.value = invRow;
       }
     }
 
@@ -1264,7 +1263,7 @@ async function confirmMarkComplete() {
       $q.notify({ type: 'positive', message: 'Harvest completed', position: 'top' });
     }
 
-    // Re-fetch the inventory row for the completed-view link
+    // Re-fetch the inventory row so the footer reflects the latest unit_cost / status.
     produceInventoryRow.value = await inventoryStore.findFarmProduceRow(planting.value.$id);
   });
 }
@@ -1283,32 +1282,38 @@ function openFinalizeDialog() {
 async function onFinalizePlanting() {
   finalizing.value = true;
   try {
-    // Story 3.7: Check if price is set, prompt if not
+    // Story 3.7 (MAJ-2): Re-fetch the inventory row so we don't depend on
+    // produceInventoryRow.value being pre-loaded.
+    const invRow =
+      produceInventoryRow.value || (await inventoryStore.findFarmProduceRow(planting.value.$id));
+
+    // Story 3.7 (CRIT-1): Resolve price BEFORE finalizing so we can apply it after.
+    // - If historical sales exist: use weighted-average silently.
+    // - If no history AND no price already set: prompt user via dialog (skip = no price).
     const cropId = crop.value?.$id;
-    let userProvidedPrice = null;
+    let resolvedPrice = null;
 
-    if (cropId && produceInventoryRow.value && !produceInventoryRow.value.unit_cost) {
+    if (cropId && invRow && !invRow.unit_cost) {
       const priceResult = await inventoryStore.fetchHistoricalPriceForCrop(cropId);
-      if (priceResult.success && priceResult.saleCount === 0) {
-        // No historical sales and no price set - prompt user
-        const dialogResult = await new Promise((resolve) => {
-          $q.dialog({
-            component: EstimatedPriceDialog,
-            componentProps: {
-              quantity: produceInventoryRow.value.quantity || 0,
-              cropName: crop.value?.crop_name,
-            },
-          })
-            .onOk((data) => resolve({ price: data.price }))
-            .onCancel(() => resolve({ skipped: true }));
-        });
-
-        if (dialogResult.price) {
-          userProvidedPrice = dialogResult.price;
+      if (priceResult.success) {
+        if (priceResult.saleCount > 0 && priceResult.price) {
+          resolvedPrice = priceResult.price;
+        } else if (priceResult.saleCount === 0) {
+          const dialogResult = await new Promise((resolve) => {
+            $q.dialog({
+              component: EstimatedPriceDialog,
+              componentProps: { quantity: invRow.quantity || 0 },
+            })
+              .onOk((data) => resolve({ price: data.price }))
+              .onCancel(() => resolve({ skipped: true }));
+          });
+          if (dialogResult.price) resolvedPrice = dialogResult.price;
         }
       }
     }
 
+    // Story 3.7 (MAJ-1): The (Ongoing) → (Complete) rename is now handled inside
+    // updatePlantingStatus() in farm-store. We do NOT rename here.
     const result = await farmStore.finalizePerennialPlanting(planting.value.$id);
     if (!result.success) {
       $q.notify({
@@ -1319,25 +1324,17 @@ async function onFinalizePlanting() {
       return;
     }
 
-    // Story 3.7: Update inventory with price if provided
-    if (userProvidedPrice && produceInventoryRow.value) {
-      const qty = produceInventoryRow.value.quantity || 0;
-      await inventoryStore.updateItem(produceInventoryRow.value.$id, {
-        unit_cost: userProvidedPrice,
-        estimated_value: Math.round(qty * userProvidedPrice * 100) / 100,
+    // Story 3.7 (MAJ-3): Apply price via single updateItem if resolved.
+    if (resolvedPrice && invRow) {
+      const qty = Number(invRow.quantity) || 0;
+      await inventoryStore.updateItem(invRow.$id, {
+        unit_cost: resolvedPrice,
+        estimated_value: Math.round(qty * resolvedPrice * 100) / 100,
       });
     }
 
-    // Story 3.7: Rename inventory item from (Ongoing) to (Complete)
-    if (produceInventoryRow.value) {
-      const currentName = produceInventoryRow.value.item_name;
-      if (currentName && currentName.includes('(Ongoing)')) {
-        const newName = currentName.replace('(Ongoing)', '(Complete)');
-        await inventoryStore.updateItem(produceInventoryRow.value.$id, {
-          item_name: newName,
-        });
-      }
-    }
+    // Re-fetch row so footer reflects rename + price.
+    produceInventoryRow.value = await inventoryStore.findFarmProduceRow(planting.value.$id);
 
     $q.notify({
       type: 'positive',

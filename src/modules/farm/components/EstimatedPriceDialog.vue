@@ -69,10 +69,6 @@ const props = defineProps({
     type: Number,
     default: 0,
   },
-  cropName: {
-    type: String,
-    default: 'this crop',
-  },
 });
 
 const emit = defineEmits(['submit', 'skip', 'hide', 'ok']);
@@ -109,17 +105,21 @@ function onSubmit() {
   errorMessage.value = '';
   isSubmitting.value = true;
 
-  // Emit the price value
-  emit('submit', {
-    price: priceValue.value,
-    estimatedValue: calculatedValue.value,
-  });
+  try {
+    // Emit the price value
+    emit('submit', {
+      price: priceValue.value,
+      estimatedValue: calculatedValue.value,
+    });
 
-  // Close dialog with the price
-  onDialogOK({
-    price: priceValue.value,
-    estimatedValue: calculatedValue.value,
-  });
+    // Close dialog with the price
+    onDialogOK({
+      price: priceValue.value,
+      estimatedValue: calculatedValue.value,
+    });
+  } finally {
+    isSubmitting.value = false;
+  }
 }
 
 function onSkip() {

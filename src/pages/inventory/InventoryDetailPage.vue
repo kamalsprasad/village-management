@@ -225,7 +225,10 @@
                   <InfoRow label="Crop" :value="getCropName(item.crop_id)" />
                 </div>
                 <div class="col-12 col-sm-6" v-if="item?.planting_id">
-                  <InfoRow label="Planting" value="View Planting" />
+                  <InfoRow label="Plot" :value="getPlotName(item.planting_id)" />
+                </div>
+                <div class="col-12 col-sm-6" v-if="item?.planting_id">
+                  <div class="text-caption text-grey q-mb-xs">Planting</div>
                   <q-btn
                     flat
                     dense
@@ -233,8 +236,7 @@
                     icon="agriculture"
                     label="View Planting"
                     size="sm"
-                    class="q-mt-xs"
-                    @click="$router.push(`/farm/plantings/${item.planting_id}`)"
+                    @click="$router.push(`/farm/plantings/${idOf(item.planting_id)}`)"
                   />
                 </div>
                 <div class="col-12 col-sm-6" v-if="item?.unit_cost > 0">
@@ -453,7 +455,13 @@ const alertMessage = computed(() => {
 // });
 
 onMounted(async () => {
-  await loadItem();
+  // Story 3.7 (CRIT-5): Pre-load farm data for crop/plot name lookups on farm_produce items.
+  // Each fetch is no-op if already loaded (uses *Loaded flags).
+  const farmLoaders = [];
+  if (!farmStore.cropsLoaded) farmLoaders.push(farmStore.fetchCrops());
+  if (!farmStore.plantingsLoaded) farmLoaders.push(farmStore.fetchPlantings());
+  if (!farmStore.plotsLoaded) farmLoaders.push(farmStore.fetchPlots());
+  await Promise.all([loadItem(), ...farmLoaders]);
 });
 
 async function loadItem() {
@@ -548,17 +556,29 @@ function formatDate(value) {
   return date.formatDate(value, 'MMM D, YYYY h:mm A');
 }
 
+// Story 3.7 (CRIT-4): Defensive helper — Appwrite relationship fields can return
+// either a string id OR an object { $id, ... }. Normalize to string id.
+function idOf(v) {
+  if (!v) return null;
+  return typeof v === 'object' ? v.$id : v;
+}
+
 // Story 3.7: Helper to get crop name from farm store
 function getCropName(cropId) {
-  if (!cropId) return 'Unknown';
-  const crop = farmStore.crops.find((c) => c.$id === cropId);
-  if (crop) return crop.crop_name;
-  // If not in store, try to fetch it
-  farmStore.fetchCrops().then(() => {
-    const fetched = farmStore.crops.find((c) => c.$id === cropId);
-    return fetched?.crop_name || 'Unknown Crop';
-  });
-  return 'Loading...';
+  const id = idOf(cropId);
+  if (!id) return 'Unknown';
+  const crop = farmStore.crops.find((c) => c.$id === id);
+  return crop?.crop_name || 'Unknown Crop';
+}
+
+// Story 3.7 (CRIT-3): Helper to get plot name via planting_id → planting → plot.
+function getPlotName(plantingId) {
+  const pid = idOf(plantingId);
+  if (!pid) return 'Unknown';
+  const planting = farmStore.plantings.find((p) => p.$id === pid);
+  if (!planting) return 'Unknown Plot';
+  const plot = farmStore.plots.find((pl) => pl.$id === idOf(planting.plot_id));
+  return plot?.name || 'Unknown Plot';
 }
 </script>
 

@@ -782,6 +782,28 @@ export const useFarmStore = defineStore('farm', {
         }
       }
 
+      // Story 3.7 (MAJ-1): When a perennial planting transitions to 'completed',
+      // rename its aggregated farm_produce inventory row from "(Ongoing)" → "(Complete)".
+      // Best-effort: failure does NOT block the status update.
+      if (newStatus === 'completed') {
+        try {
+          const cropIdRaw = current?.crop_id;
+          const cropId = typeof cropIdRaw === 'object' ? cropIdRaw?.$id : cropIdRaw;
+          const crop = this.crops.find((c) => c.$id === cropId);
+          const isPerennial = crop?.crop_type === 'Perennial';
+          if (isPerennial) {
+            const inventoryStore = useInventoryStore();
+            const invRow = await inventoryStore.findFarmProduceRow(plantingId);
+            if (invRow?.item_name?.includes('(Ongoing)')) {
+              const newName = invRow.item_name.replace('(Ongoing)', '(Complete)');
+              await inventoryStore.updateItem(invRow.$id, { item_name: newName });
+            }
+          }
+        } catch (err) {
+          console.error('Perennial inventory rename failed (non-blocking):', err);
+        }
+      }
+
       return result;
     },
 
@@ -1057,11 +1079,6 @@ export const useFarmStore = defineStore('farm', {
         crop,
         plot,
         entry: entryRow,
-        harvestTotals: {
-          total_quantity_kg: quantityKg,
-          total_labor_cost: laborCost,
-          total_other_costs: otherCosts,
-        },
       });
 
       if (!invResult.success) {
@@ -1188,7 +1205,6 @@ export const useFarmStore = defineStore('farm', {
         crop,
         plot,
         entry: entryRow,
-        harvestTotals: totals,
       });
 
       if (!invResult.success) {
@@ -1275,7 +1291,6 @@ export const useFarmStore = defineStore('farm', {
         planting,
         crop,
         entry,
-        updatedHarvestTotals: updatedTotals,
       });
 
       if (!reverseResult.success) {
@@ -1300,7 +1315,6 @@ export const useFarmStore = defineStore('farm', {
           crop,
           plot,
           entry,
-          harvestTotals: this._computeHarvestTotals(entries),
         });
         return { success: false, error: error.message };
       }

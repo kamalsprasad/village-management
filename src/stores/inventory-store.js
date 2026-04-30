@@ -638,7 +638,7 @@ export const useInventoryStore = defineStore('inventory', {
      * Upsert the aggregated farm produce inventory row when a harvest entry is recorded.
      *
      * Behavior:
-     *  - Finds existing row by (planting_id, item_type='Farm Produce').
+     *  - Finds existing row by (planting_id, item_type='farm_produce').
      *  - If found: increments quantity by entry.quantity_kg; recomputes weighted-average
      *    unit_cost from the provided harvest totals; updates estimated_value and status.
      *  - If not found: creates a new row with quantity = entry.quantity_kg.
@@ -646,10 +646,13 @@ export const useInventoryStore = defineStore('inventory', {
      * @param {Object} params
      * @param {Object} params.planting - planting row ({ $id, ... })
      * @param {Object} params.crop     - crop row ({ $id, crop_name, ... })
+     * @param {Object} params.plot     - plot row ({ $id, name, ... }) for naming convention
      * @param {Object} params.entry    - the newly-created harvest_entry row
-     * @param {Object} params.harvestTotals - { total_quantity_kg, total_labor_cost, total_other_costs }
-     *   Aggregated totals across ALL entries of the parent harvest (including this one).
      * @returns {Promise<{success:boolean, data?:Object, error?:string}>}
+     *
+     * Note (Story 3.7): unit_cost / estimated_value are NOT auto-set on creation.
+     * They are populated by PlantingDetailPage on Mark Complete (from historical sales
+     * or via EstimatedPriceDialog).
      */
     async createOrUpdateFarmProduceFromHarvest({ planting, crop, plot, entry }) {
       try {
@@ -753,9 +756,8 @@ export const useInventoryStore = defineStore('inventory', {
      *  - Finds the aggregated row by (planting_id).
      *  - If current quantity < entry.quantity_kg: returns { success: false, reason: 'insufficient' }.
      *    This indicates produce has been sold/transferred and reversal is not possible.
-     *  - Otherwise decrements quantity by entry.quantity_kg and recomputes unit_cost from
-     *    the remaining harvest totals (caller provides updatedHarvestTotals after removing
-     *    the entry's contribution).
+     *  - Otherwise decrements quantity by entry.quantity_kg and preserves existing
+     *    unit_cost (set on Mark Complete from historical sales or user input).
      *  - If the resulting quantity is 0 AND no sales history exists, caller may delete the row
      *    separately (not handled here to keep action single-purpose).
      *
@@ -763,8 +765,6 @@ export const useInventoryStore = defineStore('inventory', {
      * @param {Object} params.planting
      * @param {Object} params.crop
      * @param {Object} params.entry - the entry being deleted
-     * @param {Object} params.updatedHarvestTotals - { total_quantity_kg, total_labor_cost, total_other_costs }
-     *   Totals AFTER subtracting this entry.
      * @returns {Promise<{success:boolean, data?:Object, error?:string, reason?:string}>}
      */
     async reverseFarmProduceFromHarvest({ planting, crop, entry }) {
@@ -1046,11 +1046,11 @@ export const useInventoryStore = defineStore('inventory', {
 
         const items = response.rows || [];
 
-        // Story 3.7: Update dedicated farm produce state
+        // Story 3.7: Update dedicated farm produce state only.
+        // Do NOT mutate `items` here — that is owned by the paginated inventory list
+        // (`fetchItems`) and co-mutating would desync pagination counts and produce
+        // duplicates. Widget consumers must read `farmProduceItems`.
         this.farmProduceItems = items;
-
-        // Also update general items list
-        this.items = [...this.items.filter((i) => i.item_type !== 'farm_produce'), ...items];
 
         return { success: true, items };
       } catch (error) {
