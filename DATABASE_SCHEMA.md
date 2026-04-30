@@ -205,27 +205,28 @@ Individual harvest entries for multi-day and partial harvest recording. Each ent
 
 ### farm_sales
 
-Records farm produce sales with three-way integration to harvests, inventory, and finance transactions (Story 3.8). A sale automatically decrements linked inventory and creates a linked income transaction in `finance_transactions`.
+Records farm produce sales with three-way integration to harvests, inventory, and finance transactions (Story 3.8). A sale automatically decrements linked inventory and creates a linked income transaction in `finance_transactions`. Story 3.9 added `crop_id` as a denormalized FK to enable direct crop-grouping queries for profitability reports without the 3-hop chain (farm_sales → inventory → plantings → crops).
 
 **Buyer fields:** `buyer_name` is the primary field captured via the UI. `buyer_type` and `buyer_id` are reserved placeholders for future Vendor Module integration (Epic 5). For MVP, sales default to `buyer_type='external'` and `buyer_id=''`. See `docs/POST-MVP.md` for the migration plan.
 
-| Column                   | Type     | Constraints                                                     | Description                                                 |
-| ------------------------ | -------- | --------------------------------------------------------------- | ----------------------------------------------------------- |
-| `id`                     | string   | Primary Key, Auto-generated                                     | Unique sale identifier                                      |
-| `harvest_id`             | rel      | Optional, manyToOne → harvests                                  | Source harvest                                              |
-| `inventory_item_id`      | rel      | Optional, manyToOne → inventory (onDelete: restrict)            | Sold inventory item (Story 3.8)                             |
-| `finance_transaction_id` | rel      | Optional, manyToOne → finance_transactions (onDelete: restrict) | Linked income transaction (Story 3.8)                       |
-| `buyer_type`             | string   | Required, Enum: 'household','external','market','cooperative'   | Type of buyer (MVP: hard-coded 'external')                  |
-| `buyer_id`               | string   | Optional, max 50                                                | ID of buyer for household/vendor lookup (MVP: empty string) |
-| `buyer_name`             | string   | Required, max 200                                               | Name of buyer (primary user-facing field)                   |
-| `sale_date`              | datetime | Required                                                        | Date of sale                                                |
-| `quantity_sold`          | float    | Required, min 0, max 1,000,000,000,000                          | Quantity sold (supports 2 decimal places)                   |
-| `unit`                   | string   | Required, max 20, default: 'kg'                                 | Unit of measurement (kg, pcs, etc.)                         |
-| `price_per_unit`         | float    | Required, min 0, max 1,000,000,000,000                          | Price per unit in ZMW (2 decimal places)                    |
-| `total_amount`           | float    | Required, min 0, max 1,000,000,000,000                          | Total sale amount in ZMW (2 decimal places)                 |
-| `payment_status`         | string   | Required, Enum: 'Pending','Completed'                           | Payment status                                              |
-| `payment_method`         | string   | Optional, max 50                                                | Cash, Mobile Money, Bank Transfer, Cheque, Credit, Other    |
-| `notes`                  | string   | Optional, max 1000                                              | Additional notes                                            |
+| Column                   | Type     | Constraints                                                     | Description                                                                                   |
+| ------------------------ | -------- | --------------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
+| `id`                     | string   | Primary Key, Auto-generated                                     | Unique sale identifier                                                                        |
+| `harvest_id`             | rel      | Optional, manyToOne → harvests                                  | Source harvest                                                                                |
+| `inventory_item_id`      | rel      | Optional, manyToOne → inventory (onDelete: restrict)            | Sold inventory item (Story 3.8)                                                               |
+| `finance_transaction_id` | rel      | Optional, manyToOne → finance_transactions (onDelete: restrict) | Linked income transaction (Story 3.8)                                                         |
+| `crop_id`                | rel      | Optional, manyToOne → crops (onDelete: setNull)                 | Denormalized source crop for direct grouping queries (Story 3.9). Populated at sale creation. |
+| `buyer_type`             | string   | Required, Enum: 'household','external','market','cooperative'   | Type of buyer (MVP: hard-coded 'external')                                                    |
+| `buyer_id`               | string   | Optional, max 50                                                | ID of buyer for household/vendor lookup (MVP: empty string)                                   |
+| `buyer_name`             | string   | Required, max 200                                               | Name of buyer (primary user-facing field)                                                     |
+| `sale_date`              | datetime | Required                                                        | Date of sale                                                                                  |
+| `quantity_sold`          | float    | Required, min 0, max 1,000,000,000,000                          | Quantity sold (supports 2 decimal places)                                                     |
+| `unit`                   | string   | Required, max 20, default: 'kg'                                 | Unit of measurement (kg, pcs, etc.)                                                           |
+| `price_per_unit`         | float    | Required, min 0, max 1,000,000,000,000                          | Price per unit in ZMW (2 decimal places)                                                      |
+| `total_amount`           | float    | Required, min 0, max 1,000,000,000,000                          | Total sale amount in ZMW (2 decimal places)                                                   |
+| `payment_status`         | string   | Required, Enum: 'Pending','Completed'                           | Payment status                                                                                |
+| `payment_method`         | string   | Optional, max 50                                                | Cash, Mobile Money, Bank Transfer, Cheque, Credit, Other                                      |
+| `notes`                  | string   | Optional, max 1000                                              | Additional notes                                                                              |
 
 **Indexes:** `idx_farm_sales_date` on `(sale_date DESC)`, `idx_farm_sales_buyer` on `(buyer_type ASC, buyer_id ASC)`
 
@@ -415,6 +416,7 @@ All relationships use Appwrite's native relationship columns (type `rel`). Key r
 - **harvests → plantings**: manyToOne via `harvests.planting_id`
 - **harvest_entries → harvests**: manyToOne via `harvest_entries.harvest_id`
 - **farm_sales → harvests**: manyToOne via `farm_sales.harvest_id`
+- **farm_sales → crops**: manyToOne via `farm_sales.crop_id` (denormalized, Story 3.9)
 - **inventory → plantings**: manyToOne via `inventory.planting_id` (farm produce only)
 - **inventory → crops**: manyToOne via `inventory.crop_id` (farm produce only)
 

@@ -1846,6 +1846,292 @@ export const useFarmStore = defineStore('farm', {
       }
     },
 
+    // ==========================================================================
+    // Story 3.9: Profitability Analysis Actions (synchronous, in-memory)
+    // ==========================================================================
+
+    /**
+     * Ensure all data needed for profitability calculations is loaded.
+     * Uses already-loaded flags to skip redundant fetches.
+     * Calls fetchSales with limit 500 to capture full history.
+     */
+    async ensureProfitabilityDataLoaded() {
+      const inventoryStore = useInventoryStore();
+      const loaders = [];
+      if (!this.plotsLoaded) loaders.push(this.fetchPlots());
+      if (!this.plantingsLoaded) loaders.push(this.fetchPlantings());
+      if (!this.harvestsLoaded) loaders.push(this.fetchHarvests());
+      if (!this.cropsLoaded) loaders.push(this.fetchCrops());
+      // Always fetch all sales for profitability (bypass default limit:100 cap)
+      if (!this.salesLoaded) loaders.push(this.fetchSales({ limit: 500 }));
+      // Farm produce inventory items needed for revenue-per-planting resolution
+      if (!inventoryStore.farmProduceItems.length) {
+        loaders.push(inventoryStore.fetchFarmProduceItems());
+      }
+      if (loaders.length) await Promise.all(loaders);
+    },
+
+    /**
+     * Sum all sales revenue attributed to a given planting.
+     * Resolves via: planting_id → farm_produce inventory items → farm_sales.
+     * Also handles the direct crop_id path (Story 3.9 denormalization) where
+     * inventory items may not yet be loaded.
+     *
+     * @param {string} plantingId
+     * @returns {number} total revenue in ZMW
+     */
+    computeRevenueForPlanting(plantingId) {
+      const inventoryStore = useInventoryStore();
+      const produceItems = inventoryStore.farmProduceItems;
+
+      // Gather inventory item IDs linked to this planting
+      const invItemIds = new Set(
+        produceItems
+          .filter((item) => {
+            const pid =
+              typeof item.planting_id === 'object' ? item.planting_id?.$id : item.planting_id;
+            return pid === plantingId;
+          })
+          .map((item) => item.$id),
+      );
+
+      if (!invItemIds.size) return 0;
+
+      return this.sales
+        .filter((sale) => {
+          const iid =
+            typeof sale.inventory_item_id === 'object'
+              ? sale.inventory_item_id?.$id
+              : sale.inventory_item_id;
+          return invItemIds.has(iid);
+        })
+        .reduce((sum, sale) => sum + (Number(sale.total_amount) || 0), 0);
+    },
+
+    /**
+     * Compute profitability for a single plot from loaded Pinia state.
+     * Synchronous — call ensureProfitabilityDataLoaded() first.
+     *
+     * @param {string} plotId
+     * @param {Object} [opts]
+     * @param {string} [opts.dateFrom] - ISO date string (inclusive)
+     * @param {string} [opts.dateTo]   - ISO date string (inclusive)
+     * @param {boolean} [opts.includeFailedPlantings=true]
+     * @returns {Object} profitability summary
+     */
+    computePlotProfitability(plotId, { dateFrom, dateTo, includeFailedPlantings = true } = {}) {
+      // Safe FK normalization in case Appwrite returns plot_id as object
+      const plotPlantings = this.plantings.filter((p) => {
+        const pid = typeof p.plot_id === 'object' ? p.plot_id?.$id : p.plot_id;
+        if (pid !== plotId) return false;
+        if (!includeFailedPlantings && p.status?.toLowerCase() === 'failed') return false;
+        if (dateFrom && new Date(p.planting_date) < new Date(dateFrom)) return false;
+        if (dateTo && new Date(p.planting_date) > new Date(dateTo)) return false;
+        return true;
+      });
+
+      let revenue = 0,
+        seedCosts = 0,
+        plantingLabor = 0,
+        plantingOther = 0,
+        harvestLabor = 0,
+        harvestOther = 0;
+
+      const plantingBreakdown = [];
+
+      for (const planting of plotPlantings) {
+        const pRevenue = this.computeRevenueForPlanting(planting.$id);
+        const pSeedCosts = Number(planting.inputs_cost) || 0;
+        const pPlantingLabor = Number(planting.labor_cost) || 0;
+        const pPlantingOther = Number(planting.other_cost) || 0;
+        let pHarvestLabor = 0;
+        let pHarvestOther = 0;
+
+        const plantingHarvests = this.harvestsByPlanting(planting.$id);
+        for (const h of plantingHarvests) {
+          pHarvestLabor += Number(h.total_labor_cost) || 0;
+          pHarvestOther += Number(h.total_other_costs) || 0;
+        }
+
+        const pTotalCost =
+          pSeedCosts + pPlantingLabor + pPlantingOther + pHarvestLabor + pHarvestOther;
+        const pNetProfit = pRevenue - pTotalCost;
+
+        revenue += pRevenue;
+        seedCosts += pSeedCosts;
+        plantingLabor += pPlantingLabor;
+        plantingOther += pPlantingOther;
+        harvestLabor += pHarvestLabor;
+        harvestOther += pHarvestOther;
+
+        const cropId =
+          typeof planting.crop_id === 'object' ? planting.crop_id?.$id : planting.crop_id;
+        plantingBreakdown.push({
+          plantingId: planting.$id,
+          cropName: this.getCropNameById(cropId),
+          plantingDate: planting.planting_date,
+          status: planting.status,
+          revenue: pRevenue,
+          totalCost: pTotalCost,
+          netProfit: pNetProfit,
+        });
+      }
+
+      const totalCost = seedCosts + plantingLabor + plantingOther + harvestLabor + harvestOther;
+      const netProfit = revenue - totalCost;
+      const roiPercent = totalCost > 0 ? ((netProfit / totalCost) * 100).toFixed(1) : null;
+
+      return {
+        revenue,
+        seedCosts,
+        plantingLabor,
+        plantingOther,
+        harvestLabor,
+        harvestOther,
+        totalCost,
+        netProfit,
+        roiPercent,
+        plantingsIncluded: plotPlantings.length,
+        completedCount: plotPlantings.filter((p) => p.status?.toLowerCase() === 'completed').length,
+        failedCount: plotPlantings.filter((p) => p.status?.toLowerCase() === 'failed').length,
+        plantingBreakdown,
+      };
+    },
+
+    /**
+     * Compute profitability for every plot, sorted by netProfit descending.
+     * Synchronous — call ensureProfitabilityDataLoaded() first.
+     *
+     * @param {Object} [opts] - same opts as computePlotProfitability
+     * @returns {Array} [{plotId, plotName, ...profitability}]
+     */
+    computeAllPlotsProfitability(opts = {}) {
+      return this.plots
+        .map((plot) => ({
+          plotId: plot.$id,
+          plotName: plot.name,
+          ...this.computePlotProfitability(plot.$id, opts),
+        }))
+        .sort((a, b) => b.netProfit - a.netProfit);
+    },
+
+    /**
+     * Compute crop performance across all plantings.
+     * Returns one aggregated row per crop, sorted by netProfit descending.
+     * Synchronous — call ensureProfitabilityDataLoaded() first.
+     *
+     * @param {Object} [opts]
+     * @param {string} [opts.dateFrom]
+     * @param {string} [opts.dateTo]
+     * @param {string[]} [opts.cropIds]          - filter to specific crop IDs
+     * @param {string} [opts.cropType]            - 'Annual' | 'Perennial'
+     * @param {boolean} [opts.includeFailedPlantings=true]
+     * @returns {Array} crop performance objects
+     */
+    computeCropPerformance({
+      dateFrom,
+      dateTo,
+      cropIds,
+      cropType,
+      includeFailedPlantings = true,
+    } = {}) {
+      const result = {};
+
+      for (const planting of this.plantings) {
+        const cropId =
+          typeof planting.crop_id === 'object' ? planting.crop_id?.$id : planting.crop_id;
+        if (!cropId) continue;
+
+        // Apply filters
+        if (cropIds?.length && !cropIds.includes(cropId)) continue;
+        if (!includeFailedPlantings && planting.status?.toLowerCase() === 'failed') continue;
+        if (dateFrom && new Date(planting.planting_date) < new Date(dateFrom)) continue;
+        if (dateTo && new Date(planting.planting_date) > new Date(dateTo)) continue;
+
+        const crop = this.crops.find((c) => c.$id === cropId);
+        if (cropType && crop?.crop_type !== cropType) continue;
+
+        if (!result[cropId]) {
+          result[cropId] = {
+            cropId,
+            cropName: crop?.crop_name || 'Unknown',
+            cropType: crop?.crop_type || '—',
+            totalPlantings: 0,
+            completed: 0,
+            failed: 0,
+            totalHarvestKg: 0,
+            totalRevenue: 0,
+            seedCosts: 0,
+            plantingLabor: 0,
+            plantingOther: 0,
+            harvestLabor: 0,
+            harvestOther: 0,
+            totalHectares: 0,
+          };
+        }
+
+        const r = result[cropId];
+        r.totalPlantings++;
+        const st = planting.status?.toLowerCase();
+        if (st === 'completed') r.completed++;
+        if (st === 'failed') r.failed++;
+
+        r.totalRevenue += this.computeRevenueForPlanting(planting.$id);
+        r.seedCosts += Number(planting.inputs_cost) || 0;
+        r.plantingLabor += Number(planting.labor_cost) || 0;
+        r.plantingOther += Number(planting.other_cost) || 0;
+
+        // Plot size for yield/ha calculation
+        const plotId =
+          typeof planting.plot_id === 'object' ? planting.plot_id?.$id : planting.plot_id;
+        const plot = this.plots.find((p) => p.$id === plotId);
+        r.totalHectares += Number(plot?.size_hectares) || 0;
+
+        const plantingHarvests = this.harvestsByPlanting(planting.$id);
+        for (const h of plantingHarvests) {
+          r.totalHarvestKg += Number(h.total_quantity_kg) || 0;
+          r.harvestLabor += Number(h.total_labor_cost) || 0;
+          r.harvestOther += Number(h.total_other_costs) || 0;
+        }
+      }
+
+      return Object.values(result)
+        .map((r) => {
+          const totalCost =
+            r.seedCosts + r.plantingLabor + r.plantingOther + r.harvestLabor + r.harvestOther;
+          const netProfit = r.totalRevenue - totalCost;
+          return {
+            ...r,
+            totalCost,
+            netProfit,
+            roiPercent: totalCost > 0 ? ((netProfit / totalCost) * 100).toFixed(1) : null,
+            avgProfitPerPlanting:
+              r.totalPlantings > 0 ? Math.round((netProfit / r.totalPlantings) * 100) / 100 : 0,
+            avgYieldPerHectare:
+              r.totalHectares > 0 ? Math.round((r.totalHarvestKg / r.totalHectares) * 10) / 10 : 0,
+            successRate:
+              r.totalPlantings > 0
+                ? ((r.completed / r.totalPlantings) * 100).toFixed(0) + '%'
+                : '—',
+          };
+        })
+        .sort((a, b) => b.netProfit - a.netProfit);
+    },
+
+    /**
+     * Return the top N crops sorted by netProfit descending.
+     * Synchronous — call ensureProfitabilityDataLoaded() first.
+     *
+     * @param {number} [limit=5]
+     * @param {Object} [opts] - same opts as computeCropPerformance
+     * @returns {Array}
+     */
+    computeTopCropsByProfit(limit = 5, opts = {}) {
+      return this.computeCropPerformance(opts).slice(0, limit);
+    },
+
+    // ==========================================================================
+
     /**
      * Fetch all farm sales with optional filtering (for sales list page).
      *
@@ -2036,6 +2322,12 @@ export const useFarmStore = defineStore('farm', {
         // -----------------------------------------------------------------
         const harvestId = await this.resolveHarvestForInventory(inventoryItem);
 
+        // Story 3.9: Resolve crop_id from inventory item for denormalized grouping queries.
+        const saleCropId =
+          typeof inventoryItem.crop_id === 'object'
+            ? inventoryItem.crop_id?.$id
+            : inventoryItem.crop_id || null;
+
         const saleData = {
           inventory_item_id: inventoryItem.$id,
           finance_transaction_id: financeTx.$id,
@@ -2053,6 +2345,8 @@ export const useFarmStore = defineStore('farm', {
           payment_method: saleFormData.payment_method,
           notes: saleFormData.notes || null,
         };
+        // Only attach crop_id if resolved (relationship is optional).
+        if (saleCropId) saleData.crop_id = saleCropId;
         // Only attach harvest_id if we could resolve one (relationship is optional).
         if (harvestId) saleData.harvest_id = harvestId;
 

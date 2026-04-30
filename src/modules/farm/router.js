@@ -174,8 +174,16 @@ const farmRoutes = [
     },
   },
 
-  // Future routes for Farm module (Stories 3.9-3.11):
-  // - /farm/reports (Farm profitability & yield reports)
+  // Farm Reports (Story 3.9)
+  {
+    path: 'farm/reports',
+    name: 'farm-reports',
+    component: () => import('./pages/FarmReportsPage.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresPermission: 'farm:read',
+    },
+  },
 ];
 
 export default farmRoutes;

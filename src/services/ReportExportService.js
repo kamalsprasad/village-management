@@ -396,6 +396,95 @@ export async function exportDashboardToPDF(dashboardData, villageName, userName)
   doc.save(`financial-dashboard-${new Date().toISOString().split('T')[0]}.pdf`);
 }
 
+/**
+ * Export the Farm Crop Performance Report to PDF.
+ * Story 3.9: standalone farm export that reuses shared helper functions.
+ *
+ * @param {Object} params
+ * @param {Array}  params.cropData      - Array from computeCropPerformance()
+ * @param {Array}  params.summaryStats  - Array of { label, value } KPI items
+ * @param {string} [params.dateFrom]
+ * @param {string} [params.dateTo]
+ * @param {string} [params.villageName]
+ */
+export async function exportFarmReportToPDF({
+  cropData = [],
+  summaryStats = [],
+  dateFrom,
+  dateTo,
+  villageName,
+} = {}) {
+  await loadPDFDependencies();
+
+  const doc = new jsPDFClass({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+  const generatedAt = new Date().toLocaleString();
+
+  let y = addPDFHeader(doc, 'Farm Crop Performance Report', {
+    dateFrom,
+    dateTo,
+    generatedAt,
+    villageName,
+  });
+
+  if (summaryStats.length) {
+    y = addPDFSummary(doc, summaryStats, y);
+  }
+
+  if (cropData.length) {
+    doc.setFontSize(11);
+    doc.setFont(undefined, 'bold');
+    doc.text('Crop Performance', 14, y);
+    y += 2;
+
+    const columns = [
+      'Crop',
+      'Type',
+      'Plantings',
+      'Done',
+      'Failed',
+      'Harvest (kg)',
+      'Revenue (ZMW)',
+      'Total Costs',
+      'Net Profit',
+      'ROI %',
+      'Avg Profit/Planting',
+      'Yield/Ha',
+      'Success Rate',
+    ];
+
+    const rows = cropData.map((c) => [
+      c.cropName,
+      c.cropType || '—',
+      String(c.totalPlantings),
+      String(c.completed),
+      String(c.failed),
+      Number(c.totalHarvestKg).toFixed(1),
+      pdfCurrency(c.totalRevenue),
+      pdfCurrency(c.totalCost),
+      pdfCurrency(c.netProfit),
+      c.roiPercent != null ? c.roiPercent + '%' : '—',
+      pdfCurrency(c.avgProfitPerPlanting),
+      c.avgYieldPerHectare != null ? c.avgYieldPerHectare + ' kg/ha' : '—',
+      c.successRate || '—',
+    ]);
+
+    addPDFTable(doc, columns, rows, y);
+  }
+
+  const pageCount = doc.getNumberOfPages();
+  for (let i = 1; i <= pageCount; i++) {
+    doc.setPage(i);
+    const ph = doc.internal.pageSize.getHeight();
+    const pw = doc.internal.pageSize.getWidth();
+    doc.setFontSize(8);
+    doc.setFont(undefined, 'normal');
+    doc.text(`Page ${i} of ${pageCount}`, pw - 14, ph - 8, { align: 'right' });
+  }
+
+  const dateStr = new Date().toISOString().split('T')[0];
+  doc.save(`farm-crop-performance-${dateStr}.pdf`);
+}
+
 export async function exportToPDF(reportData, options = {}) {
   await loadPDFDependencies();
 

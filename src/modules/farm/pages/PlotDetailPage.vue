@@ -248,18 +248,9 @@
           </q-card>
         </div>
 
-        <!-- Profitability Summary (Placeholder) -->
+        <!-- Profitability Summary (Story 3.9) -->
         <div class="col-12 col-md-6">
-          <q-card>
-            <q-card-section>
-              <div class="text-subtitle1 text-weight-medium q-mb-md">Profitability Summary</div>
-              <div class="text-grey q-pa-md text-center">
-                <q-icon name="trending_up" size="2em" class="q-mb-sm" />
-                <div>Profitability data will be available after first harvest</div>
-                <div class="text-caption">Profitability analysis coming in Story 3.9</div>
-              </div>
-            </q-card-section>
-          </q-card>
+          <PlotProfitabilityCard :plot-id="plotId" />
         </div>
       </div>
     </template>
@@ -311,6 +302,7 @@ import { usePermissions } from 'src/composables/usePermissions';
 import { useResidentsStore } from 'src/stores/residents-store';
 import { formatDate } from 'src/utils/dateUtils';
 import PlotStatusBadge from '../components/PlotStatusBadge.vue';
+import PlotProfitabilityCard from '../components/PlotProfitabilityCard.vue';
 
 const route = useRoute();
 const router = useRouter();

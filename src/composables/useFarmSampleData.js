@@ -363,6 +363,8 @@ export function useFarmSampleData() {
             // Story 3.8: Three-way integration FKs
             inventory_item_id: produceRow.$id,
             finance_transaction_id: txRow.$id,
+            // Story 3.9: Denormalized crop_id for profitability grouping queries
+            ...(plan.crop_id ? { crop_id: plan.crop_id } : {}),
             buyer_type: plan.sale.buyer_type,
             buyer_id: plan.sale.buyer_id || '',
             buyer_name: plan.sale.buyer_name,
@@ -398,6 +400,8 @@ export function useFarmSampleData() {
               harvest_id: harvestRow.$id,
               inventory_item_id: produceRow.$id,
               finance_transaction_id: aTxRow.$id,
+              // Story 3.9: Denormalized crop_id
+              ...(plan.crop_id ? { crop_id: plan.crop_id } : {}),
               buyer_type: aSale.buyer_type,
               buyer_id: aSale.buyer_id || '',
               buyer_name: aSale.buyer_name,

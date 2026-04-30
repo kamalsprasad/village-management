@@ -269,6 +269,16 @@
               <q-item-label>Farm Sales</q-item-label>
             </q-item-section>
           </q-item>
+
+          <!-- Story 3.9: Farm Reports -->
+          <q-item clickable to="/farm/reports">
+            <q-item-section avatar>
+              <q-icon name="bar_chart" />
+            </q-item-section>
+            <q-item-section>
+              <q-item-label>Farm Reports</q-item-label>
+            </q-item-section>
+          </q-item>
         </template>
 
         <!-- School Section -->

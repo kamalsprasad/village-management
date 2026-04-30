@@ -2,7 +2,7 @@
 
 **Epic:** 3 - Farm Management and Agricultural Tracking  
 **Story ID:** 3.9  
-**Status:** backlog  
+**Status:** in_progress  
 **Date:** 2026-04-30  
 **Author:** AI Assistant
 
@@ -58,6 +58,7 @@ ROI % = (Net Profit / Total Costs) × 100
 Add a denormalized `crop_id` relationship to `farm_sales` to enable direct single-query grouping by crop.
 
 **`server/scripts/setup-appwrite.js`** — add to `farm_sales` table definition:
+
 ```javascript
 {
   key: 'crop_id',
@@ -74,6 +75,7 @@ Add a denormalized `crop_id` relationship to `farm_sales` to enable direct singl
 | `crop_id` | rel | Optional, manyToOne → crops | Denormalized source crop for direct grouping queries. Populated at sale creation. |
 
 **`farm-store.js` `recordSale()`** — pass `crop_id` when creating the `farm_sales` row:
+
 ```javascript
 // Resolve crop_id from inventory item at sale time
 const cropId = idOf(inventoryItem.crop_id); // already on the inventory row
@@ -138,7 +140,7 @@ crop_id: cropId || null,
   - "Include Failed Plantings" toggle (default ON)
   - "Generate Report" button that triggers data computation
 - [ ] **Crop Performance Table** — one row per crop, columns:
-  | Crop Name | Type | Total Plantings | Completed | Failed | Total Harvest (kg) | Total Revenue (ZMW) | Total Seed Costs | Total Planting Labor | Total Planting Other | Total Harvest Labor | Total Harvest Other | Total Costs | Net Profit | Avg Profit/Planting | Avg Yield/Hectare | Success Rate |
+      | Crop Name | Type | Total Plantings | Completed | Failed | Total Harvest (kg) | Total Revenue (ZMW) | Total Seed Costs | Total Planting Labor | Total Planting Other | Total Harvest Labor | Total Harvest Other | Total Costs | Net Profit | Avg Profit/Planting | Avg Yield/Hectare | Success Rate |
 - [ ] Table sortable by any column (default: Net Profit descending)
 - [ ] Rows color-coded: green row if Net Profit > 0, red if Net Profit < 0, yellow if Net Profit = 0
 - [ ] **Summary Statistics** above the table:
@@ -402,19 +404,24 @@ function renderTopCropsChart(cropData) {
   topCropsChart.value = new Chart(topCropsChartRef.value, {
     type: 'bar',
     data: {
-      labels: cropData.map(c => c.cropName),
-      datasets: [{
-        label: 'Net Profit (ZMW)',
-        data: cropData.map(c => c.netProfit),
-        backgroundColor: cropData.map(c => c.netProfit >= 0
-          ? 'rgba(76, 175, 80, 0.7)' : 'rgba(244, 67, 54, 0.7)'),
-      }],
+      labels: cropData.map((c) => c.cropName),
+      datasets: [
+        {
+          label: 'Net Profit (ZMW)',
+          data: cropData.map((c) => c.netProfit),
+          backgroundColor: cropData.map((c) =>
+            c.netProfit >= 0 ? 'rgba(76, 175, 80, 0.7)' : 'rgba(244, 67, 54, 0.7)',
+          ),
+        },
+      ],
     },
     options: { indexAxis: 'y', responsive: true, plugins: { legend: { display: false } } },
   });
 }
 
-onUnmounted(() => { if (topCropsChart.value) topCropsChart.value.destroy(); });
+onUnmounted(() => {
+  if (topCropsChart.value) topCropsChart.value.destroy();
+});
 ```
 
 ### PDF Export via ReportExportService
@@ -433,9 +440,12 @@ function exportPDF() {
       { label: 'Total Farm Profit', value: `ZMW ${formatCurrency(totalProfit.value)}` },
     ],
     columns: ['Crop', 'Plantings', 'Revenue', 'Total Costs', 'Net Profit', 'ROI %'],
-    rows: cropPerformance.value.map(c => [
-      c.cropName, c.totalPlantings, formatCurrency(c.totalRevenue),
-      formatCurrency(c.totalCost), formatCurrency(c.netProfit),
+    rows: cropPerformance.value.map((c) => [
+      c.cropName,
+      c.totalPlantings,
+      formatCurrency(c.totalRevenue),
+      formatCurrency(c.totalCost),
+      formatCurrency(c.netProfit),
       c.roiPercent ? c.roiPercent + '%' : '—',
     ]),
   });
@@ -448,26 +458,26 @@ function exportPDF() {
 
 ## Files to Create
 
-| File | Purpose |
-|------|---------|
-| `src/modules/farm/pages/FarmReportsPage.vue` | Crop performance report page with filter bar, table, Chart.js, PDF/CSV export |
-| `src/modules/farm/components/TopCropsWidget.vue` | Dashboard widget: top 5 crops by net profit |
-| `src/modules/farm/components/PlotProfitabilityWidget.vue` | Dashboard widget: all plots profit/loss table |
+| File                                                      | Purpose                                                                       |
+| --------------------------------------------------------- | ----------------------------------------------------------------------------- |
+| `src/modules/farm/pages/FarmReportsPage.vue`              | Crop performance report page with filter bar, table, Chart.js, PDF/CSV export |
+| `src/modules/farm/components/TopCropsWidget.vue`          | Dashboard widget: top 5 crops by net profit                                   |
+| `src/modules/farm/components/PlotProfitabilityWidget.vue` | Dashboard widget: all plots profit/loss table                                 |
 
 ---
 
 ## Files to Modify
 
-| File | Changes |
-|------|---------|
-| `server/scripts/setup-appwrite.js` | Add `crop_id` relationship column to `farm_sales` table definition |
-| `DATABASE_SCHEMA.md` | Document `crop_id` in `farm_sales` table; update Relationships section |
-| `src/modules/farm/stores/farm-store.js` | Add `computePlotProfitability`, `computeCropPerformance`, `computeAllPlotsProfitability`, `computeTopCropsByProfit`, `ensureProfitabilityDataLoaded`, `computeRevenueForPlanting`; update `recordSale()` to pass `crop_id`; update state comment header to include Story 3.9 |
-| `src/modules/farm/pages/PlotDetailPage.vue` | Replace profitability placeholder (lines 252–263) with functional `ProfitabilitySummaryCard` component or inline implementation with date filter + failed toggle |
-| `src/modules/farm/pages/FarmDashboardPage.vue` | Add `TopCropsWidget` and `PlotProfitabilityWidget` to widgets row; add "Reports" to `moduleLinks` nav cards; import new widgets |
-| `src/modules/farm/router.js` | Add `/farm/reports` route with `farm:read` permission guard |
-| `src/layouts/MainLayout.vue` | Add "Reports" nav entry under Farm section |
-| `src/composables/useFarmSampleData.js` | Backfill `crop_id` on all sample `farm_sales` records to match new schema column |
+| File                                           | Changes                                                                                                                                                                                                                                                                      |
+| ---------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `server/scripts/setup-appwrite.js`             | Add `crop_id` relationship column to `farm_sales` table definition                                                                                                                                                                                                           |
+| `DATABASE_SCHEMA.md`                           | Document `crop_id` in `farm_sales` table; update Relationships section                                                                                                                                                                                                       |
+| `src/modules/farm/stores/farm-store.js`        | Add `computePlotProfitability`, `computeCropPerformance`, `computeAllPlotsProfitability`, `computeTopCropsByProfit`, `ensureProfitabilityDataLoaded`, `computeRevenueForPlanting`; update `recordSale()` to pass `crop_id`; update state comment header to include Story 3.9 |
+| `src/modules/farm/pages/PlotDetailPage.vue`    | Replace profitability placeholder (lines 252–263) with functional `ProfitabilitySummaryCard` component or inline implementation with date filter + failed toggle                                                                                                             |
+| `src/modules/farm/pages/FarmDashboardPage.vue` | Add `TopCropsWidget` and `PlotProfitabilityWidget` to widgets row; add "Reports" to `moduleLinks` nav cards; import new widgets                                                                                                                                              |
+| `src/modules/farm/router.js`                   | Add `/farm/reports` route with `farm:read` permission guard                                                                                                                                                                                                                  |
+| `src/layouts/MainLayout.vue`                   | Add "Reports" nav entry under Farm section                                                                                                                                                                                                                                   |
+| `src/composables/useFarmSampleData.js`         | Backfill `crop_id` on all sample `farm_sales` records to match new schema column                                                                                                                                                                                             |
 
 ---
 
@@ -484,12 +494,14 @@ function exportPDF() {
 **Problem**: `plantingsByPlot` getter in `farm-store.js` (line 100–104) uses `planting.plot_id` directly as a string key for the reduce. But Appwrite may return `plot_id` as an object `{ $id, ... }` for relationship fields depending on query depth. If so, the `plantingsByPlot[plotId]` lookup returns `undefined`.
 
 **Mitigation**: Normalize `plot_id` in `computePlotProfitability` the same way other getters handle it:
+
 ```javascript
-const plotPlantings = this.plantings.filter(p => {
+const plotPlantings = this.plantings.filter((p) => {
   const pid = typeof p.plot_id === 'object' ? p.plot_id?.$id : p.plot_id;
   return pid === plotId;
 });
 ```
+
 Verify whether the existing `plantingsByPlot` getter already handles this — if not, fix the getter as a prerequisite. Do not silently get wrong results.
 
 ### ⚠️ Concern 3: Large Dataset Performance
@@ -523,6 +535,7 @@ Verify whether the existing `plantingsByPlot` getter already handles this — if
 ### Manual Testing — Plot Profitability
 
 **Test 1: Plot with Sales — Positive Profit**
+
 1. Navigate to a plot that has at least one completed planting with sales recorded
 2. Verify **Profitability Summary** section replaces the placeholder text
 3. Verify revenue = sum of all sales on this plot
@@ -532,12 +545,14 @@ Verify whether the existing `plantingsByPlot` getter already handles this — if
 7. Verify color-coded green for positive profit
 
 **Test 2: Plot with Costs but No Sales — Loss Display**
+
 1. Navigate to a plot that has completed plantings but no farm sales
 2. Verify Revenue = ZMW 0.00
 3. Verify Net Profit = negative (equal to total costs)
 4. Verify displayed in red
 
 **Test 3: Date Range Filter**
+
 1. Navigate to a plot with multi-year planting history
 2. Set date range to current year only
 3. Verify profitability excludes plantings from prior years
@@ -545,6 +560,7 @@ Verify whether the existing `plantingsByPlot` getter already handles this — if
 5. Verify all plantings included again
 
 **Test 4: Include/Exclude Failed Plantings Toggle**
+
 1. Navigate to a plot with at least one failed planting
 2. Note the profitability with toggle ON
 3. Toggle OFF ("Include Failed Plantings")
@@ -552,6 +568,7 @@ Verify whether the existing `plantingsByPlot` getter already handles this — if
 5. Verify total costs decrease by exactly the failed planting's cost
 
 **Test 5: Per-Planting Breakdown Expansion**
+
 1. Expand the per-planting detail section on plot profitability
 2. Verify each row shows: crop name, planting date, revenue, costs, profit
 3. Verify sum of all rows' revenue = total revenue on summary
@@ -560,6 +577,7 @@ Verify whether the existing `plantingsByPlot` getter already handles this — if
 ### Manual Testing — Crop Performance Report
 
 **Test 6: Generate Report — All Crops**
+
 1. Navigate to `/farm/reports`
 2. Click "Generate Report" with no filters
 3. Verify table shows a row for each crop that has at least one planting
@@ -567,17 +585,20 @@ Verify whether the existing `plantingsByPlot` getter already handles this — if
 5. Verify "Most Profitable Crop" summary card shows correct crop name
 
 **Test 7: Filter by Crop Type**
+
 1. Set Crop Type filter = "Annual"
 2. Generate Report
 3. Verify only annual crops appear in table (no perennials)
 4. Verify summary stats recalculate based on filtered data only
 
 **Test 8: Failed Plantings Toggle on Reports Page**
+
 1. Note total costs with toggle ON
 2. Toggle to OFF
 3. Verify total costs decrease (if any failed plantings exist in filter scope)
 
 **Test 9: Chart Rendering**
+
 1. Generate report with data
 2. Verify horizontal bar chart renders with up to 5 bars
 3. Verify green bars for profitable crops, red bars for loss-making
@@ -585,11 +606,13 @@ Verify whether the existing `plantingsByPlot` getter already handles this — if
 5. Verify chart updates (old chart destroyed, new chart rendered)
 
 **Test 10: CSV Export**
+
 1. Generate report
 2. Click "Export CSV"
 3. Verify CSV download with correct headers and data rows
 
 **Test 11: PDF Export**
+
 1. Generate report
 2. Click "Export PDF"
 3. Verify PDF opens/downloads with title, summary stats, and table
@@ -597,6 +620,7 @@ Verify whether the existing `plantingsByPlot` getter already handles this — if
 ### Manual Testing — Dashboard Widgets
 
 **Test 12: TopCropsWidget**
+
 1. Navigate to Farm Dashboard
 2. Verify "Top Performing Crops" widget visible
 3. Verify up to 5 crops listed with net profit values
@@ -605,6 +629,7 @@ Verify whether the existing `plantingsByPlot` getter already handles this — if
 6. Empty state: wipe sales data, verify "Record sales to see top performing crops" shown
 
 **Test 13: PlotProfitabilityWidget**
+
 1. Navigate to Farm Dashboard
 2. Verify "Plot Profitability" widget visible
 3. Verify all plots listed with profit/ROI
@@ -614,12 +639,14 @@ Verify whether the existing `plantingsByPlot` getter already handles this — if
 ### Integration Testing
 
 **Test 14: Schema Change — crop_id on farm_sales**
+
 1. Record a new sale via the normal Record Sale flow
 2. Navigate to Appwrite console → `farm_sales` table
 3. Verify the new sale row has `crop_id` populated with correct crop ID
 4. Verify old sample data sales (from Story 3.8 seeding) also have `crop_id` populated
 
 **Test 15: Sample Data Profitability**
+
 1. Fresh install with sample data
 2. Navigate to Farm Dashboard
 3. Verify both profitability widgets show data (not empty state)
@@ -632,8 +659,8 @@ Verify whether the existing `plantingsByPlot` getter already handles this — if
 
 ## Dependencies on Other Stories
 
-| This Story | Depends On | Future Stories Depend On This |
-|------------|------------|-------------------------------|
+| This Story                 | Depends On                                         | Future Stories Depend On This                                                             |
+| -------------------------- | -------------------------------------------------- | ----------------------------------------------------------------------------------------- |
 | 3.9 Profitability Analysis | 3.1–3.8 (all farm data); 2.8 (ReportExportService) | 3.10 (Yield Analysis — extends Farm Reports page), 3.11 (Alerts — uses profit thresholds) |
 
 ---
@@ -666,4 +693,4 @@ The following items should be added to `docs/POST-MVP.md`:
 
 _Last Updated: 2026-04-30_  
 _Story Template Version: 1.0_  
-_Status: **backlog**_
+_Status: **in_progress**_

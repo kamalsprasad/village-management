@@ -877,6 +877,18 @@ const tableSchemas = {
         onDelete: 'restrict',
         required: false,
       },
+      // Story 3.9: Denormalized crop_id for direct crop-grouping queries without
+      // the 3-hop chain (farm_sales → inventory → plantings → crops).
+      // Nullable so existing/future records with no crop context don't break.
+      {
+        key: 'crop_id',
+        type: 'relationship',
+        relatedTable: 'crops',
+        relationType: 'manyToOne',
+        twoWay: false,
+        onDelete: 'setNull',
+        required: false,
+      },
       // Buyer fields (Story 3.8: buyer_name is primary; buyer_type/buyer_id reserved
       // for future Vendor Module integration per POST-MVP.md)
       {

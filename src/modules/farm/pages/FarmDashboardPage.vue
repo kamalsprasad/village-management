@@ -80,6 +80,14 @@
       <div class="col-12 col-md-6 col-lg-3">
         <RecentSalesWidget />
       </div>
+      <!-- Story 3.9: Top Performing Crops Widget -->
+      <div class="col-12 col-md-6">
+        <TopCropsWidget />
+      </div>
+      <!-- Story 3.9: Plot Profitability Widget -->
+      <div class="col-12 col-md-6">
+        <PlotProfitabilityWidget />
+      </div>
     </div>
 
     <!-- Harvest Alerts Row -->
@@ -229,6 +237,9 @@ import ActivePerennialsWidget from '../components/ActivePerennialsWidget.vue';
 import FarmProduceWidget from '../components/FarmProduceWidget.vue';
 // Story 3.8: Recent Sales Widget
 import RecentSalesWidget from '../components/RecentSalesWidget.vue';
+// Story 3.9: Profitability widgets
+import TopCropsWidget from '../components/TopCropsWidget.vue';
+import PlotProfitabilityWidget from '../components/PlotProfitabilityWidget.vue';
 
 const $q = useQuasar();
 const farmStore = useFarmStore();
@@ -325,6 +336,13 @@ const moduleLinks = [
     route: '/farm/sales',
     icon: 'point_of_sale',
     color: 'blue',
+  },
+  {
+    name: 'Reports',
+    description: 'Crop profitability & ROI analysis',
+    route: '/farm/reports',
+    icon: 'bar_chart',
+    color: 'teal',
   },
 ];
 
