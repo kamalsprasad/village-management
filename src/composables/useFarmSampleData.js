@@ -336,6 +336,8 @@ export function useFarmSampleData() {
         const produceRow = await createRowWithRetry(dbId, 'inventory', produceData);
 
         // (b) if plan includes a sale, create finance transaction then farm_sale
+        // Story 3.8: New three-way integration — farm_sales now links to both
+        // the inventory_item and the finance_transaction via FKs.
         if (plan.sale) {
           if (!farmingRevenueCat) {
             console.warn('Farming Revenue category not found, skipping farm_sale');
@@ -354,25 +356,66 @@ export function useFarmSampleData() {
             description: `Farm produce sale: ${plan.sale.quantity_sold}kg to ${plan.sale.buyer_name}`,
             status: 'completed',
           };
-          await createRowWithRetry(dbId, 'finance_transactions', txData);
+          const txRow = await createRowWithRetry(dbId, 'finance_transactions', txData);
 
           const saleData = {
             harvest_id: harvestRow.$id,
+            // Story 3.8: Three-way integration FKs
+            inventory_item_id: produceRow.$id,
+            finance_transaction_id: txRow.$id,
             buyer_type: plan.sale.buyer_type,
+            buyer_id: plan.sale.buyer_id || '',
             buyer_name: plan.sale.buyer_name,
             sale_date: toISO(plan.sale.sale_date),
             quantity_sold: plan.sale.quantity_sold,
             unit: plan.sale.unit || 'kg',
             price_per_unit: plan.sale.price_per_unit,
             total_amount: plan.sale.total_amount,
-            payment_status: plan.sale.payment_status || 'completed',
+            // Story 3.8: payment_status enum is now 'Pending' | 'Completed'
+            payment_status: plan.sale.payment_status || 'Completed',
             payment_method: plan.sale.payment_method,
             notes: plan.sale.notes,
           };
           await createRowWithRetry(dbId, 'farm_sales', saleData);
 
-          // Decrement produce inventory to reflect sold quantity
-          const remaining = Math.max(0, (produceData.quantity || 0) - plan.sale.quantity_sold);
+          // Story 3.8: Optional second sale to demonstrate partial-sales flow
+          let secondSaleQty = 0;
+          if (plan.additional_sale) {
+            const aSale = plan.additional_sale;
+            const aTxRow = await createRowWithRetry(dbId, 'finance_transactions', {
+              type: 'income',
+              amount_needed: aSale.total_amount,
+              amount_funded: aSale.total_amount,
+              payment_method: aSale.payment_method,
+              category_id: farmingRevenueCat.$id,
+              source_module: 'Farm',
+              funding_source_id: villageFund?.$id || null,
+              date: new Date(`${aSale.sale_date}T14:00:00Z`).toISOString(),
+              description: `Farm produce sale: ${aSale.quantity_sold}kg to ${aSale.buyer_name}`,
+              status: 'completed',
+            });
+            await createRowWithRetry(dbId, 'farm_sales', {
+              harvest_id: harvestRow.$id,
+              inventory_item_id: produceRow.$id,
+              finance_transaction_id: aTxRow.$id,
+              buyer_type: aSale.buyer_type,
+              buyer_id: aSale.buyer_id || '',
+              buyer_name: aSale.buyer_name,
+              sale_date: toISO(aSale.sale_date),
+              quantity_sold: aSale.quantity_sold,
+              unit: aSale.unit || 'kg',
+              price_per_unit: aSale.price_per_unit,
+              total_amount: aSale.total_amount,
+              payment_status: aSale.payment_status || 'Completed',
+              payment_method: aSale.payment_method,
+              notes: aSale.notes,
+            });
+            secondSaleQty = aSale.quantity_sold;
+          }
+
+          // Decrement produce inventory to reflect sold quantity (both sales)
+          const totalSold = plan.sale.quantity_sold + secondSaleQty;
+          const remaining = Math.max(0, (produceData.quantity || 0) - totalSold);
           const newStatus = deriveInventoryStatus(remaining, produceData.reorder_threshold);
           try {
             await tables.updateRow({
@@ -383,7 +426,7 @@ export function useFarmSampleData() {
                 quantity: remaining,
                 estimated_value: Math.round(remaining * (produceData.unit_cost || 0) * 100) / 100,
                 status: newStatus,
-                last_updated: toISO(plan.sale.sale_date),
+                last_updated: toISO(plan.additional_sale?.sale_date || plan.sale.sale_date),
               },
             });
           } catch (e) {
@@ -855,6 +898,19 @@ export function useFarmSampleData() {
           payment_status: 'Completed',
           sale_date: daysAgo(160),
           notes: 'Bulk sale to FRA depot.',
+        },
+        // Story 3.8: demonstrate partial sale — remaining 1200kg sold later to a local miller.
+        additional_sale: {
+          buyer_type: 'external',
+          buyer_name: 'Katete Local Miller',
+          quantity_sold: 800,
+          unit: 'kg',
+          price_per_unit: 500,
+          total_amount: 400000,
+          payment_method: 'Mobile Money',
+          payment_status: 'Pending',
+          sale_date: daysAgo(120),
+          notes: 'Second batch sale. Awaiting payment.',
         },
       });
     }

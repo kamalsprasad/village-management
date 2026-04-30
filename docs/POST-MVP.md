@@ -126,4 +126,42 @@ This document tracks deferred improvements, upgrades, and refactoring items that
 - **Effort**: Low (schema change + backfill script)
 - **Added**: Story 3.7 (Historical price lookup)
 
+### Vendor Module Integration for Farm Sales (Story 3.8)
+
+- **Current state**: `farm_sales.buyer_name` is a free-text field. `buyer_type` is hard-coded to `'external'` and `buyer_id` to empty string. No formal vendor/buyer tracking exists.
+- **Improvement**: When the Vendor Module (Epic 5) is built, wire the sales form to a vendor picker that populates:
+  - `buyer_type`: dynamic enum based on actual buyer (household/external/market/cooperative)
+  - `buyer_id`: FK to `vendors` or `households` table
+  - `buyer_name`: denormalized for display/reporting stability
+- **Benefits**: Vendor-specific reporting, buyer history, household sales tracking, price-per-vendor analytics.
+- **Migration**: Existing sales rows keep `buyer_type='external'` and `buyer_id=''`; new sales use the picker.
+- **Effort**: Medium (depends on Vendor Module scope)
+- **Added**: Story 3.8
+
+### Atomic Three-Way Sale Integration via Cloud Function (Story 3.8)
+
+- **Current state**: Sale recording performs three sequential client-side operations (inventory decrement → finance transaction create → farm_sales record create) with best-effort client-side rollback on failure. This is vulnerable to:
+  - Race conditions (two users selling last units simultaneously)
+  - Partial failures if the browser crashes mid-flow
+  - Rollback failures leaving orphaned finance transactions
+- **Improvement**: Move the full three-way flow to an Appwrite Cloud Function that wraps the operations in a try/catch and uses compensating writes on failure. The function validates inventory quantity server-side before any writes.
+- **Benefits**: True atomicity, race-condition safety, simpler client code, server-side audit log.
+- **Effort**: Medium
+- **Added**: Story 3.8
+
+### Per-Sale FIFO Cost Tracking for Accurate Profit (Story 3.8)
+
+- **Current state**: Profit calculation attributes total planting + harvest costs to each sale (or divides evenly). For perennials with many harvest cycles sold over time, this is imprecise.
+- **Improvement**: Track cost-of-goods-sold (COGS) per sale using FIFO accounting against harvest batches. Each sale "consumes" cost basis from the oldest unsold harvest kg.
+- **Benefits**: Accurate per-sale profit; supports tax/accounting standards.
+- **Effort**: High (new `harvest_cost_batches` table + allocation logic)
+- **Added**: Story 3.8
+
+### Auto-Seed "Farm Sales" Income Category (Story 3.8)
+
+- **Current state**: Sale creation looks up an income category whose name contains "farm" and "sale". If missing, the finance transaction is created without a `category_id`, producing uncategorized income.
+- **Improvement**: Seed a `Farm Sales` income category in `setup-appwrite.js` (or auto-create on first sale) marked as `is_system_default=true` so it cannot be deleted.
+- **Effort**: Low
+- **Added**: Story 3.8
+
 ---

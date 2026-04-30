@@ -154,9 +154,28 @@ const farmRoutes = [
     redirect: (to) => `/farm/plantings/${to.params.id}`,
   },
 
-  // Future routes for Farm module (Stories 3.6-3.9):
-  // - /farm/sales (Farm sales)
-  // - /farm/reports (Farm reports)
+  // Sales (Story 3.8)
+  {
+    path: 'farm/sales',
+    name: 'farm-sales-list',
+    component: () => import('./pages/SalesListPage.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresPermission: 'farm:read',
+    },
+  },
+  {
+    path: 'farm/sales/:id',
+    name: 'farm-sale-detail',
+    component: () => import('./pages/SaleDetailPage.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresPermission: 'farm:read',
+    },
+  },
+
+  // Future routes for Farm module (Stories 3.9-3.11):
+  // - /farm/reports (Farm profitability & yield reports)
 ];
 
 export default farmRoutes;

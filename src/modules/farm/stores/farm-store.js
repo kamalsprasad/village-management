@@ -5,6 +5,16 @@ import { defineStore } from 'pinia';
 import { tables } from 'src/boot/appwrite';
 import { ID, Query } from 'appwrite';
 import { useInventoryStore } from 'src/stores/inventory-store';
+import { useFinanceStore } from 'src/modules/finance/stores/finance-store';
+
+// Story 3.8: Convert a form date value (either 'YYYY-MM-DD' or an ISO datetime)
+// to a canonical ISO datetime at 12:00 UTC. Appwrite `datetime` columns require
+// ISO-8601; anchoring to midday avoids timezone-driven off-by-one day errors.
+function toSaleDatetime(dateLike) {
+  if (!dateLike) return new Date().toISOString();
+  if (typeof dateLike === 'string' && dateLike.includes('T')) return dateLike;
+  return new Date(`${dateLike}T12:00:00Z`).toISOString();
+}
 
 export const useFarmStore = defineStore('farm', {
   state: () => ({
@@ -39,6 +49,8 @@ export const useFarmStore = defineStore('farm', {
     sales: [],
     salesLoaded: false,
     isSalesLoading: false,
+    currentSale: null,
+    _farmSalesCategoryId: null, // cache for finance "Farm Sales" category lookup
 
     // Dashboard stats
     stats: {
@@ -1676,7 +1688,420 @@ export const useFarmStore = defineStore('farm', {
       return { success: true, data: { deletedEntryCount: entries.length } };
     },
 
-    // Dashboard stats
+    // ==========================================================================
+    // Story 3.8: Farm Sales Actions
+    // ==========================================================================
+
+    /**
+     * Helper: normalize a relationship field which Appwrite may return as either
+     * a string ID or an object `{ $id, ... }`.
+     */
+    _idOf(v) {
+      if (!v) return null;
+      return typeof v === 'object' ? v.$id : v;
+    },
+
+    /**
+     * Resolve (and cache) the finance_categories.$id for the "Farm Sales" income
+     * category. Returns null if not found (caller may proceed without category).
+     */
+    async getFarmSalesCategoryId() {
+      if (this._farmSalesCategoryId) return this._farmSalesCategoryId;
+      try {
+        const financeStore = useFinanceStore();
+        if (!financeStore.categoriesLoaded) {
+          await financeStore.fetchCategories();
+        }
+        // Preferred name: "Farm Sales". Fall back to any income category whose
+        // name contains both "farm" and "sale" (case-insensitive).
+        const categories = financeStore.incomeCategories || [];
+        const exact = categories.find((c) => c.name === 'Farm Sales');
+        const fuzzy =
+          exact ||
+          categories.find((c) => {
+            const n = (c.name || '').toLowerCase();
+            return n.includes('farm') && n.includes('sale');
+          }) ||
+          // Legacy sample data uses "Farming Revenue"
+          categories.find((c) => c.name === 'Farming Revenue');
+        this._farmSalesCategoryId = fuzzy?.$id || null;
+        return this._farmSalesCategoryId;
+      } catch (error) {
+        console.error('Error resolving Farm Sales category:', error);
+        return null;
+      }
+    },
+
+    /**
+     * Resolve a harvest_id to link a sale to, given a farm_produce inventory item.
+     *
+     * The inventory row links to a `planting_id`; sales must reference a harvest.
+     * For single-harvest plantings the mapping is 1:1. For perennials with
+     * continuous picking, inventory aggregates across multiple harvest cycles —
+     * we link the sale to the MOST RECENT completed harvest as a best-effort
+     * attribution (documented limitation; POST-MVP.md tracks FIFO tracking).
+     *
+     * @param {Object} inventoryItem - inventory row with `planting_id`
+     * @returns {Promise<string|null>} harvest $id or null if none resolvable
+     */
+    async resolveHarvestForInventory(inventoryItem) {
+      try {
+        const plantingId = this._idOf(inventoryItem?.planting_id);
+        if (!plantingId) return null;
+        const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
+        const response = await tables.listRows({
+          databaseId: dbId,
+          tableId: 'harvests',
+          queries: [
+            Query.equal('planting_id', plantingId),
+            Query.equal('status', 'Completed'),
+            Query.orderDesc('harvest_end_date'),
+            Query.limit(5),
+          ],
+        });
+        const rows = response.rows || [];
+        if (rows.length === 0) {
+          // Fall back to any harvest (in-progress continuous picking)
+          const anyRes = await tables.listRows({
+            databaseId: dbId,
+            tableId: 'harvests',
+            queries: [
+              Query.equal('planting_id', plantingId),
+              Query.orderDesc('harvest_end_date'),
+              Query.limit(1),
+            ],
+          });
+          return anyRes.rows?.[0]?.$id || null;
+        }
+        return rows[0].$id;
+      } catch (error) {
+        console.error('Error resolving harvest for inventory item:', error);
+        return null;
+      }
+    },
+
+    /**
+     * Aggregate planting + harvest costs for profit preview (AC4).
+     * For perennials the caller passes the planting id; all harvest costs across
+     * every harvest cycle for that planting are summed.
+     *
+     * @param {string} plantingId
+     * @returns {Promise<Object>} { seedCosts, plantingLabor, plantingOther,
+     *                              harvestLabor, harvestOther, totalCost }
+     */
+    async calculatePlantingCostsForProfit(plantingId) {
+      try {
+        const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
+
+        // Planting costs (reuse local state if present)
+        let planting = this.plantings.find((p) => p.$id === plantingId);
+        if (!planting) {
+          const res = await tables.getRow({
+            databaseId: dbId,
+            tableId: 'plantings',
+            rowId: plantingId,
+          });
+          planting = res;
+        }
+
+        // Harvests (fresh fetch to include any not in local state)
+        const harvestsRes = await tables.listRows({
+          databaseId: dbId,
+          tableId: 'harvests',
+          queries: [Query.equal('planting_id', plantingId), Query.limit(100)],
+        });
+        const harvests = harvestsRes.rows || [];
+
+        const seedCosts = Number(planting?.inputs_cost) || 0;
+        const plantingLabor = Number(planting?.labor_cost) || 0;
+        const plantingOther = Number(planting?.other_cost) || 0;
+        const harvestLabor = harvests.reduce(
+          (sum, h) => sum + (Number(h.total_labor_cost) || 0),
+          0,
+        );
+        const harvestOther = harvests.reduce(
+          (sum, h) => sum + (Number(h.total_other_costs) || 0),
+          0,
+        );
+        const totalCost = seedCosts + plantingLabor + plantingOther + harvestLabor + harvestOther;
+
+        return {
+          seedCosts,
+          plantingLabor,
+          plantingOther,
+          harvestLabor,
+          harvestOther,
+          totalCost,
+        };
+      } catch (error) {
+        console.error('Error calculating planting costs:', error);
+        return {
+          seedCosts: 0,
+          plantingLabor: 0,
+          plantingOther: 0,
+          harvestLabor: 0,
+          harvestOther: 0,
+          totalCost: 0,
+        };
+      }
+    },
+
+    /**
+     * Fetch all farm sales with optional filtering (for sales list page).
+     *
+     * @param {Object} [opts]
+     * @param {number} [opts.limit=100]
+     * @param {string} [opts.dateFrom] - ISO date
+     * @param {string} [opts.dateTo] - ISO date
+     * @param {string} [opts.paymentStatus] - 'Pending' | 'Completed'
+     */
+    async fetchSales({ limit = 100, dateFrom, dateTo, paymentStatus } = {}) {
+      this.isSalesLoading = true;
+      try {
+        const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
+        const queries = [Query.orderDesc('sale_date'), Query.limit(limit)];
+        if (dateFrom) queries.push(Query.greaterThanEqual('sale_date', dateFrom));
+        if (dateTo) queries.push(Query.lessThanEqual('sale_date', dateTo));
+        if (paymentStatus) queries.push(Query.equal('payment_status', paymentStatus));
+
+        const response = await tables.listRows({
+          databaseId: dbId,
+          tableId: 'farm_sales',
+          queries,
+        });
+        this.sales = response.rows || [];
+        this.salesLoaded = true;
+        return { success: true, data: this.sales };
+      } catch (error) {
+        console.error('Error fetching farm sales:', error);
+        return { success: false, error: error.message };
+      } finally {
+        this.isSalesLoading = false;
+      }
+    },
+
+    /**
+     * Fetch the 5 most recent sales for the dashboard widget.
+     */
+    async fetchRecentSales(limit = 5) {
+      try {
+        const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
+        const response = await tables.listRows({
+          databaseId: dbId,
+          tableId: 'farm_sales',
+          queries: [Query.orderDesc('sale_date'), Query.limit(limit)],
+        });
+        return { success: true, data: response.rows || [] };
+      } catch (error) {
+        console.error('Error fetching recent sales:', error);
+        return { success: false, error: error.message, data: [] };
+      }
+    },
+
+    /**
+     * Fetch a single sale by id (for sale detail page). Populates currentSale.
+     */
+    async fetchSaleById(saleId) {
+      this.isSalesLoading = true;
+      try {
+        const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
+        const row = await tables.getRow({
+          databaseId: dbId,
+          tableId: 'farm_sales',
+          rowId: saleId,
+        });
+        this.currentSale = row;
+        return { success: true, data: row };
+      } catch (error) {
+        console.error('Error fetching sale:', error);
+        this.currentSale = null;
+        return { success: false, error: error.message };
+      } finally {
+        this.isSalesLoading = false;
+      }
+    },
+
+    /**
+     * Fetch all sales for a given inventory item (for "Sales History" section).
+     */
+    async fetchSalesForInventoryItem(inventoryItemId) {
+      try {
+        const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
+        const response = await tables.listRows({
+          databaseId: dbId,
+          tableId: 'farm_sales',
+          queries: [
+            Query.equal('inventory_item_id', inventoryItemId),
+            Query.orderDesc('sale_date'),
+            Query.limit(100),
+          ],
+        });
+        return { success: true, data: response.rows || [] };
+      } catch (error) {
+        console.error('Error fetching sales for inventory item:', error);
+        return { success: false, error: error.message, data: [] };
+      }
+    },
+
+    /**
+     * Record a farm sale with three-way atomic integration:
+     *   1. Decrement inventory quantity
+     *   2. Create finance income transaction
+     *   3. Create farm_sales record linking inventory + finance + harvest
+     *
+     * All three operations succeed, or we roll back in reverse order. True
+     * atomicity requires a Cloud Function (tracked in POST-MVP.md).
+     *
+     * @param {Object} params
+     * @param {Object} params.inventoryItem  - the farm_produce inventory row
+     * @param {Object} params.saleFormData   - form payload, see RecordSaleDialog
+     * @param {string} params.cropName       - for transaction description
+     * @returns {Promise<{success:boolean, data?:Object, error?:string}>}
+     */
+    async recordSale({ inventoryItem, saleFormData, cropName = 'Farm Produce' }) {
+      const inventoryStore = useInventoryStore();
+      const financeStore = useFinanceStore();
+      const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
+
+      // Validate basic preconditions
+      if (!inventoryItem?.$id) {
+        return { success: false, error: 'Missing inventory item' };
+      }
+      const qty = Number(saleFormData?.quantity_sold) || 0;
+      const price = Number(saleFormData?.price_per_unit) || 0;
+      if (qty <= 0) return { success: false, error: 'Quantity must be greater than zero' };
+      if (price < 0) return { success: false, error: 'Price cannot be negative' };
+
+      const available = Number(inventoryItem.quantity) || 0;
+      if (qty > available) {
+        return {
+          success: false,
+          error: `Cannot sell ${qty}${inventoryItem.unit || 'kg'}. Only ${available}${inventoryItem.unit || 'kg'} available.`,
+        };
+      }
+
+      const totalAmount = Math.round(qty * price * 100) / 100;
+
+      // Track what's been done for rollback
+      let inventoryAdjusted = false;
+      let financeTx = null;
+      let farmSaleRow = null;
+
+      try {
+        // -----------------------------------------------------------------
+        // Step 1: Decrement inventory
+        // -----------------------------------------------------------------
+        const invResult = await inventoryStore.adjustStock(inventoryItem.$id, {
+          type: 'remove',
+          quantity: qty,
+        });
+        if (!invResult.success) {
+          return {
+            success: false,
+            error: invResult.error || 'Inventory adjustment failed',
+          };
+        }
+        inventoryAdjusted = true;
+
+        // -----------------------------------------------------------------
+        // Step 2: Create finance income transaction
+        // -----------------------------------------------------------------
+        const categoryId = await this.getFarmSalesCategoryId();
+        const description = `Sale of ${cropName} to ${saleFormData.buyer_name} — ${qty}${inventoryItem.unit || 'kg'} @ ZMW ${price}/${inventoryItem.unit || 'kg'}`;
+
+        // Convert form sale_date (YYYY-MM-DD) to ISO datetime (midday UTC).
+        const saleDateIso = toSaleDatetime(saleFormData.sale_date);
+
+        // financeStore.createTransaction handles validation, funding source
+        // balance updates, and local state. It does not require funding_source_id.
+        const txResult = await financeStore.createTransaction({
+          type: 'income',
+          amount_needed: totalAmount,
+          amount_funded: totalAmount,
+          category_id: categoryId,
+          source_module: 'Farm',
+          payment_method: saleFormData.payment_method,
+          payment_status: saleFormData.payment_status === 'Completed' ? 'paid' : 'unpaid',
+          date: saleDateIso,
+          description,
+          status: saleFormData.payment_status === 'Completed' ? 'completed' : 'pending',
+        });
+        if (!txResult.success || !txResult.data?.$id) {
+          throw new Error(txResult.error || 'Finance transaction creation failed');
+        }
+        financeTx = txResult.data;
+
+        // -----------------------------------------------------------------
+        // Step 3: Create farm_sales record
+        // -----------------------------------------------------------------
+        const harvestId = await this.resolveHarvestForInventory(inventoryItem);
+
+        const saleData = {
+          inventory_item_id: inventoryItem.$id,
+          finance_transaction_id: financeTx.$id,
+          // Hard-coded buyer_type / buyer_id placeholders per Story 3.8 decision.
+          // See docs/POST-MVP.md for future Vendor Module integration.
+          buyer_type: 'external',
+          buyer_id: '',
+          buyer_name: saleFormData.buyer_name,
+          sale_date: saleDateIso,
+          quantity_sold: qty,
+          unit: inventoryItem.unit || 'kg',
+          price_per_unit: price,
+          total_amount: totalAmount,
+          payment_status: saleFormData.payment_status,
+          payment_method: saleFormData.payment_method,
+          notes: saleFormData.notes || null,
+        };
+        // Only attach harvest_id if we could resolve one (relationship is optional).
+        if (harvestId) saleData.harvest_id = harvestId;
+
+        farmSaleRow = await tables.createRow({
+          databaseId: dbId,
+          tableId: 'farm_sales',
+          rowId: ID.unique(),
+          data: saleData,
+        });
+
+        // Keep local state roughly in sync for the dashboard widget
+        this.sales = [farmSaleRow, ...(this.sales || [])].slice(0, 100);
+
+        return { success: true, data: farmSaleRow };
+      } catch (error) {
+        console.error('recordSale failed — attempting rollback:', error);
+
+        // Rollback in reverse order (best-effort)
+        if (financeTx?.$id && !farmSaleRow) {
+          try {
+            // Reverse funding impact then delete the transaction
+            await financeStore.reverseTransactionFundingImpact?.(financeTx);
+            await tables.deleteRow({
+              databaseId: dbId,
+              tableId: 'finance_transactions',
+              rowId: financeTx.$id,
+            });
+          } catch (rollbackErr) {
+            console.error('Failed to roll back finance transaction:', rollbackErr);
+          }
+        }
+        if (inventoryAdjusted && !farmSaleRow) {
+          try {
+            await inventoryStore.adjustStock(inventoryItem.$id, {
+              type: 'add',
+              quantity: qty,
+            });
+          } catch (rollbackErr) {
+            console.error('Failed to roll back inventory decrement:', rollbackErr);
+          }
+        }
+
+        return {
+          success: false,
+          error: error.message || 'Failed to record sale',
+        };
+      }
+    },
+
     async fetchStats() {
       try {
         // Fetch all necessary data in parallel
@@ -1687,8 +2112,19 @@ export const useFarmStore = defineStore('farm', {
         this.stats.activePlantings = this.activePlantings.length;
         this.stats.readyForHarvest = this.readyForHarvest.length;
 
-        // Monthly sales would come from finance module integration
-        this.stats.monthlySales = 0; // Placeholder
+        // Story 3.8: Monthly sales (last 30 days) from farm_sales
+        try {
+          const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+          const salesRes = await this.fetchSales({ dateFrom: thirtyDaysAgo, limit: 500 });
+          const salesRows = salesRes.data || [];
+          this.stats.monthlySales = salesRows.reduce(
+            (sum, s) => sum + (Number(s.total_amount) || 0),
+            0,
+          );
+        } catch (err) {
+          console.warn('Unable to compute monthly sales:', err);
+          this.stats.monthlySales = 0;
+        }
 
         return { success: true, data: this.stats };
       } catch (error) {

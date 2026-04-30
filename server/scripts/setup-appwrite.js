@@ -850,6 +850,7 @@ const tableSchemas = {
     name: 'Farm Sales',
     permissions: permissions,
     columns: [
+      // Three-way integration relationships (Story 3.8)
       {
         key: 'harvest_id',
         type: 'relationship',
@@ -859,19 +860,46 @@ const tableSchemas = {
         required: false,
       },
       {
+        key: 'inventory_item_id',
+        type: 'relationship',
+        relatedTable: 'inventory',
+        relationType: 'manyToOne',
+        twoWay: false,
+        onDelete: 'restrict',
+        required: false,
+      },
+      {
+        key: 'finance_transaction_id',
+        type: 'relationship',
+        relatedTable: 'finance_transactions',
+        relationType: 'manyToOne',
+        twoWay: false,
+        onDelete: 'restrict',
+        required: false,
+      },
+      // Buyer fields (Story 3.8: buyer_name is primary; buyer_type/buyer_id reserved
+      // for future Vendor Module integration per POST-MVP.md)
+      {
         key: 'buyer_type',
         type: 'enum',
         elements: ['household', 'external', 'market', 'cooperative'],
         required: true,
       },
       { key: 'buyer_id', type: 'string', size: 50, required: false },
-      { key: 'buyer_name', type: 'string', size: 200, required: false },
+      { key: 'buyer_name', type: 'string', size: 200, required: true },
       { key: 'sale_date', type: 'datetime', required: true },
-      { key: 'quantity_sold', type: 'integer', min: 0, max: 1000000000000, required: true },
+      // Story 3.8: Changed integer → float to support fractional kg / decimal pricing (2 dp)
+      { key: 'quantity_sold', type: 'float', min: 0, max: 1000000000000, required: true },
       { key: 'unit', type: 'string', size: 20, required: true, default: 'kg' },
-      { key: 'price_per_unit', type: 'integer', min: 0, max: 1000000000000, required: true },
-      { key: 'total_amount', type: 'integer', min: 0, max: 1000000000000, required: true },
-      { key: 'payment_status', type: 'string', size: 20, required: true, default: 'pending' },
+      { key: 'price_per_unit', type: 'float', min: 0, max: 1000000000000, required: true },
+      { key: 'total_amount', type: 'float', min: 0, max: 1000000000000, required: true },
+      // Story 3.8: Constrained to enum for consistency
+      {
+        key: 'payment_status',
+        type: 'enum',
+        elements: ['Pending', 'Completed'],
+        required: true,
+      },
       { key: 'payment_method', type: 'string', size: 50, required: false },
       { key: 'notes', type: 'string', size: 1000, required: false },
     ],

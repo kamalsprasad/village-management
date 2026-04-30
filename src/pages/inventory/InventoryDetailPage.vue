@@ -15,6 +15,15 @@
           </div>
         </div>
         <div class="row q-gutter-sm" v-if="canEdit">
+          <!-- Story 3.8: Record Sale (farm_produce only, non-zero quantity) -->
+          <q-btn
+            v-if="canRecordSale"
+            color="positive"
+            icon="point_of_sale"
+            label="Record Sale"
+            :disable="(item?.quantity || 0) <= 0"
+            @click="showSaleDialog = true"
+          />
           <q-btn
             outline
             color="secondary"
@@ -249,8 +258,70 @@
             </q-card-section>
           </q-card>
 
-          <!-- Transaction History (Placeholder) -->
-          <q-card flat bordered>
+          <!-- Story 3.8: Sales History (farm_produce only) -->
+          <q-card v-if="item?.item_type === 'farm_produce'" flat bordered>
+            <q-card-section>
+              <div class="row items-center justify-between q-mb-md">
+                <div class="text-subtitle2 text-grey-7">
+                  Sales History
+                  <q-badge v-if="salesHistory.length" color="primary" class="q-ml-sm">
+                    {{ salesHistory.length }}
+                  </q-badge>
+                </div>
+                <div v-if="salesHistory.length" class="text-caption text-grey-7">
+                  Sold: {{ totalSoldQty.toFixed(2) }} {{ item?.unit || 'kg' }} · Remaining:
+                  {{
+                    (item?.quantity || 0).toFixed
+                      ? Number(item.quantity).toFixed(2)
+                      : item?.quantity
+                  }}
+                  {{ item?.unit || 'kg' }}
+                </div>
+              </div>
+
+              <div v-if="isLoadingSales" class="flex flex-center q-pa-md">
+                <q-spinner color="primary" size="2em" />
+              </div>
+
+              <div v-else-if="salesHistory.length === 0" class="text-grey text-caption q-py-md">
+                No sales recorded for this item yet.
+              </div>
+
+              <q-list v-else separator dense>
+                <q-item
+                  v-for="s in salesHistory"
+                  :key="s.$id"
+                  clickable
+                  v-ripple
+                  @click="$router.push(`/farm/sales/${s.$id}`)"
+                >
+                  <q-item-section>
+                    <q-item-label class="text-weight-medium">
+                      {{ s.buyer_name || 'Unknown buyer' }}
+                    </q-item-label>
+                    <q-item-label caption>
+                      {{ formatDate(s.sale_date) }} · {{ Number(s.quantity_sold).toFixed(2) }}
+                      {{ s.unit || 'kg' }} @ ZMW {{ Number(s.price_per_unit).toFixed(2) }}
+                    </q-item-label>
+                  </q-item-section>
+                  <q-item-section side>
+                    <div class="text-weight-medium text-positive">
+                      ZMW {{ Number(s.total_amount).toFixed(2) }}
+                    </div>
+                    <q-badge
+                      :color="s.payment_status === 'Completed' ? 'positive' : 'warning'"
+                      outline
+                    >
+                      {{ s.payment_status }}
+                    </q-badge>
+                  </q-item-section>
+                </q-item>
+              </q-list>
+            </q-card-section>
+          </q-card>
+
+          <!-- Transaction History (Placeholder for non-farm items) -->
+          <q-card v-else flat bordered>
             <q-card-section>
               <div class="text-subtitle2 text-grey-7 q-mb-md">Transaction History</div>
               <q-banner rounded class="bg-blue-1 text-dark">
@@ -330,6 +401,16 @@
       <!-- Stock Adjustment Dialog -->
       <StockAdjustDialog v-model="showAdjustDialog" :item="item" @submit="onAdjustSubmit" />
 
+      <!-- Story 3.8: Record Sale Dialog -->
+      <RecordSaleDialog
+        v-if="canRecordSale"
+        v-model="showSaleDialog"
+        :inventory-item="item || {}"
+        :crop-name="cropDisplayName"
+        :loading="isRecordingSale"
+        @submit="onSaleSubmit"
+      />
+
       <!-- Enhanced Delete Confirmation -->
       <DeleteConfirmDialog
         v-model="showDeleteDialog"
@@ -352,6 +433,9 @@ import StockAdjustDialog from 'src/components/inventory/StockAdjustDialog.vue';
 import StockLevelIndicator from 'src/components/inventory/StockLevelIndicator.vue';
 import DeleteConfirmDialog from 'src/components/dialogs/DeleteConfirmDialog.vue';
 import InfoRow from 'src/components/inventory/InfoRow.vue';
+// Story 3.8: Record-sale dialog (farm_produce only)
+import RecordSaleDialog from 'src/modules/farm/components/RecordSaleDialog.vue';
+import { usePermissions } from 'src/composables/usePermissions';
 import { useQuasar } from 'quasar';
 import { date } from 'quasar';
 
@@ -369,6 +453,28 @@ const showDeleteDialog = ref(false);
 // Story 2.7: Source transaction data for finance_purchase items
 const sourceTransaction = ref(null);
 const isLoadingSourceTransaction = ref(false);
+
+// Story 3.8: Sales history & record-sale state
+const { hasPermission } = usePermissions();
+const showSaleDialog = ref(false);
+const isRecordingSale = ref(false);
+const salesHistory = ref([]);
+const isLoadingSales = ref(false);
+
+const canRecordSale = computed(() => {
+  if (!item.value) return false;
+  if (item.value.item_type !== 'farm_produce') return false;
+  return hasPermission('farm:write');
+});
+
+const totalSoldQty = computed(() =>
+  salesHistory.value.reduce((sum, s) => sum + (Number(s.quantity_sold) || 0), 0),
+);
+
+const cropDisplayName = computed(() => {
+  if (!item.value?.crop_id) return item.value?.item_name || '';
+  return getCropName(item.value.crop_id);
+});
 
 const itemId = computed(() => route.params.id);
 const item = computed(() => inventoryStore.currentItem);
@@ -462,7 +568,54 @@ onMounted(async () => {
   if (!farmStore.plantingsLoaded) farmLoaders.push(farmStore.fetchPlantings());
   if (!farmStore.plotsLoaded) farmLoaders.push(farmStore.fetchPlots());
   await Promise.all([loadItem(), ...farmLoaders]);
+
+  // Story 3.8: Fetch sales history for farm_produce items
+  if (item.value?.item_type === 'farm_produce') {
+    await loadSalesHistory();
+  }
 });
+
+// Story 3.8: Load sales history for current inventory item
+async function loadSalesHistory() {
+  if (!itemId.value) return;
+  isLoadingSales.value = true;
+  try {
+    const res = await farmStore.fetchSalesForInventoryItem(itemId.value);
+    salesHistory.value = res.data || [];
+  } finally {
+    isLoadingSales.value = false;
+  }
+}
+
+// Story 3.8: Record a sale from the dialog
+async function onSaleSubmit(saleFormData) {
+  isRecordingSale.value = true;
+  try {
+    const result = await farmStore.recordSale({
+      inventoryItem: item.value,
+      saleFormData,
+      cropName: cropDisplayName.value,
+    });
+    if (!result.success) {
+      $q.notify({
+        type: 'negative',
+        message: result.error || 'Failed to record sale',
+        timeout: 5000,
+      });
+      return;
+    }
+    $q.notify({
+      type: 'positive',
+      message: `Sale recorded: ${saleFormData.quantity_sold}${item.value?.unit || 'kg'} ${cropDisplayName.value} to ${saleFormData.buyer_name} for ZMW ${saleFormData.total_amount.toFixed(2)}`,
+      timeout: 4000,
+    });
+    showSaleDialog.value = false;
+    // Refresh item (quantity changed) and sales history
+    await Promise.all([loadItem(), loadSalesHistory()]);
+  } finally {
+    isRecordingSale.value = false;
+  }
+}
 
 async function loadItem() {
   isLoading.value = true;

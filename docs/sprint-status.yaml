@@ -55,7 +55,7 @@ development_status:
   3-5-farm-module-harvest-recording-single-day-and-multi-day-aggregate: done
   3-6-farm-module-continuous-picking-harvests-for-perennial-crops: done
   3-7-farm-module-automatic-inventory-creation-on-harvest-completion: done
-  3-8-farm-module-sales-recording-with-finance-and-inventory-integration: ready-for-dev
+  3-8-farm-module-sales-recording-with-finance-and-inventory-integration: review
   3-9-farm-module-profitability-analysis-and-roi-calculation: backlog
   3-10-farm-module-yield-analysis-and-trend-reporting: backlog
   3-11-farm-module-agronomic-insights-and-recommendations: backlog

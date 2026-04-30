@@ -76,6 +76,10 @@
       <div class="col-12 col-md-6 col-lg-3">
         <FarmProduceWidget />
       </div>
+      <!-- Story 3.8: Recent Sales Widget -->
+      <div class="col-12 col-md-6 col-lg-3">
+        <RecentSalesWidget />
+      </div>
     </div>
 
     <!-- Harvest Alerts Row -->
@@ -223,6 +227,8 @@ import RecentHarvestsWidget from '../components/RecentHarvestsWidget.vue';
 import ActivePerennialsWidget from '../components/ActivePerennialsWidget.vue';
 // Story 3.7: Farm Produce Inventory Widget
 import FarmProduceWidget from '../components/FarmProduceWidget.vue';
+// Story 3.8: Recent Sales Widget
+import RecentSalesWidget from '../components/RecentSalesWidget.vue';
 
 const $q = useQuasar();
 const farmStore = useFarmStore();

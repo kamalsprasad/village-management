@@ -2,7 +2,7 @@
 
 **Epic:** 3 - Farm Management and Agricultural Tracking  
 **Story ID:** 3.8  
-**Status:** ready-for-dev  
+**Status:** in-progress (awaiting QA)  
 **Date:** 2026-04-30  
 **Author:** AI Assistant
 

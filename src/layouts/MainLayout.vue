@@ -259,6 +259,16 @@
               <q-item-label>Crop Database</q-item-label>
             </q-item-section>
           </q-item>
+
+          <!-- Story 3.8: Farm Sales -->
+          <q-item clickable to="/farm/sales">
+            <q-item-section avatar>
+              <q-icon name="point_of_sale" />
+            </q-item-section>
+            <q-item-section>
+              <q-item-label>Farm Sales</q-item-label>
+            </q-item-section>
+          </q-item>
         </template>
 
         <!-- School Section -->
