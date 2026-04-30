@@ -6,119 +6,143 @@ The Village Management System uses Appwrite's TablesDB for data storage with a n
 
 ### users
 
-Stores authentication and user account information.
+Stores authentication and user account information. Linked to a resident profile via `resident_id`.
 
-| Column       | Type     | Constraints                 | Description                           |
-| ------------ | -------- | --------------------------- | ------------------------------------- |
-| `id`         | string   | Primary Key, Auto-generated | Unique user identifier                |
-| `email`      | string   | Required, Unique, Indexed   | User email address for authentication |
-| `name`       | string   | Required                    | User's display name                   |
-| `created_at` | datetime | Auto-generated              | Account creation timestamp            |
-| `updated_at` | datetime | Auto-updated                | Last modification timestamp           |
-
-### residents
-
-Stores comprehensive resident profile information with multi-role support.
-
-| Column         | Type     | Constraints                          | Description                                 |
-| -------------- | -------- | ------------------------------------ | ------------------------------------------- |
-| `id`           | string   | Primary Key, Auto-generated          | Unique resident identifier                  |
-| `first_name`   | string   | Required                             | Resident's first name                       |
-| `middle_names` | string   | Optional                             | Resident's middle names (can be null)       |
-| `last_name`    | string   | Required                             | Resident's last name                        |
-| `dob`          | datetime | Optional                             | Date of birth                               |
-| `gender`       | string   | Optional, Enum: Male/Female/Other    | Gender identity                             |
-| `contact`      | string   | Optional                             | Contact information (phone/email)           |
-| `household_id` | string   | Foreign Key → households.id, Indexed | Reference to household                      |
-| `role_ids`     | string[] | Indexed                              | Array of role IDs for multi-role assignment |
-| `created_at`   | datetime | Auto-generated                       | Record creation timestamp                   |
-| `updated_at`   | datetime | Auto-updated                         | Last modification timestamp                 |
-
-### households
-
-Stores household information and composition.
-
-| Column             | Type     | Constraints                         | Description                  |
-| ------------------ | -------- | ----------------------------------- | ---------------------------- |
-| `id`               | string   | Primary Key, Auto-generated         | Unique household identifier  |
-| `name`             | string   | Required                            | Household name or identifier |
-| `head_resident_id` | string   | Foreign Key → residents.id, Indexed | Reference to household head  |
-| `address`          | string   | Optional                            | Physical address or location |
-| `created_at`       | datetime | Auto-generated                      | Record creation timestamp    |
-| `updated_at`       | datetime | Auto-updated                        | Last modification timestamp  |
+| Column                       | Type    | Constraints                               | Description                                  |
+| ---------------------------- | ------- | ----------------------------------------- | -------------------------------------------- |
+| `id`                         | string  | Primary Key, Auto-generated               | Unique user identifier                       |
+| `email`                      | string  | Required, Unique (idx_users_email_unique) | User email address for authentication        |
+| `name`                       | string  | Required, max 255                         | User's display name                          |
+| `storage_quota`              | integer | Optional, min 0, max 1000                 | Storage quota in GB (overrides role default) |
+| `role_ids`                   | rel[]   | Optional, manyToMany → roles              | Assigned roles                               |
+| `resident_id`                | rel     | Optional, oneToOne → residents            | Linked resident profile                      |
+| `recorded_transaction_links` | rel[]   | Optional, child of transaction_links      | Transaction links recorded by this user      |
 
 ### roles
 
 Stores role definitions with permissions and storage quotas for RBAC.
 
-| Column          | Type     | Constraints                 | Description                                    |
-| --------------- | -------- | --------------------------- | ---------------------------------------------- |
-| `id`            | string   | Primary Key, Auto-generated | Unique role identifier                         |
-| `name`          | string   | Required, Unique            | Role name (e.g., Admin, Village Head, Teacher) |
-| `permissions`   | string[] | Required                    | Array of permission strings                    |
-| `storage_quota` | integer  | Required                    | Storage quota in GB                            |
-| `created_at`    | datetime | Auto-generated              | Record creation timestamp                      |
-| `updated_at`    | datetime | Auto-updated                | Last modification timestamp                    |
+| Column          | Type     | Constraints                                                           | Description                                    |
+| --------------- | -------- | --------------------------------------------------------------------- | ---------------------------------------------- |
+| `id`            | string   | Primary Key, Auto-generated                                           | Unique role identifier                         |
+| `name`          | string   | Required, max 100                                                     | Role name (e.g., Admin, Village Head, Teacher) |
+| `category`      | string   | Required, Enum: 'administration','council','farm','school','resident' | Role category for grouping                     |
+| `permissions`   | string[] | Optional, max 100 each                                                | Array of permission strings                    |
+| `storage_quota` | integer  | Optional, min 0, max 1000                                             | Storage quota in GB                            |
+
+### residents
+
+Stores comprehensive resident profile information.
+
+| Column         | Type     | Constraints                                             | Description                           |
+| -------------- | -------- | ------------------------------------------------------- | ------------------------------------- |
+| `id`           | string   | Primary Key, Auto-generated                             | Unique resident identifier            |
+| `first_name`   | string   | Required, max 50                                        | Resident's first name                 |
+| `middle_names` | string   | Optional, max 255                                       | Resident's middle names (can be null) |
+| `last_name`    | string   | Required, max 50                                        | Resident's last name                  |
+| `dob`          | datetime | Optional                                                | Date of birth                         |
+| `gender`       | string   | Required, Enum: Male/Female/Other                       | Gender identity                       |
+| `phone`        | string   | Optional, max 20                                        | Phone number                          |
+| `email`        | string   | Optional, email format                                  | Email address                         |
+| `room_number`  | string   | Optional, max 25                                        | Room/unit number within household     |
+| `notes`        | string   | Optional, max 500                                       | General notes                         |
+| `household_id` | rel      | Optional, manyToOne → households (twoWay: resident_ids) | Reference to household                |
+| `loans`        | rel[]    | Optional, child of loans.borrower_id                    | Loans taken by this resident          |
+
+**Index:** `idx_residents_household_id` on `(first_name ASC, last_name ASC)`
+
+### households
+
+Stores household information and composition.
+
+| Column              | Type     | Constraints                                                                                       | Description                     |
+| ------------------- | -------- | ------------------------------------------------------------------------------------------------- | ------------------------------- |
+| `id`                | string   | Primary Key, Auto-generated                                                                       | Unique household identifier     |
+| `name`              | string   | Required, max 255                                                                                 | Household name or identifier    |
+| `address`           | string   | Optional, max 500                                                                                 | Physical address or location    |
+| `construction_date` | datetime | Required                                                                                          | Date the structure was built    |
+| `household_type`    | string   | Required, Enum: 'Single Family','Multi-Family','Dormitory','Guest House','Admin Building','Other' | Building type                   |
+| `bedrooms`          | integer  | Optional, min 0, max 50                                                                           | Number of bedrooms              |
+| `bathrooms`         | integer  | Optional, min 0, max 5                                                                            | Number of bathrooms             |
+| `notes`             | string   | Optional, max 500                                                                                 | General notes                   |
+| `resident_ids`      | rel[]    | Optional, child of residents.household_id (twoWay)                                                | All residents in this household |
+| `head_resident_id`  | rel      | Optional, oneToOne → residents                                                                    | Reference to household head     |
+
+**Index:** `idx_households_name` on `(name ASC)`
+
+### village_settings
+
+Stores global village configuration. One row per village.
+
+| Column                 | Type     | Constraints                                                         | Description                        |
+| ---------------------- | -------- | ------------------------------------------------------------------- | ---------------------------------- |
+| `id`                   | string   | Primary Key, Auto-generated                                         | Unique settings identifier         |
+| `village_name`         | string   | Required, max 255                                                   | Name of the village                |
+| `address`              | string   | Optional, max 500                                                   | Village physical address           |
+| `established_date`     | datetime | Optional                                                            | Date village was established       |
+| `default_currency`     | string   | Required, max 10                                                    | Currency code (e.g., ZMW)          |
+| `currency_symbol`      | string   | Required, max 10                                                    | Currency symbol (e.g., K)          |
+| `timezone`             | string   | Required, max 50                                                    | IANA timezone string               |
+| `country_code`         | string   | Required, max 10                                                    | ISO country code                   |
+| `country_phone_code`   | string   | Required, max 10                                                    | Country dialing code (e.g., +260)  |
+| `is_using_sample_data` | boolean  | Required                                                            | Whether sample data is active      |
+| `modules_enabled`      | string[] | Optional, max 500 each                                              | List of enabled module names       |
+| `yield_unit`           | string   | Required, Enum: 'kg_per_hectare','kg_per_acre','tonnes_per_hectare' | Default yield unit for farm module |
+| `council_member_ids`   | rel[]    | Optional, oneToMany → residents                                     | Village council members            |
 
 ## Farm Tables
-
-### plots
-
-Stores farm plot information with soil characteristics and management assignments.
-
-| Column                 | Type     | Constraints                                   | Description                               |
-| ---------------------- | -------- | --------------------------------------------- | ----------------------------------------- |
-| `id`                   | string   | Primary Key, Auto-generated                   | Unique plot identifier                    |
-| `name`                 | string   | Required, max 100                             | Plot name (e.g., "North Field", "Plot A") |
-| `size_hectares`        | float    | Required, min 0.01, max 1000                  | Size in hectares                          |
-| `location_description` | string   | Optional, max 500                             | Description of location                   |
-| `soil_type_id`         | string   | Optional, Foreign Key → soil_types.id         | Reference to soil type                    |
-| `status`               | string   | Required, Enum: 'Active', 'Fallow', 'Retired' | Current plot status                       |
-| `crop_manager_id`      | string   | Optional, Foreign Key → residents.id          | Assigned Crop Manager                     |
-| `created_at`           | datetime | Auto-generated                                | Creation timestamp                        |
-| `updated_at`           | datetime | Auto-updated                                  | Modification timestamp                    |
 
 ### soil_types
 
 Configurable soil types for the farm module. Administrators can add custom soil types for their region.
 
-| Column              | Type     | Constraints                 | Description                                 |
-| ------------------- | -------- | --------------------------- | ------------------------------------------- |
-| `id`                | string   | Primary Key, Auto-generated | Unique soil type identifier                 |
-| `name`              | string   | Required, Unique            | Soil type name (e.g., "Sandy Loam", "Clay") |
-| `description`       | string   | Optional, max 500           | Description and characteristics             |
-| `color_code`        | string   | Optional                    | Hex color for visual representation         |
-| `is_system_default` | boolean  | Default: false              | System types cannot be deleted              |
-| `created_at`        | datetime | Auto-generated              | Creation timestamp                          |
-| `updated_at`        | datetime | Auto-updated                | Modification timestamp                      |
+| Column              | Type    | Constraints                 | Description                                 |
+| ------------------- | ------- | --------------------------- | ------------------------------------------- |
+| `id`                | string  | Primary Key, Auto-generated | Unique soil type identifier                 |
+| `name`              | string  | Required, max 100           | Soil type name (e.g., "Sandy Loam", "Clay") |
+| `description`       | string  | Optional, max 500           | Description and characteristics             |
+| `color_code`        | string  | Optional, max 7             | Hex color for visual representation         |
+| `is_system_default` | boolean | Required                    | System types cannot be deleted              |
 
-**Default Soil Types (seeded):**
+**Index:** `idx_soil_types_name` on `(name ASC)`
 
-- Sandy
-- Clay
-- Loam
-- Silt
-- Peaty
-- Chalky
-- Other
+**Default Soil Types (seeded):** Sandy, Clay, Loam, Silt, Peaty, Chalky, Other
+
+### plots
+
+Stores farm plot information with soil characteristics and management assignments.
+
+| Column                 | Type   | Constraints                                 | Description                               |
+| ---------------------- | ------ | ------------------------------------------- | ----------------------------------------- |
+| `id`                   | string | Primary Key, Auto-generated                 | Unique plot identifier                    |
+| `name`                 | string | Required, max 100                           | Plot name (e.g., "North Field", "Plot A") |
+| `size_hectares`        | double | Required, min 1, max 10,000,000             | Size in hectares                          |
+| `location_description` | string | Optional, max 500                           | Description of location                   |
+| `status`               | string | Required, Enum: 'Active','Fallow','Retired' | Current plot status                       |
+| `soil_type_id`         | rel    | Optional, manyToOne → soil_types            | Reference to soil type                    |
+| `crop_manager_id`      | rel    | Optional, manyToOne → residents             | Assigned Crop Manager                     |
+
+**Indexes:** `idx_plots_name` on `(name ASC)`, `idx_plots_status` on `(status ASC)`
 
 ### crops
 
 Stores crop information and characteristics for the crop database.
 
-| Column                      | Type     | Constraints                           | Description                                                        |
-| --------------------------- | -------- | ------------------------------------- | ------------------------------------------------------------------ |
-| `id`                        | string   | Primary Key, Auto-generated           | Unique crop identifier                                             |
-| `crop_name`                 | string   | Required                              | Name of the crop                                                   |
-| `crop_type`                 | string   | Required, Enum: 'Annual', 'Perennial' | Crop lifecycle type                                                |
-| `maturity_days`             | integer  | Required, Min: 1                      | Days from planting to maturity                                     |
-| `harvest_frequency`         | integer  | Optional                              | Days between harvests (for perennials)                             |
-| `typical_yield_per_hectare` | float    | Optional                              | Average expected yield                                             |
-| `growing_season`            | string   | Optional                              | Wet, Dry, or All Year                                              |
-| `category`                  | string   | Required                              | Grains, Legumes, Vegetables, Root Crops, Fruits, Perennials, Other |
-| `is_active`                 | boolean  | Default: true                         | Active crops appear in planting forms                              |
-| `created_at`                | datetime | Auto-generated                        | Creation timestamp                                                 |
-| `updated_at`                | datetime | Auto-updated                          | Modification timestamp                                             |
+| Column                      | Type    | Constraints                                                         | Description                             |
+| --------------------------- | ------- | ------------------------------------------------------------------- | --------------------------------------- |
+| `id`                        | string  | Primary Key, Auto-generated                                         | Unique crop identifier                  |
+| `crop_name`                 | string  | Required, max 100, Unique (idx_crops_name)                          | Name of the crop                        |
+| `category`                  | string  | Required, Enum: 'Grain','Vegetable','Fruit','Legume','Root','Other' | Crop category                           |
+| `crop_type`                 | string  | Required, Enum: 'Annual','Perennial'                                | Crop lifecycle type                     |
+| `maturity_days`             | integer | Required, min 1, max 1825                                           | Days from planting to maturity          |
+| `harvest_frequency`         | integer | Optional, min 1, max 365                                            | Days between harvests (for perennials)  |
+| `harvest_frequency_days`    | integer | Optional, min 1, max 365                                            | Alias/alternate harvest frequency field |
+| `typical_yield_per_hectare` | double  | Optional, min 0, max 1,000,000                                      | Average expected yield                  |
+| `growing_season`            | string  | Optional, Enum: 'Warm','Wet','Cool','All Year'                      | Preferred growing season                |
+| `notes`                     | string  | Optional, max 500                                                   | Additional crop notes                   |
+| `is_active`                 | boolean | Required                                                            | Active crops appear in planting forms   |
+
+**Indexes:** `idx_crops_category`, `idx_crops_type` on `crop_type`, `idx_crops_active` on `is_active`, `idx_crops_name` (unique) on `crop_name`
 
 ### plantings
 
@@ -127,96 +151,79 @@ Records crop plantings with aggregated cost tracking. Costs are stored as intege
 | Column                  | Type     | Constraints                                                                     | Description                                    |
 | ----------------------- | -------- | ------------------------------------------------------------------------------- | ---------------------------------------------- |
 | `id`                    | string   | Primary Key, Auto-generated                                                     | Unique planting identifier                     |
-| `plot_id`               | string   | Required, Foreign Key → plots.id, Indexed                                       | Reference to plot                              |
-| `crop_id`               | string   | Required, Foreign Key → crops.id, Indexed                                       | Reference to crop                              |
 | `planting_date`         | datetime | Required                                                                        | When crop was planted                          |
+| `quantity_planted`      | integer  | Optional, min 1, max 1,000,000,000                                              | Quantity of seeds/seedlings/cuttings planted   |
+| `unit`                  | string   | Optional, max 20                                                                | Unit for quantity_planted (kg, seedlings, etc) |
 | `expected_harvest_date` | datetime | Optional, auto-calculated from crop maturity days                               | Expected harvest date                          |
 | `actual_harvest_date`   | datetime | Optional                                                                        | Actual harvest date (set when harvested)       |
-| `area_used_hectares`    | float    | Optional, Min: 0                                                                | Portion of plot used (supports multi-crop)     |
-| `quantity_planted`      | integer  | Optional, Min: 1                                                                | Quantity of seeds/seedlings/cuttings planted   |
-| `unit`                  | string   | Optional, Max: 20, Default: 'kg'                                                | Unit for quantity_planted (kg, seedlings, etc) |
-| `inputs_cost`           | integer  | Optional, Min: 0                                                                | Total inputs cost: seeds + fertilizer (ZMW)    |
-| `labor_cost`            | integer  | Optional, Min: 0                                                                | Total labor cost for planting activity (ZMW)   |
-| `other_cost`            | integer  | Optional, Min: 0                                                                | Miscellaneous costs (ZMW)                      |
-| `notes`                 | string   | Optional, Max: 1000                                                             | Free-text: seed source, vendor, labor details  |
+| `area_used_hectares`    | double   | Optional, min 0, max 100,000                                                    | Portion of plot used (supports multi-crop)     |
+| `inputs_cost`           | integer  | Optional, min 0                                                                 | Total inputs cost: seeds + fertilizer (ZMW)    |
+| `labor_cost`            | integer  | Optional, min 0                                                                 | Total labor cost for planting activity (ZMW)   |
+| `other_cost`            | integer  | Optional, min 0                                                                 | Miscellaneous costs (ZMW)                      |
+| `notes`                 | string   | Optional, max 1000                                                              | Free-text: seed source, vendor, labor details  |
 | `status`                | string   | Required, Enum: 'planned','planted','growing','harvesting','completed','failed' | Current planting status (lowercase)            |
-| `created_at`            | datetime | Auto-generated                                                                  | Creation timestamp                             |
-| `updated_at`            | datetime | Auto-updated                                                                    | Modification timestamp                         |
+| `plot_id`               | rel      | Optional, manyToOne → plots                                                     | Reference to plot                              |
+| `crop_id`               | rel      | Optional, manyToOne → crops                                                     | Reference to crop                              |
+
+**Indexes:** `idx_plantings_date` on `(planting_date DESC)`, `idx_plantings_status` on `(status ASC)`
 
 ### harvests
 
 Records harvest events for plantings. Each harvest is composed of one or more `harvest_entries` (daily picks). A harvest is "Single Day" when it has exactly one entry and has been marked complete; "Multi-Day" when it has multiple entries. The type is **derived**, not stored. Only one `In Progress` harvest is allowed per planting at a time (enforced in UI).
 
-| Column               | Type     | Constraints                                                        | Description                                     |
-| -------------------- | -------- | ------------------------------------------------------------------ | ----------------------------------------------- |
-| `id`                 | string   | Primary Key, Auto-generated                                        | Unique harvest identifier                       |
-| `planting_id`        | string   | Required, Foreign Key → plantings.id, Indexed                      | Reference to planting                           |
-| `harvest_start_date` | datetime | Required                                                           | First entry date (derived, maintained by store) |
-| `harvest_end_date`   | datetime | Optional                                                           | Last entry date (derived, maintained by store)  |
-| `total_quantity_kg`  | float    | Required, Min: 0, Default: 0                                       | Total harvested quantity (sum of entries)       |
-| `total_labor_cost`   | float    | Optional, Min: 0, Default: 0                                       | Total labor cost (sum of entries)               |
-| `total_other_costs`  | float    | Optional, Min: 0, Default: 0                                       | Total other costs (sum of entries)              |
-| `status`             | string   | Required, Enum: 'In Progress', 'Completed', Default: 'In Progress' | Harvest status                                  |
-| `notes`              | string   | Optional, Max: 1000                                                | General harvest notes                           |
-| `created_at`         | datetime | Auto-generated                                                     | Creation timestamp                              |
-| `updated_at`         | datetime | Auto-updated                                                       | Modification timestamp                          |
+| Column               | Type     | Constraints                                                       | Description                                               |
+| -------------------- | -------- | ----------------------------------------------------------------- | --------------------------------------------------------- |
+| `id`                 | string   | Primary Key, Auto-generated                                       | Unique harvest identifier                                 |
+| `harvest_date`       | datetime | Optional                                                          | Legacy field (kept in DB; use harvest_start_date)         |
+| `harvest_start_date` | datetime | Optional                                                          | First entry date (derived, maintained by store)           |
+| `harvest_end_date`   | datetime | Optional                                                          | Last entry date (derived, maintained by store)            |
+| `total_quantity_kg`  | double   | Required, min 0                                                   | Total harvested quantity (sum of entries)                 |
+| `total_labor_cost`   | double   | Optional, min 0                                                   | Total labor cost (sum of entries)                         |
+| `total_other_costs`  | double   | Optional, min 0                                                   | Total other costs (sum of entries)                        |
+| `daily_breakdown`    | string[] | Optional, max 10000 each                                          | Legacy field (kept in DB; entries table is authoritative) |
+| `status`             | string   | Required, Enum: 'In Progress','Completed', Default: 'In Progress' | Harvest status                                            |
+| `notes`              | string   | Optional, max 1000                                                | General harvest notes                                     |
+| `planting_id`        | rel      | Optional, manyToOne → plantings                                   | Reference to planting                                     |
 
-**Removed from schema (Story 3.5 refactor):**
-
-- `harvest_type` — type is now derived from `entries.length`
-- `harvest_date` — redundant with entry dates; use first entry for single-day
-- `daily_breakdown` — entries table is authoritative
-- `expected_total_quantity` — never read; planning use case deferred
-
-**Indexes:**
-
-- `idx_harvests_planting` - For finding harvests by planting
-- `idx_harvests_status` - For filtering by In Progress vs Completed
-- `idx_harvests_start_date` - For date-based queries
+**Note:** `harvest_date` and `daily_breakdown` remain in the DB for backwards compatibility but are not used by current application logic. `harvest_entries` is authoritative for daily data.
 
 ### harvest_entries
 
 Individual harvest entries for multi-day and partial harvest recording. Each entry represents one day's harvest or a partial harvest addition to an in-progress harvest.
 
-| Column              | Type     | Constraints                                  | Description                      |
-| ------------------- | -------- | -------------------------------------------- | -------------------------------- |
-| `id`                | string   | Primary Key, Auto-generated                  | Unique entry identifier          |
-| `harvest_id`        | string   | Required, Foreign Key → harvests.id, Indexed | Parent harvest record            |
-| `entry_date`        | datetime | Required                                     | Date of this harvest entry       |
-| `quantity_kg`       | float    | Required, Min: 0                             | Quantity harvested this entry    |
-| `farmhands_count`   | integer  | Optional, Min: 0                             | Workers for this entry           |
-| `labor_cost`        | float    | Optional, Min: 0, Default: 0                 | Labor cost for this entry (ZMW)  |
-| `other_costs`       | float    | Optional, Min: 0, Default: 0                 | Other costs for this entry (ZMW) |
-| `other_costs_notes` | string   | Optional, Max: 500                           | Notes about other costs          |
-| `notes`             | string   | Optional, Max: 500                           | Entry-specific notes             |
-| `created_at`        | datetime | Auto-generated                               | Creation timestamp               |
-| `updated_at`        | datetime | Auto-updated                                 | Modification timestamp           |
-
-**Indexes:**
-
-- `idx_harvest_entries_harvest` - For finding entries by harvest
-- `idx_harvest_entries_date` - For date-based queries
+| Column              | Type     | Constraints                    | Description                      |
+| ------------------- | -------- | ------------------------------ | -------------------------------- |
+| `id`                | string   | Primary Key, Auto-generated    | Unique entry identifier          |
+| `entry_date`        | datetime | Required                       | Date of this harvest entry       |
+| `quantity_kg`       | double   | Required, min 0                | Quantity harvested this entry    |
+| `farmhands_count`   | integer  | Optional, min 0                | Workers for this entry           |
+| `labor_cost`        | double   | Optional, min 0, default 0     | Labor cost for this entry (ZMW)  |
+| `other_costs`       | double   | Optional, min 0, default 0     | Other costs for this entry (ZMW) |
+| `other_costs_notes` | string   | Optional, max 500              | Notes about other costs          |
+| `notes`             | string   | Optional, max 500              | Entry-specific notes             |
+| `harvest_id`        | rel      | Required, manyToOne → harvests | Parent harvest record            |
 
 ### farm_sales
 
-Links farm produce sales to inventory, harvests, and finance transactions.
+Records farm produce sales linked to harvests.
 
-| Column                   | Type     | Constraints                                     | Description                    |
-| ------------------------ | -------- | ----------------------------------------------- | ------------------------------ |
-| `id`                     | string   | Primary Key, Auto-generated                     | Unique sale identifier         |
-| `inventory_item_id`      | string   | Required, Foreign Key → inventory.id            | Sold inventory item            |
-| `harvest_id`             | string   | Required, Foreign Key → harvests.id             | Source harvest                 |
-| `finance_transaction_id` | string   | Required, Foreign Key → finance_transactions.id | Linked income transaction      |
-| `buyer`                  | string   | Required                                        | Buyer name or identifier       |
-| `quantity_sold`          | float    | Required, Min: 0                                | Quantity sold in kg            |
-| `price_per_kg`           | float    | Required, Min: 0                                | Price per kilogram             |
-| `total_amount`           | float    | Required, Min: 0                                | Total sale amount              |
-| `payment_method`         | string   | Required                                        | Cash, Mobile Money, Bank, etc. |
-| `payment_status`         | string   | Required, Enum: 'Pending', 'Completed'          | Payment status                 |
-| `sale_date`              | date     | Required                                        | Date of sale                   |
-| `notes`                  | string   | Optional                                        | Additional notes               |
-| `created_at`             | datetime | Auto-generated                                  | Creation timestamp             |
-| `updated_at`             | datetime | Auto-updated                                    | Modification timestamp         |
+| Column           | Type     | Constraints                                                   | Description                           |
+| ---------------- | -------- | ------------------------------------------------------------- | ------------------------------------- |
+| `id`             | string   | Primary Key, Auto-generated                                   | Unique sale identifier                |
+| `buyer_type`     | string   | Required, Enum: 'household','external','market','cooperative' | Type of buyer                         |
+| `buyer_id`       | string   | Optional, max 50                                              | ID of buyer (for household buyers)    |
+| `buyer_name`     | string   | Optional, max 200                                             | Name of buyer (for external buyers)   |
+| `sale_date`      | datetime | Required                                                      | Date of sale                          |
+| `quantity_sold`  | integer  | Required, min 0, max 1,000,000,000,000                        | Quantity sold                         |
+| `unit`           | string   | Required, max 20                                              | Unit of measurement (kg, pcs, etc.)   |
+| `price_per_unit` | integer  | Required, min 0, max 1,000,000,000,000                        | Price per unit (ZMW whole numbers)    |
+| `total_amount`   | integer  | Required, min 0, max 1,000,000,000,000                        | Total sale amount (ZMW whole numbers) |
+| `payment_status` | string   | Required, max 20                                              | Payment status                        |
+| `payment_method` | string   | Optional, max 50                                              | Cash, Mobile Money, Bank, etc.        |
+| `notes`          | string   | Optional, max 1000                                            | Additional notes                      |
+| `harvest_id`     | rel      | Optional, manyToOne → harvests                                | Source harvest                        |
+
+**Indexes:** `idx_farm_sales_date` on `(sale_date DESC)`, `idx_farm_sales_buyer` on `(buyer_type ASC, buyer_id ASC)`
 
 ## Finance Tables
 
@@ -224,151 +231,154 @@ Links farm produce sales to inventory, harvests, and finance transactions.
 
 Stores all financial transactions for income and expense tracking.
 
-| Column              | Type     | Constraints                                       | Description                                |
-| ------------------- | -------- | ------------------------------------------------- | ------------------------------------------ |
-| `id`                | string   | Primary Key, Auto-generated                       | Unique transaction identifier              |
-| `type`              | string   | Required, Enum: 'income','expense'                | Transaction type                           |
-| `amount_needed`     | double   | Required, Min: 0                                  | Required amount for the transaction        |
-| `amount_funded`     | double   | Required, Min: 0                                  | Funded amount for the transaction          |
-| `category_id`       | string   | Optional, Foreign Key → finance_categories.id     | Transaction category (relationship)        |
-| `source_module`     | string   | Required                                          | Source module (e.g., 'Farm', 'School')     |
-| `funding_source_id` | string   | Optional, Foreign Key → funding_sources.id        | Linked funding source                      |
-| `date`              | datetime | Required                                          | Transaction date                           |
-| `description`       | string   | Required                                          | Transaction description                    |
-| `status`            | string   | Required, Enum: 'pending','completed','cancelled' | Transaction status                         |
-| `payment_method`    | string   | Required                                          | Payment method (Cash, Bank Transfer, etc.) |
-| `subcategory`       | string   | Optional                                          | Transaction subcategory                    |
-| `vendor`            | string   | Optional                                          | Vendor name                                |
-| `receipt_number`    | string   | Optional                                          | Receipt number                             |
-| `payment_status`    | string   | Optional                                          | Payment status                             |
-| `loan_id`           | string   | Optional, Foreign Key → loans.id                  | Related loan (if applicable)               |
-| `inventory_ids`     | string[] | Optional                                          | Related inventory items                    |
-| `created_at`        | datetime | Auto-generated                                    | Record creation timestamp                  |
-| `updated_at`        | datetime | Auto-updated                                      | Last modification timestamp                |
+| Column                   | Type     | Constraints                                                            | Description                                                  |
+| ------------------------ | -------- | ---------------------------------------------------------------------- | ------------------------------------------------------------ |
+| `id`                     | string   | Primary Key, Auto-generated                                            | Unique transaction identifier                                |
+| `type`                   | string   | Required, Enum: 'expense','income','transfer'                          | Transaction type                                             |
+| `amount_needed`          | double   | Required                                                               | Required amount for the transaction                          |
+| `amount_funded`          | double   | Required                                                               | Funded amount for the transaction                            |
+| `payment_method`         | string   | Required, Enum: 'Bank Transfer','Cash','Cheque','Mobile Money','Other' | Payment method                                               |
+| `source_module`          | string   | Required, max 50                                                       | Source module (e.g., 'Farm', 'School')                       |
+| `date`                   | datetime | Required                                                               | Transaction date                                             |
+| `description`            | string   | Required, max 500                                                      | Transaction description                                      |
+| `status`                 | string   | Required, max 20                                                       | Transaction status (e.g., 'pending','completed','cancelled') |
+| `subcategory`            | string   | Optional, max 100                                                      | Transaction subcategory                                      |
+| `vendor`                 | string   | Optional, max 255                                                      | Vendor name                                                  |
+| `receipt_number`         | string   | Optional, max 100                                                      | Receipt number                                               |
+| `payment_status`         | string   | Optional, Enum: 'paid','unpaid','partial'                              | Payment status                                               |
+| `inventory_items`        | rel[]    | Optional, child of inventory.transaction_id (twoWay)                   | Inventory item linked to this transaction                    |
+| `category_id`            | rel      | Optional, manyToOne → finance_categories (twoWay: transaction_ids)     | Transaction category                                         |
+| `funding_source_id`      | rel      | Optional, manyToOne → funding_sources (twoWay: transaction_ids)        | Linked funding source                                        |
+| `loan_id`                | rel      | Optional, manyToOne → loans (twoWay: transaction_ids)                  | Related loan (if applicable)                                 |
+| `inventory_ids`          | rel[]    | Optional, oneToMany → inventory                                        | Related inventory items                                      |
+| `funding_links_received` | rel[]    | Optional, child of transaction_links.parent_transaction_id             | Funding links where this is the expense                      |
+| `funding_links_provided` | rel[]    | Optional, child of transaction_links.child_transaction_id              | Funding links where this provides funds                      |
 
 ### funding_sources
 
 Manages donor funds and their allocations.
 
-| Column            | Type     | Constraints                                 | Description                      |
-| ----------------- | -------- | ------------------------------------------- | -------------------------------- |
-| `id`              | string   | Primary Key, Auto-generated                 | Unique funding source identifier |
-| `name`            | string   | Required, Unique                            | Donor or fund name               |
-| `type`            | string   | Enum: 'grant', 'donation', 'income', 'loan' | Type of funding source           |
-| `total_received`  | float    | Required, Min: 0                            | Total amount received            |
-| `current_balance` | float    | Required, Min: 0                            | Remaining balance in fund        |
-| `restrictions`    | text     | Optional                                    | Usage restrictions or notes      |
-| `status`          | string   | Enum: 'active', 'inactive', 'depleted'      | Current status                   |
-| `date_received`   | datetime | Optional                                    | When funds were received         |
-| `created_at`      | datetime | Auto-generated                              | Record creation timestamp        |
-| `updated_at`      | datetime | Auto-updated                                | Last modification timestamp      |
+| Column                 | Type     | Constraints                                                        | Description                         |
+| ---------------------- | -------- | ------------------------------------------------------------------ | ----------------------------------- |
+| `id`                   | string   | Primary Key, Auto-generated                                        | Unique funding source identifier    |
+| `name`                 | string   | Required                                                           | Donor or fund name                  |
+| `type`                 | string   | Enum: 'grant','donation','income','loan'                           | Type of funding source              |
+| `total_received`       | double   | Required                                                           | Total amount received               |
+| `current_balance`      | double   | Required                                                           | Remaining balance in fund           |
+| `date_received`        | datetime | Optional                                                           | When funds were received            |
+| `restrictions`         | string   | Optional, max 1000                                                 | Usage restrictions or notes         |
+| `status`               | string   | Required, Enum: 'active','inactive','depleted'                     | Current status                      |
+| `transaction_ids`      | rel[]    | Optional, child of finance_transactions.funding_source_id (twoWay) | Transactions using this source      |
+| `funding_links_source` | rel[]    | Optional, child of transaction_links.funding_source_id (twoWay)    | Transaction links using this source |
 
 ### finance_categories
 
 Stores income and expense categories for transaction classification.
 
-| Column              | Type     | Constraints                         | Description                         |
-| ------------------- | -------- | ----------------------------------- | ----------------------------------- |
-| `id`                | string   | Primary Key, Auto-generated         | Unique category identifier          |
-| `name`              | string   | Required                            | Category name                       |
-| `type`              | string   | Required, Enum: 'income', 'expense' | Category type                       |
-| `subcategories`     | string[] | Optional                            | Array of subcategory names          |
-| `is_system_default` | boolean  | Optional, Default: false            | System categories cannot be deleted |
-| `created_at`        | datetime | Auto-generated                      | Record creation timestamp           |
-| `updated_at`        | datetime | Auto-updated                        | Last modification timestamp         |
+| Column              | Type     | Constraints                                                  | Description                         |
+| ------------------- | -------- | ------------------------------------------------------------ | ----------------------------------- |
+| `id`                | string   | Primary Key, Auto-generated                                  | Unique category identifier          |
+| `name`              | string   | Required                                                     | Category name                       |
+| `type`              | string   | Required, Enum: 'income','expense'                           | Category type                       |
+| `subcategories`     | string[] | Optional                                                     | Array of subcategory names          |
+| `is_system_default` | boolean  | Optional, Default: false                                     | System categories cannot be deleted |
+| `transaction_ids`   | rel[]    | Optional, child of finance_transactions.category_id (twoWay) | Transactions in this category       |
 
 ### transaction_links
 
 Links transactions for funding relationships (workaround for Appwrite self-referencing relationship limitation).
 
-| Column                  | Type     | Constraints                                     | Description                     |
-| ----------------------- | -------- | ----------------------------------------------- | ------------------------------- |
-| `id`                    | string   | Primary Key, Auto-generated                     | Unique link identifier          |
-| `parent_transaction_id` | string   | Required, Foreign Key → finance_transactions.id | The expense being funded        |
-| `child_transaction_id`  | string   | Optional, Foreign Key → finance_transactions.id | Optional income providing funds |
-| `funding_source_id`     | string   | Optional, Foreign Key → funding_sources.id      | Source of funds                 |
-| `link_type`             | string   | Required, Enum: 'funding'                       | Type of link                    |
-| `amount`                | float    | Required, Min: 0                                | Amount linked                   |
-| `recorded_by`           | string   | Required, Foreign Key → users.id                | Who created the link            |
-| `notes`                 | text     | Optional                                        | Notes about the link            |
-| `created_at`            | datetime | Auto-generated                                  | Record creation timestamp       |
+| Column                  | Type     | Constraints                                                                 | Description               |
+| ----------------------- | -------- | --------------------------------------------------------------------------- | ------------------------- |
+| `id`                    | string   | Primary Key, Auto-generated                                                 | Unique link identifier    |
+| `amount`                | double   | Required                                                                    | Amount linked             |
+| `notes`                 | string   | Optional, max 500                                                           | Notes about the link      |
+| `created_at`            | datetime | Required                                                                    | Record creation timestamp |
+| `parent_transaction_id` | rel      | Optional, manyToOne → finance_transactions (twoWay: funding_links_received) | The expense being funded  |
+| `child_transaction_id`  | rel      | Optional, manyToOne → finance_transactions (twoWay: funding_links_provided) | Income providing funds    |
+| `funding_source_id`     | rel      | Optional, manyToOne → funding_sources (twoWay: funding_links_source)        | Source of funds           |
+| `recorded_by`           | rel      | Optional, manyToOne → users (twoWay: recorded_transaction_links)            | Who created the link      |
+
+**Note:** `link_type` field is not present in the live DB; all links are implicitly of type 'funding'.
 
 ### loans
 
 Stores village lending loan information and repayment details.
 
-| Column                   | Type     | Constraints                                                      | Description                 |
-| ------------------------ | -------- | ---------------------------------------------------------------- | --------------------------- |
-| `id`                     | string   | Primary Key, Auto-generated                                      | Unique loan identifier      |
-| `borrower_id`            | string   | Foreign Key → residents.id, Indexed                              | Loan recipient              |
-| `principal_amount`       | float    | Required, Min: 0                                                 | Original loan amount        |
-| `interest_rate`          | float    | Required, Min: 0, Max: 50                                        | Annual interest rate (%)    |
-| `term_months`            | integer  | Required, Min: 1, Max: 60                                        | Loan duration in months     |
-| `repayment_frequency`    | string   | Required, Enum: 'weekly','biweekly','monthly'                    | Payment frequency           |
-| `collateral_description` | text     | Optional                                                         | Description of collateral   |
-| `purpose`                | string   | Required, Enum: 'farm','education','medical','business','other'  | Loan purpose                |
-| `disbursement_date`      | date     | Required                                                         | When funds were given       |
-| `status`                 | string   | Required, Enum: 'active','overdue','late','defaulted','paid_off' | Current loan status         |
-| `outstanding_balance`    | float    | Required, Min: 0                                                 | Remaining amount to pay     |
-| `total_repayment`        | integer  | Required, Calculated                                             | Total amount to be repaid   |
-| `payment_amount`         | integer  | Required, Calculated                                             | Amount per payment          |
-| `next_due_date`          | date     | Calculated                                                       | Next payment due date       |
-| `created_at`             | datetime | Auto-generated                                                   | Record creation timestamp   |
-| `updated_at`             | datetime | Auto-updated                                                     | Last modification timestamp |
+| Column                   | Type     | Constraints                                                          | Description                              |
+| ------------------------ | -------- | -------------------------------------------------------------------- | ---------------------------------------- |
+| `id`                     | string   | Primary Key, Auto-generated                                          | Unique loan identifier                   |
+| `principal_amount`       | double   | Required                                                             | Original loan amount                     |
+| `interest_rate`          | double   | Required                                                             | Annual interest rate (%)                 |
+| `term_months`            | integer  | Required                                                             | Loan duration in months                  |
+| `repayment_frequency`    | string   | Required, Enum: 'weekly','biweekly','monthly','quarterly','annually' | Payment frequency                        |
+| `purpose`                | string   | Required, Enum: 'farm','business','medical','education','other'      | Loan purpose                             |
+| `collateral_description` | string   | Optional, max 500                                                    | Description of collateral                |
+| `disbursement_date`      | datetime | Optional                                                             | When funds were given                    |
+| `total_repayment`        | double   | Required                                                             | Total amount to be repaid                |
+| `payment_amount`         | double   | Required                                                             | Amount per payment                       |
+| `next_due_date`          | datetime | Optional                                                             | Next payment due date                    |
+| `status`                 | string   | Required, Enum: 'active','overdue','late','defaulted','paid_off'     | Current loan status                      |
+| `outstanding_balance`    | double   | Required                                                             | Remaining amount to pay                  |
+| `borrower_id`            | rel      | Optional, manyToOne → residents (twoWay: loans)                      | Loan recipient                           |
+| `transaction_ids`        | rel[]    | Optional, child of finance_transactions.loan_id (twoWay)             | Finance transactions linked to this loan |
+| `repayment_schedules`    | rel[]    | Optional, child of repayment_schedule.loan_id (twoWay)               | Repayment schedule entries               |
+| `loan_payments`          | rel[]    | Optional, child of loan_payments.loan_id (twoWay)                    | Payment records                          |
 
 ### loan_payments
 
-Records individual loan payments and links to finance transactions.
+Records individual loan payments.
 
-| Column                   | Type     | Constraints                           | Description               |
-| ------------------------ | -------- | ------------------------------------- | ------------------------- |
-| `id`                     | string   | Primary Key, Auto-generated           | Unique payment identifier |
-| `loan_id`                | string   | Foreign Key → loans.id, Indexed       | Related loan              |
-| `amount`                 | integer  | Required, Min: 0                      | Payment amount            |
-| `payment_date`           | date     | Required                              | When payment was made     |
-| `payment_method`         | string   | Required                              | Cash, mobile, bank, etc.  |
-| `notes`                  | text     | Optional                              | Payment notes             |
-| `finance_transaction_id` | string   | Foreign Key → finance_transactions.id | Linked transaction        |
-| `created_at`             | datetime | Auto-generated                        | Record creation timestamp |
+| Column                   | Type     | Constraints                                                            | Description               |
+| ------------------------ | -------- | ---------------------------------------------------------------------- | ------------------------- |
+| `id`                     | string   | Primary Key, Auto-generated                                            | Unique payment identifier |
+| `amount`                 | double   | Required                                                               | Payment amount            |
+| `payment_date`           | datetime | Required                                                               | When payment was made     |
+| `payment_method`         | string   | Required, Enum: 'Bank Transfer','Cash','Cheque','Mobile Money','Other' | Payment method            |
+| `notes`                  | string   | Optional, max 500                                                      | Payment notes             |
+| `loan_id`                | rel      | Optional, manyToOne → loans (twoWay: loan_payments)                    | Related loan              |
+| `finance_transaction_id` | rel      | Optional, manyToOne → finance_transactions                             | Linked transaction        |
 
 ### repayment_schedule
 
 Stores the calculated repayment schedule for each loan.
 
-| Column               | Type    | Constraints                                | Description                |
-| -------------------- | ------- | ------------------------------------------ | -------------------------- |
-| `id`                 | string  | Primary Key, Auto-generated                | Unique schedule identifier |
-| `loan_id`            | string  | Foreign Key → loans.id, Indexed            | Related loan               |
-| `installment_number` | integer | Required                                   | Sequence number            |
-| `due_date`           | date    | Required                                   | When payment is due        |
-| `amount`             | integer | Required, Min: 0                           | Payment amount             |
-| `status`             | string  | Required, Enum: 'pending','paid','overdue' | Payment status             |
-| `paid_date`          | date    | Optional                                   | Actual payment date        |
-| `payment_id`         | string  | Foreign Key → loan_payments.id, Optional   | Related payment            |
+| Column               | Type     | Constraints                                               | Description                |
+| -------------------- | -------- | --------------------------------------------------------- | -------------------------- |
+| `id`                 | string   | Primary Key, Auto-generated                               | Unique schedule identifier |
+| `installment_number` | integer  | Required                                                  | Sequence number            |
+| `due_date`           | datetime | Required                                                  | When payment is due        |
+| `amount`             | double   | Required                                                  | Payment amount             |
+| `status`             | string   | Required, Enum: 'pending','paid','overdue','partial'      | Payment status             |
+| `paid_date`          | datetime | Optional                                                  | Actual payment date        |
+| `notes`              | string   | Optional, max 500                                         | Schedule notes             |
+| `loan_id`            | rel      | Optional, manyToOne → loans (twoWay: repayment_schedules) | Related loan               |
+
+**Note:** `payment_id` FK to loan_payments is not present in the live DB.
 
 ### inventory
 
 Tracks physical village assets, supplies, and harvested goods.
 
-| Column                | Type     | Constraints                                                                               | Description                                                                                                                                 |
-| --------------------- | -------- | ----------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
-| `id`                  | string   | Primary Key, Auto-generated                                                               | Unique item identifier                                                                                                                      |
-| `item_name`           | string   | Required                                                                                  | Name of the item/produce                                                                                                                    |
-| `item_type`           | string   | Required                                                                                  | Type: 'farm_inputs', 'school_supplies', 'medical_supplies', 'kitchen_supplies', 'farm_produce', 'equipment', 'other' (snake_case lowercase) |
-| `quantity`            | integer  | Required, Min: 0                                                                          | Current quantity in stock                                                                                                                   |
-| `unit`                | string   | Required                                                                                  | Unit of measurement (kg, pcs, etc.)                                                                                                         |
-| `unit_cost`           | float    | Optional, Min: 0                                                                          | Cost per unit                                                                                                                               |
-| `estimated_value`     | float    | Optional, Min: 0                                                                          | Total estimated value                                                                                                                       |
-| `status`              | string   | Required, Enum: 'in_stock', 'low_stock', 'out_of_stock', 'reserved', 'available_for_sale' | Current status (snake_case lowercase)                                                                                                       |
-| `source`              | string   | Required                                                                                  | Source: 'finance_purchase', 'farm_harvest', 'donation', 'other' (snake_case lowercase)                                                      |
-| `source_reference_id` | string   | Optional                                                                                  | ID of source (expense transaction, harvest, etc.)                                                                                           |
-| `planting_id`         | string   | Optional, Foreign Key → plantings.id, Indexed                                             | Source planting (farm produce only). Enables (planting, crop) inventory aggregation for harvest entries.                                    |
-| `crop_id`             | string   | Required for farm_produce, Optional otherwise, Foreign Key → crops.id, Indexed            | Source crop (farm produce only). **Required** for farm_produce rows. Paired with `planting_id` to locate the aggregated produce row.        |
-| `reorder_threshold`   | integer  | Required, Min: 0                                                                          | Alert threshold for low stock                                                                                                               |
-| `transaction_id`      | string   | Optional, Foreign Key → finance_transactions.id                                           | Linked purchase transaction                                                                                                                 |
-| `date_added`          | datetime | Required                                                                                  | When item was added to inventory                                                                                                            |
-| `created_at`          | datetime | Auto-generated                                                                            | Record creation timestamp                                                                                                                   |
-| `updated_at`          | datetime | Auto-updated                                                                              | Last modification timestamp                                                                                                                 |
+| Column                | Type     | Constraints                                                                                                              | Description                                                                                                                          |
+| --------------------- | -------- | ------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------ |
+| `id`                  | string   | Primary Key, Auto-generated                                                                                              | Unique item identifier                                                                                                               |
+| `item_name`           | string   | Required, max 255                                                                                                        | Name of the item/produce                                                                                                             |
+| `item_type`           | string   | Required, Enum: 'farm_inputs','farm_produce','school_supplies','medical_supplies','kitchen_supplies','equipment','other' | Item type (snake_case)                                                                                                               |
+| `quantity`            | integer  | Required                                                                                                                 | Current quantity in stock                                                                                                            |
+| `unit`                | string   | Required, max 20                                                                                                         | Unit of measurement (kg, pcs, etc.)                                                                                                  |
+| `unit_cost`           | double   | Optional                                                                                                                 | Cost per unit                                                                                                                        |
+| `estimated_value`     | double   | Optional                                                                                                                 | Total estimated value                                                                                                                |
+| `status`              | string   | Required, Enum: 'in_stock','low_stock','out_of_stock','reserved'                                                         | Current status (snake_case). Note: 'available_for_sale' not in live DB enum.                                                         |
+| `source`              | string   | Required, Enum: 'finance_purchase','farm_harvest','manual_entry','donation'                                              | Source of item. Note: 'other' not in live DB; use 'manual_entry'.                                                                    |
+| `source_reference_id` | string   | Optional, max 255                                                                                                        | ID of source (expense transaction, harvest, etc.)                                                                                    |
+| `reorder_threshold`   | integer  | Required                                                                                                                 | Alert threshold for low stock                                                                                                        |
+| `date_added`          | datetime | Optional                                                                                                                 | When item was added to inventory                                                                                                     |
+| `last_updated`        | datetime | Required                                                                                                                 | Last time this record was updated                                                                                                    |
+| `notes`               | string   | Optional, max 1000                                                                                                       | General notes                                                                                                                        |
+| `planting_id`         | rel      | Optional, manyToOne → plantings                                                                                          | Source planting (farm produce only). Enables (planting, crop) inventory aggregation for harvest entries.                             |
+| `transaction_id`      | rel      | Optional, manyToOne → finance_transactions (twoWay: inventory_items)                                                     | Linked purchase transaction                                                                                                          |
+| `crop_id`             | rel      | Optional, manyToOne → crops                                                                                              | Source crop (farm produce only). **Required** for farm_produce rows. Paired with `planting_id` to locate the aggregated produce row. |
 
 **Story 3.7 Naming Convention:**
 
@@ -381,65 +391,64 @@ Tracks physical village assets, supplies, and harvested goods.
 
 ## Relationships
 
-The database uses a normalized schema with ID-based relationships:
+All relationships use Appwrite's native relationship columns (type `rel`). Key relationships:
 
-- **residents → households**: Many-to-one relationship via `residents.household_id` referencing `households.id`
-- **households → residents**: One-to-many relationship via `households.head_resident_id` referencing `residents.id`
-- **residents → roles**: Many-to-many relationship via `residents.role_ids` array containing role IDs
-- **plots → soil_types**: Many-to-one via `plots.soil_type_id` referencing `soil_types.id`
-- **plots → residents**: Many-to-one via `plots.crop_manager_id` referencing `residents.id` (Crop Manager assignment)
-- **plantings → plots**: Many-to-one via `plantings.plot_id` referencing `plots.id`
-- **plantings → crops**: Many-to-one via `plantings.crop_id` referencing `crops.id`
-- **plantings → inventory**: Many-to-one via `plantings.seed_inventory_id` referencing `inventory.id`
-- **harvests → plantings**: Many-to-one via `harvests.planting_id` referencing `plantings.id`
-- **harvest_entries → harvests**: Many-to-one via `harvest_entries.harvest_id` referencing `harvests.id`. Should use `onDelete: cascade` so deleting a harvest removes its entries.
-- **inventory → plantings**: Optional many-to-one via `inventory.planting_id` (farm produce only)
-- **inventory → crops**: Optional many-to-one via `inventory.crop_id` (farm produce only)
-- **farm_sales → inventory**: Many-to-one via `farm_sales.inventory_item_id` referencing `inventory.id`
-- **farm_sales → harvests**: Many-to-one via `farm_sales.harvest_id` referencing `harvests.id`
-- **farm_sales → finance_transactions**: Many-to-one via `farm_sales.finance_transaction_id` referencing `finance_transactions.id`
-- **loans → residents**: Many-to-one relationship via `loans.borrower_id` referencing `residents.id`
-- **loan_payments → loans**: Many-to-one relationship via `loan_payments.loan_id` referencing `loans.id`
-- **repayment_schedule → loans**: Many-to-one relationship via `repayment_schedule.loan_id` referencing `loans.id`
-- **loan_payments → finance_transactions**: One-to-one relationship via `loan_payments.finance_transaction_id` referencing `finance_transactions.id`
-- **finance_transactions → funding_sources**: Many-to-one relationship via `finance_transactions.funding_source_id` referencing `funding_sources.id`
-- **finance_transactions → finance_categories**: Many-to-one relationship via `finance_transactions.category_id` referencing `finance_categories.id`
-- **transaction_links → finance_transactions**: Many-to-one via `transaction_links.parent_transaction_id` and `transaction_links.child_transaction_id`
+**Core:**
+
+- **users ↔ roles**: manyToMany via `users.role_ids`
+- **users → residents**: oneToOne via `users.resident_id`
+- **users ↔ transaction_links**: manyToOne (child side) via `transaction_links.recorded_by` / `users.recorded_transaction_links`
+- **residents ↔ households**: manyToOne via `residents.household_id` / `households.resident_ids` (twoWay)
+- **households → residents**: oneToOne via `households.head_resident_id` (household head)
+- **village_settings → residents**: oneToMany via `village_settings.council_member_ids`
+
+**Farm:**
+
+- **plots → soil_types**: manyToOne via `plots.soil_type_id`
+- **plots → residents**: manyToOne via `plots.crop_manager_id`
+- **plantings → plots**: manyToOne via `plantings.plot_id`
+- **plantings → crops**: manyToOne via `plantings.crop_id`
+- **harvests → plantings**: manyToOne via `harvests.planting_id`
+- **harvest_entries → harvests**: manyToOne via `harvest_entries.harvest_id`
+- **farm_sales → harvests**: manyToOne via `farm_sales.harvest_id`
+- **inventory → plantings**: manyToOne via `inventory.planting_id` (farm produce only)
+- **inventory → crops**: manyToOne via `inventory.crop_id` (farm produce only)
+
+**Finance:**
+
+- **finance_transactions → finance_categories**: manyToOne via `finance_transactions.category_id` / `finance_categories.transaction_ids` (twoWay)
+- **finance_transactions → funding_sources**: manyToOne via `finance_transactions.funding_source_id` / `funding_sources.transaction_ids` (twoWay)
+- **finance_transactions → loans**: manyToOne via `finance_transactions.loan_id` / `loans.transaction_ids` (twoWay)
+- **inventory ↔ finance_transactions**: manyToOne via `inventory.transaction_id` / `finance_transactions.inventory_items` (twoWay)
+- **finance_transactions → inventory**: oneToMany via `finance_transactions.inventory_ids`
+- **transaction_links → finance_transactions** (parent): manyToOne via `transaction_links.parent_transaction_id` / `finance_transactions.funding_links_received` (twoWay)
+- **transaction_links → finance_transactions** (child): manyToOne via `transaction_links.child_transaction_id` / `finance_transactions.funding_links_provided` (twoWay)
+- **transaction_links → funding_sources**: manyToOne via `transaction_links.funding_source_id` / `funding_sources.funding_links_source` (twoWay)
+- **loans → residents**: manyToOne via `loans.borrower_id` / `residents.loans` (twoWay)
+- **loan_payments → loans**: manyToOne via `loan_payments.loan_id` / `loans.loan_payments` (twoWay)
+- **loan_payments → finance_transactions**: manyToOne via `loan_payments.finance_transaction_id`
+- **repayment_schedule → loans**: manyToOne via `repayment_schedule.loan_id` / `loans.repayment_schedules` (twoWay)
 
 ## Indexes
 
-Indexes are created on frequently queried fields to optimize performance:
+Live indexes as configured in Appwrite:
 
-| Table                  | Column                  | Purpose                                        |
-| ---------------------- | ----------------------- | ---------------------------------------------- |
-| `users`                | `email`                 | Fast user lookup during authentication         |
-| `residents`            | `household_id`          | Efficient household member queries             |
-| `residents`            | `role_ids`              | Role-based filtering and access control        |
-| `households`           | `head_resident_id`      | Quick household head lookups                   |
-| `plots`                | `status`                | Filter plots by status (Active/Fallow/Retired) |
-| `plots`                | `crop_manager_id`       | Find plots by assigned manager                 |
-| `plantings`            | `plot_id`               | Find plantings for a plot                      |
-| `plantings`            | `crop_id`               | Find plantings for a crop                      |
-| `plantings`            | `status`                | Filter by planting status                      |
-| `harvests`             | `planting_id`           | Find harvests for a planting                   |
-| `crops`                | `category`              | Filter crops by category                       |
-| `crops`                | `is_active`             | Filter active crops                            |
-| `finance_transactions` | `date`                  | Date range queries for reports                 |
-| `finance_transactions` | `type`                  | Filter by income/expense                       |
-| `finance_transactions` | `funding_source_id`     | Filter by funding source                       |
-| `loans`                | `borrower_id`           | Find all loans for a resident                  |
-| `loans`                | `status`                | Filter active/paid/defaulted loans             |
-| `loans`                | `next_due_date`         | Overdue loan queries                           |
-| `loan_payments`        | `loan_id`               | Find all payments for a loan                   |
-| `loan_payments`        | `payment_date`          | Payment history queries                        |
-| `repayment_schedule`   | `loan_id`               | Get full schedule for a loan                   |
-| `repayment_schedule`   | `due_date`              | Find due/overdue installments                  |
-| `repayment_schedule`   | `status`                | Filter by payment status                       |
-| `funding_sources`      | `name`                  | Quick donor lookup                             |
-| `finance_categories`   | `type`                  | Filter categories by income/expense            |
-| `finance_categories`   | `name`                  | Quick category lookup                          |
-| `transaction_links`    | `parent_transaction_id` | Find all funding for a transaction             |
-| `transaction_links`    | `funding_source_id`     | Find all links for a funding source            |
+| Table        | Index Key                    | Type   | Columns                         |
+| ------------ | ---------------------------- | ------ | ------------------------------- |
+| `users`      | `idx_users_email_unique`     | unique | `email`                         |
+| `residents`  | `idx_residents_household_id` | key    | `first_name ASC, last_name ASC` |
+| `households` | `idx_households_name`        | key    | `name ASC`                      |
+| `soil_types` | `idx_soil_types_name`        | key    | `name ASC`                      |
+| `plots`      | `idx_plots_name`             | key    | `name ASC`                      |
+| `plots`      | `idx_plots_status`           | key    | `status ASC`                    |
+| `crops`      | `idx_crops_category`         | key    | `category ASC`                  |
+| `crops`      | `idx_crops_type`             | key    | `crop_type ASC`                 |
+| `crops`      | `idx_crops_active`           | key    | `is_active ASC`                 |
+| `crops`      | `idx_crops_name`             | unique | `crop_name ASC`                 |
+| `plantings`  | `idx_plantings_date`         | key    | `planting_date DESC`            |
+| `plantings`  | `idx_plantings_status`       | key    | `status ASC`                    |
+| `farm_sales` | `idx_farm_sales_date`        | key    | `sale_date DESC`                |
+| `farm_sales` | `idx_farm_sales_buyer`       | key    | `buyer_type ASC, buyer_id ASC`  |
 
 ## Permissions
 
