@@ -214,7 +214,7 @@
 </template>
 
 <script setup>
-import { ref, computed, shallowRef, onMounted, nextTick } from 'vue';
+import { ref, computed, shallowRef, onMounted, onBeforeUnmount, nextTick } from 'vue';
 import { useFarmStore } from '../stores/farm-store';
 import { useQuasar } from 'quasar';
 import { exportFarmReportToPDF, exportToCSV } from 'src/services/ReportExportService.js';
@@ -440,5 +440,10 @@ function fmt(value) {
 
 onMounted(() => {
   runReport();
+});
+
+onBeforeUnmount(() => {
+  chartInstance.value?.destroy();
+  chartInstance.value = null;
 });
 </script>

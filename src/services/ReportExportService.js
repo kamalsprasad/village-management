@@ -438,10 +438,7 @@ export async function exportFarmReportToPDF({
 
     const columns = [
       'Crop',
-      'Type',
       'Plantings',
-      'Done',
-      'Failed',
       'Harvest (kg)',
       'Revenue (ZMW)',
       'Total Costs',
@@ -454,10 +451,7 @@ export async function exportFarmReportToPDF({
 
     const rows = cropData.map((c) => [
       c.cropName,
-      c.cropType || '—',
       String(c.totalPlantings),
-      String(c.completed),
-      String(c.failed),
       Number(c.totalHarvestKg).toFixed(1),
       pdfCurrency(c.totalRevenue),
       pdfCurrency(c.totalCost),

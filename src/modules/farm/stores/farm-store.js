@@ -98,8 +98,9 @@ export const useFarmStore = defineStore('farm', {
     // Planting getters (Story 3.3-3.4)
     plantingsByPlot: (state) => {
       return state.plantings.reduce((acc, planting) => {
-        acc[planting.plot_id] = acc[planting.plot_id] || [];
-        acc[planting.plot_id].push(planting);
+        const pid = typeof planting.plot_id === 'object' ? planting.plot_id?.$id : planting.plot_id;
+        acc[pid] = acc[pid] || [];
+        acc[pid].push(planting);
         return acc;
       }, {});
     },
@@ -1887,7 +1888,7 @@ export const useFarmStore = defineStore('farm', {
      * @param {string} plantingId
      * @returns {number} total revenue in ZMW
      */
-    computeRevenueForPlanting(plantingId) {
+    computeRevenueForPlanting(plantingId, { dateFrom, dateTo } = {}) {
       const inventoryStore = useInventoryStore();
       const produceItems = inventoryStore.farmProduceItems;
 
@@ -1910,7 +1911,10 @@ export const useFarmStore = defineStore('farm', {
             typeof sale.inventory_item_id === 'object'
               ? sale.inventory_item_id?.$id
               : sale.inventory_item_id;
-          return invItemIds.has(iid);
+          if (!invItemIds.has(iid)) return false;
+          if (dateFrom && new Date(sale.sale_date) < new Date(dateFrom)) return false;
+          if (dateTo && new Date(sale.sale_date) > new Date(dateTo)) return false;
+          return true;
         })
         .reduce((sum, sale) => sum + (Number(sale.total_amount) || 0), 0);
     },
@@ -1947,7 +1951,7 @@ export const useFarmStore = defineStore('farm', {
       const plantingBreakdown = [];
 
       for (const planting of plotPlantings) {
-        const pRevenue = this.computeRevenueForPlanting(planting.$id);
+        const pRevenue = this.computeRevenueForPlanting(planting.$id, { dateFrom, dateTo });
         const pSeedCosts = Number(planting.inputs_cost) || 0;
         const pPlantingLabor = Number(planting.labor_cost) || 0;
         const pPlantingOther = Number(planting.other_cost) || 0;
@@ -2083,16 +2087,16 @@ export const useFarmStore = defineStore('farm', {
         if (st === 'completed') r.completed++;
         if (st === 'failed') r.failed++;
 
-        r.totalRevenue += this.computeRevenueForPlanting(planting.$id);
+        r.totalRevenue += this.computeRevenueForPlanting(planting.$id, { dateFrom, dateTo });
         r.seedCosts += Number(planting.inputs_cost) || 0;
         r.plantingLabor += Number(planting.labor_cost) || 0;
         r.plantingOther += Number(planting.other_cost) || 0;
 
-        // Plot size for yield/ha calculation
+        // Plot size for yield/ha calculation (prefer planting area, fall back to full plot)
         const plotId =
           typeof planting.plot_id === 'object' ? planting.plot_id?.$id : planting.plot_id;
         const plot = this.plots.find((p) => p.$id === plotId);
-        r.totalHectares += Number(plot?.size_hectares) || 0;
+        r.totalHectares += Number(planting.area_used_hectares || plot?.size_hectares || 0) || 0;
 
         const plantingHarvests = this.harvestsByPlanting(planting.$id);
         for (const h of plantingHarvests) {

@@ -59,10 +59,7 @@
               ZMW {{ fmt(crop.netProfit) }}
             </q-item-label>
             <q-item-label caption>
-              <q-badge
-                :color="crop.netProfit >= 0 ? 'positive' : 'negative'"
-                outline
-              >
+              <q-badge :color="crop.netProfit >= 0 ? 'positive' : 'negative'" outline>
                 ROI {{ crop.roiPercent != null ? crop.roiPercent + '%' : '—' }}
               </q-badge>
             </q-item-label>
@@ -95,6 +92,7 @@ const topCrops = ref([]);
 async function refresh() {
   isLoading.value = true;
   farmStore.salesLoaded = false;
+  farmStore.harvestsLoaded = false;
   await farmStore.ensureProfitabilityDataLoaded();
   topCrops.value = farmStore.computeTopCropsByProfit(5);
   isLoading.value = false;

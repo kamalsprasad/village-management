@@ -2,7 +2,7 @@
 
 **Epic:** 3 - Farm Management and Agricultural Tracking  
 **Story ID:** 3.9  
-**Status:** in_progress  
+**Status:** review  
 **Date:** 2026-04-30  
 **Author:** AI Assistant
 
@@ -693,4 +693,4 @@ The following items should be added to `docs/POST-MVP.md`:
 
 _Last Updated: 2026-04-30_  
 _Story Template Version: 1.0_  
-_Status: **in_progress**_
+_Status: **review**_

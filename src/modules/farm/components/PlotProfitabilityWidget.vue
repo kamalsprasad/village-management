@@ -43,8 +43,8 @@
           <q-item-section>
             <q-item-label class="text-weight-medium">{{ plot.plotName }}</q-item-label>
             <q-item-label caption>
-              {{ plot.plantingsIncluded }} planting{{ plot.plantingsIncluded !== 1 ? 's' : '' }}
-              · Revenue: ZMW {{ fmt(plot.revenue) }}
+              {{ plot.plantingsIncluded }} planting{{ plot.plantingsIncluded !== 1 ? 's' : '' }} ·
+              Revenue: ZMW {{ fmt(plot.revenue) }}
             </q-item-label>
           </q-item-section>
           <q-item-section side class="text-right">
@@ -55,10 +55,7 @@
               ZMW {{ fmt(plot.netProfit) }}
             </q-item-label>
             <q-item-label caption>
-              <q-badge
-                :color="plot.netProfit >= 0 ? 'positive' : 'negative'"
-                outline
-              >
+              <q-badge :color="plot.netProfit >= 0 ? 'positive' : 'negative'" outline>
                 ROI {{ plot.roiPercent != null ? plot.roiPercent + '%' : '—' }}
               </q-badge>
             </q-item-label>
@@ -80,6 +77,7 @@ const plotsData = ref([]);
 async function refresh() {
   isLoading.value = true;
   farmStore.salesLoaded = false;
+  farmStore.harvestsLoaded = false;
   await farmStore.ensureProfitabilityDataLoaded();
   plotsData.value = farmStore.computeAllPlotsProfitability();
   isLoading.value = false;
