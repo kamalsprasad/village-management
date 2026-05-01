@@ -1147,6 +1147,7 @@ export const useFarmStore = defineStore('farm', {
 
       const ctx = await this._resolveHarvestContext(harvest.planting_id);
       if (!ctx.success) return { success: false, error: ctx.error };
+      console.log(`ctx`, ctx);
       const { planting, crop, plot } = ctx;
 
       // 1. Create the entry
@@ -2327,6 +2328,9 @@ export const useFarmStore = defineStore('farm', {
           typeof inventoryItem.crop_id === 'object'
             ? inventoryItem.crop_id?.$id
             : inventoryItem.crop_id || null;
+
+        console.log('saleCropId', saleCropId);
+        console.log('inventoryItem', inventoryItem);
 
         const saleData = {
           inventory_item_id: inventoryItem.$id,

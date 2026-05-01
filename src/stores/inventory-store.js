@@ -365,6 +365,23 @@ export const useInventoryStore = defineStore('inventory', {
           rowId: itemId,
         });
 
+        // For farm_produce items, query the related crop data to populate crop_id
+        // if (item.item_type === 'farm_produce' && item.crop_id) {
+        //   console.log('item.crop_id', item.crop_id);
+        //   try {
+        //     const crop = await tables.getRow({
+        //       databaseId: dbId,
+        //       tableId: 'crops',
+        //       rowId: typeof item.crop_id === 'object' ? item.crop_id.$id : item.crop_id,
+        //     });
+        //     // Populate the crop_id with the full crop object
+        //     item.crop_id = crop;
+        //   } catch (cropError) {
+        //     console.warn('Could not fetch crop data for item:', cropError);
+        //     // Keep crop_id as is if fetch fails
+        //   }
+        // }
+
         // Check permission-based access
         const authStore = useAuthStore();
         const user = authStore.user;

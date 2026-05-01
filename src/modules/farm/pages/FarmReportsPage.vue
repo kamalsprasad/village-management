@@ -55,7 +55,13 @@
             />
           </div>
           <div class="col-auto">
-            <q-btn color="primary" icon="search" label="Run" @click="runReport" :loading="isLoading" />
+            <q-btn
+              color="primary"
+              icon="search"
+              label="Run"
+              @click="runReport"
+              :loading="isLoading"
+            />
           </div>
         </div>
       </q-card-section>
@@ -208,13 +214,10 @@
 </template>
 
 <script setup>
-import { ref, computed, shallowRef, onMounted, watch, nextTick } from 'vue';
+import { ref, computed, shallowRef, onMounted, nextTick } from 'vue';
 import { useFarmStore } from '../stores/farm-store';
 import { useQuasar } from 'quasar';
-import {
-  exportFarmReportToPDF,
-  exportToCSV,
-} from 'src/services/ReportExportService.js';
+import { exportFarmReportToPDF, exportToCSV } from 'src/services/ReportExportService.js';
 
 const farmStore = useFarmStore();
 const $q = useQuasar();
@@ -242,7 +245,13 @@ const chartInstance = shallowRef(null);
 const tableColumns = [
   { name: 'cropName', label: 'Crop', field: 'cropName', align: 'left', sortable: true },
   { name: 'cropType', label: 'Type', field: 'cropType', align: 'left', sortable: true },
-  { name: 'totalPlantings', label: 'Plantings', field: 'totalPlantings', align: 'right', sortable: true },
+  {
+    name: 'totalPlantings',
+    label: 'Plantings',
+    field: 'totalPlantings',
+    align: 'right',
+    sortable: true,
+  },
   { name: 'completed', label: 'Done', field: 'completed', align: 'right', sortable: true },
   { name: 'failed', label: 'Failed', field: 'failed', align: 'right', sortable: true },
   {
@@ -253,7 +262,13 @@ const tableColumns = [
     sortable: true,
     format: (v) => Number(v).toFixed(1),
   },
-  { name: 'totalRevenue', label: 'Revenue (ZMW)', field: 'totalRevenue', align: 'right', sortable: true },
+  {
+    name: 'totalRevenue',
+    label: 'Revenue (ZMW)',
+    field: 'totalRevenue',
+    align: 'right',
+    sortable: true,
+  },
   { name: 'totalCost', label: 'Total Costs', field: 'totalCost', align: 'right', sortable: true },
   { name: 'netProfit', label: 'Net Profit', field: 'netProfit', align: 'right', sortable: true },
   { name: 'roiPercent', label: 'ROI %', field: 'roiPercent', align: 'right', sortable: true },
