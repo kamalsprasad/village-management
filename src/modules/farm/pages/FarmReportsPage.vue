@@ -46,10 +46,26 @@
               clearable
             />
           </div>
-          <div class="col-12 col-sm-3 col-md-3">
+          <div class="col-12 col-sm-6 col-md-3">
+            <q-select
+              v-model="selectedCrops"
+              dense
+              outlined
+              label="Specific Crops"
+              :options="cropSelectOptions"
+              option-value="value"
+              option-label="label"
+              emit-value
+              map-options
+              multiple
+              clearable
+              use-chips
+            />
+          </div>
+          <div class="col-12 col-sm-3 col-md-2">
             <q-toggle
               v-model="includeFailedPlantings"
-              label="Include failed plantings"
+              label="Include failed"
               color="primary"
               dense
             />
@@ -122,6 +138,57 @@
         </div>
       </div>
 
+      <!-- Named summary highlight cards -->
+      <div v-if="cropData.length" class="row q-col-gutter-md q-mb-md">
+        <div class="col-12 col-sm-4">
+          <q-card flat bordered>
+            <q-card-section class="q-pa-md">
+              <div class="text-caption text-grey">Most Profitable Crop</div>
+              <div class="text-subtitle1 text-weight-bold text-positive">
+                {{ highlights.mostProfitable?.cropName || '—' }}
+              </div>
+              <div class="text-caption">
+                {{
+                  highlights.mostProfitable ? 'ZMW ' + fmt(highlights.mostProfitable.netProfit) : ''
+                }}
+              </div>
+            </q-card-section>
+          </q-card>
+        </div>
+        <div class="col-12 col-sm-4">
+          <q-card flat bordered>
+            <q-card-section class="q-pa-md">
+              <div class="text-caption text-grey">Highest Yield Crop</div>
+              <div class="text-subtitle1 text-weight-bold text-primary">
+                {{ highlights.highestYield?.cropName || '—' }}
+              </div>
+              <div class="text-caption">
+                {{
+                  highlights.highestYield
+                    ? highlights.highestYield.avgYieldPerHectare + ' kg/ha'
+                    : ''
+                }}
+              </div>
+            </q-card-section>
+          </q-card>
+        </div>
+        <div class="col-12 col-sm-4">
+          <q-card flat bordered>
+            <q-card-section class="q-pa-md">
+              <div class="text-caption text-grey">Best ROI Crop</div>
+              <div class="text-subtitle1 text-weight-bold text-teal">
+                {{ highlights.bestROI?.cropName || '—' }}
+              </div>
+              <div class="text-caption">
+                {{
+                  highlights.bestROI?.roiPercent != null ? highlights.bestROI.roiPercent + '%' : ''
+                }}
+              </div>
+            </q-card-section>
+          </q-card>
+        </div>
+      </div>
+
       <!-- No data state -->
       <div v-if="!cropData.length" class="text-center text-grey q-pa-xl">
         <q-icon name="bar_chart" size="3em" class="q-mb-md" />
@@ -180,6 +247,14 @@
             :rows-per-page-options="[0]"
             hide-pagination
             class="q-mt-sm"
+            :row-class="
+              (row) =>
+                row.netProfit > 0
+                  ? 'bg-green-1'
+                  : row.netProfit < -0.005
+                    ? 'bg-red-1'
+                    : 'bg-yellow-1'
+            "
           >
             <template #body-cell-netProfit="slotProps">
               <q-td :class="slotProps.row.netProfit >= 0 ? 'text-positive' : 'text-negative'">
@@ -232,6 +307,11 @@ const selectedCropType = ref(null);
 const includeFailedPlantings = ref(true);
 
 const cropTypeOptions = ['Annual', 'Perennial'];
+const selectedCrops = ref([]);
+
+const cropSelectOptions = computed(() =>
+  farmStore.crops.map((c) => ({ label: c.crop_name, value: c.$id })),
+);
 
 const cropData = ref([]);
 
@@ -306,6 +386,19 @@ const summaryTotals = computed(() => {
   return { revenue, costs, profit, roi };
 });
 
+const highlights = computed(() => {
+  if (!cropData.value.length) return {};
+  const sorted = [...cropData.value];
+  const mostProfitable = [...sorted].sort((a, b) => b.netProfit - a.netProfit)[0];
+  const highestYield = [...sorted].sort(
+    (a, b) => (b.avgYieldPerHectare || 0) - (a.avgYieldPerHectare || 0),
+  )[0];
+  const bestROI = [...sorted]
+    .filter((r) => r.roiPercent != null)
+    .sort((a, b) => parseFloat(b.roiPercent) - parseFloat(a.roiPercent))[0];
+  return { mostProfitable, highestYield, bestROI };
+});
+
 // --------------------------------------------------------------------------
 // Data loading
 // --------------------------------------------------------------------------
@@ -313,10 +406,15 @@ async function runReport() {
   isLoading.value = true;
   await farmStore.ensureProfitabilityDataLoaded();
 
+  // AC6: if dateFrom is set but dateTo is not, default dateTo to today
+  const effectiveDateTo =
+    dateTo.value || (dateFrom.value ? new Date().toISOString().split('T')[0] : undefined);
+
   cropData.value = farmStore.computeCropPerformance({
     dateFrom: dateFrom.value || undefined,
-    dateTo: dateTo.value || undefined,
+    dateTo: effectiveDateTo,
     cropType: selectedCropType.value || undefined,
+    cropIds: selectedCrops.value.length ? selectedCrops.value : undefined,
     includeFailedPlantings: includeFailedPlantings.value,
   });
 
@@ -359,6 +457,7 @@ async function renderChart() {
       ],
     },
     options: {
+      indexAxis: 'y',
       responsive: true,
       maintainAspectRatio: false,
       plugins: {

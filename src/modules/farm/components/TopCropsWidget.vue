@@ -46,6 +46,13 @@
           </q-item-section>
           <q-item-section>
             <q-item-label class="text-weight-medium">{{ crop.cropName }}</q-item-label>
+            <q-linear-progress
+              :value="Math.abs(crop.netProfit) / maxAbsProfit"
+              :color="crop.netProfit >= 0 ? 'positive' : 'negative'"
+              rounded
+              size="6px"
+              class="q-my-xs"
+            />
             <q-item-label caption>
               {{ crop.totalPlantings }} planting{{ crop.totalPlantings !== 1 ? 's' : '' }} ·
               {{ crop.successRate }}
@@ -82,12 +89,17 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import { useFarmStore } from '../stores/farm-store';
 
 const farmStore = useFarmStore();
 const isLoading = ref(true);
 const topCrops = ref([]);
+
+const maxAbsProfit = computed(() => {
+  if (!topCrops.value.length) return 1;
+  return Math.max(...topCrops.value.map((c) => Math.abs(c.netProfit)), 1);
+});
 
 async function refresh() {
   isLoading.value = true;

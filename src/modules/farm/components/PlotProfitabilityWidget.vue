@@ -15,6 +15,13 @@
         >
           <q-icon name="place" class="q-mr-xs" />
           Plot Profitability
+          <span
+            v-if="!isLoading && plotsData.length"
+            class="text-caption q-ml-sm"
+            :class="totalFarmNetProfit >= 0 ? 'text-positive' : 'text-negative'"
+          >
+            ({{ totalFarmNetProfit >= 0 ? '+' : '' }}ZMW {{ fmt(totalFarmNetProfit) }} total)
+          </span>
         </div>
         <q-btn flat round dense icon="refresh" :loading="isLoading" @click="refresh">
           <q-tooltip>Refresh</q-tooltip>
@@ -38,6 +45,13 @@
           :key="plot.plotId"
           clickable
           v-ripple
+          :class="
+            plot.netProfit > 0
+              ? 'bg-green-1'
+              : Math.abs(plot.netProfit) < 0.01
+                ? 'bg-yellow-1'
+                : 'bg-red-1'
+          "
           @click="$router.push(`/farm/plots/${plot.plotId}`)"
         >
           <q-item-section>
@@ -67,12 +81,16 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import { useFarmStore } from '../stores/farm-store';
 
 const farmStore = useFarmStore();
 const isLoading = ref(true);
 const plotsData = ref([]);
+
+const totalFarmNetProfit = computed(() =>
+  plotsData.value.reduce((s, p) => s + (p.netProfit || 0), 0),
+);
 
 async function refresh() {
   isLoading.value = true;

@@ -135,7 +135,9 @@
         </q-list>
 
         <div class="text-caption text-grey q-mt-sm">
-          {{ profitData.plantingsIncluded }} planting{{ profitData.plantingsIncluded !== 1 ? 's' : '' }}
+          {{ profitData.plantingsIncluded }} planting{{
+            profitData.plantingsIncluded !== 1 ? 's' : ''
+          }}
           included ({{ profitData.completedCount }} completed, {{ profitData.failedCount }} failed)
         </div>
 
@@ -159,11 +161,9 @@
                 <q-item-label class="text-weight-medium">{{ row.cropName }}</q-item-label>
                 <q-item-label caption>
                   {{ formatDate(row.plantingDate) }} ·
-                  <q-badge
-                    :color="statusColor(row.status)"
-                    outline
-                    class="q-ml-xs"
-                  >{{ row.status }}</q-badge>
+                  <q-badge :color="statusColor(row.status)" outline class="q-ml-xs">{{
+                    row.status
+                  }}</q-badge>
                 </q-item-label>
               </q-item-section>
               <q-item-section side class="text-right">
@@ -223,9 +223,12 @@ function statusColor(status) {
 }
 
 function recompute() {
+  // AC6: if dateFrom set but dateTo not, default to today
+  const effectiveDateTo =
+    dateTo.value || (dateFrom.value ? new Date().toISOString().split('T')[0] : undefined);
   profitData.value = farmStore.computePlotProfitability(props.plotId, {
     dateFrom: dateFrom.value || undefined,
-    dateTo: dateTo.value || undefined,
+    dateTo: effectiveDateTo,
     includeFailedPlantings: includeFailedPlantings.value,
   });
 }

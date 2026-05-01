@@ -2,7 +2,7 @@
 
 **Epic:** 3 - Farm Management and Agricultural Tracking  
 **Story ID:** 3.9  
-**Status:** review  
+**Status:** done  
 **Date:** 2026-04-30  
 **Author:** AI Assistant
 
@@ -91,22 +91,22 @@ crop_id: cropId || null,
 
 ### AC1: Profitability Formula Implementation
 
-- [ ] Core formula correctly implemented across all surfaces:
+- [x] Core formula correctly implemented across all surfaces:
   ```
   Net Profit = Total Sales Revenue − Total Costs
   Total Costs = Seed Costs + Planting Labor + Planting Other + Harvest Labor + Harvest Other
   ROI % = (Net Profit / Total Costs) × 100  [shows "—" if Total Costs = 0]
   ```
-- [ ] For plantings with **no sales**: Revenue = 0, Net Profit = negative (cost shown as loss)
-- [ ] For plantings with **partial sales** (not all inventory sold): Revenue = sum of all `farm_sales.total_amount` for that planting's inventory items
-- [ ] For perennial crops with multiple harvest cycles: all harvest costs summed across every harvest for the planting
-- [ ] **Failed plantings** included in calculations by default; excluded when "Include failed plantings" toggle is OFF
-- [ ] Currency displayed as ZMW throughout, formatted to 2 decimal places
+- [x] For plantings with **no sales**: Revenue = 0, Net Profit = negative (cost shown as loss)
+- [x] For plantings with **partial sales** (not all inventory sold): Revenue = sum of all `farm_sales.total_amount` for that planting's inventory items
+- [x] For perennial crops with multiple harvest cycles: all harvest costs summed across every harvest for the planting
+- [x] **Failed plantings** included in calculations by default; excluded when "Include failed plantings" toggle is OFF
+- [x] Currency displayed as ZMW throughout, formatted to 2 decimal places
 
 ### AC2: Plot Detail Page — Profitability Summary Card
 
-- [ ] `PlotDetailPage.vue`: Replace the placeholder "Profitability data will be available after first harvest" card (lines 252–263) with a functional **Profitability Summary** section
-- [ ] Section displays:
+- [x] `PlotDetailPage.vue`: Replace the placeholder "Profitability data will be available after first harvest" card (lines 252–263) with a functional **Profitability Summary** section
+- [x] Section displays:
   - **Total Revenue** (ZMW) — sum of all `farm_sales.total_amount` for all plantings on this plot
   - **Detailed Cost Breakdown**:
     - Seed / Input Costs (ZMW)
@@ -118,94 +118,94 @@ crop_id: cropId || null,
   - **Net Profit** (ZMW, bold) — color-coded: green if ≥ 0, red if < 0
   - **ROI %** — color-coded matching net profit
   - **Plantings Included** count (e.g., "3 completed, 1 failed")
-- [ ] **Date Range Filter**: Date picker pair (From / To) above the summary; recalculates on change. Default: all time (empty = no filter).
-- [ ] **"Include Failed Plantings" toggle**: Boolean chip/switch, default ON. When OFF, excludes any planting with `status = 'Failed'` from all calculations.
-- [ ] **Loading state**: Show spinner while profitability data is fetching; do not show stale/empty values
-- [ ] **Empty state**: If no completed plantings and no sales, show: "No profitability data yet. Complete a harvest and record a sale to see results."
-- [ ] **Per-planting breakdown** (expandable `q-expansion-item`): List of each planting contributing to the summary, showing crop name, planting date, revenue, costs, profit for that planting
+- [x] **Date Range Filter**: Date picker pair (From / To) above the summary; recalculates on change. Default: all time (empty = no filter).
+- [x] **"Include Failed Plantings" toggle**: Boolean chip/switch, default ON. When OFF, excludes any planting with `status = 'Failed'` from all calculations.
+- [x] **Loading state**: Show spinner while profitability data is fetching; do not show stale/empty values
+- [x] **Empty state**: If no completed plantings and no sales, show: "No profitability data yet. Complete a harvest and record a sale to see results."
+- [x] **Per-planting breakdown** (expandable `q-expansion-item`): List of each planting contributing to the summary, showing crop name, planting date, revenue, costs, profit for that planting
 
 ### AC3: Crop Performance Report — New Farm Reports Page
 
-- [ ] New page `src/modules/farm/pages/FarmReportsPage.vue` at route `/farm/reports`
-- [ ] Route added to `src/modules/farm/router.js` with `farm:read` permission guard
-- [ ] Navigation entry added to `src/layouts/MainLayout.vue` under the Farm section ("Reports" link)
-- [ ] Navigation entry added to `FarmDashboardPage.vue` Quick Navigation cards
+- [x] New page `src/modules/farm/pages/FarmReportsPage.vue` at route `/farm/reports`
+- [x] Route added to `src/modules/farm/router.js` with `farm:read` permission guard
+- [x] Navigation entry added to `src/layouts/MainLayout.vue` under the Farm section ("Reports" link)
+- [x] Navigation entry added to `FarmDashboardPage.vue` Quick Navigation cards
 
 **Report: Crop Performance**
 
-- [ ] **Filter Bar** at top of page:
+- [x] **Filter Bar** at top of page:
   - Date range (From / To) pickers — defaults to last 12 months
   - Crop type filter: All / Annual / Perennial
   - Specific crop dropdown (multi-select from `farmStore.crops`)
   - "Include Failed Plantings" toggle (default ON)
   - "Generate Report" button that triggers data computation
-- [ ] **Crop Performance Table** — one row per crop, columns:
+- [x] **Crop Performance Table** — one row per crop, columns:
       | Crop Name | Type | Total Plantings | Completed | Failed | Total Harvest (kg) | Total Revenue (ZMW) | Total Seed Costs | Total Planting Labor | Total Planting Other | Total Harvest Labor | Total Harvest Other | Total Costs | Net Profit | Avg Profit/Planting | Avg Yield/Hectare | Success Rate |
-- [ ] Table sortable by any column (default: Net Profit descending)
-- [ ] Rows color-coded: green row if Net Profit > 0, red if Net Profit < 0, yellow if Net Profit = 0
-- [ ] **Summary Statistics** above the table:
+- [x] Table sortable by any column (default: Net Profit descending)
+- [x] Rows color-coded: green row if Net Profit > 0, red if Net Profit < 0, yellow if Net Profit = 0
+- [x] **Summary Statistics** above the table:
   - Most Profitable Crop (crop name + ZMW profit)
   - Highest Yield Crop (crop name + avg kg/ha)
   - Best ROI Crop (crop name + ROI %)
   - Total Farm Revenue (all crops, filtered period)
   - Total Farm Profit
-- [ ] **Export buttons**: "Export PDF" and "Export CSV" using `ReportExportService.js`; PDF includes summary stats + table + chart image (if feasible)
-- [ ] Report loads within 3 seconds for up to 3 years of data (compute from loaded Pinia state, not extra queries)
+- [x] **Export buttons**: "Export PDF" and "Export CSV" using `ReportExportService.js`; PDF includes summary stats + table + chart image (if feasible)
+- [x] Report loads within 3 seconds for up to 3 years of data (compute from loaded Pinia state, not extra queries)
 
 ### AC4: Farm Reports Page — "Top Performing Crops" Bar Chart
 
-- [ ] Chart.js horizontal bar chart rendered on `FarmReportsPage.vue` below the crop performance table
-- [ ] Shows top 5 crops by **Net Profit** (ZMW), bars color-coded by profit/loss (green = positive, red = negative)
-- [ ] Chart updates reactively when filters change ("Generate Report" triggers re-render)
-- [ ] Chart uses `shallowRef` pattern (consistent with `FinanceReportsPage.vue` / Story 2.8)
-- [ ] Chart properly destroyed and re-created on filter change to avoid Chart.js canvas reuse warnings
-- [ ] Chart empty state: "No data to display. Adjust filters or record some sales." shown when no data
+- [x] Chart.js horizontal bar chart rendered on `FarmReportsPage.vue` below the crop performance table
+- [x] Shows top 5 crops by **Net Profit** (ZMW), bars color-coded by profit/loss (green = positive, red = negative)
+- [x] Chart updates reactively when filters change ("Generate Report" triggers re-render)
+- [x] Chart uses `shallowRef` pattern (consistent with `FinanceReportsPage.vue` / Story 2.8)
+- [x] Chart properly destroyed and re-created on filter change to avoid Chart.js canvas reuse warnings
+- [x] Chart empty state: "No data to display. Adjust filters or record some sales." shown when no data
 
 ### AC5: Farm Dashboard — Two New Widgets
 
 **Widget 1: "Top Performing Crops"**
 
-- [ ] New component `src/modules/farm/components/TopCropsWidget.vue`
-- [ ] Follows `WidgetBase.vue` pattern (consistent with existing farm widgets)
-- [ ] Shows top 5 crops by total net profit (all-time, all plots)
-- [ ] Each row: crop name, total profit (ZMW), color-coded badge (green/red)
-- [ ] Small horizontal bar chart or progress bars showing relative profit magnitude
-- [ ] Clicking widget title navigates to `/farm/reports`
-- [ ] Empty state: "Record sales to see top performing crops"
-- [ ] Added to `FarmDashboardPage.vue` in the widgets row
+- [x] New component `src/modules/farm/components/TopCropsWidget.vue`
+- [x] Follows `WidgetBase.vue` pattern (consistent with existing farm widgets)
+- [x] Shows top 5 crops by total net profit (all-time, all plots)
+- [x] Each row: crop name, total profit (ZMW), color-coded badge (green/red)
+- [x] Small horizontal bar chart or progress bars showing relative profit magnitude
+- [x] Clicking widget title navigates to `/farm/reports`
+- [x] Empty state: "Record sales to see top performing crops"
+- [x] Added to `FarmDashboardPage.vue` in the widgets row
 
 **Widget 2: "Plot Profitability"**
 
-- [ ] New component `src/modules/farm/components/PlotProfitabilityWidget.vue`
-- [ ] Table listing all plots with columns: Plot Name, Net Profit (ZMW), ROI %
-- [ ] Color-coded rows: green (profit > 0), red (loss), yellow (break-even: |profit| < 10)
-- [ ] Clicking a plot row navigates to `/farm/plots/:id` (plot detail page)
-- [ ] Widget header shows total farm net profit (ZMW) across all plots
-- [ ] Empty state: "No profit data yet. Complete plantings and record sales."
-- [ ] Added to `FarmDashboardPage.vue` in the widgets row
+- [x] New component `src/modules/farm/components/PlotProfitabilityWidget.vue`
+- [x] Table listing all plots with columns: Plot Name, Net Profit (ZMW), ROI %
+- [x] Color-coded rows: green (profit > 0), red (loss), yellow (break-even: |profit| < 10)
+- [x] Clicking a plot row navigates to `/farm/plots/:id` (plot detail page)
+- [x] Widget header shows total farm net profit (ZMW) across all plots
+- [x] Empty state: "No profit data yet. Complete plantings and record sales."
+- [x] Added to `FarmDashboardPage.vue` in the widgets row
 
 ### AC6: Profitability Filters (shared behavior)
 
-- [ ] **Date range filter** applies to: planting_date for cost attribution, sale_date for revenue attribution
-- [ ] If `dateFrom` is set but `dateTo` is not: filter from `dateFrom` to today
-- [ ] If neither date is set: all-time (no filter)
-- [ ] Date filter applied client-side against already-loaded Pinia state for instant recalculation
-- [ ] **Crop filter** (on Farm Reports page) filters rows shown in the table; does not affect other crops' totals
-- [ ] **"Include Failed Plantings" toggle**: persists within a session (does not need to persist across page loads)
+- [x] **Date range filter** applies to: planting_date for cost attribution, sale_date for revenue attribution
+- [x] If `dateFrom` is set but `dateTo` is not: filter from `dateFrom` to today
+- [x] If neither date is set: all-time (no filter)
+- [x] Date filter applied client-side against already-loaded Pinia state for instant recalculation
+- [x] **Crop filter** (on Farm Reports page) filters rows shown in the table; does not affect other crops' totals
+- [x] **"Include Failed Plantings" toggle**: persists within a session (does not need to persist across page loads)
 
 ### AC7: Store — New Profitability Actions
 
 The following new actions must be added to `src/modules/farm/stores/farm-store.js`:
 
-- [ ] **`computePlotProfitability(plotId, opts)`** — synchronous (uses loaded state); returns `{ revenue, seedCosts, plantingLabor, plantingOther, harvestLabor, harvestOther, totalCost, netProfit, roiPercent, plantingsIncluded }`. `opts` supports `{ dateFrom, dateTo, includeFailedPlantings }`.
+- [x] **`computePlotProfitability(plotId, opts)`** — synchronous (uses loaded state); returns `{ revenue, seedCosts, plantingLabor, plantingOther, harvestLabor, harvestOther, totalCost, netProfit, roiPercent, plantingsIncluded }`. `opts` supports `{ dateFrom, dateTo, includeFailedPlantings }`.
 
-- [ ] **`computeCropPerformance(opts)`** — synchronous (uses loaded state); returns array of crop performance objects (one per crop), each containing all metrics from AC3 table. `opts` supports `{ dateFrom, dateTo, cropIds, cropType, includeFailedPlantings }`.
+- [x] **`computeCropPerformance(opts)`** — synchronous (uses loaded state); returns array of crop performance objects (one per crop), each containing all metrics from AC3 table. `opts` supports `{ dateFrom, dateTo, cropIds, cropType, includeFailedPlantings }`.
 
-- [ ] **`computeAllPlotsProfitability(opts)`** — calls `computePlotProfitability` for every plot; returns array sorted by `netProfit` descending. Used by `PlotProfitabilityWidget`.
+- [x] **`computeAllPlotsProfitability(opts)`** — calls `computePlotProfitability` for every plot; returns array sorted by `netProfit` descending. Used by `PlotProfitabilityWidget`.
 
-- [ ] **`computeTopCropsByProfit(limit, opts)`** — calls `computeCropPerformance` and returns top `limit` (default 5) crops sorted by `netProfit` descending.
+- [x] **`computeTopCropsByProfit(limit, opts)`** — calls `computeCropPerformance` and returns top `limit` (default 5) crops sorted by `netProfit` descending.
 
-- [ ] **`ensureProfitabilityDataLoaded()`** — ensures `plots`, `plantings`, `harvests`, `sales`, `crops`, and inventory items (farm_produce only) are all loaded. Called by each profitability page/widget on mount. Uses existing `farmStore.xLoaded` flags to skip already-fetched data.
+- [x] **`ensureProfitabilityDataLoaded()`** — ensures `plots`, `plantings`, `harvests`, `sales`, `crops`, and inventory items (farm_produce only) are all loaded. Called by each profitability page/widget on mount. Uses existing `farmStore.xLoaded` flags to skip already-fetched data.
 
 > **Important**: `calculatePlantingCostsForProfit(plantingId)` already exists in `farm-store.js` and is async (fetches from Appwrite). The new `computePlotProfitability` is **synchronous** and operates on already-loaded Pinia state — do not remove or replace `calculatePlantingCostsForProfit`; it is still used by `SaleDetailPage.vue` for the per-sale profit preview.
 
@@ -235,15 +235,15 @@ computeRevenueForPlanting(plantingId) {
 }
 ```
 
-- [ ] This resolution handles both string and object-typed FK references (consistent with existing store patterns)
-- [ ] If `inventoryItems` (farm_produce) are not loaded, `ensureProfitabilityDataLoaded()` loads them via `inventoryStore.fetchItems({ itemType: 'farm_produce' })`
-- [ ] Alternative resolution via `sale.crop_id` (after the schema change): used for the Crop Performance Report to group by crop without iterating through inventory items
+- [x] This resolution handles both string and object-typed FK references (consistent with existing store patterns)
+- [x] If `inventoryItems` (farm_produce) are not loaded, `ensureProfitabilityDataLoaded()` loads them via `inventoryStore.fetchItems({ itemType: 'farm_produce' })`
+- [x] Alternative resolution via `sale.crop_id` (after the schema change): used for the Crop Performance Report to group by crop without iterating through inventory items
 
 ### AC9: Sample Data Updates
 
-- [ ] `src/composables/useFarmSampleData.js`: Backfill `crop_id` on all sample `farm_sales` records to match the new schema column
-- [ ] Verify all 3+ sample sales already seeded in Story 3.8 will have their `crop_id` populated in the updated seeding logic
-- [ ] Sample data must exercise the profitability widgets: at least 2 plots with different profit profiles (one profitable, one at-loss or break-even), and at least 2 different crops with sales
+- [x] `src/composables/useFarmSampleData.js`: Backfill `crop_id` on all sample `farm_sales` records to match the new schema column
+- [x] Verify all 3+ sample sales already seeded in Story 3.8 will have their `crop_id` populated in the updated seeding logic
+- [x] Sample data must exercise the profitability widgets: at least 2 plots with different profit profiles (one profitable, one at-loss or break-even), and at least 2 different crops with sales
 
 ---
 
@@ -693,4 +693,4 @@ The following items should be added to `docs/POST-MVP.md`:
 
 _Last Updated: 2026-04-30_  
 _Story Template Version: 1.0_  
-_Status: **review**_
+_Status: **done**_
