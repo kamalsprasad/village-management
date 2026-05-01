@@ -962,11 +962,17 @@ export const useFarmStore = defineStore('farm', {
         planting = res.data;
       }
 
-      let crop = this.crops.find((c) => c.$id === planting.crop_id);
+      // Extract IDs when relationships are populated as objects
+      const cropId =
+        typeof planting.crop_id === 'object' ? planting.crop_id?.$id : planting.crop_id;
+      const plotId =
+        typeof planting.plot_id === 'object' ? planting.plot_id?.$id : planting.plot_id;
+
+      let crop = this.crops.find((c) => c.$id === cropId);
       if (!crop) {
         if (!this.cropsLoaded) {
           await this.fetchCrops();
-          crop = this.crops.find((c) => c.$id === planting.crop_id);
+          crop = this.crops.find((c) => c.$id === cropId);
         }
       }
       if (!crop) {
@@ -974,11 +980,11 @@ export const useFarmStore = defineStore('farm', {
       }
 
       // Story 3.7: Fetch plot for naming convention
-      let plot = this.plots.find((p) => p.$id === planting.plot_id);
+      let plot = this.plots.find((p) => p.$id === plotId);
       if (!plot) {
         if (!this.plotsLoaded) {
           await this.fetchPlots();
-          plot = this.plots.find((p) => p.$id === planting.plot_id);
+          plot = this.plots.find((p) => p.$id === plotId);
         }
       }
       if (!plot) {
