@@ -201,9 +201,9 @@
         <q-card class="q-mb-md">
           <q-card-section>
             <div class="row items-center justify-between q-mb-sm">
-              <div class="text-subtitle1 text-weight-medium">Net Profit by Crop</div>
+              <div class="text-subtitle1 text-weight-medium">Net Profit by Crop (Top 5)</div>
             </div>
-            <div style="position: relative; height: 280px">
+            <div :style="{ position: 'relative', height: chartHeight + 'px' }">
               <canvas ref="chartCanvas"></canvas>
             </div>
           </q-card-section>
@@ -318,6 +318,11 @@ const cropData = ref([]);
 // Chart.js shallowRef pattern (same as FinanceReportsPage)
 const chartCanvas = ref(null);
 const chartInstance = shallowRef(null);
+
+const chartHeight = computed(() => {
+  const count = Math.min(cropData.value.length, 5);
+  return Math.max(200, count * 55 + 40);
+});
 
 // --------------------------------------------------------------------------
 // Table column config
@@ -437,8 +442,14 @@ async function renderChart() {
   const { Chart, registerables } = await import('chart.js');
   Chart.register(...registerables);
 
-  const labels = cropData.value.map((c) => c.cropName);
-  const profits = cropData.value.map((c) => c.netProfit);
+  // Show top 5 by absolute profit for readability
+  const chartItems = [...cropData.value]
+    .sort((a, b) => Math.abs(b.netProfit) - Math.abs(a.netProfit))
+    .slice(0, 5)
+    .sort((a, b) => b.netProfit - a.netProfit); // descending profit within top 5
+
+  const labels = chartItems.map((c) => c.cropName || 'Unknown');
+  const profits = chartItems.map((c) => c.netProfit);
 
   chartInstance.value = new Chart(chartCanvas.value, {
     type: 'bar',
@@ -449,10 +460,12 @@ async function renderChart() {
           label: 'Net Profit (ZMW)',
           data: profits,
           backgroundColor: profits.map((p) =>
-            p >= 0 ? 'rgba(46, 125, 50, 0.7)' : 'rgba(198, 40, 40, 0.7)',
+            p >= 0 ? 'rgba(46, 175, 80, 0.75)' : 'rgba(239, 83, 80, 0.75)',
           ),
           borderColor: profits.map((p) => (p >= 0 ? '#2e7d32' : '#c62828')),
           borderWidth: 1,
+          barThickness: 28,
+          maxBarThickness: 36,
         },
       ],
     },
@@ -460,23 +473,68 @@ async function renderChart() {
       indexAxis: 'y',
       responsive: true,
       maintainAspectRatio: false,
+      animation: { duration: 400 },
       plugins: {
         legend: { display: false },
         tooltip: {
           callbacks: {
-            label: (ctx) =>
-              ` ZMW ${Number(ctx.raw).toLocaleString('en-US', { minimumFractionDigits: 2 })}`,
+            label: (ctx) => {
+              const val = Number(ctx.raw);
+              const prefix = val >= 0 ? '+' : '';
+              return ` ${prefix}ZMW ${val.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+            },
           },
         },
       },
       scales: {
-        y: {
+        x: {
+          grid: { color: 'rgba(0,0,0,0.06)' },
           ticks: {
-            callback: (v) => 'ZMW ' + Number(v).toLocaleString('en-US'),
+            callback: (v) =>
+              'ZMW ' + Number(v).toLocaleString('en-US', { maximumFractionDigits: 0 }),
+            maxRotation: 0,
           },
+          border: { display: false },
+        },
+        y: {
+          grid: { display: false },
+          ticks: {
+            font: { weight: '600', size: 13 },
+            color: '#424242',
+          },
+          border: { display: false },
         },
       },
+      layout: {
+        padding: { left: 8, right: 16, top: 8, bottom: 8 },
+      },
     },
+    plugins: [
+      {
+        id: 'dataLabels',
+        afterDatasetsDraw(chart) {
+          const { ctx } = chart;
+          chart.data.datasets.forEach((dataset, i) => {
+            const meta = chart.getDatasetMeta(i);
+            meta.data.forEach((bar, index) => {
+              const value = dataset.data[index];
+              const text =
+                'ZMW ' +
+                Number(value).toLocaleString('en-US', {
+                  minimumFractionDigits: 0,
+                  maximumFractionDigits: 0,
+                });
+              ctx.fillStyle = value >= 0 ? '#1b5e20' : '#b71c1c';
+              ctx.font = 'bold 12px sans-serif';
+              ctx.textAlign = value >= 0 ? 'left' : 'right';
+              ctx.textBaseline = 'middle';
+              const xOffset = value >= 0 ? 6 : -6;
+              ctx.fillText(text, bar.x + xOffset, bar.y);
+            });
+          });
+        },
+      },
+    ],
   });
 }
 
