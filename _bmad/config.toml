@@ -13,9 +13,9 @@
 [core]
 document_output_language = "English"
 output_folder = "{project-root}/docs"
+project_name = "village-app"
 
 [modules.bmm]
-project_name = "village-app"
 planning_artifacts = "{project-root}/docs/planning-artifacts"
 implementation_artifacts = "{project-root}/docs/implementation-artifacts"
 project_knowledge = "{project-root}/docs"
