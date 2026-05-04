@@ -34,6 +34,9 @@ export const useInventoryStore = defineStore('inventory', {
     outOfStockCount: 0,
     // Story 3.7: Dedicated farm produce items for dashboard widget
     farmProduceItems: [],
+    // Story 3.10: Dedicated farm input items for alert generation
+    farmInputItems: [],
+    farmInputsLoaded: false,
   }),
 
   getters: {
@@ -1072,6 +1075,30 @@ export const useInventoryStore = defineStore('inventory', {
         return { success: true, items };
       } catch (error) {
         console.error('Error fetching farm produce items:', error);
+        return { success: false, items: [], error: error.message };
+      }
+    },
+
+    /**
+     * Story 3.10: Fetch all farm_inputs inventory items for alert generation.
+     * Mirrors fetchFarmProduceItems — does NOT mutate `items` (pagination state).
+     *
+     * @returns {Promise<{success:boolean, items:Array, error?:string}>}
+     */
+    async fetchFarmInputItems() {
+      try {
+        const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
+        const inventoryCollectionId = import.meta.env.VITE_APPWRITE_TABLE_INVENTORY || 'inventory';
+        const response = await tables.listRows({
+          databaseId: dbId,
+          tableId: inventoryCollectionId,
+          queries: [Query.equal('item_type', 'farm_inputs'), Query.limit(200)],
+        });
+        this.farmInputItems = response.rows || [];
+        this.farmInputsLoaded = true;
+        return { success: true, items: this.farmInputItems };
+      } catch (error) {
+        console.error('Error fetching farm input items:', error);
         return { success: false, items: [], error: error.message };
       }
     },

@@ -6,6 +6,17 @@ import { tables } from 'src/boot/appwrite';
 import { ID, Query } from 'appwrite';
 import { useInventoryStore } from 'src/stores/inventory-store';
 import { useFinanceStore } from 'src/modules/finance/stores/finance-store';
+import { differenceInCalendarDays, parseISO } from 'date-fns';
+import { getSeason } from '../utils/farm-utils';
+
+// Story 3.10: Default alert configuration — used if no saved config found
+const DEFAULT_ALERT_CONFIG = {
+  low_inventory: { enabled: true, threshold: 10 },
+  upcoming_harvest: { enabled: true, threshold: 7 },
+  overdue_harvest: { enabled: true, threshold: 7 },
+  underperforming_yield: { enabled: true, threshold: 50 },
+  email_enabled: false,
+};
 
 // Story 3.8: Convert a form date value (either 'YYYY-MM-DD' or an ISO datetime)
 // to a canonical ISO datetime at 12:00 UTC. Appwrite `datetime` columns require
@@ -51,6 +62,10 @@ export const useFarmStore = defineStore('farm', {
     isSalesLoading: false,
     currentSale: null,
     _farmSalesCategoryId: null, // cache for finance "Farm Sales" category lookup
+
+    // Story 3.10: Alert configuration (loaded from village_settings.farm_alert_config)
+    alertConfig: { ...DEFAULT_ALERT_CONFIG },
+    alertConfigLoaded: false,
 
     // Dashboard stats
     stats: {
@@ -2139,6 +2154,445 @@ export const useFarmStore = defineStore('farm', {
      */
     computeTopCropsByProfit(limit = 5, opts = {}) {
       return this.computeCropPerformance(opts).slice(0, limit);
+    },
+
+    // ==========================================================================
+    // Story 3.10: Yield Analysis Actions (synchronous, in-memory)
+    // ==========================================================================
+
+    /**
+     * Ensure plots, plantings, harvests, crops are loaded for yield analysis.
+     * Skips sales/farmProduce (not needed for yield).
+     */
+    async ensureYieldDataLoaded() {
+      const loaders = [];
+      if (!this.plotsLoaded) loaders.push(this.fetchPlots());
+      if (!this.plantingsLoaded) loaders.push(this.fetchPlantings());
+      if (!this.harvestsLoaded) loaders.push(this.fetchHarvests());
+      if (!this.cropsLoaded) loaders.push(this.fetchCrops());
+      if (loaders.length) await Promise.all(loaders);
+    },
+
+    /**
+     * Compute yield rows for ALL completed plantings across all plots.
+     * Single source of truth — used by computePlotYieldHistory, generateFarmAlerts,
+     * computeSeasonComparison, computePlotYieldBenchmarks, and YieldTrendsWidget.
+     *
+     * @returns {Array<{plantingId, plantingDate, season, cropName, cropId, plotId,
+     *                  typicalYield, totalHarvestKg, areaHectares,
+     *                  yieldPerHectare, vsTypicalPct}>}
+     */
+    computeAllPlantingYields() {
+      const results = [];
+      for (const planting of this.plantings) {
+        if (planting.status?.toLowerCase() !== 'completed') continue;
+
+        const plotId =
+          typeof planting.plot_id === 'object' ? planting.plot_id?.$id : planting.plot_id;
+        const cropId =
+          typeof planting.crop_id === 'object' ? planting.crop_id?.$id : planting.crop_id;
+
+        const plot = this.plots.find((p) => p.$id === plotId);
+        const crop = this.crops.find((c) => c.$id === cropId);
+
+        const plantingHarvests = this.harvestsByPlanting(planting.$id);
+        const totalKg = plantingHarvests.reduce(
+          (sum, h) => sum + (Number(h.total_quantity_kg) || 0),
+          0,
+        );
+        if (totalKg <= 0) continue; // skip zero-harvest completions
+
+        const areaHa = Number(planting.area_used_hectares || plot?.size_hectares || 0);
+        const yieldPerHectare = areaHa > 0 ? Math.round((totalKg / areaHa) * 10) / 10 : null;
+        const typicalYield = Number(crop?.typical_yield_per_hectare || 0) || null;
+        const vsTypicalPct =
+          typicalYield && yieldPerHectare !== null
+            ? Math.round((yieldPerHectare / typicalYield) * 100)
+            : null;
+        const season = getSeason(planting.planting_date);
+
+        results.push({
+          plantingId: planting.$id,
+          plantingDate: planting.planting_date,
+          season: season.label,
+          seasonType: season.type,
+          cropName: crop?.crop_name || 'Unknown',
+          cropType: crop?.crop_type || null,
+          cropId,
+          plotId,
+          plotName: plot?.name || 'Unknown Plot',
+          typicalYield,
+          totalHarvestKg: totalKg,
+          areaHectares: areaHa,
+          yieldPerHectare,
+          vsTypicalPct,
+        });
+      }
+      return results;
+    },
+
+    /**
+     * Yield history for a single plot (completed plantings only), sorted by planting date.
+     * Delegates to computeAllPlantingYields() — no duplicate logic.
+     *
+     * @param {string} plotId
+     * @returns {Array} same shape as computeAllPlantingYields rows
+     */
+    computePlotYieldHistory(plotId) {
+      return this.computeAllPlantingYields()
+        .filter((r) => r.plotId === plotId)
+        .sort((a, b) => new Date(a.plantingDate) - new Date(b.plantingDate));
+    },
+
+    /**
+     * Season × Crop aggregation for the Yield Analysis report tab.
+     * Synchronous — call ensureYieldDataLoaded() first.
+     *
+     * @param {Object} [opts]
+     * @param {string} [opts.season]      - season label to filter to
+     * @param {string[]} [opts.plotIds]   - filter to specific plots
+     * @param {string[]} [opts.cropIds]   - filter to specific crops
+     * @param {string} [opts.cropType]    - 'Annual' | 'Perennial'
+     * @returns {Array}
+     */
+    computeSeasonComparison({ season, plotIds, cropIds, cropType } = {}) {
+      let rows = this.computeAllPlantingYields();
+
+      if (season) rows = rows.filter((r) => r.season === season);
+      if (plotIds?.length) rows = rows.filter((r) => plotIds.includes(r.plotId));
+      if (cropIds?.length) rows = rows.filter((r) => cropIds.includes(r.cropId));
+      if (cropType) rows = rows.filter((r) => r.cropType === cropType);
+
+      // Group by season × cropId
+      const groups = {};
+      for (const r of rows) {
+        const key = `${r.season}__${r.cropId}`;
+        if (!groups[key]) {
+          groups[key] = {
+            season: r.season,
+            cropName: r.cropName,
+            cropId: r.cropId,
+            typicalYield: r.typicalYield,
+            plotIds: new Set(),
+            totalPlantings: 0,
+            totalHarvestKg: 0,
+            totalHectares: 0,
+            bestPlotYield: -Infinity,
+            bestPlotName: null,
+            worstPlotYield: Infinity,
+            worstPlotName: null,
+          };
+        }
+        const g = groups[key];
+        g.totalPlantings++;
+        g.totalHarvestKg += r.totalHarvestKg;
+        g.totalHectares += r.areaHectares;
+        g.plotIds.add(r.plotId);
+
+        if (r.yieldPerHectare !== null) {
+          if (r.yieldPerHectare > g.bestPlotYield) {
+            g.bestPlotYield = r.yieldPerHectare;
+            g.bestPlotName = r.plotName;
+          }
+          if (r.yieldPerHectare < g.worstPlotYield) {
+            g.worstPlotYield = r.yieldPerHectare;
+            g.worstPlotName = r.plotName;
+          }
+        }
+      }
+
+      return Object.values(groups)
+        .map((g) => {
+          const avgYieldPerHectare =
+            g.totalHectares > 0 ? Math.round((g.totalHarvestKg / g.totalHectares) * 10) / 10 : 0;
+          const vsTypicalPct =
+            g.typicalYield && avgYieldPerHectare
+              ? Math.round((avgYieldPerHectare / g.typicalYield) * 100)
+              : null;
+          return {
+            season: g.season,
+            cropName: g.cropName,
+            cropId: g.cropId,
+            plotCount: g.plotIds.size,
+            totalPlantings: g.totalPlantings,
+            totalHarvestKg: Math.round(g.totalHarvestKg * 10) / 10,
+            totalHectares: Math.round(g.totalHectares * 100) / 100,
+            avgYieldPerHectare,
+            typicalYield: g.typicalYield,
+            vsTypicalPct,
+            bestPlotName: g.bestPlotYield === -Infinity ? null : g.bestPlotName,
+            worstPlotName: g.worstPlotYield === Infinity ? null : g.worstPlotName,
+          };
+        })
+        .sort((a, b) => a.season.localeCompare(b.season) || a.cropName.localeCompare(b.cropName));
+    },
+
+    /**
+     * Per-plot yield benchmarking table.
+     * Returns one row per plot with avg yield/ha, best crop, best season, and trend.
+     * Synchronous — call ensureYieldDataLoaded() first.
+     *
+     * @returns {Array<{plotId, plotName, avgYieldPerHectare, bestCropName,
+     *                  bestSeasonLabel, plantingsCount, trend}>}
+     */
+    computePlotYieldBenchmarks() {
+      const allYields = this.computeAllPlantingYields();
+
+      return this.plots.map((plot) => {
+        const plotRows = allYields
+          .filter((r) => r.plotId === plot.$id)
+          .sort((a, b) => new Date(a.plantingDate) - new Date(b.plantingDate));
+
+        if (!plotRows.length) {
+          return {
+            plotId: plot.$id,
+            plotName: plot.name,
+            avgYieldPerHectare: 0,
+            bestCropName: null,
+            bestSeasonLabel: null,
+            plantingsCount: 0,
+            trend: 'insufficient',
+          };
+        }
+
+        // Overall avg yield/ha
+        const totalKg = plotRows.reduce((s, r) => s + r.totalHarvestKg, 0);
+        const totalHa = plotRows.reduce((s, r) => s + r.areaHectares, 0);
+        const avgYieldPerHectare = totalHa > 0 ? Math.round((totalKg / totalHa) * 10) / 10 : 0;
+
+        // Best crop by highest yield/ha
+        const withYield = plotRows.filter((r) => r.yieldPerHectare !== null);
+        const bestRow = withYield.length
+          ? withYield.reduce((best, r) => (r.yieldPerHectare > best.yieldPerHectare ? r : best))
+          : null;
+
+        // Trend: compare avg of last 3 vs avg of 3 before that
+        let trend = 'insufficient';
+        const yieldVals = plotRows
+          .filter((r) => r.yieldPerHectare !== null)
+          .map((r) => r.yieldPerHectare);
+        if (yieldVals.length >= 4) {
+          const last3 = yieldVals.slice(-3);
+          const prior3 = yieldVals.slice(-6, -3);
+          if (prior3.length >= 1) {
+            const avgLast = last3.reduce((s, v) => s + v, 0) / last3.length;
+            const avgPrior = prior3.reduce((s, v) => s + v, 0) / prior3.length;
+            if (avgLast > avgPrior * 1.05) trend = 'up';
+            else if (avgLast < avgPrior * 0.95) trend = 'down';
+            else trend = 'stable';
+          }
+        }
+
+        return {
+          plotId: plot.$id,
+          plotName: plot.name,
+          avgYieldPerHectare,
+          bestCropName: bestRow?.cropName || null,
+          bestSeasonLabel: bestRow?.season || null,
+          plantingsCount: plotRows.length,
+          trend,
+        };
+      });
+    },
+
+    // ==========================================================================
+    // Story 3.10: Alert Generation (synchronous, in-memory)
+    // ==========================================================================
+
+    /**
+     * Generate farm alerts by scanning loaded Pinia state.
+     * Pure computation — does NOT write to Appwrite.
+     * Returns array sorted: critical first, then warning, then info.
+     *
+     * @param {Object} [config] - alert thresholds; defaults to this.alertConfig
+     * @returns {Array<{alert_type, severity, title, related_entity_type,
+     *                  related_entity_id, triggered_at}>}
+     */
+    generateFarmAlerts(config) {
+      const cfg = config || this.alertConfig;
+      const alerts = [];
+
+      // Use date-fns differenceInCalendarDays for timezone-safe day math
+      const todayStr = new Date().toISOString().split('T')[0];
+      const todayDate = parseISO(todayStr);
+
+      // -----------------------------------------------------------------------
+      // 1. Upcoming Harvest
+      // -----------------------------------------------------------------------
+      if (cfg.upcoming_harvest?.enabled) {
+        const threshold = cfg.upcoming_harvest.threshold ?? 7;
+        for (const p of this.plantings) {
+          if (!['Planted', 'Growing'].includes(p.status)) continue;
+          if (!p.expected_harvest_date) continue;
+          const harvestDate = parseISO(p.expected_harvest_date.split('T')[0]);
+          const daysUntil = differenceInCalendarDays(harvestDate, todayDate);
+          if (daysUntil >= 0 && daysUntil <= threshold) {
+            const plotId = typeof p.plot_id === 'object' ? p.plot_id?.$id : p.plot_id;
+            const cropId = typeof p.crop_id === 'object' ? p.crop_id?.$id : p.crop_id;
+            const plot = this.plots.find((pl) => pl.$id === plotId);
+            const crop = this.crops.find((c) => c.$id === cropId);
+            alerts.push({
+              alert_type: 'upcoming_harvest',
+              severity: 'info',
+              title: `${crop?.crop_name || 'Crop'} on ${plot?.name || 'plot'} — Harvest in ${daysUntil} day${daysUntil === 1 ? '' : 's'}`,
+              related_entity_type: 'planting',
+              related_entity_id: p.$id,
+              triggered_at: new Date().toISOString(),
+            });
+          }
+        }
+      }
+
+      // -----------------------------------------------------------------------
+      // 2. Overdue Harvest
+      // -----------------------------------------------------------------------
+      if (cfg.overdue_harvest?.enabled) {
+        const threshold = cfg.overdue_harvest.threshold ?? 7;
+        for (const p of this.plantings) {
+          if (!['Growing', 'Harvesting'].includes(p.status)) continue;
+          if (!p.expected_harvest_date) continue;
+          const harvestDate = parseISO(p.expected_harvest_date.split('T')[0]);
+          const daysOverdue = differenceInCalendarDays(todayDate, harvestDate);
+          if (daysOverdue > threshold) {
+            const plotId = typeof p.plot_id === 'object' ? p.plot_id?.$id : p.plot_id;
+            const cropId = typeof p.crop_id === 'object' ? p.crop_id?.$id : p.crop_id;
+            const plot = this.plots.find((pl) => pl.$id === plotId);
+            const crop = this.crops.find((c) => c.$id === cropId);
+            alerts.push({
+              alert_type: 'overdue_harvest',
+              severity: daysOverdue > 14 ? 'critical' : 'warning',
+              title: `${crop?.crop_name || 'Crop'} on ${plot?.name || 'plot'} — Harvest ${daysOverdue} days overdue`,
+              related_entity_type: 'planting',
+              related_entity_id: p.$id,
+              triggered_at: new Date().toISOString(),
+            });
+          }
+        }
+      }
+
+      // -----------------------------------------------------------------------
+      // 3. Low Farm Input Inventory
+      // -----------------------------------------------------------------------
+      if (cfg.low_inventory?.enabled) {
+        const inventoryStore = useInventoryStore();
+        const threshold = cfg.low_inventory.threshold ?? 10;
+        const inputs = inventoryStore.farmInputItems.filter((i) => i.item_type === 'farm_inputs');
+        for (const item of inputs) {
+          const qty = Number(item.quantity) || 0;
+          if (qty <= threshold) {
+            alerts.push({
+              alert_type: 'low_inventory',
+              severity: qty <= 0 ? 'critical' : 'warning',
+              title: `Low Stock: ${item.item_name} — ${qty} ${item.unit || ''} remaining`.trim(),
+              related_entity_type: 'inventory',
+              related_entity_id: item.$id,
+              triggered_at: new Date().toISOString(),
+            });
+          }
+        }
+      }
+
+      // -----------------------------------------------------------------------
+      // 4. Underperforming Yield
+      // -----------------------------------------------------------------------
+      if (cfg.underperforming_yield?.enabled) {
+        const threshold = cfg.underperforming_yield.threshold ?? 50;
+        for (const r of this.computeAllPlantingYields()) {
+          if (r.vsTypicalPct !== null && r.vsTypicalPct < threshold) {
+            alerts.push({
+              alert_type: 'underperforming_yield',
+              severity: 'warning',
+              title: `${r.cropName} on ${r.plotName} — Yield ${r.vsTypicalPct}% of typical (${r.yieldPerHectare} vs ${r.typicalYield} kg/ha)`,
+              related_entity_type: 'planting',
+              related_entity_id: r.plantingId,
+              triggered_at: new Date().toISOString(),
+            });
+          }
+        }
+      }
+
+      // -----------------------------------------------------------------------
+      // 5. Crop Failure (Failed status; filter by $updatedAt if available)
+      // -----------------------------------------------------------------------
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+      for (const p of this.plantings.filter((p) => p.status === 'Failed')) {
+        const updatedAt = p.$updatedAt ? new Date(p.$updatedAt) : null;
+        if (updatedAt && updatedAt < thirtyDaysAgo) continue;
+
+        const plotId = typeof p.plot_id === 'object' ? p.plot_id?.$id : p.plot_id;
+        const cropId = typeof p.crop_id === 'object' ? p.crop_id?.$id : p.crop_id;
+        const plot = this.plots.find((pl) => pl.$id === plotId);
+        const crop = this.crops.find((c) => c.$id === cropId);
+        alerts.push({
+          alert_type: 'crop_failure',
+          severity: 'critical',
+          title: `Crop Failure: ${crop?.crop_name || 'Crop'} on ${plot?.name || 'plot'}${p.failure_reason ? ' — ' + p.failure_reason : ''}`,
+          related_entity_type: 'planting',
+          related_entity_id: p.$id,
+          triggered_at: p.$updatedAt || new Date().toISOString(),
+        });
+      }
+
+      // Sort: critical first, then warning, then info
+      const severityOrder = { critical: 0, warning: 1, info: 2 };
+      return alerts.sort(
+        (a, b) =>
+          (severityOrder[a.severity] ?? 3) - (severityOrder[b.severity] ?? 3) ||
+          new Date(b.triggered_at) - new Date(a.triggered_at),
+      );
+    },
+
+    // ==========================================================================
+    // Story 3.10: Alert Config Storage (via village_settings.farm_alert_config)
+    // ==========================================================================
+
+    /**
+     * Load alert config from village_settings.farm_alert_config (JSON string field).
+     * Falls back to DEFAULT_ALERT_CONFIG if not set or parse fails.
+     */
+    async fetchAlertConfig() {
+      try {
+        const { useSettingsStore } = await import('src/stores/settings-store');
+        const settingsStore = useSettingsStore();
+        if (!settingsStore.isLoaded) {
+          await settingsStore.loadSettings();
+        }
+        const raw = settingsStore.settings?.farm_alert_config;
+        if (raw) {
+          this.alertConfig = { ...DEFAULT_ALERT_CONFIG, ...JSON.parse(raw) };
+        } else {
+          this.alertConfig = { ...DEFAULT_ALERT_CONFIG };
+        }
+        this.alertConfigLoaded = true;
+        return { ...this.alertConfig };
+      } catch {
+        this.alertConfig = { ...DEFAULT_ALERT_CONFIG };
+        this.alertConfigLoaded = true;
+        return { ...this.alertConfig };
+      }
+    },
+
+    /**
+     * Persist alert config to village_settings.farm_alert_config.
+     *
+     * @param {Object} config - alert config object
+     * @returns {Promise<{success:boolean, error?:string}>}
+     */
+    async saveAlertConfig(config) {
+      try {
+        const { useSettingsStore } = await import('src/stores/settings-store');
+        const settingsStore = useSettingsStore();
+        await settingsStore.updateSettings({
+          ...settingsStore.settings,
+          farm_alert_config: JSON.stringify(config),
+        });
+        this.alertConfig = { ...config };
+        return { success: true };
+      } catch (error) {
+        console.error('saveAlertConfig failed:', error);
+        return { success: false, error: error.message };
+      }
     },
 
     // ==========================================================================

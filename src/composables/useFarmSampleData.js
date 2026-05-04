@@ -816,6 +816,24 @@ export function useFarmSampleData() {
           'Papaya showing frequent harvest cycles (60-day frequency). High labor tracking per harvest.',
         status: 'harvesting',
       },
+      // Story 3.10: Underperforming completed maize planting on South Field
+      // Yield: 700 kg on 1 ha = 700 kg/ha vs typical 3500 kg/ha → 20% (triggers underperforming alert)
+      {
+        _key: 'p_maize_underperforming',
+        plot_id: plot('south_field'),
+        crop_id: crop('Maize'),
+        planting_date: daysAgo(270),
+        expected_harvest_date: addDaysStr(daysAgo(270), 120),
+        area_used_hectares: 1.0,
+        quantity_planted: 10,
+        unit: 'kg',
+        inputs_cost: 800,
+        labor_cost: 1200,
+        other_cost: 200,
+        notes: 'Drought-stressed planting. Poor germination due to dry spell.',
+        status: 'Completed',
+      },
+
       // 11. Moringa with leaf harvests (West Plot) -- planted 8 months ago
       {
         _key: 'p_moringa_harvesting',
@@ -1310,6 +1328,49 @@ export function useFarmSampleData() {
                 }
               : undefined,
         });
+      });
+    }
+
+    // Story 3.10: Harvest for underperforming maize planting
+    const maizeUnderperforming = plantingByKey('p_maize_underperforming');
+    if (maizeUnderperforming && cropId('Maize')) {
+      const hDate = daysAgo(150);
+      plans.push({
+        _key: 'h_maize_underperforming',
+        planting_id: maizeUnderperforming.$id,
+        crop_id: cropId('Maize'),
+        harvest: {
+          planting_id: maizeUnderperforming.$id,
+          harvest_start_date: hDate,
+          harvest_end_date: hDate,
+          total_quantity_kg: 700,
+          total_labor_cost: 500,
+          total_other_costs: 100,
+          status: 'Completed',
+          notes: 'Poor yield — drought stress. 700 kg vs typical 3500 kg/ha.',
+        },
+        entries: [
+          {
+            entry_date: hDate,
+            quantity_kg: 700,
+            farmhands_count: 5,
+            labor_cost: 500,
+            other_costs: 100,
+            other_costs_notes: 'Transport',
+            notes: 'Drought-impacted harvest.',
+          },
+        ],
+        produce: {
+          item_name: 'Maize – South Field 2024/25 Wet Season (Low Yield)',
+          item_type: 'farm_produce',
+          quantity: 700,
+          unit: 'kg',
+          unit_cost: 3.5,
+          status: 'in_stock',
+          source: 'farm_harvest',
+          reorder_threshold: 0,
+          estimated_value: 700 * 3.5,
+        },
       });
     }
 

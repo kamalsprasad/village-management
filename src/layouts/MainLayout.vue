@@ -279,6 +279,26 @@
               <q-item-label>Farm Reports</q-item-label>
             </q-item-section>
           </q-item>
+
+          <!-- Story 3.10: Farm Alerts -->
+          <q-item clickable to="/farm/alerts">
+            <q-item-section avatar>
+              <q-icon name="notifications_active" />
+            </q-item-section>
+            <q-item-section>
+              <q-item-label>Farm Alerts</q-item-label>
+            </q-item-section>
+          </q-item>
+
+          <!-- Story 3.10: Farm Settings -->
+          <q-item v-if="hasPermission('farm:write')" clickable to="/farm/settings">
+            <q-item-section avatar>
+              <q-icon name="tune" />
+            </q-item-section>
+            <q-item-section>
+              <q-item-label>Farm Settings</q-item-label>
+            </q-item-section>
+          </q-item>
         </template>
 
         <!-- School Section -->

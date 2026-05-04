@@ -165,3 +165,28 @@ This document tracks deferred improvements, upgrades, and refactoring items that
 - **Added**: Story 3.8
 
 ---
+
+## Farm Alerts (Story 3.10)
+
+### Persistent Alert Storage
+
+- **Current state**: Alerts are generated in-memory on each page load. Dismissed/read state is lost on refresh. No notification history.
+- **Improvement**: Persist alerts to a `farm_alerts` Appwrite collection. Store `is_read` and `dismissed_at` per alert per user. Enable push/email notifications via Appwrite Functions.
+- **Effort**: Medium
+- **Added**: Story 3.10
+
+### Alert Email Notifications
+
+- **Current state**: `email_enabled` toggle exists in the alert config UI but has no implementation.
+- **Improvement**: Wire `email_enabled` to an Appwrite Function that sends daily or triggered email digests of critical alerts.
+- **Effort**: Medium
+- **Added**: Story 3.10
+
+### Yield Trend Chart on PlotDetailPage
+
+- **Current state**: `PlotDetailPage` shows a tabular yield history but no chart.
+- **Improvement**: Add a `YieldTrendsWidget` mini-chart (or reuse the component) embedded in the plot detail yield card to visualize per-season trend inline.
+- **Effort**: Low
+- **Added**: Story 3.10
+
+---

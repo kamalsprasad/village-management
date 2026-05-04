@@ -57,7 +57,7 @@ development_status:
   3-7-farm-module-automatic-inventory-creation-on-harvest-completion: done
   3-8-farm-module-sales-recording-with-finance-and-inventory-integration: done
   3-9-farm-module-profitability-analysis-and-roi-calculation: done
-  3-10-farm-module-yield-analysis-trend-reporting-and-configurable-alerts: in-progress
+  3-10-farm-module-yield-analysis-trend-reporting-and-configurable-alerts: review
   3-11-farm-module-agronomic-insights-and-recommendations: optional
   epic-3-retrospective: optional
   epic-4: backlog

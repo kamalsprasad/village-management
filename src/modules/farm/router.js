@@ -184,6 +184,28 @@ const farmRoutes = [
       requiresPermission: 'farm:read',
     },
   },
+
+  // Farm Alerts (Story 3.10)
+  {
+    path: 'farm/alerts',
+    name: 'farm-alerts',
+    component: () => import('./pages/FarmAlertsPage.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresPermission: 'farm:read',
+    },
+  },
+
+  // Farm Settings (Story 3.10)
+  {
+    path: 'farm/settings',
+    name: 'farm-settings',
+    component: () => import('./pages/FarmSettingsPage.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresPermission: 'farm:write',
+    },
+  },
 ];
 
 export default farmRoutes;

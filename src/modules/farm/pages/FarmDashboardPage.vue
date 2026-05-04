@@ -88,6 +88,14 @@
       <div class="col-12 col-md-6">
         <PlotProfitabilityWidget />
       </div>
+      <!-- Story 3.10: Yield Trends Widget -->
+      <div class="col-12 col-md-6">
+        <YieldTrendsWidget />
+      </div>
+      <!-- Story 3.10: Farm Alerts Widget -->
+      <div class="col-12 col-md-6">
+        <FarmAlertsWidget />
+      </div>
     </div>
 
     <!-- Harvest Alerts Row -->
@@ -240,6 +248,9 @@ import RecentSalesWidget from '../components/RecentSalesWidget.vue';
 // Story 3.9: Profitability widgets
 import TopCropsWidget from '../components/TopCropsWidget.vue';
 import PlotProfitabilityWidget from '../components/PlotProfitabilityWidget.vue';
+// Story 3.10: Yield Trends and Alerts widgets
+import YieldTrendsWidget from '../components/YieldTrendsWidget.vue';
+import FarmAlertsWidget from '../components/FarmAlertsWidget.vue';
 
 const $q = useQuasar();
 const farmStore = useFarmStore();
@@ -343,6 +354,20 @@ const moduleLinks = [
     route: '/farm/reports',
     icon: 'bar_chart',
     color: 'teal',
+  },
+  {
+    name: 'Alerts',
+    description: 'Active farm alerts and notifications',
+    route: '/farm/alerts',
+    icon: 'notifications_active',
+    color: 'orange',
+  },
+  {
+    name: 'Farm Settings',
+    description: 'Alert thresholds and farm configuration',
+    route: '/farm/settings',
+    icon: 'tune',
+    color: 'blue-grey',
   },
 ];
 

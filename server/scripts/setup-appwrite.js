@@ -223,6 +223,8 @@ const tableSchemas = {
         required: true,
         default: 'kg_per_hectare',
       },
+      // Story 3.10: Farm alert configuration stored as serialized JSON string
+      { key: 'farm_alert_config', type: 'string', size: 2000, required: false },
     ],
     indexes: [],
   },

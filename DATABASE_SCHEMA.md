@@ -74,21 +74,22 @@ Stores household information and composition.
 
 Stores global village configuration. One row per village.
 
-| Column                 | Type     | Constraints                                                         | Description                        |
-| ---------------------- | -------- | ------------------------------------------------------------------- | ---------------------------------- |
-| `id`                   | string   | Primary Key, Auto-generated                                         | Unique settings identifier         |
-| `village_name`         | string   | Required, max 255                                                   | Name of the village                |
-| `address`              | string   | Optional, max 500                                                   | Village physical address           |
-| `established_date`     | datetime | Optional                                                            | Date village was established       |
-| `default_currency`     | string   | Required, max 10                                                    | Currency code (e.g., ZMW)          |
-| `currency_symbol`      | string   | Required, max 10                                                    | Currency symbol (e.g., K)          |
-| `timezone`             | string   | Required, max 50                                                    | IANA timezone string               |
-| `country_code`         | string   | Required, max 10                                                    | ISO country code                   |
-| `country_phone_code`   | string   | Required, max 10                                                    | Country dialing code (e.g., +260)  |
-| `is_using_sample_data` | boolean  | Required                                                            | Whether sample data is active      |
-| `modules_enabled`      | string[] | Optional, max 500 each                                              | List of enabled module names       |
-| `yield_unit`           | string   | Required, Enum: 'kg_per_hectare','kg_per_acre','tonnes_per_hectare' | Default yield unit for farm module |
-| `council_member_ids`   | rel[]    | Optional, oneToMany → residents                                     | Village council members            |
+| Column                 | Type     | Constraints                                                         | Description                              |
+| ---------------------- | -------- | ------------------------------------------------------------------- | ---------------------------------------- |
+| `id`                   | string   | Primary Key, Auto-generated                                         | Unique settings identifier               |
+| `village_name`         | string   | Required, max 255                                                   | Name of the village                      |
+| `address`              | string   | Optional, max 500                                                   | Village physical address                 |
+| `established_date`     | datetime | Optional                                                            | Date village was established             |
+| `default_currency`     | string   | Required, max 10                                                    | Currency code (e.g., ZMW)                |
+| `currency_symbol`      | string   | Required, max 10                                                    | Currency symbol (e.g., K)                |
+| `timezone`             | string   | Required, max 50                                                    | IANA timezone string                     |
+| `country_code`         | string   | Required, max 10                                                    | ISO country code                         |
+| `country_phone_code`   | string   | Required, max 10                                                    | Country dialing code (e.g., +260)        |
+| `is_using_sample_data` | boolean  | Required                                                            | Whether sample data is active            |
+| `modules_enabled`      | string[] | Optional, max 500 each                                              | List of enabled module names             |
+| `yield_unit`           | string   | Required, Enum: 'kg_per_hectare','kg_per_acre','tonnes_per_hectare' | Default yield unit for farm module       |
+| `farm_alert_config`    | string   | Optional, max 2000 (JSON)                                           | Story 3.10: Serialized alert config JSON |
+| `council_member_ids`   | rel[]    | Optional, oneToMany → residents                                     | Village council members                  |
 
 ## Farm Tables
 

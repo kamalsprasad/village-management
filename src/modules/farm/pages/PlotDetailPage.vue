@@ -252,6 +252,108 @@
         <div class="col-12 col-md-6">
           <PlotProfitabilityCard :plot-id="plotId" />
         </div>
+
+        <!-- Yield Analysis (Story 3.10) -->
+        <div class="col-12">
+          <q-card>
+            <q-card-section>
+              <div class="row items-center justify-between q-mb-md">
+                <div class="text-subtitle1 text-weight-medium">
+                  <q-icon name="show_chart" class="q-mr-xs" />
+                  Yield Analysis
+                </div>
+                <q-btn
+                  flat
+                  dense
+                  size="sm"
+                  color="primary"
+                  icon="bar_chart"
+                  label="Full Yield Report"
+                  @click="$router.push('/farm/reports?tab=yield')"
+                />
+              </div>
+
+              <div v-if="isYieldLoading" class="flex flex-center q-pa-lg">
+                <q-spinner color="primary" size="2em" />
+                <span class="q-ml-sm text-grey">Loading yield history…</span>
+              </div>
+
+              <div v-else-if="!yieldHistory.length" class="text-grey q-pa-md text-center">
+                <q-icon name="show_chart" size="2em" class="q-mb-sm" />
+                <div>No yield data yet.</div>
+                <div class="text-caption">Complete a harvest to see yield analysis.</div>
+              </div>
+
+              <template v-else>
+                <!-- Summary KPIs -->
+                <div class="row q-col-gutter-md q-mb-md">
+                  <div class="col-6 col-sm-3">
+                    <div class="text-caption text-grey">Completed Plantings</div>
+                    <div class="text-h6 text-weight-bold">{{ yieldHistory.length }}</div>
+                  </div>
+                  <div class="col-6 col-sm-3">
+                    <div class="text-caption text-grey">Avg Yield/ha</div>
+                    <div class="text-h6 text-weight-bold text-primary">
+                      {{ avgYieldPerHa != null ? avgYieldPerHa + ' kg/ha' : '—' }}
+                    </div>
+                  </div>
+                  <div class="col-6 col-sm-3">
+                    <div class="text-caption text-grey">Best Season</div>
+                    <div class="text-subtitle2 text-weight-bold text-positive">
+                      {{ bestYieldRow?.season || '—' }}
+                    </div>
+                  </div>
+                  <div class="col-6 col-sm-3">
+                    <div class="text-caption text-grey">Best Crop</div>
+                    <div class="text-subtitle2 text-weight-bold">
+                      {{ bestYieldRow?.cropName || '—' }}
+                    </div>
+                  </div>
+                </div>
+
+                <q-separator class="q-mb-md" />
+
+                <!-- Per-planting yield table -->
+                <q-table
+                  :rows="yieldHistory"
+                  :columns="yieldColumns"
+                  row-key="plantingId"
+                  flat
+                  dense
+                  :rows-per-page-options="[5, 10, 0]"
+                  :pagination="{ rowsPerPage: 5 }"
+                >
+                  <template #body-cell-vsTypicalPct="{ value }">
+                    <q-td class="text-right">
+                      <template v-if="value !== null">
+                        <q-badge
+                          :color="value >= 90 ? 'positive' : value >= 60 ? 'warning' : 'negative'"
+                          outline
+                        >
+                          {{ value }}%
+                        </q-badge>
+                      </template>
+                      <span v-else class="text-grey">—</span>
+                    </q-td>
+                  </template>
+
+                  <template #body-cell-plantingId="{ row }">
+                    <q-td>
+                      <q-btn
+                        flat
+                        dense
+                        size="xs"
+                        color="primary"
+                        icon="open_in_new"
+                        @click="$router.push(`/farm/plantings/${row.plantingId}`)"
+                      />
+                    </q-td>
+                  </template>
+                </q-table>
+              </template>
+            </q-card-section>
+          </q-card>
+        </div>
       </div>
     </template>
 
@@ -304,6 +406,48 @@ import { formatDate } from 'src/utils/dateUtils';
 import PlotStatusBadge from '../components/PlotStatusBadge.vue';
 import PlotProfitabilityCard from '../components/PlotProfitabilityCard.vue';
 
+const yieldColumns = [
+  { name: 'cropName', label: 'Crop', field: 'cropName', align: 'left', sortable: true },
+  { name: 'season', label: 'Season', field: 'season', align: 'left', sortable: true },
+  {
+    name: 'plantingDate',
+    label: 'Planted',
+    field: 'plantingDate',
+    align: 'left',
+    format: (v) => formatDate(v),
+  },
+  {
+    name: 'totalHarvestKg',
+    label: 'Total Yield (kg)',
+    field: 'totalHarvestKg',
+    align: 'right',
+    sortable: true,
+  },
+  {
+    name: 'areaHectares',
+    label: 'Area (ha)',
+    field: 'areaHectares',
+    align: 'right',
+    format: (v) => (v ? v.toFixed(2) : '—'),
+  },
+  {
+    name: 'yieldPerHectare',
+    label: 'Yield/ha (kg)',
+    field: 'yieldPerHectare',
+    align: 'right',
+    sortable: true,
+    format: (v) => (v != null ? v : '—'),
+  },
+  {
+    name: 'vsTypicalPct',
+    label: 'vs Typical',
+    field: 'vsTypicalPct',
+    align: 'right',
+    sortable: true,
+  },
+  { name: 'plantingId', label: '', field: 'plantingId', align: 'center' },
+];
+
 const route = useRoute();
 const router = useRouter();
 const $q = useQuasar();
@@ -314,9 +458,28 @@ const { hasPermission } = usePermissions();
 const isLoading = ref(true);
 const isDeleting = ref(false);
 const deleteDialogOpen = ref(false);
+const isYieldLoading = ref(true);
+const yieldHistory = ref([]);
 
 const plotId = computed(() => route.params.id);
 const plot = computed(() => farmStore.currentPlot);
+
+const avgYieldPerHa = computed(() => {
+  const rows = yieldHistory.value.filter((r) => r.yieldPerHectare !== null);
+  if (!rows.length) return null;
+  const totalKg = rows.reduce((s, r) => s + r.totalHarvestKg, 0);
+  const totalHa = rows.reduce((s, r) => s + r.areaHectares, 0);
+  return totalHa > 0 ? Math.round((totalKg / totalHa) * 10) / 10 : null;
+});
+
+const bestYieldRow = computed(() => {
+  const rows = yieldHistory.value.filter((r) => r.yieldPerHectare !== null);
+  if (!rows.length) return null;
+  return rows.reduce(
+    (best, r) => (r.yieldPerHectare > (best?.yieldPerHectare ?? -1) ? r : best),
+    null,
+  );
+});
 
 const canWrite = computed(() => hasPermission('farm:write'));
 const canDelete = computed(() => hasPermission('farm:delete'));
@@ -351,6 +514,11 @@ onMounted(async () => {
   }
   // Load plantings for this plot
   await farmStore.fetchPlantingsByPlot(plotId.value);
+
+  // Story 3.10: Load yield history (ensureYieldDataLoaded handles dedup)
+  await farmStore.ensureYieldDataLoaded();
+  yieldHistory.value = farmStore.computePlotYieldHistory(plotId.value);
+  isYieldLoading.value = false;
 });
 
 async function loadPlot() {

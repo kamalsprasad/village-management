@@ -88,3 +88,65 @@ export function derivePerennialCompleteName(currentName) {
 export function isPerennialOngoingName(name) {
   return name && name.includes('(Ongoing)');
 }
+
+// =============================================================================
+// Story 3.10: Yield Analysis Utilities
+// =============================================================================
+
+/**
+ * Derive the Zambian agricultural season from a planting date.
+ *
+ * Season boundaries (Eastern Province / standard Zambia):
+ *   Wet Season : November–April  → "[startYear]/[endYear] Wet Season"
+ *   Dry Season : May–October     → "[year] Dry Season"
+ *
+ * Uses UTC-anchored date parsing (same pattern as deriveProduceName) to avoid
+ * timezone-driven season boundary errors.
+ *
+ * @param {string|Date} plantingDate - ISO date string or Date object
+ * @returns {{ label: string, type: 'wet'|'dry', startYear: number }}
+ */
+export function getSeason(plantingDate) {
+  if (!plantingDate)
+    return { label: 'Unknown Season', type: 'dry', startYear: new Date().getFullYear() };
+
+  // Pin to noon UTC to avoid timezone drift across month/season boundaries
+  const dateStr =
+    typeof plantingDate === 'string'
+      ? plantingDate.split('T')[0]
+      : plantingDate.toISOString().split('T')[0];
+  const date = new Date(dateStr + 'T12:00:00Z');
+  const month = date.getUTCMonth() + 1; // 1-indexed
+  const year = date.getUTCFullYear();
+
+  if (month >= 5 && month <= 10) {
+    return {
+      label: `${year} Dry Season`,
+      type: 'dry',
+      startYear: year,
+    };
+  } else {
+    // Wet Season: Nov (11) of startYear → Apr (4) of startYear+1
+    const startYear = month >= 11 ? year : year - 1;
+    return {
+      label: `${startYear}/${startYear + 1} Wet Season`,
+      type: 'wet',
+      startYear,
+    };
+  }
+}
+
+/**
+ * Compute yield per hectare for a harvest against a planting/plot.
+ *
+ * @param {{ total_quantity_kg: number|string }} harvest
+ * @param {{ area_used_hectares?: number|string }} planting
+ * @param {{ size_hectares?: number|string }} plot
+ * @returns {number|null} kg/ha rounded to 1 decimal, or null if area is 0/missing
+ */
+export function computeYieldPerHectare(harvest, planting, plot) {
+  const kg = Number(harvest?.total_quantity_kg) || 0;
+  const ha = Number(planting?.area_used_hectares || plot?.size_hectares || 0);
+  if (!ha || ha <= 0) return null;
+  return Math.round((kg / ha) * 10) / 10;
+}
