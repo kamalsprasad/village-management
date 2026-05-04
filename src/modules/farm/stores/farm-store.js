@@ -2167,7 +2167,9 @@ export const useFarmStore = defineStore('farm', {
           queries,
         });
         this.sales = response.rows || [];
-        this.salesLoaded = true;
+        // Only mark as fully loaded when no date filter is applied (a filtered
+        // result should NOT prevent a full fetch later, e.g. by profitability actions).
+        if (!dateFrom && !dateTo) this.salesLoaded = true;
         return { success: true, data: this.sales };
       } catch (error) {
         console.error('Error fetching farm sales:', error);
@@ -2338,9 +2340,6 @@ export const useFarmStore = defineStore('farm', {
           typeof inventoryItem.crop_id === 'object'
             ? inventoryItem.crop_id?.$id
             : inventoryItem.crop_id || null;
-
-        console.log('saleCropId', saleCropId);
-        console.log('inventoryItem', inventoryItem);
 
         const saleData = {
           inventory_item_id: inventoryItem.$id,

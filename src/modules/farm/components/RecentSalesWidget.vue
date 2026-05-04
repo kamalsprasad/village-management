@@ -16,14 +16,7 @@
           <q-icon name="point_of_sale" class="q-mr-xs" />
           Recent Sales
         </div>
-        <q-btn
-          flat
-          round
-          dense
-          icon="refresh"
-          :loading="isLoading"
-          @click="refreshData"
-        >
+        <q-btn flat round dense icon="refresh" :loading="isLoading" @click="refreshData">
           <q-tooltip>Refresh</q-tooltip>
         </q-btn>
       </div>
@@ -78,11 +71,12 @@
           >
             <q-item-section>
               <q-item-label class="text-weight-medium">
-                {{ sale.buyer_name || 'Unknown buyer' }}
+                {{ cropNameForSale(sale) || sale.buyer_name || 'Unknown' }}
               </q-item-label>
               <q-item-label caption>
-                {{ Number(sale.quantity_sold).toFixed(2) }} {{ sale.unit || 'kg' }}
-                · {{ formatDate(sale.sale_date) }}
+                {{ sale.buyer_name }} · {{ Number(sale.quantity_sold).toFixed(2) }}
+                {{ sale.unit || 'kg' }} ·
+                {{ formatDate(sale.sale_date) }}
               </q-item-label>
             </q-item-section>
             <q-item-section side>
@@ -119,29 +113,58 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue';
 import { useFarmStore } from '../stores/farm-store';
+import { useInventoryStore } from 'src/stores/inventory-store';
 import { formatDate } from 'src/utils/dateUtils';
 
 const farmStore = useFarmStore();
+const inventoryStore = useInventoryStore();
 
 const sales = ref([]);
+// Local 30-day stats — kept separate from farmStore.sales so we don't
+// overwrite the global sales list with a date-filtered subset.
+const thirtyDaySales = ref([]);
 const isLoading = ref(false);
 
 async function refreshData() {
   isLoading.value = true;
   try {
-    const result = await farmStore.fetchRecentSales(5);
-    sales.value = result.data || [];
-    // Also refresh the 30-day totals via fetchSales (stats on farmStore)
-    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
-    await farmStore.fetchSales({ dateFrom: thirtyDaysAgo, limit: 500 });
+    const loaders = [farmStore.fetchRecentSales(5), farmStore.fetchRecentSales(500)];
+    // Ensure farm produce items are loaded for crop name resolution (Option B: reuse cached list)
+    if (!inventoryStore.farmProduceItems.length) {
+      loaders.push(inventoryStore.fetchFarmProduceItems());
+    }
+    if (!farmStore.cropsLoaded) {
+      loaders.push(farmStore.fetchCrops());
+    }
+    const [recentRes, statsRes] = await Promise.all(loaders);
+    sales.value = recentRes.data || [];
+    // Filter client-side for 30-day window (fetchRecentSales doesn't replace farmStore.sales)
+    const cutoff = Date.now() - 30 * 24 * 60 * 60 * 1000;
+    thirtyDaySales.value = (statsRes.data || []).filter(
+      (s) => s.sale_date && new Date(s.sale_date).getTime() >= cutoff,
+    );
   } finally {
     isLoading.value = false;
   }
 }
 
-const thirtyDayCount = computed(() => (farmStore.sales || []).length);
+function cropNameForSale(sale) {
+  const invId =
+    typeof sale.inventory_item_id === 'object'
+      ? sale.inventory_item_id?.$id
+      : sale.inventory_item_id;
+  if (!invId) return null;
+  const item = inventoryStore.farmProduceItems.find((i) => i.$id === invId);
+  if (!item) return null;
+  const cropId = typeof item.crop_id === 'object' ? item.crop_id?.$id : item.crop_id;
+  if (!cropId) return null;
+  const crop = farmStore.crops.find((c) => c.$id === cropId);
+  return crop?.crop_name || null;
+}
+
+const thirtyDayCount = computed(() => thirtyDaySales.value.length);
 const thirtyDayRevenue = computed(() =>
-  (farmStore.sales || []).reduce((sum, s) => sum + (Number(s.total_amount) || 0), 0),
+  thirtyDaySales.value.reduce((sum, s) => sum + (Number(s.total_amount) || 0), 0),
 );
 
 function formatCurrency(value) {

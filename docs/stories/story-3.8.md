@@ -49,29 +49,29 @@ This story completes the farm-to-market value chain by enabling sales recording 
 
 ### AC1: "Record Sale" Button on Inventory Detail Page
 
-- [ ] "Record Sale" button visible on `InventoryDetailPage.vue` for items with `item_type = 'farm_produce'`
-- [ ] Button visible only to users with `farm:write` permission (Farm Manager, Admin)
-- [ ] Button hidden when `quantity <= 0` (out of stock)
-- [ ] Clicking button opens `RecordSaleDialog.vue` (reusable component pattern like `HarvestEntryDialog`)
-- [ ] Dialog pre-fills: inventory item name, available quantity, crop name (from `crop_id` relationship)
-- [ ] If inventory has `unit_cost > 0`, dialog suggests `price_per_kg = unit_cost` (editable)
+- [x] "Record Sale" button visible on `InventoryDetailPage.vue` for items with `item_type = 'farm_produce'`
+- [x] Button visible only to users with `farm:write` permission (Farm Manager, Admin)
+- [x] Button hidden when `quantity <= 0` (out of stock)
+- [x] Clicking button opens `RecordSaleDialog.vue` (reusable component pattern like `HarvestEntryDialog`)
+- [x] Dialog pre-fills: inventory item name, available quantity, crop name (from `crop_id` relationship)
+- [x] If inventory has `unit_cost > 0`, dialog suggests `price_per_kg = unit_cost` (editable)
 
 ### AC2: Sales Form Fields
 
-- [ ] **Buyer** (required): Text input for buyer name. Note: Vendor module integration deferred to Epic 5.
-- [ ] **Quantity Sold** (required): Number input (kg), step 0.1, max = `inventory.quantity` (validation)
-- [ ] **Price per kg** (required): Currency input (ZMW), min 0
-- [ ] **Total Amount** (auto-calculated): `quantity_sold × price_per_kg`, displayed prominently
-- [ ] **Payment Method** (required): Dropdown - "Cash", "Bank Transfer", "Mobile Money", "Credit", "Other"
-- [ ] **Payment Status** (required): Dropdown - "Pending", "Completed"
-- [ ] **Sale Date** (required): Date picker, defaults to today
-- [ ] **Notes** (optional): Text area, max 500 chars
-- [ ] Form validation prevents submission with invalid/missing required fields
-- [ ] Validation blocks sale if `quantity_sold > available_inventory` with error message
+- [x] **Buyer** (required): Text input for buyer name. Note: Vendor module integration deferred to Epic 5.
+- [x] **Quantity Sold** (required): Number input (kg), step 0.1, max = `inventory.quantity` (validation)
+- [x] **Price per kg** (required): Currency input (ZMW), min 0
+- [x] **Total Amount** (auto-calculated): `quantity_sold × price_per_kg`, displayed prominently
+- [x] **Payment Method** (required): Dropdown - "Cash", "Bank Transfer", "Mobile Money", "Credit", "Other"
+- [x] **Payment Status** (required): Dropdown - "Pending", "Completed"
+- [x] **Sale Date** (required): Date picker, defaults to today
+- [x] **Notes** (optional): Text area, max 500 chars
+- [x] Form validation prevents submission with invalid/missing required fields
+- [x] Validation blocks sale if `quantity_sold > available_inventory` with error message
 
 ### AC3: Three-Way Automatic Integration on Sale Save
 
-- [ ] Successful sale triggers THREE atomic operations:
+- [x] Successful sale triggers THREE atomic operations:
   1. **Inventory Decrement**: Call `inventoryStore.adjustStock(itemId, { type: 'remove', quantity: soldQty })`
   2. **Finance Income**: Call `financeStore.createTransaction({ type: 'income', ... })` with:
      - `source_module: 'Farm'`
@@ -85,77 +85,77 @@ This story completes the farm-to-market value chain by enabling sales recording 
      - `finance_transaction_id`: ID from created finance transaction
      - All form fields: buyer, quantity_sold, price_per_kg, total_amount, payment_method, payment_status, sale_date, notes
 
-- [ ] All three operations succeed or all fail (client-side rollback pattern)
-- [ ] If inventory adjustment fails: do not create finance transaction or farm_sales record.
-- [ ] If finance creation fails: reverse inventory adjustment, do not create farm_sales
-- [ ] Success notification: "✅ Sale recorded: [Quantity]kg [Crop] to [Buyer] for ZMW [Amount]"
-- [ ] Error notification on failure with specific error message
+- [x] All three operations succeed or all fail (client-side rollback pattern)
+- [x] If inventory adjustment fails: do not create finance transaction or farm_sales record.
+- [x] If finance creation fails: reverse inventory adjustment, do not create farm_sales
+- [x] Success notification: "✅ Sale recorded: [Quantity]kg [Crop] to [Buyer] for ZMW [Amount]"
+- [x] Error notification on failure with specific error message
 
 ### AC4: Sale Detail Page
 
-- [ ] Sale detail page accessible at `/farm/sales/:id`
-- [ ] Display all sale information from `farm_sales` record
-- [ ] **Cross-Module Links**:
+- [x] Sale detail page accessible at `/farm/sales/:id`
+- [x] Display all sale information from `farm_sales` record
+- [x] **Cross-Module Links**:
   - Link to `InventoryDetailPage` for the sold item
   - Link to `PlantingDetailPage` (via planting lookup from inventory)
   - Link to Finance transaction detail (if finance module has detail view, otherwise show summary)
-- [ ] **Profit Preview Section** (foundation for Story 3.9):
+- [x] **Profit Preview Section** (foundation for Story 3.9):
   - Display sale revenue (total_amount)
   - Display cost breakdown: Seed Costs, Planting Labor, Planting Other, Harvest Labor, Harvest Other
   - Display net profit: `revenue - total costs`
   - Display ROI percentage: `(profit / total costs) × 100`
   - Note: For perennials with multiple harvests, sum costs across all harvests for the planting
-- [ ] **Partial Sale History**: If multiple sales exist for same harvest, show list of all sales with dates/quantities
+- [x] **Partial Sale History**: If multiple sales exist for same harvest, show list of all sales with dates/quantities
 
 ### AC5: Partial Sales Support
 
-- [ ] Multiple sale records can reference the same harvest/inventory
-- [ ] Each sale independently decrements inventory quantity
-- [ ] Inventory status automatically updates if quantity reaches 0 (`'out_of_stock'`)
-- [ ] `InventoryDetailPage` shows "Sales History" subsection listing all `farm_sales` for this item
-- [ ] Each inventory item displays: "X kg sold (Y sales) / Z kg harvested / A kg remaining"
-- [ ] Validation prevents any sale that would result in negative inventory
+- [x] Multiple sale records can reference the same harvest/inventory
+- [x] Each sale independently decrements inventory quantity
+- [x] Inventory status automatically updates if quantity reaches 0 (`'out_of_stock'`)
+- [x] `InventoryDetailPage` shows "Sales History" subsection listing all `farm_sales` for this item
+- [x] Each inventory item displays: "X kg sold (Y sales) / Z kg harvested / A kg remaining"
+- [x] Validation prevents any sale that would result in negative inventory
 
 ### AC6: Farm Dashboard - Recent Sales Widget
 
-- [ ] `FarmDashboardPage.vue` gets "Recent Sales" widget
-- [ ] Widget shows last 5 `farm_sales` records:
+- [x] `FarmDashboardPage.vue` gets "Recent Sales" widget
+- [x] Widget shows last 5 `farm_sales` records:
   - Crop name, buyer, quantity, total amount (ZMW), sale date
-- [ ] Widget displays total sales count and total revenue (last 30 days)
-- [ ] Clicking widget title navigates to `/farm/sales` (sales list page - create basic version)
-- [ ] Clicking individual sale row navigates to sale detail page
-- [ ] Widget follows `WidgetBase.vue` pattern
-- [ ] Empty state: "No sales recorded yet" with "Record Sale" button linking to inventory
+- [x] Widget displays total sales count and total revenue (last 30 days)
+- [x] Clicking widget title navigates to `/farm/sales` (sales list page - create basic version)
+- [x] Clicking individual sale row navigates to sale detail page
+- [x] Widget follows `WidgetBase.vue` pattern
+- [x] Empty state: "No sales recorded yet" with "Record Sale" button linking to inventory
 
 ### AC7: Sales List Page
 
-- [ ] Basic sales list page at `/farm/sales`
-- [ ] Columns: Sale Date, Crop, Buyer, Quantity, Total Amount, Payment Status
-- [ ] Filters: Date range, Crop, Payment Status
-- [ ] Sortable by date (default: newest first)
-- [ ] Pagination for >25 sales
-- [ ] Click row navigates to sale detail
+- [x] Basic sales list page at `/farm/sales`
+- [x] Columns: Sale Date, Crop, Buyer, Quantity, Total Amount, Payment Status
+- [x] Filters: Date range, Crop, Payment Status
+- [x] Sortable by date (default: newest first)
+- [x] Pagination for >25 sales
+- [x] Click row navigates to sale detail
 
 ### AC8: Validation and Edge Cases
 
-- [ ] **Insufficient Inventory**: Block sale with error if `quantity_sold > available`
-- [ ] **Zero-Price Guard**: Warn if `price_per_kg = 0` but allow with confirmation
-- [ ] **Already Sold Out**: "Record Sale" button disabled on inventory with `quantity = 0`
-- [ ] **Finance Category Missing**: If "Farm Sales" category not found, show warning and defer income creation (document in POST-MVP.md)
-- [ ] **Harvest Lookup Failure**: If inventory has no linked planting/harvest, sale can still proceed but log warning
-- [ ] **Concurrent Sale Race Condition**: Document in POST-MVP.md that client-side validation may allow overselling if two users submit simultaneously (true fix requires Cloud Function)
+- [x] **Insufficient Inventory**: Block sale with error if `quantity_sold > available`
+- [x] **Zero-Price Guard**: Warn if `price_per_kg = 0` but allow with confirmation
+- [x] **Already Sold Out**: "Record Sale" button disabled on inventory with `quantity = 0`
+- [x] **Finance Category Missing**: If "Farm Sales" category not found, show warning and defer income creation (document in POST-MVP.md)
+- [x] **Harvest Lookup Failure**: If inventory has no linked planting/harvest, sale can still proceed but log warning
+- [x] **Concurrent Sale Race Condition**: Document in POST-MVP.md that client-side validation may allow overselling if two users submit simultaneously (true fix requires Cloud Function)
 
 ### AC9: Sample Data Updates
 
-- [ ] `useFarmSampleData.js` updated to include sample farm sales:
+- [x] `useFarmSampleData.js` updated to include sample farm sales:
   - At least 3 sales for different crops
   - Mix of payment methods and statuses
   - Sales referencing existing harvests from sample data
-- [ ] Sample sales use realistic ZMW prices:
-  - Maize: 2.00-2.50 ZMW/kg
-  - Tomatoes: 3.00-4.00 ZMW/kg
-  - Groundnuts: 7.00-9.00 ZMW/kg
-- [ ] Sample data demonstrates partial sales (one harvest sold in 2+ transactions)
+- [x] Sample sales use realistic ZMW prices (10–50 ZMW/kg range):
+  - Maize: 13–15 ZMW/kg (FRA bulk 13 ZMW/kg, local miller 15 ZMW/kg)
+  - Tomatoes: 25 ZMW/kg
+  - Sweet Potato: 12 ZMW/kg
+- [x] Sample data demonstrates partial sales (one harvest sold in 2+ transactions)
 
 ---
 
@@ -451,6 +451,6 @@ async getFarmSalesCategoryId() {
 
 ---
 
-_Last Updated: 2026-04-30_  
+_Last Updated: 2026-05-04_  
 _Story Template Version: 1.0_  
-_Status: **ready-for-dev**_
+_Status: **done**_

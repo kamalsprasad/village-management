@@ -14,16 +14,16 @@
             </p>
           </div>
         </div>
+        <!-- Story 3.8: Record Sale (farm_produce only, non-zero quantity, farm:write) -->
+        <q-btn
+          v-if="canRecordSale"
+          color="positive"
+          icon="point_of_sale"
+          label="Record Sale"
+          :disable="(item?.quantity || 0) <= 0"
+          @click="showSaleDialog = true"
+        />
         <div class="row q-gutter-sm" v-if="canEdit">
-          <!-- Story 3.8: Record Sale (farm_produce only, non-zero quantity) -->
-          <q-btn
-            v-if="canRecordSale"
-            color="positive"
-            icon="point_of_sale"
-            label="Record Sale"
-            :disable="(item?.quantity || 0) <= 0"
-            @click="showSaleDialog = true"
-          />
           <q-btn
             outline
             color="secondary"

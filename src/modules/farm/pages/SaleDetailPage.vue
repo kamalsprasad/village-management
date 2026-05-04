@@ -80,9 +80,7 @@
                 </div>
                 <div class="col-12 col-sm-6">
                   <div class="text-caption text-grey">Payment Status</div>
-                  <q-badge
-                    :color="sale.payment_status === 'Completed' ? 'positive' : 'warning'"
-                  >
+                  <q-badge :color="sale.payment_status === 'Completed' ? 'positive' : 'warning'">
                     {{ sale.payment_status }}
                   </q-badge>
                 </div>
@@ -94,21 +92,15 @@
             </q-card-section>
           </q-card>
 
-          <!-- Profit Preview Card -->
-          <q-card
-            flat
-            bordered
-            class="q-mb-md"
-            v-if="costs"
-          >
+          <!-- Profit Preview Card — only shown when cost data is available via an inventory link -->
+          <q-card flat bordered class="q-mb-md" v-if="costs && hasInventoryLink">
             <q-card-section>
               <div class="text-subtitle2 text-grey-7 q-mb-sm">
                 Profit Preview
                 <q-icon name="info" color="grey" size="xs" class="q-ml-xs">
                   <q-tooltip>
-                    Revenue from this sale minus total planting and harvest costs
-                    across every harvest cycle for this planting. Story 3.9 will
-                    add per-sale cost attribution.
+                    Revenue from this sale minus total planting and harvest costs across every
+                    harvest cycle for this planting. Story 3.9 will add per-sale cost attribution.
                   </q-tooltip>
                 </q-icon>
               </div>
@@ -122,9 +114,7 @@
                 </div>
                 <div class="col-12 col-sm-4">
                   <div class="text-caption text-grey">Total Costs (planting)</div>
-                  <div class="text-h6 text-negative">
-                    ZMW {{ formatCurrency(costs.totalCost) }}
-                  </div>
+                  <div class="text-h6 text-negative">ZMW {{ formatCurrency(costs.totalCost) }}</div>
                 </div>
                 <div class="col-12 col-sm-4">
                   <div class="text-caption text-grey">Net Profit</div>
@@ -134,7 +124,10 @@
                   >
                     ZMW {{ formatCurrency(netProfit) }}
                   </div>
-                  <div class="text-caption" :class="netProfit >= 0 ? 'text-positive' : 'text-negative'">
+                  <div
+                    class="text-caption"
+                    :class="netProfit >= 0 ? 'text-positive' : 'text-negative'"
+                  >
                     ROI: {{ roiPercent }}
                   </div>
                 </div>
@@ -166,14 +159,6 @@
                   <div>ZMW {{ formatCurrency(costs.harvestOther) }}</div>
                 </div>
               </div>
-
-              <q-banner v-if="!hasInventoryLink" class="bg-orange-1 text-orange-9 q-mt-md" rounded>
-                <template #avatar>
-                  <q-icon name="warning" />
-                </template>
-                This sale is not linked to an inventory item, so we cannot trace
-                it back to a planting for cost attribution.
-              </q-banner>
             </q-card-section>
           </q-card>
 
@@ -200,8 +185,8 @@
                       >
                     </q-item-label>
                     <q-item-label caption>
-                      {{ formatDate(s.sale_date) }} ·
-                      {{ Number(s.quantity_sold).toFixed(2) }} {{ s.unit || 'kg' }}
+                      {{ formatDate(s.sale_date) }} · {{ Number(s.quantity_sold).toFixed(2) }}
+                      {{ s.unit || 'kg' }}
                     </q-item-label>
                   </q-item-section>
                   <q-item-section side>
@@ -234,7 +219,9 @@
                   </q-item-section>
                   <q-item-section>
                     <q-item-label>Inventory Item</q-item-label>
-                    <q-item-label caption>{{ inventoryItem?.item_name || 'View item' }}</q-item-label>
+                    <q-item-label caption>{{
+                      inventoryItem?.item_name || 'View item'
+                    }}</q-item-label>
                   </q-item-section>
                   <q-item-section side>
                     <q-icon name="chevron_right" color="grey" />
@@ -274,12 +261,7 @@
                 </q-item>
 
                 <!-- Finance Transaction -->
-                <q-item
-                  v-if="financeTransactionId"
-                  clickable
-                  v-ripple
-                  @click="goToTransaction"
-                >
+                <q-item v-if="financeTransactionId" clickable v-ripple @click="goToTransaction">
                   <q-item-section avatar>
                     <q-icon name="receipt_long" color="blue" />
                   </q-item-section>
@@ -403,7 +385,7 @@ async function loadAll() {
   if (invId) {
     parallel.push(
       inventoryStore.fetchItemById(invId).then((r) => {
-        inventoryItem.value = r?.success ? r.data : inventoryStore.currentItem;
+        inventoryItem.value = r?.success ? r.data : null;
       }),
     );
     // Related sales (partial sales history)
@@ -426,18 +408,8 @@ async function loadAll() {
   const pid = idOf(inventoryItem.value?.planting_id);
   if (pid) {
     costs.value = await farmStore.calculatePlantingCostsForProfit(pid);
-  } else {
-    // No linked planting — still show revenue with zero-cost breakdown so UI
-    // stays consistent.
-    costs.value = {
-      seedCosts: 0,
-      plantingLabor: 0,
-      plantingOther: 0,
-      harvestLabor: 0,
-      harvestOther: 0,
-      totalCost: 0,
-    };
   }
+  // If no linked planting, leave costs as null — the card is hidden via v-if="costs && hasInventoryLink".
 }
 
 onMounted(() => {
