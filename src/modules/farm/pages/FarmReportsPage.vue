@@ -354,6 +354,22 @@
                   use-chips
                 />
               </div>
+              <div class="col-12 col-sm-4 col-md-3">
+                <q-select
+                  v-model="yieldFilterCrops"
+                  dense
+                  outlined
+                  label="Specific Crops"
+                  :options="cropSelectOptions"
+                  option-value="value"
+                  option-label="label"
+                  emit-value
+                  map-options
+                  multiple
+                  clearable
+                  use-chips
+                />
+              </div>
               <div class="col-auto">
                 <q-btn
                   color="primary"
@@ -424,6 +440,14 @@
             </div>
           </div>
 
+          <div v-if="underperformingCount > 0" class="q-mb-md">
+            <q-banner dense class="bg-negative text-white rounded-borders">
+              <q-icon name="warning" class="q-mr-sm" />
+              {{ underperformingCount }} planting{{ underperformingCount > 1 ? 's' : '' }}
+              underperforming (&lt; 50% typical yield)
+            </q-banner>
+          </div>
+
           <div v-if="!seasonData.length" class="text-center text-grey q-pa-xl">
             <q-icon name="show_chart" size="3em" class="q-mb-md" />
             <div class="text-h6">No yield data for selected filters</div>
@@ -471,9 +495,16 @@
                   <q-td class="text-right">
                     <template v-if="value !== null">
                       <q-badge
-                        :color="value >= 90 ? 'positive' : value >= 60 ? 'warning' : 'negative'"
+                        :color="value >= 90 ? 'positive' : value >= 50 ? 'warning' : 'negative'"
                         outline
                       >
+                        {{
+                          value >= 90
+                            ? 'On Target'
+                            : value >= 50
+                              ? 'Below Average'
+                              : 'Underperforming'
+                        }}
                         {{ value }}%
                       </q-badge>
                     </template>
@@ -546,8 +577,10 @@ const isYieldExportingPDF = ref(false);
 const yieldFilterSeason = ref(null);
 const yieldFilterCropType = ref(null);
 const yieldFilterPlots = ref([]);
+const yieldFilterCrops = ref([]);
 const seasonData = ref([]);
 const benchmarkData = ref([]);
+const underperformingCount = ref(0);
 
 const isLoading = ref(true);
 const isExportingCSV = ref(false);
@@ -592,6 +625,13 @@ const chartHeight = computed(() => {
 const seasonColumns = [
   { name: 'season', label: 'Season', field: 'season', align: 'left', sortable: true },
   { name: 'cropName', label: 'Crop', field: 'cropName', align: 'left', sortable: true },
+  {
+    name: 'plotCount',
+    label: 'Plots',
+    field: 'plotCount',
+    align: 'right',
+    sortable: true,
+  },
   {
     name: 'totalPlantings',
     label: 'Plantings',
@@ -707,6 +747,7 @@ async function runYieldReport() {
     season: yieldFilterSeason.value || undefined,
     cropType: yieldFilterCropType.value || undefined,
     plotIds: yieldFilterPlots.value.length ? yieldFilterPlots.value : undefined,
+    cropIds: yieldFilterCrops.value.length ? yieldFilterCrops.value : undefined,
   });
   benchmarkData.value = farmStore.computePlotYieldBenchmarks();
   isYieldLoading.value = false;
@@ -1054,6 +1095,11 @@ onMounted(async () => {
   await farmStore.ensureYieldDataLoaded();
   seasonData.value = farmStore.computeSeasonComparison();
   benchmarkData.value = farmStore.computePlotYieldBenchmarks();
+  // Pre-compute underperforming count from all plantings
+  const allYields = farmStore.computeAllPlantingYields();
+  underperformingCount.value = allYields.filter(
+    (r) => r.vsTypicalPct !== null && r.vsTypicalPct < 50,
+  ).length;
   // If deep-linked to yield tab, mark load complete
   if (activeTab.value === 'yield') isYieldLoading.value = false;
 });

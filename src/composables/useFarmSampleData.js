@@ -781,6 +781,24 @@ export function useFarmSampleData() {
         notes: 'Cabbage planting with purchased seedlings.',
         status: 'planted',
       },
+      // Story 3.10: Upcoming harvest alert demo (East Garden)
+      // Planted 75 days ago, expected harvest in 5 days → reliably triggers upcoming harvest alert on fresh seed
+      {
+        _key: 'p_upcoming_harvest',
+        plot_id: plot('east_garden'),
+        crop_id: crop('Tomatoes'),
+        planting_date: daysAgo(75),
+        expected_harvest_date: addDaysStr(daysAgo(75), 80),
+        area_used_hectares: 0.5,
+        quantity_planted: 300,
+        unit: 'seedlings',
+        inputs_cost: 500,
+        labor_cost: 800,
+        other_cost: 0,
+        notes:
+          'Tomato planting for upcoming harvest alert demo. Expected harvest in 5 days from seed date.',
+        status: 'growing',
+      },
       // Story 3.6: Perennial crop examples for continuous picking
       // 9. Banana planting with 2 completed harvests, 3rd in progress (North Field) -- planted 1 year ago
       {

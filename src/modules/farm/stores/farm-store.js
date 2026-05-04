@@ -2310,6 +2310,7 @@ export const useFarmStore = defineStore('farm', {
               ? Math.round((avgYieldPerHectare / g.typicalYield) * 100)
               : null;
           return {
+            key: g.season + '__' + g.cropId,
             season: g.season,
             cropName: g.cropName,
             cropId: g.cropId,

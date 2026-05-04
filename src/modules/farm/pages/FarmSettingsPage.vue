@@ -43,9 +43,7 @@
             <q-item>
               <q-item-section>
                 <q-item-label>Upcoming Harvest Alert</q-item-label>
-                <q-item-label caption>
-                  Notify when harvest is due within N days
-                </q-item-label>
+                <q-item-label caption> Notify when harvest is due within N days </q-item-label>
               </q-item-section>
               <q-item-section side>
                 <div class="row items-center q-gutter-sm">
@@ -60,10 +58,7 @@
                     suffix="days"
                     :disable="!localConfig.upcoming_harvest.enabled"
                   />
-                  <q-toggle
-                    v-model="localConfig.upcoming_harvest.enabled"
-                    color="primary"
-                  />
+                  <q-toggle v-model="localConfig.upcoming_harvest.enabled" color="primary" />
                 </div>
               </q-item-section>
             </q-item>
@@ -89,10 +84,7 @@
                     suffix="days"
                     :disable="!localConfig.overdue_harvest.enabled"
                   />
-                  <q-toggle
-                    v-model="localConfig.overdue_harvest.enabled"
-                    color="primary"
-                  />
+                  <q-toggle v-model="localConfig.overdue_harvest.enabled" color="primary" />
                 </div>
               </q-item-section>
             </q-item>
@@ -118,10 +110,7 @@
                     suffix="units"
                     :disable="!localConfig.low_inventory.enabled"
                   />
-                  <q-toggle
-                    v-model="localConfig.low_inventory.enabled"
-                    color="primary"
-                  />
+                  <q-toggle v-model="localConfig.low_inventory.enabled" color="primary" />
                 </div>
               </q-item-section>
             </q-item>
@@ -147,10 +136,7 @@
                     suffix="%"
                     :disable="!localConfig.underperforming_yield.enabled"
                   />
-                  <q-toggle
-                    v-model="localConfig.underperforming_yield.enabled"
-                    color="primary"
-                  />
+                  <q-toggle v-model="localConfig.underperforming_yield.enabled" color="primary" />
                 </div>
               </q-item-section>
             </q-item>
@@ -171,6 +157,51 @@
         </q-card-section>
       </q-card>
 
+      <!-- Alert Delivery Methods -->
+      <q-card class="q-mb-md">
+        <q-card-section>
+          <div class="text-subtitle1 text-weight-medium q-mb-md">
+            <q-icon name="send" class="q-mr-xs text-primary" />
+            Alert Delivery Methods
+          </div>
+
+          <q-list separator>
+            <q-item>
+              <q-item-section>
+                <q-item-label>In-App Notifications</q-item-label>
+                <q-item-label caption>
+                  Always enabled. Alerts appear on the dashboard and alerts page.
+                </q-item-label>
+              </q-item-section>
+              <q-item-section side>
+                <q-toggle :model-value="true" color="positive" disable />
+              </q-item-section>
+            </q-item>
+
+            <q-item>
+              <q-item-section>
+                <q-item-label>Email Notifications</q-item-label>
+                <q-item-label caption> Receive alert digests via email. </q-item-label>
+              </q-item-section>
+              <q-item-section side>
+                <div class="row items-center q-gutter-sm">
+                  <q-chip
+                    v-if="localConfig.email_enabled"
+                    size="sm"
+                    color="info"
+                    text-color="white"
+                    icon="info"
+                  >
+                    SMTP required — see docs/POST-MVP.md
+                  </q-chip>
+                  <q-toggle v-model="localConfig.email_enabled" color="primary" />
+                </div>
+              </q-item-section>
+            </q-item>
+          </q-list>
+        </q-card-section>
+      </q-card>
+
       <!-- Save Button -->
       <div class="row q-gutter-sm q-mt-md">
         <q-btn
@@ -180,12 +211,7 @@
           :loading="isSaving"
           @click="save"
         />
-        <q-btn
-          flat
-          color="grey"
-          label="Reset to Defaults"
-          @click="resetDefaults"
-        />
+        <q-btn flat color="grey" label="Reset to Defaults" @click="resetDefaults" />
       </div>
     </template>
   </q-page>
@@ -203,27 +229,27 @@ const isLoading = ref(true);
 const isSaving = ref(false);
 
 const DEFAULT_CONFIG = {
-  low_inventory:         { enabled: true, threshold: 10 },
-  upcoming_harvest:      { enabled: true, threshold: 7 },
-  overdue_harvest:       { enabled: true, threshold: 7 },
+  low_inventory: { enabled: true, threshold: 10 },
+  upcoming_harvest: { enabled: true, threshold: 7 },
+  overdue_harvest: { enabled: true, threshold: 7 },
   underperforming_yield: { enabled: true, threshold: 50 },
   email_enabled: false,
 };
 
 const localConfig = reactive({
-  low_inventory:         { enabled: true, threshold: 10 },
-  upcoming_harvest:      { enabled: true, threshold: 7 },
-  overdue_harvest:       { enabled: true, threshold: 7 },
+  low_inventory: { enabled: true, threshold: 10 },
+  upcoming_harvest: { enabled: true, threshold: 7 },
+  overdue_harvest: { enabled: true, threshold: 7 },
   underperforming_yield: { enabled: true, threshold: 50 },
   email_enabled: false,
 });
 
 function applyConfig(cfg) {
-  localConfig.low_inventory         = { ...cfg.low_inventory };
-  localConfig.upcoming_harvest      = { ...cfg.upcoming_harvest };
-  localConfig.overdue_harvest       = { ...cfg.overdue_harvest };
+  localConfig.low_inventory = { ...cfg.low_inventory };
+  localConfig.upcoming_harvest = { ...cfg.upcoming_harvest };
+  localConfig.overdue_harvest = { ...cfg.overdue_harvest };
   localConfig.underperforming_yield = { ...cfg.underperforming_yield };
-  localConfig.email_enabled         = !!cfg.email_enabled;
+  localConfig.email_enabled = !!cfg.email_enabled;
 }
 
 function resetDefaults() {

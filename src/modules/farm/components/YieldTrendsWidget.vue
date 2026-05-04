@@ -8,9 +8,12 @@
   <q-card>
     <q-card-section>
       <div class="row items-center justify-between q-mb-sm">
-        <div class="text-subtitle2 text-weight-medium">
-          <q-icon name="show_chart" size="sm" class="q-mr-xs text-teal" />
-          Yield Trends
+        <div>
+          <div class="text-subtitle2 text-weight-medium">
+            <q-icon name="show_chart" size="sm" class="q-mr-xs text-teal" />
+            Yield Trends
+          </div>
+          <div class="text-caption text-grey">Last 6 completed plantings</div>
         </div>
         <q-btn
           flat
@@ -24,8 +27,8 @@
         </q-btn>
       </div>
 
-      <div v-if="isLoading" class="flex flex-center q-pa-md">
-        <q-spinner color="teal" size="1.5em" />
+      <div v-if="isLoading" class="q-pa-md">
+        <q-skeleton type="rect" height="140px" />
       </div>
 
       <div v-else-if="!chartData.labels.length" class="text-grey text-caption text-center q-pa-md">
@@ -69,19 +72,21 @@ const isLoading = ref(true);
 const allYields = ref([]);
 
 const chartData = computed(() => {
-  // Group by season → avg yield/ha
-  const groups = {};
-  for (const r of allYields.value) {
-    if (r.yieldPerHectare === null) continue;
-    if (!groups[r.season]) groups[r.season] = { totalKg: 0, totalHa: 0 };
-    groups[r.season].totalKg += r.totalHarvestKg;
-    groups[r.season].totalHa += r.areaHectares;
-  }
-  const seasons = Object.keys(groups).sort();
-  const values = seasons.map((s) =>
-    groups[s].totalHa > 0 ? Math.round((groups[s].totalKg / groups[s].totalHa) * 10) / 10 : 0,
-  );
-  return { labels: seasons, values };
+  // Last 6 completed plantings, chronological order
+  const rows = allYields.value
+    .filter((r) => r.yieldPerHectare !== null)
+    .sort((a, b) => new Date(b.plantingDate) - new Date(a.plantingDate))
+    .slice(0, 6)
+    .reverse();
+  const labels = rows.map((r) => {
+    const d = new Date(r.plantingDate);
+    const shortDate = d.toLocaleDateString('en-GB', { month: 'short', year: '2-digit' });
+    return `${r.cropName} ${shortDate}`;
+  });
+  const values = rows.map((r) => r.yieldPerHectare);
+  const typical =
+    rows.length && rows.every((r) => r.cropId === rows[0].cropId) ? rows[0].typicalYield : null;
+  return { labels, values, rows, typical };
 });
 
 const bestSeason = computed(() => {
@@ -109,40 +114,64 @@ async function renderChart() {
   const { Chart, registerables } = await import('chart.js');
   Chart.register(...registerables);
 
-  const { labels, values } = chartData.value;
+  const { labels, values, rows, typical } = chartData.value;
+
+  const datasets = [
+    {
+      label: 'Yield/ha (kg)',
+      data: values,
+      borderColor: '#00695c',
+      backgroundColor: 'rgba(0, 150, 136, 0.15)',
+      borderWidth: 2,
+      pointRadius: 4,
+      pointBackgroundColor: '#00695c',
+      fill: true,
+      tension: 0.3,
+    },
+  ];
+
+  if (typical) {
+    datasets.push({
+      label: 'Typical Yield',
+      data: values.map(() => typical),
+      borderColor: '#9e9e9e',
+      borderWidth: 1,
+      borderDash: [5, 5],
+      pointRadius: 0,
+      fill: false,
+      tension: 0,
+    });
+  }
 
   chartInstance.value = new Chart(canvasRef.value, {
-    type: 'bar',
-    data: {
-      labels,
-      datasets: [
-        {
-          label: 'Avg Yield/ha (kg)',
-          data: values,
-          backgroundColor: 'rgba(0, 150, 136, 0.7)',
-          borderColor: '#00695c',
-          borderWidth: 1,
-          barThickness: 20,
-          maxBarThickness: 30,
-        },
-      ],
-    },
+    type: 'line',
+    data: { labels, datasets },
     options: {
       responsive: true,
       maintainAspectRatio: false,
       animation: { duration: 300 },
       plugins: {
-        legend: { display: false },
+        legend: { display: !!typical },
         tooltip: {
           callbacks: {
-            label: (ctx) => ` ${ctx.raw} kg/ha`,
+            title: (items) => {
+              const idx = items[0].dataIndex;
+              const r = rows[idx];
+              return `${r.cropName} — ${r.season}`;
+            },
+            label: (ctx) => {
+              if (ctx.dataset.label === 'Typical Yield') {
+                return ` Typical: ${ctx.raw} kg/ha`;
+              }
+              return ` Yield: ${ctx.raw} kg/ha`;
+            },
           },
         },
       },
       scales: {
         x: {
           grid: { display: false },
-          ticks: { font: { size: 9 }, maxRotation: 30 },
+          ticks: { font: { size: 8 }, maxRotation: 45 },
           border: { display: false },
         },
         y: {

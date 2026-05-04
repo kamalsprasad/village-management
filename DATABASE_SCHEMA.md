@@ -231,6 +231,24 @@ Records farm produce sales with three-way integration to harvests, inventory, an
 
 **Indexes:** `idx_farm_sales_date` on `(sale_date DESC)`, `idx_farm_sales_buyer` on `(buyer_type ASC, buyer_id ASC)`
 
+### farm_alerts
+
+Reserved for future persistent alert storage (Story 3.10 POST-MVP). Not used in MVP — alerts are generated in-memory. Schema defined now to support migration to persistent storage later.
+
+| Column                | Type     | Constraints             | Description                  |
+| --------------------- | -------- | ----------------------- | ---------------------------- |
+| `alert_type`          | string   | Required, max 50        | Alert type slug              |
+| `severity`            | string   | Required, max 20        | critical / warning / info    |
+| `title`               | string   | Required, max 255       | Human-readable alert title   |
+| `message`             | string   | Optional, max 1000      | Detailed alert message       |
+| `related_entity_type` | string   | Optional, max 50        | planting / inventory / etc.  |
+| `related_entity_id`   | string   | Optional, max 50        | ID of related entity         |
+| `triggered_at`        | datetime | Required                | When the alert was triggered |
+| `is_read`             | boolean  | Required, default false | Read state per user          |
+| `dismissed_at`        | datetime | Optional                | When the alert was dismissed |
+
+**Indexes:** `idx_farm_alerts_user` on `(user_id ASC)`, `idx_farm_alerts_type` on `(alert_type ASC)`, `idx_farm_alerts_triggered` on `(triggered_at DESC)`
+
 ## Finance Tables
 
 ### finance_transactions

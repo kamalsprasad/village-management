@@ -932,6 +932,46 @@ const tableSchemas = {
       },
     ],
   },
+
+  // Story 3.10: Reserved for future persistent alert storage.
+  // Not used in MVP — alerts are generated in-memory.
+  farm_alerts: {
+    name: 'Farm Alerts',
+    permissions: permissions,
+    columns: [
+      { key: 'alert_type', type: 'string', size: 50, required: true },
+      { key: 'severity', type: 'string', size: 20, required: true },
+      { key: 'title', type: 'string', size: 255, required: true },
+      { key: 'message', type: 'string', size: 1000, required: false },
+      { key: 'related_entity_type', type: 'string', size: 50, required: false },
+      { key: 'related_entity_id', type: 'string', size: 50, required: false },
+      { key: 'triggered_at', type: 'datetime', required: true },
+      { key: 'is_read', type: 'boolean', required: true, default: false },
+      { key: 'dismissed_at', type: 'datetime', required: false },
+      // user_id is not a relationship in MVP; stored as string for flexibility
+      { key: 'user_id', type: 'string', size: 50, required: true },
+    ],
+    indexes: [
+      {
+        key: 'idx_farm_alerts_user',
+        type: 'key',
+        columns: ['user_id'],
+        orders: ['ASC'],
+      },
+      {
+        key: 'idx_farm_alerts_type',
+        type: 'key',
+        columns: ['alert_type'],
+        orders: ['ASC'],
+      },
+      {
+        key: 'idx_farm_alerts_triggered',
+        type: 'key',
+        columns: ['triggered_at'],
+        orders: ['DESC'],
+      },
+    ],
+  },
 };
 
 // Helper functions
@@ -1207,7 +1247,7 @@ async function setupDatabase() {
 
     console.log('\n✅ Database setup complete!');
     console.log('\n📋 Summary:');
-    console.log('   - 20 Tables created/verified');
+    console.log('   - 21 Tables created/verified');
     console.log('   - 130+ columns created/verified');
     console.log('   - 16 indexes created/verified');
     console.log('   - Permissions configured');
@@ -1215,7 +1255,7 @@ async function setupDatabase() {
     console.log('\n📦 Tables created:');
     console.log('   Core: users, residents, households, roles, village_settings');
     console.log(
-      '   Farm: soil_types, plots, crops, plantings, harvests, harvest_entries, farm_sales',
+      '   Farm: soil_types, plots, crops, plantings, harvests, harvest_entries, farm_sales, farm_alerts',
     );
     console.log(
       '   Finance: finance_categories, funding_sources, loans, inventory, finance_transactions, transaction_links',

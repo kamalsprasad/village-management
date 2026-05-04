@@ -311,6 +311,15 @@
                   </div>
                 </div>
 
+                <!-- Yield Trend Chart -->
+                <div
+                  v-if="yieldHistory.length > 1"
+                  :style="{ position: 'relative', height: '180px' }"
+                  class="q-mb-md"
+                >
+                  <canvas ref="yieldChartRef"></canvas>
+                </div>
+
                 <q-separator class="q-mb-md" />
 
                 <!-- Per-planting yield table -->
@@ -327,9 +336,16 @@
                     <q-td class="text-right">
                       <template v-if="value !== null">
                         <q-badge
-                          :color="value >= 90 ? 'positive' : value >= 60 ? 'warning' : 'negative'"
+                          :color="value >= 90 ? 'positive' : value >= 50 ? 'warning' : 'negative'"
                           outline
                         >
+                          {{
+                            value >= 90
+                              ? 'On Target'
+                              : value >= 50
+                                ? 'Below Average'
+                                : 'Underperforming'
+                          }}
                           {{ value }}%
                         </q-badge>
                       </template>
@@ -396,7 +412,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, shallowRef, onBeforeUnmount, nextTick } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useQuasar } from 'quasar';
 import { useFarmStore } from '../stores/farm-store';
@@ -439,6 +455,13 @@ const yieldColumns = [
     format: (v) => (v != null ? v : '—'),
   },
   {
+    name: 'typicalYield',
+    label: 'Typical Yield (kg/ha)',
+    field: 'typicalYield',
+    align: 'right',
+    format: (v) => v || '—',
+  },
+  {
     name: 'vsTypicalPct',
     label: 'vs Typical',
     field: 'vsTypicalPct',
@@ -460,6 +483,8 @@ const isDeleting = ref(false);
 const deleteDialogOpen = ref(false);
 const isYieldLoading = ref(true);
 const yieldHistory = ref([]);
+const yieldChartRef = ref(null);
+const yieldChartInstance = shallowRef(null);
 
 const plotId = computed(() => route.params.id);
 const plot = computed(() => farmStore.currentPlot);
@@ -519,6 +544,91 @@ onMounted(async () => {
   await farmStore.ensureYieldDataLoaded();
   yieldHistory.value = farmStore.computePlotYieldHistory(plotId.value);
   isYieldLoading.value = false;
+  await nextTick();
+  await renderYieldChart();
+});
+
+async function renderYieldChart() {
+  if (!yieldChartRef.value || yieldHistory.value.length < 2) return;
+  if (yieldChartInstance.value) {
+    yieldChartInstance.value.destroy();
+    yieldChartInstance.value = null;
+  }
+  const { Chart, registerables } = await import('chart.js');
+  Chart.register(...registerables);
+
+  const rows = yieldHistory.value;
+  const labels = rows.map((r) => {
+    const d = new Date(r.plantingDate);
+    return d.toLocaleDateString('en-GB', { month: 'short', year: '2-digit' });
+  });
+  const values = rows.map((r) => r.yieldPerHectare);
+  const allSameCrop = rows.length && rows.every((r) => r.cropId === rows[0].cropId);
+  const typical = allSameCrop ? rows[0].typicalYield : null;
+
+  const datasets = [
+    {
+      label: 'Yield/ha (kg)',
+      data: values,
+      borderColor: '#1976d2',
+      backgroundColor: 'rgba(25, 118, 210, 0.1)',
+      borderWidth: 2,
+      pointRadius: 4,
+      pointBackgroundColor: '#1976d2',
+      fill: true,
+      tension: 0.3,
+    },
+  ];
+  if (typical) {
+    datasets.push({
+      label: 'Typical Yield',
+      data: values.map(() => typical),
+      borderColor: '#9e9e9e',
+      borderWidth: 1,
+      borderDash: [5, 5],
+      pointRadius: 0,
+      fill: false,
+      tension: 0,
+    });
+  }
+
+  yieldChartInstance.value = new Chart(yieldChartRef.value, {
+    type: 'line',
+    data: { labels, datasets },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: !!typical },
+        tooltip: {
+          callbacks: {
+            title: (items) => {
+              const r = rows[items[0].dataIndex];
+              return `${r.cropName} — ${r.season}`;
+            },
+            label: (ctx) => {
+              if (ctx.dataset.label === 'Typical Yield') return ` Typical: ${ctx.raw} kg/ha`;
+              return ` Yield: ${ctx.raw} kg/ha`;
+            },
+          },
+        },
+      },
+      scales: {
+        x: { grid: { display: false }, ticks: { font: { size: 10 } }, border: { display: false } },
+        y: {
+          grid: { color: 'rgba(0,0,0,0.05)' },
+          ticks: { callback: (v) => v + ' kg' },
+          border: { display: false },
+        },
+      },
+      layout: { padding: { top: 4, bottom: 4, left: 4, right: 4 } },
+    },
+  });
+}
+
+onBeforeUnmount(() => {
+  yieldChartInstance.value?.destroy();
+  yieldChartInstance.value = null;
 });
 
 async function loadPlot() {

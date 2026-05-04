@@ -182,6 +182,20 @@ This document tracks deferred improvements, upgrades, and refactoring items that
 - **Effort**: Medium
 - **Added**: Story 3.10
 
+### Alert-to-Calendar Event Integration
+
+- **Current state**: Upcoming harvest alerts are displayed in the farm alerts widget/page but do not create calendar events.
+- **Improvement**: When an upcoming harvest alert is generated, optionally create a corresponding event in the village calendar (Epic 5) with the expected harvest date.
+- **Effort**: Low
+- **Added**: Story 3.10
+
+### Alert Deduplication and Snooze
+
+- **Current state**: Alerts are regenerated on every page load with no deduplication. There is no way to snooze an alert without dismissing it entirely.
+- **Improvement**: Add alert fingerprinting (hash of type + entity + date range) to prevent duplicate alerts within a time window. Add a "Snooze for 24h" action that temporarily suppresses an alert.
+- **Effort**: Low
+- **Added**: Story 3.10
+
 ### Yield Trend Chart on PlotDetailPage
 
 - **Current state**: `PlotDetailPage` shows a tabular yield history but no chart.

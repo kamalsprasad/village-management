@@ -57,6 +57,24 @@
         clearable
         style="min-width: 200px"
       />
+      <q-input
+        v-model="filterDateFrom"
+        dense
+        outlined
+        type="date"
+        label="From"
+        style="min-width: 140px"
+        clearable
+      />
+      <q-input
+        v-model="filterDateTo"
+        dense
+        outlined
+        type="date"
+        label="To"
+        style="min-width: 140px"
+        clearable
+      />
       <q-btn
         flat
         dense
@@ -91,65 +109,78 @@
         <div class="text-caption">All systems nominal.</div>
       </div>
 
-      <q-list v-else separator bordered class="rounded-borders">
-        <q-item
-          v-for="alert in filteredAlerts"
-          :key="alert.alert_type + alert.related_entity_id"
-          :class="readIds.has(alertKey(alert)) ? 'bg-grey-1' : ''"
-          clickable
-          @click="navigateToEntity(alert)"
-        >
-          <q-item-section avatar>
-            <q-icon
-              :name="severityIcon(alert.severity)"
-              :color="severityColor(alert.severity)"
-              size="sm"
+      <q-table
+        v-else
+        :rows="filteredAlerts"
+        :columns="alertColumns"
+        :row-key="(row) => alertKey(row)"
+        flat
+        dense
+        :rows-per-page-options="[10, 25, 0]"
+        :pagination="{ rowsPerPage: 10 }"
+        :row-class="getRowClass"
+        @row-click="(_evt, row) => navigateToEntity(row)"
+      >
+        <template #body-cell-severity="{ value }">
+          <q-td class="text-center">
+            <q-icon :name="severityIcon(value)" :color="severityColor(value)" size="sm" />
+            <q-badge
+              :color="severityColor(value)"
+              :label="value"
+              outline
+              class="q-ml-xs"
+              style="font-size: 9px"
             />
-          </q-item-section>
+          </q-td>
+        </template>
 
-          <q-item-section>
-            <q-item-label :class="readIds.has(alertKey(alert)) ? 'text-grey' : 'text-weight-medium'">
-              {{ alert.title }}
-            </q-item-label>
-            <q-item-label caption>
-              {{ alertTypeLabel(alert.alert_type) }}
-              · {{ formatRelativeTime(alert.triggered_at) }}
-            </q-item-label>
-          </q-item-section>
-
-          <q-item-section side>
-            <div class="row items-center q-gutter-xs">
-              <q-badge
-                :color="severityColor(alert.severity)"
-                :label="alert.severity"
-                outline
-              />
-              <q-btn
-                flat
-                round
-                dense
-                size="xs"
-                :icon="readIds.has(alertKey(alert)) ? 'mark_email_unread' : 'mark_email_read'"
-                :color="readIds.has(alertKey(alert)) ? 'grey' : 'primary'"
-                @click.stop="toggleRead(alert)"
-              >
-                <q-tooltip>{{ readIds.has(alertKey(alert)) ? 'Mark unread' : 'Mark read' }}</q-tooltip>
-              </q-btn>
-              <q-btn
-                flat
-                round
-                dense
-                size="xs"
-                icon="close"
-                color="grey"
-                @click.stop="dismiss(alert)"
-              >
-                <q-tooltip>Dismiss</q-tooltip>
-              </q-btn>
+        <template #body-cell-title="{ row }">
+          <q-td>
+            <div :class="readIds.has(alertKey(row)) ? 'text-grey' : 'text-weight-medium'">
+              {{ row.title.length > 80 ? row.title.slice(0, 80) + '...' : row.title }}
+              <q-tooltip v-if="row.title.length > 80">{{ row.title }}</q-tooltip>
             </div>
-          </q-item-section>
-        </q-item>
-      </q-list>
+            <div class="text-caption text-grey">
+              {{ formatRelativeTime(row.triggered_at) }}
+            </div>
+          </q-td>
+        </template>
+
+        <template #body-cell-entity="{ row }">
+          <q-td>
+            <q-btn
+              v-if="row.related_entity_type"
+              flat
+              dense
+              size="xs"
+              color="primary"
+              icon="open_in_new"
+              :label="row.related_entity_type"
+              @click.stop="navigateToEntity(row)"
+            />
+            <span v-else class="text-grey">—</span>
+          </q-td>
+        </template>
+
+        <template #body-cell-actions="{ row }">
+          <q-td class="text-center">
+            <q-btn
+              flat
+              round
+              dense
+              size="xs"
+              :icon="readIds.has(alertKey(row)) ? 'mark_email_unread' : 'mark_email_read'"
+              :color="readIds.has(alertKey(row)) ? 'grey' : 'primary'"
+              @click.stop="toggleRead(row)"
+            >
+              <q-tooltip>{{ readIds.has(alertKey(row)) ? 'Mark unread' : 'Mark read' }}</q-tooltip>
+            </q-btn>
+            <q-btn flat round dense size="xs" icon="close" color="grey" @click.stop="dismiss(row)">
+              <q-tooltip>Dismiss</q-tooltip>
+            </q-btn>
+          </q-td>
+        </template>
+      </q-table>
     </template>
   </q-page>
 </template>
@@ -171,6 +202,8 @@ const readIds = ref(new Set());
 
 const filterSeverity = ref(null);
 const filterType = ref(null);
+const filterDateFrom = ref('');
+const filterDateTo = ref('');
 
 const severityOptions = ['critical', 'warning', 'info'];
 const alertTypeOptions = [
@@ -189,12 +222,46 @@ const filteredAlerts = computed(() => {
   return alerts.value
     .filter((a) => !dismissedKeys.value.has(alertKey(a)))
     .filter((a) => !filterSeverity.value || a.severity === filterSeverity.value)
-    .filter((a) => !filterType.value || a.alert_type === filterType.value);
+    .filter((a) => !filterType.value || a.alert_type === filterType.value)
+    .filter((a) => {
+      if (!filterDateFrom.value && !filterDateTo.value) return true;
+      const d = a.triggered_at?.split('T')[0];
+      if (filterDateFrom.value && d < filterDateFrom.value) return false;
+      if (filterDateTo.value && d > filterDateTo.value) return false;
+      return true;
+    });
 });
 
-const unreadCount = computed(() =>
-  filteredAlerts.value.filter((a) => !readIds.value.has(alertKey(a))).length,
+const unreadCount = computed(
+  () => filteredAlerts.value.filter((a) => !readIds.value.has(alertKey(a))).length,
 );
+
+const alertColumns = [
+  { name: 'severity', label: 'Severity', field: 'severity', align: 'center', sortable: true },
+  {
+    name: 'type',
+    label: 'Type',
+    field: 'alert_type',
+    align: 'left',
+    sortable: true,
+    format: alertTypeLabel,
+  },
+  { name: 'title', label: 'Title', field: 'title', align: 'left', sortable: true },
+  {
+    name: 'triggeredAt',
+    label: 'Triggered',
+    field: 'triggered_at',
+    align: 'left',
+    sortable: true,
+    format: formatRelativeTime,
+  },
+  { name: 'entity', label: 'Entity', field: 'related_entity_type', align: 'left' },
+  { name: 'actions', label: 'Actions', field: () => null, align: 'center' },
+];
+
+function getRowClass(row) {
+  return readIds.value.has(alertKey(row)) ? 'bg-grey-1' : '';
+}
 
 function severityIcon(s) {
   return s === 'critical' ? 'error' : s === 'warning' ? 'warning' : 'info';

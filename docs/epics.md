@@ -33,7 +33,7 @@ Each epic includes:
 
 - **Epic 1:** 11 stories (Project Foundation & Core Infrastructure)
 - **Epic 2:** 9 stories (Financial Management and Inventory Tracking)
-- **Epic 3:** 11 stories (Farm Management and Agricultural Tracking)
+- **Epic 3:** 10 stories (Farm Management and Agricultural Tracking)
 - **Epic 4:** 10 stories (School Management and Educational Accountability)
 - **Epic 5:** 10 stories (Village Calendar, Storage, and Optional Modules)
 
@@ -671,7 +671,7 @@ As a **Farm Manager**, I want configurable alerts for farm operations, so that I
 
 ---
 
-**Epic 3 Summary:** 11 stories, 22-33 hours estimated effort. Deliverables: Complete farm management system with plots, crops, plantings, harvests, sales, automatic integration with Inventory and Finance modules, profitability analysis including labor costs, yield analysis and trend reporting, configurable alerts, comprehensive farm dashboard.
+**Epic 3 Summary:** 10 stories, 22-33 hours estimated effort. Deliverables: Complete farm management system with plots, crops, plantings, harvests, sales, automatic integration with Inventory and Finance modules, profitability analysis including labor costs, yield analysis and trend reporting, configurable alerts, comprehensive farm dashboard.
 
 ---
 
