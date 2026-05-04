@@ -33,6 +33,7 @@ const TABLES_TO_WIPE = [
   'village_settings',
   'residents',
   'households',
+  'harvest_entries',
 ];
 
 const MAX_PASSES = 5; // Safety cap on retry loop
