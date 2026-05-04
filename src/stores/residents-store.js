@@ -6,6 +6,18 @@ import { useHouseholdsStore } from './households-store';
 
 const errorHandler = useErrorHandler();
 
+const villageSettings = async () => {
+  try {
+    return await tables.listRows({
+      databaseId: import.meta.env.VITE_APPWRITE_DATABASE_ID,
+      tableId: import.meta.env.VITE_APPWRITE_TABLE_VILLAGE_SETTINGS,
+    });
+  } catch {
+    // console.error('Error fetching village settings:', error);
+    return { total: 0 };
+  }
+};
+
 /**
  * Build full name from resident object parts
  * @param {Object} resident - Resident with first_name, middle_names, last_name
@@ -277,7 +289,11 @@ export const useResidentsStore = defineStore('residents', {
         // Refresh the current page to include new resident
         await this.fetchResidents(this.pagination.currentPage, this.pagination.itemsPerPage);
 
-        errorHandler.notifySuccess('Resident created successfully');
+        // check if village_settings table exists and has data
+        // to avoid notification pop-ups during sample data load
+        if ((await villageSettings()).total > 0) {
+          errorHandler.notifySuccess('Resident created successfully');
+        }
         return { success: true, data: newResident };
       } catch (error) {
         console.error('Error creating resident:', error);
@@ -342,7 +358,11 @@ export const useResidentsStore = defineStore('residents', {
           this.currentResident = { ...this.currentResident, ...updatedResident };
         }
 
-        errorHandler.notifySuccess('Resident updated successfully');
+        // check if village_settings table exists and has data
+        // to avoid notification pop-ups during sample data load
+        if (villageSettings.total > 0) {
+          errorHandler.notifySuccess('Resident updated successfully');
+        }
         return { success: true, data: updatedResident };
       } catch (error) {
         console.error('Error updating resident:', error);

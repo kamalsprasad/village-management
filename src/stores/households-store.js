@@ -5,6 +5,18 @@ import { ID, Query } from 'appwrite';
 
 const errorHandler = useErrorHandler();
 
+const villageSettings = async () => {
+  try {
+    return await tables.listRows({
+      databaseId: import.meta.env.VITE_APPWRITE_DATABASE_ID,
+      tableId: import.meta.env.VITE_APPWRITE_TABLE_VILLAGE_SETTINGS,
+    });
+  } catch (error) {
+    console.error('Error fetching village settings:', error);
+    return { total: 0 };
+  }
+};
+
 export const useHouseholdsStore = defineStore('households', {
   state: () => ({
     households: [],
@@ -199,7 +211,11 @@ export const useHouseholdsStore = defineStore('households', {
         // Refresh the current page to include new household
         await this.fetchHouseholds(this.pagination.currentPage, this.pagination.itemsPerPage);
 
-        errorHandler.notifySuccess('Household created successfully');
+        // check if village_settings table exists and has data
+        // to avoid notification pop-ups during sample data load
+        if ((await villageSettings()).total > 0) {
+          errorHandler.notifySuccess('Household created successfully');
+        }
         return { success: true, data: newHousehold };
       } catch (error) {
         console.error('Error creating household:', error);
@@ -245,7 +261,10 @@ export const useHouseholdsStore = defineStore('households', {
           this.currentHousehold = { ...this.currentHousehold, ...updatedHousehold };
         }
 
-        errorHandler.notifySuccess('Household updated successfully');
+        // only run next line if database isn't empty
+        if ((await villageSettings()).total > 0) {
+          errorHandler.notifySuccess('Household updated successfully');
+        }
         return { success: true, data: updatedHousehold };
       } catch (error) {
         console.error('Error updating household:', error);
