@@ -294,7 +294,97 @@ VITE_APPWRITE_PROJECT_ID=your-project-id-here
 
 **Note:** Environment variables must be prefixed with `VITE_` for Vite to expose them to the client.
 
-### 5. Start the development server
+### 5. Create Appwrite API Key
+
+You need an API key for database setup and function deployment.
+
+1. In the Appwrite Console, navigate to **Settings** → **API Keys**
+2. Click **"Create API Key"**
+3. Name it `Database Setup & Functions`
+4. Select scopes:
+   - ✅ **Database** (all permissions)
+   - ✅ **Users** (read permission for functions)
+5. Click **"Create"** and copy the API key immediately
+6. Add it to your `.env` file:
+
+```env
+VITE_APPWRITE_API_KEY=your-api-key-here
+```
+
+### 6. Set up the Database
+
+The application requires database tables, columns, indexes, and permissions. You can set this up automatically.
+
+**Automated Setup (Recommended):**
+
+```bash
+npm run setup:appwrite
+```
+
+This script will:
+
+- ✅ Create all tables (users, residents, households, roles, inventory, etc.)
+- ✅ Create all columns with correct types and constraints
+- ✅ Create indexes for optimal query performance
+- ✅ Configure permissions for authenticated users
+
+**Manual Setup:**
+
+If you prefer manual setup or encounter issues, see `appwrite_setup/README.md` for detailed step-by-step instructions.
+
+### 7. Deploy Appwrite Functions (Required)
+
+The application requires two server-side functions to be deployed in Appwrite.
+
+#### Using Appwrite CLI (Recommended)
+
+The easiest way to deploy functions is using the Appwrite CLI. The repository already includes `server/appwrite.config.json`, so you can skip initialization.
+
+1. **Login to Appwrite:**
+
+```bash
+appwrite login
+```
+
+Follow the prompts to authenticate with your Appwrite account.
+
+2. **Deploy the functions:**
+
+```bash
+# Deploy Appwrite Cloud functions
+cd server/
+appwrite push functions
+```
+
+You should see a prompt asking which functions to deploy. Select both functions.
+Select "y" when prompted if you want to deploy both functions.
+
+4. **Set Function Environment Variables:**
+
+After deployment, set environment variables for each function in the Appwrite Console:
+
+- Navigate to **Functions** → Select function → **Settings** tab
+- Add the following environment variables:
+  - `APPWRITE_ENDPOINT` (use `http://host.docker.internal/v1` for self-hosted, or your cloud endpoint)
+  - `APPWRITE_PROJECT_ID` (your project ID)
+  - `APPWRITE_API_KEY` (the API key from Step 5)
+
+5. **Update .env with Function IDs:**
+
+After deployment, copy the Function IDs from the Appwrite Console and add to your `.env`:
+
+```env
+VITE_APPWRITE_FUNCTION_CHECK_USERS=checkUsersExist
+VITE_APPWRITE_FUNCTION_WIPE_DATA=wipeAllData
+```
+
+#### Manual Deployment (Alternative)
+
+If you prefer manual deployment via the Appwrite Console, see `appwrite_setup/QUICK_START.md` for detailed step-by-step instructions.
+
+> **Note:** Function environment variables must be configured in the Appwrite Console under each function's Settings tab — not in your local `.env` file. Functions run in isolated containers.
+
+### 8. Start the development server
 
 ```bash
 quasar dev -m ssr
