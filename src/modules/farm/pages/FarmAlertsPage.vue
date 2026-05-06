@@ -236,6 +236,17 @@ const unreadCount = computed(
   () => filteredAlerts.value.filter((a) => !readIds.value.has(alertKey(a))).length,
 );
 
+function alertTypeLabel(t) {
+  const map = {
+    upcoming_harvest: 'Upcoming Harvest',
+    overdue_harvest: 'Overdue Harvest',
+    low_inventory: 'Low Inventory',
+    underperforming_yield: 'Underperforming Yield',
+    crop_failure: 'Crop Failure',
+  };
+  return map[t] || t;
+}
+
 const alertColumns = [
   { name: 'severity', label: 'Severity', field: 'severity', align: 'center', sortable: true },
   {
@@ -269,17 +280,6 @@ function severityIcon(s) {
 
 function severityColor(s) {
   return s === 'critical' ? 'negative' : s === 'warning' ? 'orange' : 'info';
-}
-
-function alertTypeLabel(t) {
-  const map = {
-    upcoming_harvest: 'Upcoming Harvest',
-    overdue_harvest: 'Overdue Harvest',
-    low_inventory: 'Low Inventory',
-    underperforming_yield: 'Underperforming Yield',
-    crop_failure: 'Crop Failure',
-  };
-  return map[t] || t;
 }
 
 function formatRelativeTime(iso) {
