@@ -7,7 +7,7 @@ import { ID, Query } from 'appwrite';
 import { useInventoryStore } from 'src/stores/inventory-store';
 import { useFinanceStore } from 'src/modules/finance/stores/finance-store';
 import { differenceInCalendarDays, parseISO } from 'date-fns';
-import { getSeason } from '../utils/farm-utils';
+import { getSeason, OVERDUE_GRACE_DAYS } from '../utils/farm-utils';
 
 // Story 3.10: Default alert configuration — used if no saved config found
 const DEFAULT_ALERT_CONFIG = {
@@ -286,7 +286,6 @@ export const useFarmStore = defineStore('farm', {
           // - Overdue: more than 7 days past frequency, no in-progress harvest
           // - Plantings with an active in-progress harvest are NEITHER ready nor overdue
           const harvestFrequency = crop?.harvest_frequency_days || null;
-          const OVERDUE_GRACE_DAYS = 7;
           const daysOverdue =
             harvestFrequency && daysSinceLastHarvest !== null
               ? daysSinceLastHarvest - harvestFrequency

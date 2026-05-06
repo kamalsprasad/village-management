@@ -660,6 +660,7 @@ import { useFarmStore } from '../stores/farm-store';
 import { useInventoryStore } from 'src/stores/inventory-store';
 import { usePermissions } from 'src/composables/usePermissions';
 import { parseISO, differenceInDays } from 'date-fns';
+import { OVERDUE_GRACE_DAYS } from '../utils/farm-utils';
 import { formatDate } from 'src/utils/dateUtils';
 import UpdateStatusDialog from '../components/UpdateStatusDialog.vue';
 import HarvestStatusBadge from '../components/HarvestStatusBadge.vue';
@@ -938,8 +939,7 @@ const cumulativeLaborCost = computed(() => {
 });
 
 // Frequency alert for perennials.
-// Story 3.6: Aligned with farm-store OVERDUE_GRACE_DAYS = 7
-const OVERDUE_GRACE_DAYS = 7;
+// Uses OVERDUE_GRACE_DAYS imported from farm-utils
 const frequencyAlert = computed(() => {
   if (!isPerennial.value || !crop.value?.harvest_frequency_days) return null;
 

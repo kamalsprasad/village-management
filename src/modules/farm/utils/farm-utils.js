@@ -5,6 +5,10 @@
  * Story 3.7: Harvest-to-Inventory naming helpers
  */
 
+// Story 3.6/3.10: Grace period for perennial harvest frequency calculations
+// Number of days past the recommended harvest frequency before marking as overdue
+export const OVERDUE_GRACE_DAYS = 7;
+
 /**
  * Derive the produce name for a farm_produce inventory item.
  *
