@@ -4,6 +4,59 @@ An open-source web platform designed to transform rural African villages from me
 
 Built for the Katete District model village in Zambia's Eastern Province, this system provides integrated management infrastructure for agricultural performance, educational outcomes, financial sustainability, and community development progress.
 
+## Requirements
+
+Before installing and running the Village Management System, ensure you have the following tools installed on your computer:
+
+### Essential Tools
+
+- **Docker Desktop** - Required for self-hosting Appwrite backend (if not using Appwrite Cloud)
+  - Download from [docker.com](https://www.docker.com/products/docker-desktop/)
+  - Verify with: `docker --version`
+
+- **Node.js** (v20 LTS or later) - JavaScript runtime for the application
+  - Download from [nodejs.org](https://nodejs.org/)
+  - Verify with: `node --version`
+
+- **Git** - Version control for cloning the repository
+  - Download from [git-scm.com](https://git-scm.com/downloads)
+  - Verify with: `git --version`
+
+### Package Managers
+
+Choose one of the following (Yarn recommended):
+
+- **Yarn** (v1.21.1 or later) - Fast, reliable package manager
+  - Install with: `npm install -g yarn`
+  - Verify with: `yarn --version`
+
+- **npm** (v6.13.4 or later) - Comes bundled with Node.js
+  - Verify with: `npm --version`
+
+### Command Line Tools
+
+- **Terminal** (Windows: PowerShell or Command Prompt; macOS/Linux: Terminal)
+- Basic familiarity with command line operations (navigating directories, running commands)
+
+### Development CLI Tools
+
+- **Quasar CLI** - Required for building and running the Quasar application
+  - Install with: `npm install -g @quasar/cli`
+  - Verify with: `quasar --version`
+
+- **Appwrite CLI** (Optional) - For managing Appwrite projects from the command line
+  - Install with: `npm install -g appwrite-cli`
+  - Verify with: `appwrite --version`
+  - Useful for: deploying functions, managing databases, and automating Appwrite tasks
+
+### Appwrite Account
+
+- **Appwrite Cloud account** (free tier available) at [cloud.appwrite.io](https://cloud.appwrite.io)
+  - OR
+- **Self-hosted Appwrite** via Docker (installation instructions below)
+
+> **Note:** All tools listed above are free and open-source. Installation instructions for Docker and Appwrite are provided in the Installation section below.
+
 ## Features
 
 - **Core Modules:** Residents, Households, Finance, Inventory, Calendar, Storage
@@ -41,26 +94,25 @@ This roadmap tracks the implementation status of all MVP features organized by e
 - ✅ 2.3 - Finance Module: Admin-Configurable Categories
 - ✅ 2.4 - Finance Module: Funding Source Tracking for Donor Accountability
 - ✅ 2.5 - Village Lending: Loan Management
-- ☐ 2.6 - Inventory Module: Core Inventory Management
-- ☐ 2.7 - Inventory Module: Automatic Inventory from Finance Purchases
-- ☐ 2.8 - Financial Reports: Basic Reports Suite
-- ☐ 2.9 - Finance Dashboard: Comprehensive Financial Overview
+- ✅ 2.6 - Inventory Module: Core Inventory Management
+- ✅ 2.7 - Inventory Module: Automatic Inventory from Finance Purchases
+- ✅ 2.8 - Financial Reports: Basic Reports Suite
+- ✅ 2.9 - Finance Dashboard: Comprehensive Financial Overview
 
 ### Epic 3: Farm Management and Agricultural Tracking
 
 **Goal:** Enable systematic farm management from seed purchase through harvest to sale, with profitability analysis.
 
-- ☐ 3.1 - Farm Module: Plot Management
-- ☐ 3.2 - Farm Module: Crops Database and Management
-- ☐ 3.3 - Farm Module: Planting Records with Seed Inventory and Labor Tracking
-- ☐ 3.4 - Farm Module: Planting Status Tracking and Lifecycle Management
-- ☐ 3.5 - Farm Module: Harvest Recording (Single Day and Multi-Day Aggregate)
-- ☐ 3.6 - Farm Module: Continuous Picking Harvests for Perennial Crops
-- ☐ 3.7 - Farm Module: Automatic Inventory Creation on Harvest Completion
-- ☐ 3.8 - Farm Module: Sales Recording with Finance and Inventory Integration
-- ☐ 3.9 - Farm Module: Profitability Analysis and ROI Calculation
-- ☐ 3.10 - Farm Module: Yield Analysis and Trend Reporting
-- ☐ 3.11 - Farm Module: Agronomic Insights and Recommendations
+- ✅ 3.1 - Farm Module: Plot Management
+- ✅ 3.2 - Farm Module: Crops Database and Management
+- ✅ 3.3 - Farm Module: Planting Records with Seed Inventory and Labor Tracking
+- ✅ 3.4 - Farm Module: Planting Status Tracking and Lifecycle Management
+- ✅ 3.5 - Farm Module: Harvest Recording (Single Day and Multi-Day Aggregate)
+- ✅ 3.6 - Farm Module: Continuous Picking Harvests for Perennial Crops
+- ✅ 3.7 - Farm Module: Automatic Inventory Creation on Harvest Completion
+- ✅ 3.8 - Farm Module: Sales Recording with Finance and Inventory Integration
+- ✅ 3.9 - Farm Module: Profitability Analysis and ROI Calculation
+- ✅ 3.10 - Farm Module: Yield Analysis, Trend Reporting, and Agronomic Alerts (combined with 3.11)
 
 ### Epic 4: School Management and Educational Accountability
 
@@ -92,7 +144,7 @@ This roadmap tracks the implementation status of all MVP features organized by e
 - ☐ 5.9 - Optional Module: Village Marketplace
 - ☐ 5.10 - Optional Module: External Integrations and Open APIs
 
-**Progress Summary:** 14 of 51 MVP features completed (27%)
+**Progress Summary:** 35 of 50 MVP features completed (70%)
 
 ## Tech Stack
 
@@ -105,20 +157,113 @@ This roadmap tracks the implementation status of all MVP features organized by e
 
 ## Prerequisites
 
+- [Docker Desktop](https://www.docker.com/products/docker-desktop/) (for self-hosted Appwrite)
 - Node.js >= 20 LTS
 - Yarn >= 1.21.1 or npm >= 6.13.4
 - Appwrite account (cloud or self-hosted)
 
 ## Installation
 
-### 1. Clone the repository
+### 1. Install Docker and Appwrite (Self-Hosted)
+
+This project uses [Appwrite](https://appwrite.io) as its backend. You can use Appwrite Cloud or run it locally with Docker. The steps below cover self-hosting.
+
+#### Install Docker
+
+Docker is required to run Appwrite locally.
+
+**Windows:**
+
+1. Download [Docker Desktop for Windows](https://www.docker.com/products/docker-desktop/).
+2. Run the installer and follow the prompts (keep defaults).
+3. Restart your computer if prompted.
+4. Open a terminal and verify Docker is running:
+
+```bash
+docker --version
+```
+
+You should see something like `Docker version 27.x.x`.
+
+**macOS:**
+
+1. Download [Docker Desktop for Mac](https://www.docker.com/products/docker-desktop/).
+2. Open the `.dmg` file and drag Docker to your Applications folder.
+3. Launch Docker from Applications and wait for it to start (whale icon in menu bar).
+4. Verify in terminal:
+
+```bash
+docker --version
+```
+
+**Linux (Ubuntu/Debian):**
+
+```bash
+# Update package index
+sudo apt-get update
+
+# Install Docker
+sudo apt-get install -y docker.io docker-compose-plugin
+
+# Start Docker and enable on boot
+sudo systemctl start docker
+sudo systemctl enable docker
+
+# Add your user to the docker group (avoids needing sudo)
+sudo usermod -aG docker $USER
+
+# Log out and back in, then verify
+docker --version
+```
+
+#### Install Appwrite
+
+Once Docker is running, install Appwrite with a single command:
+
+**Windows (PowerShell):**
+
+```powershell
+docker run -it --rm `
+    --volume /var/run/docker.sock:/var/run/docker.sock `
+    --volume "${pwd}/appwrite:/usr/src/code/appwrite:rw" `
+    --entrypoint="install" `
+    appwrite/appwrite:1.8.1
+```
+
+**macOS / Linux:**
+
+```bash
+docker run -it --rm \
+    --volume /var/run/docker.sock:/var/run/docker.sock \
+    --volume "$(pwd)"/appwrite:/usr/src/code/appwrite:rw \
+    --entrypoint="install" \
+    appwrite/appwrite:1.8.1
+```
+
+During installation you'll be asked a few questions:
+
+- **HTTP port:** Press Enter to accept the default (`80`), or choose another port (e.g., `8080`).
+- **HTTPS port:** Press Enter to accept the default (`443`), or choose another port.
+- **Hostname:** Enter `localhost` for local development.
+
+Once installation finishes, Appwrite will be running. Open your browser and go to:
+
+```
+http://localhost    (or http://localhost:8080 if you chose port 8080)
+```
+
+Create your first admin account, then create a new **Project** — you'll need the Project ID for the next steps.
+
+> **Tip:** To stop Appwrite later, navigate to the `appwrite` folder that was created and run `docker compose down`. To start it again, run `docker compose up -d` from that same folder.
+
+### 2. Clone the repository
 
 ```bash
 git clone https://github.com/kamalsprasad/village-management.git
 cd village-management
 ```
 
-### 2. Install dependencies
+### 3. Install dependencies
 
 ```bash
 yarn
@@ -126,9 +271,9 @@ yarn
 npm install
 ```
 
-### 3. Configure Appwrite
+### 4. Configure Appwrite
 
-1. Create an Appwrite project at [cloud.appwrite.io](https://cloud.appwrite.io) or your self-hosted instance
+1. If you haven't already, create an Appwrite project (either at [cloud.appwrite.io](https://cloud.appwrite.io) or your local self-hosted instance from Step 1).
 2. Copy the `.env.example` file to `.env`:
 
 ```bash
@@ -138,47 +283,24 @@ cp .env.example .env
 3. Update `.env` with your Appwrite credentials:
 
 ```env
+# For Appwrite Cloud:
 VITE_APPWRITE_ENDPOINT=https://cloud.appwrite.io/v1
+
+# For local self-hosted Appwrite (default port):
+# VITE_APPWRITE_ENDPOINT=http://localhost/v1
+
 VITE_APPWRITE_PROJECT_ID=your-project-id-here
 ```
 
 **Note:** Environment variables must be prefixed with `VITE_` for Vite to expose them to the client.
 
-### 4. Start the development server
+### 5. Start the development server
 
 ```bash
 quasar dev -m ssr
 ```
 
 The application will be available at `http://localhost:9100` (or the next available port).
-
-## Development
-
-### Lint the files
-
-```bash
-yarn lint
-# or
-npm run lint
-```
-
-### Format the files
-
-```bash
-yarn format
-# or
-npm run format
-```
-
-### Build the app for production
-
-```bash
-quasar build
-```
-
-### Customize the configuration
-
-See [Configuring quasar.config.js](https://v2.quasar.dev/quasar-cli-vite/quasar-config-js).
 
 ## Database Schema
 
