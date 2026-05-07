@@ -849,7 +849,7 @@ export function useFarmSampleData() {
         labor_cost: 1200,
         other_cost: 200,
         notes: 'Drought-stressed planting. Poor germination due to dry spell.',
-        status: 'Completed',
+        status: 'completed',
       },
 
       // 11. Moringa with leaf harvests (West Plot) -- planted 8 months ago
@@ -902,7 +902,7 @@ export function useFarmSampleData() {
           total_quantity_kg: 4200,
           total_labor_cost: 1800,
           total_other_costs: 400,
-          status: 'Completed',
+          status: 'completed',
           notes: 'Grade A quality stored in Main Grain Shed.',
         },
         entries: [
@@ -1051,7 +1051,7 @@ export function useFarmSampleData() {
           total_quantity_kg: 3800,
           total_labor_cost: 900,
           total_other_costs: 200,
-          status: 'Completed',
+          status: 'completed',
           notes: 'Multi-day aggregate. Grade B stored in Root Crop Shed.',
         },
         entries: [
@@ -1126,7 +1126,7 @@ export function useFarmSampleData() {
           total_quantity_kg: 120,
           total_labor_cost: 150,
           total_other_costs: 30,
-          status: 'Completed',
+          status: 'completed',
           is_continuous_picking: true,
           harvest_sequence: 1,
           notes: 'First banana harvest cycle.',
@@ -1158,7 +1158,7 @@ export function useFarmSampleData() {
           total_quantity_kg: 180,
           total_labor_cost: 160,
           total_other_costs: 35,
-          status: 'Completed',
+          status: 'completed',
           is_continuous_picking: true,
           harvest_sequence: 2,
           notes: 'Second harvest cycle.',
@@ -1188,7 +1188,7 @@ export function useFarmSampleData() {
           total_quantity_kg: 200,
           total_labor_cost: 170,
           total_other_costs: 40,
-          status: 'Completed',
+          status: 'completed',
           is_continuous_picking: true,
           harvest_sequence: 3,
           notes: 'Third harvest - peak production.',
@@ -1364,7 +1364,7 @@ export function useFarmSampleData() {
           total_quantity_kg: 700,
           total_labor_cost: 500,
           total_other_costs: 100,
-          status: 'Completed',
+          status: 'completed',
           notes: 'Poor yield — drought stress. 700 kg vs typical 3500 kg/ha.',
         },
         entries: [
