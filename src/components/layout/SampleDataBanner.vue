@@ -7,72 +7,19 @@
           🏷️ SAMPLE DATA MODE - Exploring Katete Model Village
         </span>
       </div>
-      <q-btn
-        flat
-        dense
-        color="black"
-        label="Start Fresh - Wipe All Data"
-        icon="delete_forever"
-        class="wipe-btn"
-        @click="showWipeDialog = true"
-      />
+      <div>
+        Refer to
+        <a
+          href="https://github.com/kamalsprasad/village-management/blob/main/ROADMAP.md"
+          target="_blank"
+        >
+          ROADMAP</a
+        >
+        to see switch features are functional. Sample Data will be reset at midnight.
+      </div>
     </div>
-
-    <!-- Wipe Confirmation Dialog -->
-    <WipeDataDialog
-      v-model="showWipeDialog"
-      :loading="isWiping"
-      :current-phase="currentPhase"
-      @confirmed="handleWipeConfirmed"
-    />
   </div>
 </template>
-
-<script setup>
-import { ref } from 'vue';
-import { useRouter } from 'vue-router';
-import { useSettingsStore } from 'src/stores/settings-store';
-import WipeDataDialog from 'src/components/dialogs/WipeDataDialog.vue';
-
-const router = useRouter();
-const settingsStore = useSettingsStore();
-
-const showWipeDialog = ref(false);
-const isWiping = ref(false);
-const currentPhase = ref('');
-
-/**
- * Handle phase changes from the wipe operation
- * @param {string} phase - Current phase: 'starting' | 'waiting' | 'processing' | 'complete'
- */
-function handlePhaseChange(phase) {
-  currentPhase.value = phase;
-  console.log(`Wipe phase: ${phase}`);
-}
-
-async function handleWipeConfirmed() {
-  isWiping.value = true;
-  currentPhase.value = 'starting';
-
-  try {
-    const result = await settingsStore.wipeAllData(handlePhaseChange);
-
-    if (result.success) {
-      // Brief delay to show completion state before redirect
-      await new Promise((resolve) => setTimeout(resolve, 800));
-      showWipeDialog.value = false;
-      // Redirect to setup wizard after successful wipe
-      router.push('/setup');
-    } else {
-      // On error, close dialog (error notification handled by store)
-      showWipeDialog.value = false;
-    }
-  } finally {
-    isWiping.value = false;
-    currentPhase.value = '';
-  }
-}
-</script>
 
 <style lang="scss" scoped>
 .sample-data-banner {
