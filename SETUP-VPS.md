@@ -282,10 +282,6 @@ server {
     listen 443 ssl http2;
     server_name [YOUR_DOMAIN].com;
 
-    # SSL certificates (we'll get these with Certbot)
-    ssl_certificate /etc/letsencrypt/live/[YOUR_DOMAIN].com/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/[YOUR_DOMAIN].com/privkey.pem;
-
     # Security headers
     add_header X-Frame-Options "SAMEORIGIN" always;
     add_header X-Content-Type-Options "nosniff" always;
