@@ -431,7 +431,11 @@ sudo chmod +x /usr/local/bin/reset-village-demo.sh
 
 ### 6.2 Create Snapshot-Based Reset (Recommended)
 
-A more reliable approach: snapshot the Appwrite volume after initial demo load.
+A more reliable approach: create a complete backup of Appwrite including database, volumes, and configuration after initial demo load.
+
+**Important:** The default Appwrite Docker setup uses named volumes (stored in `/var/lib/docker/volumes/`), not in the `~/appwrite` directory. Simply copying `~/appwrite` will NOT capture your database data.
+
+#### Create Snapshot Script
 
 ```bash
 # After loading demo data, create a snapshot
@@ -442,25 +446,66 @@ Add:
 
 ```bash
 #!/bin/bash
-# Create snapshot of demo-data state
+# Create complete snapshot of Appwrite demo-data state
+# Backs up: database, Docker volumes, configuration files
 
-DEMO_SNAPSHOT="~/appwrite-demo-snapshot"
+set -e
 
-echo "Stopping Appwrite..."
-cd ~/appwrite && docker compose down
+# Get the home directory of the user who invoked sudo (or current user if no sudo)
+if [ -n "$SUDO_USER" ]; then
+    REAL_HOME=$(getent passwd $SUDO_USER | cut -d: -f6)
+    REAL_USER=$SUDO_USER
+else
+    REAL_HOME=$HOME
+    REAL_USER=$USER
+fi
 
-echo "Creating snapshot..."
-sudo rm -rf $DEMO_SNAPSHOT
-sudo cp -r ~/appwrite $DEMO_SNAPSHOT
-sudo chown -R $USER:$USER $DEMO_SNAPSHOT
+BACKUP_DIR="$REAL_HOME/appwrite-backups"
+TIMESTAMP=$(date +%Y%m%d-%H%M%S)
+SNAPSHOT_DIR="$BACKUP_DIR/demo-snapshot-$TIMESTAMP"
 
-echo "Restarting Appwrite..."
-cd ~/appwrite && docker compose up -d
+echo "Creating backup directory..."
+mkdir -p $SNAPSHOT_DIR
 
-echo "Snapshot created at $DEMO_SNAPSHOT"
+echo "Exporting Appwrite database..."
+cd $REAL_HOME/appwrite
+docker exec appwrite mariadb-dump -u root -p$(grep _APP_DB_PASSWORD .env | cut -d '=' -f2) appwrite > $SNAPSHOT_DIR/database.sql 2>/dev/null || {
+    echo "Warning: Database export failed. Continuing with volume backup..."
+}
+
+echo "Backing up Docker volumes..."
+# Backup MariaDB volume (appwrite_appwrite-mariadb contains the actual data)
+docker run --rm -v appwrite_appwrite-mariadb:/data -v $SNAPSHOT_DIR:/backup alpine tar czf /backup/mariadb-data.tar.gz -C /data .
+
+# Backup Redis volume
+docker run --rm -v appwrite-redis-data:/data -v $SNAPSHOT_DIR:/backup alpine tar czf /backup/redis-data.tar.gz -C /data .
+
+# Backup Appwrite storage volume
+docker run --rm -v appwrite-storage-data:/data -v $SNAPSHOT_DIR:/backup alpine tar czf /backup/storage-data.tar.gz -C /data .
+
+# Backup Appwrite uploads volume
+docker run --rm -v appwrite_appwrite-uploads:/data -v $SNAPSHOT_DIR:/backup alpine tar czf /backup/uploads-data.tar.gz -C /data .
+
+echo "Backing up configuration files..."
+cp .env docker-compose.yml $SNAPSHOT_DIR/
+
+echo "Creating symlink to latest snapshot..."
+rm -f $REAL_HOME/appwrite-demo-snapshot
+ln -s $SNAPSHOT_DIR $REAL_HOME/appwrite-demo-snapshot
+
+echo "Snapshot created at $SNAPSHOT_DIR"
+echo "Latest symlink: $REAL_HOME/appwrite-demo-snapshot"
+echo ""
+echo "Backup includes:"
+echo "  - Database SQL export"
+echo "  - MariaDB volume"
+echo "  - Redis volume"
+echo "  - Storage volume"
+echo "  - Uploads volume"
+echo "  - Configuration files"
 ```
 
-Create restore script:
+#### Create Restore Script
 
 ```bash
 sudo nano /usr/local/bin/restore-demo.sh
@@ -470,23 +515,58 @@ Add:
 
 ```bash
 #!/bin/bash
-# Restore to demo-data snapshot
+# Restore Appwrite from demo-data snapshot
 
-DEMO_SNAPSHOT="~/appwrite-demo-snapshot"
+set -e
+
+# Get the home directory of the user who invoked sudo (or current user if no sudo)
+if [ -n "$SUDO_USER" ]; then
+    REAL_HOME=$(getent passwd $SUDO_USER | cut -d: -f6)
+    REAL_USER=$SUDO_USER
+else
+    REAL_HOME=$HOME
+    REAL_USER=$USER
+fi
+
+SNAPSHOT_DIR="$REAL_HOME/appwrite-demo-snapshot"
+
+if [ ! -d "$SNAPSHOT_DIR" ]; then
+    echo "Error: Snapshot directory not found at $SNAPSHOT_DIR"
+    echo "Run snapshot-demo.sh first to create a snapshot"
+    exit 1
+fi
 
 echo "Stopping services..."
-pm2 stop village-app
-cd ~/appwrite && docker compose down
+pm2 stop village-app || true
+cd $REAL_HOME/appwrite && docker compose down
 
-echo "Restoring from snapshot..."
-sudo rm -rf ~/appwrite
-sudo cp -r $DEMO_SNAPSHOT ~/appwrite
-sudo chown -R $USER:$USER ~/appwrite
+echo "Restoring configuration files..."
+sudo cp $SNAPSHOT_DIR/.env $REAL_HOME/appwrite/
+sudo cp $SNAPSHOT_DIR/docker-compose.yml $REAL_HOME/appwrite/
+sudo chown $REAL_USER:$REAL_USER $REAL_HOME/appwrite/.env $REAL_HOME/appwrite/docker-compose.yml
 
-echo "Restarting services..."
-cd ~/appwrite && docker compose up -d
-sleep 10
-pm2 start village-app
+echo "Restoring Docker volumes..."
+# Restore MariaDB volume (appwrite_appwrite-mariadb contains the actual data)
+docker run --rm -v appwrite_appwrite-mariadb:/data -v $SNAPSHOT_DIR:/backup alpine sh -c "rm -rf /data/* && tar xzf /backup/mariadb-data.tar.gz -C /data"
+
+# Restore Redis volume
+docker run --rm -v appwrite-redis-data:/data -v $SNAPSHOT_DIR:/backup alpine sh -c "rm -rf /data/* && tar xzf /backup/redis-data.tar.gz -C /data"
+
+# Restore Appwrite storage volume
+docker run --rm -v appwrite-storage-data:/data -v $SNAPSHOT_DIR:/backup alpine sh -c "rm -rf /data/* && tar xzf /backup/storage-data.tar.gz -C /data"
+
+# Restore Appwrite uploads volume (appwrite_appwrite-uploads)
+docker run --rm -v appwrite_appwrite-uploads:/data -v $SNAPSHOT_DIR:/backup alpine sh -c "rm -rf /data/* && tar xzf /backup/uploads-data.tar.gz -C /data"
+
+echo "Starting Appwrite..."
+cd $REAL_HOME/appwrite
+docker compose up -d
+
+echo "Waiting for Appwrite to be ready..."
+sleep 15
+
+echo "Restarting app..."
+pm2 start village-app || true
 
 echo "Restore complete. Demo data is ready at https://[YOUR_DOMAIN].com"
 ```
