@@ -109,13 +109,8 @@ export const useResidentsStore = defineStore('residents', {
     buildQueries(limit, offset) {
       const queries = [Query.limit(limit), Query.offset(offset), Query.orderDesc('$createdAt')];
 
-      // Add name search filter (searches first_name and last_name)
-      if (this.filters.searchName) {
-        const searchTerm = this.filters.searchName.trim();
-        // Note: Appwrite doesn't support OR queries directly, so we'll filter client-side after fetch
-        // For now, we'll search by first_name
-        queries.push(Query.search('first_name', searchTerm));
-      }
+      // Note: Name search is handled client-side in filterResidentsByName()
+      // because Appwrite doesn't support OR queries across multiple fields
 
       // Add household filter
       if (this.filters.householdId) {
@@ -123,6 +118,29 @@ export const useResidentsStore = defineStore('residents', {
       }
 
       return queries;
+    },
+
+    /**
+     * Filter residents by name (first, middle, or last)
+     * Client-side filtering since Appwrite doesn't support OR queries
+     * @param {Array} residents - Array of resident objects
+     * @param {string} searchTerm - Search term
+     * @returns {Array} Filtered residents
+     */
+    filterResidentsByName(residents, searchTerm) {
+      if (!searchTerm || !searchTerm.trim()) {
+        return residents;
+      }
+
+      const term = searchTerm.trim().toLowerCase();
+
+      return residents.filter((resident) => {
+        const firstName = (resident.first_name || '').toLowerCase();
+        const middleNames = (resident.middle_names || '').toLowerCase();
+        const lastName = (resident.last_name || '').toLowerCase();
+
+        return firstName.includes(term) || middleNames.includes(term) || lastName.includes(term);
+      });
     },
 
     /**
@@ -149,10 +167,17 @@ export const useResidentsStore = defineStore('residents', {
           queries,
         });
 
-        this.residents = response.rows;
+        // Apply client-side name filtering if search is active
+        let filteredRows = response.rows;
+        if (this.filters.searchName && this.filters.searchName.trim()) {
+          filteredRows = this.filterResidentsByName(response.rows, this.filters.searchName);
+        }
+
+        this.residents = filteredRows;
         this.pagination.currentPage = page;
         this.pagination.itemsPerPage = limit;
-        this.pagination.total = response.total;
+        // Note: total reflects filtered count for client-side filtering
+        this.pagination.total = this.filters.searchName ? filteredRows.length : response.total;
 
         // Enrich with household names
         await this.enrichResidentsWithHouseholdNames();

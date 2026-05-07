@@ -124,10 +124,16 @@ const tableSchemas = {
     ],
     indexes: [
       {
-        key: 'idx_residents_household_id',
-        type: 'key',
-        columns: ['first_name', 'last_name'],
-        orders: ['ASC', 'ASC'],
+        key: 'idx_residents_first_name_fulltext',
+        type: 'fulltext',
+        columns: ['first_name'],
+        orders: [],
+      },
+      {
+        key: 'idx_residents_last_name_fulltext',
+        type: 'fulltext',
+        columns: ['last_name'],
+        orders: [],
       },
     ],
   },
