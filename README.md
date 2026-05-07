@@ -1,6 +1,27 @@
-# Sustainable Model Village Management System
+# Village Management System
 
-An open-source web platform to transform rural African villages from memory-based operations into data-driven, systematically managed communities. Built for the Katete District model village in Zambia.
+An open-source web platform to transform independent communities from memory-based operations into data-driven, systematically managed operations.
+
+## Background
+
+While serving as a Peace Corps Volunteer in rural Zambia, I observed that many rural villages lack proper record keeping systems, mostly for their agricultural operations. This leads to great uncertainties in ROI (return on investment) calculations, since farmers don't see the cost of inputs (seed costs, fertilizer, any hired labor, etc.) compared to their yields and the revenue generated from their harvests.
+
+Having a background in software development, I wanted to create a solution that would help such communities transition from memory-based operations to data-driven, systematically managed communities. I expanded the idea of village management to include not just agricultural operations, but also community services, education, healthcare, and other aspects of village life.
+
+The Village Management System provides a digital solution to modernize these processes while remaining accessible offline and on low-bandwidth connections.
+
+To keep it affordable and accessible, the system is designed to run on low-cost hardware, using open-source technologies and work offline with automatic sync when connectivity returns.
+
+## Live Demo
+
+**[https://village.kamalprasad.com](https://village.kamalprasad.com)**
+
+| Field    | Value               |
+| -------- | ------------------- |
+| Email    | `brian@village.app` |
+| Password | `Village_app2026`   |
+
+> The demo runs on sample data for the Katete Model Village. Data will be reset periodically.
 
 ## Requirements
 
@@ -185,3 +206,18 @@ See [ROADMAP.md](ROADMAP.md) for full epic-by-epic breakdown.
 The setup wizard offers **"Explore with Sample Data"** to load the Katete Model Village dataset (6 households, 20+ residents, 3 council members).
 
 **Wipe sample data:** Click "Start Fresh" in the banner, type `DELETE EVERYTHING`, confirm. (Admin only.)
+
+## Contributing
+
+Code contributions, questions, and bug reports are welcome! Please follow the project's coding standards and submit pull requests through GitHub.
+
+## If you'd like to financially support this project. :)
+
+<a class="bmc-button" target="_blank" href="https://www.buymeacoffee.com/ksp"><img src="https://cdn.buymeacoffee.com/buttons/bmc-new-btn-logo.svg" alt="Buy me a Book"><span style="margin-left:5px;font-size:28px !important;">Buy me a coffee.</span></a>
+
+## AI Usage
+
+This project is being built with the help of AI assistants. The following AI tools were used:
+
+- **[WindSurf](https://www.windsurf.com/)** - AI-powered code editor for development and debugging
+- **[BMAD Method](https://github.com/bmad-code-org/BMAD-METHOD)** - AI-powered coding methodology for development and debugging
