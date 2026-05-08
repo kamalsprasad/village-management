@@ -23,6 +23,39 @@ To keep it affordable and accessible, the system is designed to run on low-cost 
 
 > The demo runs on sample data for the Katete Model Village. Data will be reset periodically.
 
+## Screenshots
+
+<table>
+  <tr>
+    <td align="center">
+      <img src="screenshots/farm_dashboard.jpg" width="280" alt="Farm Dashboard"/><br/>
+      <sub><b>Farm Dashboard</b></sub>
+    </td>
+    <td align="center">
+      <img src="screenshots/farm_sales.jpg" width="280" alt="Farm Sales"/><br/>
+      <sub><b>Farm Sales</b></sub>
+    </td>
+    <td align="center">
+      <img src="screenshots/finance_transactions.jpg" width="280" alt="Finance Transactions"/><br/>
+      <sub><b>Finance Transactions</b></sub>
+    </td>
+  </tr>
+  <tr>
+    <td align="center">
+      <img src="screenshots/households.jpg" width="280" alt="Households"/><br/>
+      <sub><b>Households</b></sub>
+    </td>
+    <td align="center">
+      <img src="screenshots/inventory_manage.jpg" width="280" alt="Inventory Management"/><br/>
+      <sub><b>Inventory Management</b></sub>
+    </td>
+    <td align="center">
+      <img src="screenshots/residents.jpg" width="280" alt="Residents"/><br/>
+      <sub><b>Residents</b></sub>
+    </td>
+  </tr>
+</table>
+
 ## Requirements
 
 Install these required tools before proceeding:
