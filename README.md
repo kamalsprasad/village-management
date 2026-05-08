@@ -28,29 +28,29 @@ To keep it affordable and accessible, the system is designed to run on low-cost 
 <table>
   <tr>
     <td align="center">
-      <img src="screenshots/farm_dashboard.jpg" width="280" alt="Farm Dashboard"/><br/>
+      <a href="screenshots/farm_dashboard.jpg" target="_blank"><img src="screenshots/farm_dashboard.jpg" width="280" alt="Farm Dashboard"/></a><br/>
       <sub><b>Farm Dashboard</b></sub>
     </td>
     <td align="center">
-      <img src="screenshots/farm_sales.jpg" width="280" alt="Farm Sales"/><br/>
+      <a href="screenshots/farm_sales.jpg" target="_blank"><img src="screenshots/farm_sales.jpg" width="280" alt="Farm Sales"/></a><br/>
       <sub><b>Farm Sales</b></sub>
     </td>
     <td align="center">
-      <img src="screenshots/finance_transactions.jpg" width="280" alt="Finance Transactions"/><br/>
+      <a href="screenshots/finance_transactions.jpg" target="_blank"><img src="screenshots/finance_transactions.jpg" width="280" alt="Finance Transactions"/></a><br/>
       <sub><b>Finance Transactions</b></sub>
     </td>
   </tr>
   <tr>
     <td align="center">
-      <img src="screenshots/households.jpg" width="280" alt="Households"/><br/>
+      <a href="screenshots/households.jpg" target="_blank"><img src="screenshots/households.jpg" width="280" alt="Households"/></a><br/>
       <sub><b>Households</b></sub>
     </td>
     <td align="center">
-      <img src="screenshots/inventory_manage.jpg" width="280" alt="Inventory Management"/><br/>
+      <a href="screenshots/inventory_manage.jpg" target="_blank"><img src="screenshots/inventory_manage.jpg" width="280" alt="Inventory Management"/></a><br/>
       <sub><b>Inventory Management</b></sub>
     </td>
     <td align="center">
-      <img src="screenshots/residents.jpg" width="280" alt="Residents"/><br/>
+      <a href="screenshots/residents.jpg" target="_blank"><img src="screenshots/residents.jpg" width="280" alt="Residents"/></a><br/>
       <sub><b>Residents</b></sub>
     </td>
   </tr>
