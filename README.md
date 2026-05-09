@@ -8,10 +8,6 @@ While serving as a Peace Corps Volunteer in rural Zambia, I observed that many r
 
 Having a background in software development, I wanted to create a solution that would help such communities transition from memory-based operations to data-driven, systematically managed communities. I expanded the idea of village management to include not just agricultural operations, but also community services, education, healthcare, and other aspects of village life.
 
-The Village Management System provides a digital solution to modernize these processes while remaining accessible offline and on low-bandwidth connections.
-
-To keep it affordable and accessible, the system is designed to run on low-cost hardware, using open-source technologies and work offline with automatic sync when connectivity returns.
-
 ## Live Demo
 
 **[https://village.ideacollab.app](https://village.ideacollab.app)**
