@@ -14,7 +14,7 @@ To keep it affordable and accessible, the system is designed to run on low-cost 
 
 ## Live Demo
 
-**[https://village.kamalprasad.com](https://village.kamalprasad.com)**
+**[https://village.ideacollab.app](https://village.ideacollab.app)**
 
 | Field    | Value               |
 | -------- | ------------------- |
