@@ -61,7 +61,7 @@ Install these required tools before proceeding:
 - **Git** - Version control ([git-scm.com](https://git-scm.com/downloads))
 - **Yarn** (recommended) or npm - `npm install -g yarn`
 - **Quasar CLI** - `npm install -g @quasar/cli`
-- **Appwrite CLI** (optional) - `npm install -g appwrite-cli`
+- **Appwrite CLI** - `npm install -g appwrite-cli`
 
 **Appwrite Account:** [cloud.appwrite.io](https://cloud.appwrite.io) (free tier) or self-hosted via Docker (instructions below).
 
@@ -85,10 +85,10 @@ This project uses [Appwrite](https://appwrite.io) as its backend.
 
 ```bash
 # Windows (PowerShell)
-docker run -it --rm `\`
-    --volume /var/run/docker.sock:/var/run/docker.sock `\`
-    --volume "${pwd}/appwrite:/usr/src/code/appwrite:rw" `\`
-    --entrypoint="install" `\`
+docker run -it --rm `
+    --volume /var/run/docker.sock:/var/run/docker.sock `
+    --volume "${pwd}/appwrite:/usr/src/code/appwrite:rw" `
+    --entrypoint="install" `
     appwrite/appwrite:1.8.1
 
 # macOS/Linux
