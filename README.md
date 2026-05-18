@@ -93,9 +93,9 @@ docker run -it --rm `
 
 # macOS/Linux
 docker run -it --rm \\
-    --volume /var/run/docker.sock:/var/run/docker.sock \\
-    --volume "$(pwd)"/appwrite:/usr/src/code/appwrite:rw \\
-    --entrypoint="install" \\
+    --volume /var/run/docker.sock:/var/run/docker.sock \
+    --volume "$(pwd)"/appwrite:/usr/src/code/appwrite:rw \
+    --entrypoint="install" \
     appwrite/appwrite:1.8.1
 ```
 
@@ -234,7 +234,7 @@ See [ROADMAP.md](ROADMAP.md) for full epic-by-epic breakdown.
 
 The setup wizard offers **"Explore with Sample Data"** to load the Katete Model Village dataset (6 households, 20+ residents, 3 council members).
 
-**Wipe sample data:** Click "Start Fresh" in the banner, type `DELETE EVERYTHING`, confirm. (Admin only.)
+**Wipe sample data:** Click "Start Fresh" in the banner, type `DELETE EVERYTHING`, confirm. (Admin only.) You'll need to manually create "Village Administrator" team with team id "village_administrators" in Appwrite Auth console and add the admin user (created at setup) to this team.
 
 ## Contributing
 
