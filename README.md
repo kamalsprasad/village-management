@@ -75,6 +75,12 @@ Install these required tools before proceeding:
 
 ## Installation
 
+### Video Walkthrough
+
+A step-by-step video guide covering the complete setup process:
+
+[![Setup Walkthrough](https://img.youtube.com/vi/chT54P2n3b8/0.jpg)](https://youtu.be/chT54P2n3b8?si=jVTQt02akGSYxHOY)
+
 ### 1. Set Up Appwrite
 
 This project uses [Appwrite](https://appwrite.io) as its backend.
