@@ -129,36 +129,34 @@
           </q-item-section>
         </q-item>
 
-        <q-separator class="q-my-sm" />
+        <!-- Community Section -->
+        <q-expansion-item v-model="expandedSections.community" icon="people" label="Community">
+          <q-item v-if="isClient && hasPermission('households:read')" clickable to="/households">
+            <q-item-section avatar>
+              <q-icon name="home" />
+            </q-item-section>
+            <q-item-section>
+              <q-item-label>Households</q-item-label>
+            </q-item-section>
+          </q-item>
 
-        <!-- Households & Residents Section -->
-        <q-item-label header> Community </q-item-label>
-
-        <q-item v-if="isClient && hasPermission('households:read')" clickable to="/households">
-          <q-item-section avatar>
-            <q-icon name="home" />
-          </q-item-section>
-          <q-item-section>
-            <q-item-label>Households</q-item-label>
-          </q-item-section>
-        </q-item>
-
-        <q-item v-if="isClient && hasPermission('residents:read')" clickable to="/residents">
-          <q-item-section avatar>
-            <q-icon name="people" />
-          </q-item-section>
-          <q-item-section>
-            <q-item-label>Residents</q-item-label>
-          </q-item-section>
-        </q-item>
+          <q-item v-if="isClient && hasPermission('residents:read')" clickable to="/residents">
+            <q-item-section avatar>
+              <q-icon name="people" />
+            </q-item-section>
+            <q-item-section>
+              <q-item-label>Residents</q-item-label>
+            </q-item-section>
+          </q-item>
+        </q-expansion-item>
 
         <!-- Finance Section -->
-        <template
+        <q-expansion-item
           v-if="isClient && hasAnyPermission(['finance:read', 'inventory:read', 'lending:read'])"
+          v-model="expandedSections.finance"
+          icon="account_balance"
+          label="Finance"
         >
-          <q-separator class="q-my-sm" />
-          <q-item-label header> Finance </q-item-label>
-
           <q-item
             v-if="hasPermission('finance:read')"
             clickable
@@ -190,7 +188,6 @@
             </q-item-section>
           </q-item>
 
-          <!-- Story 2.8: Finance Reports -->
           <q-item
             v-if="hasPermission('finance:read')"
             clickable
@@ -226,13 +223,15 @@
               <q-item-label>Lending</q-item-label>
             </q-item-section>
           </q-item>
-        </template>
+        </q-expansion-item>
 
-        <!-- Farm Section -->
-        <template v-if="isClient && hasPermission('farm:read')">
-          <q-separator class="q-my-sm" />
-          <q-item-label header> Agriculture </q-item-label>
-
+        <!-- Agriculture Section -->
+        <q-expansion-item
+          v-if="isClient && hasPermission('farm:read')"
+          v-model="expandedSections.agriculture"
+          icon="agriculture"
+          label="Agriculture"
+        >
           <q-item clickable to="/farm">
             <q-item-section avatar>
               <q-icon name="agriculture" />
@@ -260,7 +259,6 @@
             </q-item-section>
           </q-item>
 
-          <!-- Story 3.8: Farm Sales -->
           <q-item clickable to="/farm/sales">
             <q-item-section avatar>
               <q-icon name="point_of_sale" />
@@ -270,7 +268,6 @@
             </q-item-section>
           </q-item>
 
-          <!-- Story 3.9: Farm Reports -->
           <q-item clickable to="/farm/reports">
             <q-item-section avatar>
               <q-icon name="bar_chart" />
@@ -280,7 +277,6 @@
             </q-item-section>
           </q-item>
 
-          <!-- Story 3.10: Farm Alerts -->
           <q-item clickable to="/farm/alerts">
             <q-item-section avatar>
               <q-icon name="notifications_active" />
@@ -290,7 +286,6 @@
             </q-item-section>
           </q-item>
 
-          <!-- Story 3.10: Farm Settings -->
           <q-item v-if="hasPermission('farm:write')" clickable to="/farm/settings">
             <q-item-section avatar>
               <q-icon name="tune" />
@@ -299,13 +294,15 @@
               <q-item-label>Farm Settings</q-item-label>
             </q-item-section>
           </q-item>
-        </template>
+        </q-expansion-item>
 
-        <!-- School Section (Story 4.1) -->
-        <template v-if="isClient && hasPermission('school:read')">
-          <q-separator class="q-my-sm" />
-          <q-item-label header> School </q-item-label>
-
+        <!-- School Section -->
+        <q-expansion-item
+          v-if="isClient && hasPermission('school:read')"
+          v-model="expandedSections.school"
+          icon="school"
+          label="School"
+        >
           <q-item
             clickable
             to="/school/dashboard"
@@ -331,17 +328,17 @@
               <q-item-label>Learners</q-item-label>
             </q-item-section>
           </q-item>
-        </template>
+        </q-expansion-item>
 
-        <!-- Community Services Section -->
-        <template
+        <!-- Services Section -->
+        <q-expansion-item
           v-if="
             isClient && hasAnyPermission(['calendar:read', 'communications:read', 'storage:read'])
           "
+          v-model="expandedSections.services"
+          icon="miscellaneous_services"
+          label="Services"
         >
-          <q-separator class="q-my-sm" />
-          <q-item-label header> Services </q-item-label>
-
           <q-item v-if="hasPermission('calendar:read')" clickable to="/calendar">
             <q-item-section avatar>
               <q-icon name="event" />
@@ -368,13 +365,15 @@
               <q-item-label>Storage</q-item-label>
             </q-item-section>
           </q-item>
-        </template>
+        </q-expansion-item>
 
-        <!-- Admin Section - Only visible to System Administrators -->
-        <template v-if="isClient && hasPermission('*')">
-          <q-separator class="q-my-md" />
-          <q-item-label header> Administration </q-item-label>
-
+        <!-- Admin Section -->
+        <q-expansion-item
+          v-if="isClient && hasPermission('*')"
+          v-model="expandedSections.administration"
+          icon="admin_panel_settings"
+          label="Administration"
+        >
           <q-item clickable to="/admin/users">
             <q-item-section avatar>
               <q-icon name="admin_panel_settings" />
@@ -401,7 +400,7 @@
               <q-item-label>Finance Settings</q-item-label>
             </q-item-section>
           </q-item>
-        </template>
+        </q-expansion-item>
       </q-list>
     </q-drawer>
 
@@ -412,7 +411,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, reactive } from 'vue';
 import { useRouter } from 'vue-router';
 import { useQuasar } from 'quasar';
 import { useAuthStore } from 'src/stores/auth-store';
@@ -431,6 +430,15 @@ const leftDrawerOpen = ref(false);
 const userMenu = ref(null);
 const userMenuVisible = ref(false);
 const isClient = ref(false); // Track client-side hydration for SSR
+
+const expandedSections = reactive({
+  community: false,
+  finance: false,
+  agriculture: false,
+  school: false,
+  services: false,
+  administration: false,
+});
 
 onMounted(() => {
   isClient.value = true; // Enable client-side rendering after hydration
