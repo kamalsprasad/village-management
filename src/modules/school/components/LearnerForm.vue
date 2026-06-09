@@ -74,6 +74,9 @@
                 <div class="col-12 col-sm-3">
                   <div class="text-caption text-grey-6">Date of Birth</div>
                   <div>{{ residentDob || '—' }}</div>
+                  <div v-if="age !== null" class="text-caption text-grey-7">
+                    {{ age }} years old
+                  </div>
                 </div>
                 <div class="col-12 col-sm-3">
                   <div class="text-caption text-grey-6">Gender</div>
@@ -216,7 +219,11 @@
 import { ref, computed, watch, onMounted } from 'vue';
 import { tables } from 'src/boot/appwrite';
 import { useSchoolStore } from '../stores/school-store';
-import { GRADE_LEVELS, ENROLLMENT_STATUSES, STATUSES_REQUIRING_EFFECTIVE_DATE } from '../utils/school-constants';
+import {
+  GRADE_LEVELS,
+  ENROLLMENT_STATUSES,
+  STATUSES_REQUIRING_EFFECTIVE_DATE,
+} from '../utils/school-constants';
 import ResidentSearchInput from 'src/components/inputs/ResidentSearchInput.vue';
 
 const props = defineProps({
@@ -285,13 +292,26 @@ const residentFullName = computed(() => {
 });
 
 const residentDob = computed(() => {
-  if (!selectedResident.value || !selectedResident.value.date_of_birth) return '';
-  return toDateInputValue(selectedResident.value.date_of_birth);
+  if (!selectedResident.value || !selectedResident.value.dob) return '';
+  return toDateInputValue(selectedResident.value.dob);
+});
+
+const age = computed(() => {
+  if (!selectedResident.value || !selectedResident.value.dob) return null;
+  const today = new Date();
+  const [y, m, d] = selectedResident.value.dob.slice(0, 10).split('-').map(Number);
+  let years = today.getFullYear() - y;
+  const hasHadBirthday =
+    today.getMonth() > m - 1 || (today.getMonth() === m - 1 && today.getDate() >= d);
+  if (!hasHadBirthday) years--;
+  return years;
 });
 
 const existingLearnerName = computed(() => {
   if (!existingLearner.value) return 'This resident';
-  return schoolStore.getLearnerName(existingLearner.value) || residentFullName.value || 'This resident';
+  return (
+    schoolStore.getLearnerName(existingLearner.value) || residentFullName.value || 'This resident'
+  );
 });
 
 /**

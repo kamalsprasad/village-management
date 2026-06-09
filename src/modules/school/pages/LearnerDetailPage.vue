@@ -87,7 +87,7 @@
                     <q-item>
                       <q-item-section>
                         <q-item-label caption>Date of Birth</q-item-label>
-                        <q-item-label>{{ formatDate(resident?.date_of_birth) }}</q-item-label>
+                        <q-item-label>{{ formatDate(resident?.dob) }}</q-item-label>
                       </q-item-section>
                     </q-item>
                     <q-item>
@@ -214,7 +214,13 @@
       <q-card-section class="text-center q-pa-xl text-grey-7">
         <q-icon name="person_off" size="48px" class="q-mb-sm" />
         <div>Learner not found.</div>
-        <q-btn flat color="primary" label="Back to Learners" to="/school/learners" class="q-mt-sm" />
+        <q-btn
+          flat
+          color="primary"
+          label="Back to Learners"
+          to="/school/learners"
+          class="q-mt-sm"
+        />
       </q-card-section>
     </q-card>
   </q-page>
@@ -250,7 +256,9 @@ const learnerName = computed(() =>
 
 function formatDate(isoString) {
   if (!isoString) return '—';
-  return date.formatDate(isoString, 'DD MMM YYYY');
+  const [y, m, d] = isoString.slice(0, 10).split('-').map(Number);
+  const localDate = new Date(y, m - 1, d);
+  return date.formatDate(localDate, 'DD MMM YYYY');
 }
 
 async function loadHousehold() {
@@ -279,6 +287,27 @@ async function loadHousehold() {
 
 async function loadLearner() {
   await schoolStore.fetchLearnerById(route.params.id);
+  const l = schoolStore.currentLearner;
+
+  // If Appwrite didn't expand the resident_id relationship, fetch it directly
+  if (l && !l.resident && l.resident_id_normalized) {
+    try {
+      const r = await tables.getRow({
+        databaseId: import.meta.env.VITE_APPWRITE_DATABASE_ID,
+        tableId: import.meta.env.VITE_APPWRITE_TABLE_RESIDENTS,
+        rowId: l.resident_id_normalized,
+      });
+      const parts = [r.first_name, r.middle_names, r.last_name].filter(Boolean).join(' ');
+      schoolStore.currentLearner = {
+        ...l,
+        resident: r,
+        resident_full_name: parts,
+      };
+    } catch (e) {
+      console.error('LearnerDetailPage: failed to load resident', e);
+    }
+  }
+
   await loadHousehold();
 }
 

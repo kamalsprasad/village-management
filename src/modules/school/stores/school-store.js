@@ -62,8 +62,7 @@ export const useSchoolStore = defineStore('school', {
     /**
      * Learners with an Active enrollment status
      */
-    activeLearners: (state) =>
-      state.learners.filter((l) => l.enrollment_status === 'Active'),
+    activeLearners: (state) => state.learners.filter((l) => l.enrollment_status === 'Active'),
 
     /**
      * Count of active learners per grade level
@@ -155,7 +154,36 @@ export const useSchoolStore = defineStore('school', {
           tableId: 'learners',
           queries: [Query.limit(500), Query.orderDesc('enrollment_date')],
         });
-        this.learners = response.rows.map((row) => this.enrichLearner(row));
+        let learners = response.rows.map((row) => this.enrichLearner(row));
+
+        // If relationships weren't expanded, batch-fetch residents
+        const missingIds = learners
+          .filter((l) => !l.resident_full_name && l.resident_id_normalized)
+          .map((l) => l.resident_id_normalized);
+
+        if (missingIds.length > 0) {
+          const residentsMap = new Map();
+          const tableId = import.meta.env.VITE_APPWRITE_TABLE_RESIDENTS;
+          const res = await tables.listRows({
+            databaseId: dbId,
+            tableId,
+            queries: [Query.equal('$id', missingIds), Query.limit(missingIds.length)],
+          });
+          res.rows.forEach((r) => residentsMap.set(r.$id, r));
+
+          learners = learners.map((l) => {
+            if (l.resident_full_name) return l;
+            const resident = residentsMap.get(l.resident_id_normalized);
+            if (!resident) return l;
+            return {
+              ...l,
+              resident,
+              resident_full_name: buildResidentFullName(resident),
+            };
+          });
+        }
+
+        this.learners = learners;
         this.learnersLoaded = true;
         return { success: true, data: this.learners };
       } catch (error) {
