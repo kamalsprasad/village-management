@@ -73,8 +73,20 @@ const defaultRoles = [
   {
     name: 'School Administrator',
     category: 'school',
+    permissions: ['school:read', 'school:write', 'school:admin', 'reports:read'],
+    storage_quota: 100,
+  },
+  {
+    name: 'Head Teacher',
+    category: 'school',
     permissions: ['school:read', 'school:write', 'reports:read'],
     storage_quota: 50,
+  },
+  {
+    name: 'Teacher',
+    category: 'school',
+    permissions: ['school:read', 'school:write'],
+    storage_quota: 20,
   },
   {
     name: 'Finance Manager',

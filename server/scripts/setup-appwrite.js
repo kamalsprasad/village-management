@@ -978,6 +978,76 @@ const tableSchemas = {
       },
     ],
   },
+
+  // School Module Tables (Story 4.1)
+  learners: {
+    name: 'Learners',
+    permissions: permissions,
+    columns: [
+      // One learner row per resident, ever (Option A — Story 4.1).
+      // Uniqueness is enforced in the school store (checkExistingEnrollment)
+      // because Appwrite does not support indexes on relationship columns.
+      {
+        key: 'resident_id',
+        type: 'relationship',
+        relatedTable: 'residents',
+        relationType: 'manyToOne',
+        twoWay: false,
+        onDelete: 'restrict',
+        required: true,
+      },
+      {
+        key: 'grade_level',
+        type: 'enum',
+        elements: [
+          'Early Childhood',
+          'Grade 1',
+          'Grade 2',
+          'Grade 3',
+          'Grade 4',
+          'Grade 5',
+          'Grade 6',
+          'Grade 7',
+          'Grade 8',
+          'Grade 9',
+          'Grade 10',
+          'Grade 11',
+          'Grade 12',
+        ],
+        required: true,
+      },
+      { key: 'enrollment_date', type: 'datetime', required: true },
+      {
+        key: 'enrollment_status',
+        type: 'enum',
+        elements: ['Active', 'Inactive', 'Graduated', 'Transferred', 'Dropped Out'],
+        required: true,
+        default: 'Active',
+      },
+      // Effective date for the most recent status change (Graduated/Transferred/Dropped Out)
+      { key: 'status_effective_date', type: 'datetime', required: false },
+      { key: 'parent_guardian_name', type: 'string', size: 255, required: false },
+      { key: 'parent_guardian_phone', type: 'string', size: 20, required: false },
+      { key: 'emergency_contact_name', type: 'string', size: 255, required: false },
+      { key: 'emergency_contact_phone', type: 'string', size: 20, required: false },
+      { key: 'medical_notes', type: 'string', size: 1000, required: false },
+      { key: 'notes', type: 'string', size: 1000, required: false },
+    ],
+    indexes: [
+      {
+        key: 'idx_learners_grade',
+        type: 'key',
+        columns: ['grade_level'],
+        orders: ['ASC'],
+      },
+      {
+        key: 'idx_learners_status',
+        type: 'key',
+        columns: ['enrollment_status'],
+        orders: ['ASC'],
+      },
+    ],
+  },
 };
 
 // Helper functions

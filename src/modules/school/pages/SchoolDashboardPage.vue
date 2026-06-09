@@ -1,0 +1,121 @@
+<!--
+  SchoolDashboardPage.vue (Story 4.1)
+  School module dashboard: learner overview stats and navigation cards.
+  Future stories add: at-risk learners (4.4), teacher performance (4.7),
+  progress to goal (4.9) widgets.
+-->
+<template>
+  <q-page padding>
+    <div class="row items-center q-mb-md">
+      <div>
+        <div class="text-h5">School Dashboard</div>
+        <div class="text-caption text-grey-7">Learner enrollment and school management</div>
+      </div>
+      <q-space />
+      <q-btn
+        v-if="canWrite"
+        color="primary"
+        icon="person_add"
+        label="Enroll Learner"
+        @click="$router.push('/school/learners/enroll')"
+      />
+    </div>
+
+    <div class="row q-col-gutter-md">
+      <!-- Stats Cards -->
+      <div class="col-12 col-sm-4">
+        <q-card flat bordered>
+          <q-card-section>
+            <div class="text-caption text-grey-7">Total Enrolled (Active)</div>
+            <div class="text-h3 text-primary">
+              <q-skeleton v-if="isInitialLoading" type="text" width="60px" />
+              <span v-else>{{ schoolStore.activeLearners.length }}</span>
+            </div>
+          </q-card-section>
+        </q-card>
+      </div>
+      <div class="col-12 col-sm-4">
+        <q-card flat bordered>
+          <q-card-section>
+            <div class="text-caption text-grey-7">Grades with Learners</div>
+            <div class="text-h3 text-secondary">
+              <q-skeleton v-if="isInitialLoading" type="text" width="60px" />
+              <span v-else>{{ Object.keys(schoolStore.activeLearnersByGrade).length }}</span>
+            </div>
+          </q-card-section>
+        </q-card>
+      </div>
+      <div class="col-12 col-sm-4">
+        <q-card flat bordered>
+          <q-card-section>
+            <div class="text-caption text-grey-7">Total Records</div>
+            <div class="text-h3 text-accent">
+              <q-skeleton v-if="isInitialLoading" type="text" width="60px" />
+              <span v-else>{{ schoolStore.learners.length }}</span>
+            </div>
+          </q-card-section>
+        </q-card>
+      </div>
+
+      <!-- Learners Overview Widget -->
+      <div class="col-12 col-md-8">
+        <LearnersOverviewWidget />
+      </div>
+
+      <!-- Navigation Cards -->
+      <div class="col-12 col-md-4">
+        <q-card flat bordered>
+          <q-card-section>
+            <div class="text-h6 q-mb-sm">Quick Links</div>
+            <q-list separator>
+              <q-item clickable to="/school/learners">
+                <q-item-section avatar>
+                  <q-icon name="groups" color="primary" />
+                </q-item-section>
+                <q-item-section>
+                  <q-item-label>Learners</q-item-label>
+                  <q-item-label caption>View and manage enrolled learners</q-item-label>
+                </q-item-section>
+              </q-item>
+              <q-item disable>
+                <q-item-section avatar>
+                  <q-icon name="quiz" color="grey" />
+                </q-item-section>
+                <q-item-section>
+                  <q-item-label class="text-grey">Test Scores</q-item-label>
+                  <q-item-label caption>Coming in Story 4.2</q-item-label>
+                </q-item-section>
+              </q-item>
+              <q-item disable>
+                <q-item-section avatar>
+                  <q-icon name="event_available" color="grey" />
+                </q-item-section>
+                <q-item-section>
+                  <q-item-label class="text-grey">Attendance</q-item-label>
+                  <q-item-label caption>Coming in Story 4.3</q-item-label>
+                </q-item-section>
+              </q-item>
+            </q-list>
+          </q-card-section>
+        </q-card>
+      </div>
+    </div>
+  </q-page>
+</template>
+
+<script setup>
+import { computed, onMounted } from 'vue';
+import { useSchoolStore } from '../stores/school-store';
+import { usePermissions } from 'src/composables/usePermissions';
+import LearnersOverviewWidget from '../components/LearnersOverviewWidget.vue';
+
+const schoolStore = useSchoolStore();
+const { hasPermission } = usePermissions();
+
+const canWrite = computed(() => hasPermission('school:write'));
+const isInitialLoading = computed(() => schoolStore.isLoading && !schoolStore.learnersLoaded);
+
+onMounted(() => {
+  schoolStore.fetchLearners();
+});
+</script>

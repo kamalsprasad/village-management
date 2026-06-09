@@ -59,17 +59,17 @@ development_status:
   3-9-farm-module-profitability-analysis-and-roi-calculation: done
   3-10-farm-module-yield-analysis-trend-reporting-and-configurable-alerts: done
   epic-3-retrospective: optional
-  epic-4: backlog
-  4-1-school-module-student-registration-and-grade-tracking: backlog
-  4-2-school-module-class-scheduling-and-attendance: backlog
-  4-3-school-module-assessment-and-reporting: backlog
-  4-4-school-module-parent-engagement-portal: backlog
-  4-5-school-module-teacher-performance-and-development: backlog
-  4-6-school-module-student-support-and-intervention-tracking: backlog
-  4-7-school-module-extracurricular-program-management: backlog
-  4-8-school-module-resource-library-and-document-management: backlog
-  4-9-school-module-community-service-tracking: backlog
-  4-10-school-module-education-analytics-dashboard: backlog
+  epic-4: contexted
+  4-1-school-module-learner-enrollment-from-residents: review
+  4-2-school-module-test-score-recording-bulk-entry-by-grade: backlog
+  4-3-school-module-attendance-tracking-bulk-entry-by-grade: backlog
+  4-4-school-module-at-risk-learner-identification-90-percent-attendance-threshold: backlog
+  4-5-school-module-intervention-planning-and-progress-tracking: backlog
+  4-6-school-module-peer-review-with-enhanced-categories-and-checked-status: backlog
+  4-7-school-module-self-evaluation-and-head-teacher-evaluation: backlog
+  4-8-school-module-collaborative-teaching-practices-documentation: backlog
+  4-9-school-module-progress-toward-long-term-educational-goal-90-percent-in-90th-percentile: backlog
+  4-10-school-module-learner-progress-reports-and-school-dashboard-completion: backlog
   epic-4-retrospective: optional
   epic-5: backlog
   5-1-calendar-module-community-events-scheduling: backlog

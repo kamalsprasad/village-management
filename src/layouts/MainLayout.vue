@@ -301,17 +301,34 @@
           </q-item>
         </template>
 
-        <!-- School Section -->
+        <!-- School Section (Story 4.1) -->
         <template v-if="isClient && hasPermission('school:read')">
           <q-separator class="q-my-sm" />
-          <q-item-label header> Education </q-item-label>
+          <q-item-label header> School </q-item-label>
 
-          <q-item clickable to="/school">
+          <q-item
+            clickable
+            to="/school/dashboard"
+            :class="{ 'bg-primary text-white': $route.path === '/school/dashboard' }"
+          >
             <q-item-section avatar>
               <q-icon name="school" />
             </q-item-section>
             <q-item-section>
-              <q-item-label>School</q-item-label>
+              <q-item-label>Dashboard</q-item-label>
+            </q-item-section>
+          </q-item>
+
+          <q-item
+            clickable
+            to="/school/learners"
+            :class="{ 'bg-primary text-white': $route.path.startsWith('/school/learners') }"
+          >
+            <q-item-section avatar>
+              <q-icon name="groups" />
+            </q-item-section>
+            <q-item-section>
+              <q-item-label>Learners</q-item-label>
             </q-item-section>
           </q-item>
         </template>

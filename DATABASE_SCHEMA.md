@@ -413,6 +413,28 @@ Tracks physical village assets, supplies, and harvested goods.
 
 **Farm Produce Aggregation Rule (Story 3.5):** When a harvest entry is recorded, the store finds or creates exactly one inventory row keyed by `(planting_id, crop_id, item_type = 'farm_produce')` and increments its quantity. `unit_cost` stores the market price from historical sales (if available) or user-provided estimate.
 
+## School Tables
+
+### learners
+
+Stores learner enrollment records for the School module (Story 4.1). Learners are village residents with school-specific attributes — personal data (name, DOB, gender, household) is never duplicated; it is always read from the linked `residents` row. **One learner row per resident, ever**: status changes (promotion, graduation, re-enrollment) mutate the single row, preserving a stable learner ID for test scores, attendance, and interventions in Stories 4.2+. Uniqueness is enforced in the school store (Appwrite does not support indexes on relationship columns).
+
+| Column                    | Type     | Constraints                                                                                  | Description                                    |
+| ------------------------- | -------- | -------------------------------------------------------------------------------------------- | ---------------------------------------------- |
+| `resident_id`             | rel      | Required, manyToOne → residents, onDelete: restrict                                          | Linked resident (source of personal info)      |
+| `grade_level`             | enum     | Required: 'Early Childhood', 'Grade 1'–'Grade 12'                                            | Current grade level                            |
+| `enrollment_date`         | datetime | Required                                                                                     | Date of (initial) enrollment                   |
+| `enrollment_status`       | enum     | Required: 'Active', 'Inactive', 'Graduated', 'Transferred', 'Dropped Out'. Default: 'Active' | Current enrollment status                      |
+| `status_effective_date`   | datetime | Optional                                                                                     | Effective date of most recent status change    |
+| `parent_guardian_name`    | string   | Optional, max 255                                                                            | Parent/guardian full name (free text)          |
+| `parent_guardian_phone`   | string   | Optional, max 20                                                                             | Parent/guardian phone                          |
+| `emergency_contact_name`  | string   | Optional, max 255                                                                            | Emergency contact full name (free text)        |
+| `emergency_contact_phone` | string   | Optional, max 20                                                                             | Emergency contact phone                        |
+| `medical_notes`           | string   | Optional, max 1000                                                                           | Medical conditions, allergies, etc.            |
+| `notes`                   | string   | Optional, max 1000                                                                           | Additional notes (incl. status change history) |
+
+**Indexes:** `idx_learners_grade` on `(grade_level ASC)`, `idx_learners_status` on `(enrollment_status ASC)`
+
 ## Relationships
 
 All relationships use Appwrite's native relationship columns (type `rel`). Key relationships:
@@ -438,6 +460,10 @@ All relationships use Appwrite's native relationship columns (type `rel`). Key r
 - **farm_sales → crops**: manyToOne via `farm_sales.crop_id` (denormalized, Story 3.9)
 - **inventory → plantings**: manyToOne via `inventory.planting_id` (farm produce only)
 - **inventory → crops**: manyToOne via `inventory.crop_id` (farm produce only)
+
+**School:**
+
+- **learners → residents**: manyToOne via `learners.resident_id` (onDelete: restrict — residents with learner records cannot be deleted)
 
 **Finance:**
 
@@ -474,6 +500,8 @@ Live indexes as configured in Appwrite:
 | `plantings`  | `idx_plantings_status`       | key    | `status ASC`                    |
 | `farm_sales` | `idx_farm_sales_date`        | key    | `sale_date DESC`                |
 | `farm_sales` | `idx_farm_sales_buyer`       | key    | `buyer_type ASC, buyer_id ASC`  |
+| `learners`   | `idx_learners_grade`         | key    | `grade_level ASC`               |
+| `learners`   | `idx_learners_status`        | key    | `enrollment_status ASC`         |
 
 ## Permissions
 
