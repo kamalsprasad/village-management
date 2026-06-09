@@ -91,6 +91,8 @@ function refresh() {
 }
 
 onMounted(() => {
-  schoolStore.fetchLearners();
+  if (!schoolStore.learnersLoaded) {
+    schoolStore.fetchLearners();
+  }
 });
 </script>

@@ -26,7 +26,7 @@
       </div>
       <q-space />
       <q-btn
-        v-if="canWrite && learner"
+        v-if="canAdmin && learner"
         color="primary"
         icon="edit"
         label="Edit"
@@ -34,7 +34,7 @@
         class="q-mr-sm"
       />
       <q-btn
-        v-if="canWrite && learner"
+        v-if="canAdmin && learner"
         flat
         color="negative"
         icon="delete"
@@ -241,7 +241,7 @@ const $q = useQuasar();
 const schoolStore = useSchoolStore();
 const { hasPermission } = usePermissions();
 
-const canWrite = computed(() => hasPermission('school:write'));
+const canAdmin = computed(() => hasPermission('school:admin'));
 
 const activeTab = ref('overview');
 const householdName = ref('');
@@ -298,11 +298,10 @@ async function loadLearner() {
         rowId: l.resident_id_normalized,
       });
       const parts = [r.first_name, r.middle_names, r.last_name].filter(Boolean).join(' ');
-      schoolStore.currentLearner = {
-        ...l,
+      schoolStore.patchCurrentLearner({
         resident: r,
         resident_full_name: parts,
-      };
+      });
     } catch (e) {
       console.error('LearnerDetailPage: failed to load resident', e);
     }

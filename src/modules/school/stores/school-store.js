@@ -296,7 +296,19 @@ export const useSchoolStore = defineStore('school', {
           rowId: learnerId,
           data: data,
         });
-        const enriched = this.enrichLearner(response);
+        let enriched = this.enrichLearner(response);
+        // Preserve resident data if Appwrite response didn't expand the relationship
+        if (!enriched.resident_full_name) {
+          const existing = this.learners.find((l) => l.$id === learnerId) || this.currentLearner;
+          if (existing?.$id === learnerId && existing.resident) {
+            enriched = {
+              ...enriched,
+              resident: existing.resident,
+              resident_full_name: existing.resident_full_name,
+              resident_id_normalized: existing.resident_id_normalized,
+            };
+          }
+        }
         const index = this.learners.findIndex((l) => l.$id === learnerId);
         if (index !== -1) {
           this.learners.splice(index, 1, enriched);
@@ -339,6 +351,16 @@ export const useSchoolStore = defineStore('school', {
       } finally {
         this.isLoading = false;
       }
+    },
+
+    /**
+     * Patch the current learner with additional fields (e.g., manually loaded
+     * resident data when Appwrite didn't expand the relationship).
+     * @param {Object} patch - Fields to merge into currentLearner
+     */
+    patchCurrentLearner(patch) {
+      if (!this.currentLearner) return;
+      this.currentLearner = { ...this.currentLearner, ...patch };
     },
 
     /**

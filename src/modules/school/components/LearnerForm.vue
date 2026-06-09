@@ -113,7 +113,13 @@
           type="date"
           outlined
           stack-label
-          :rules="[(val) => !!val || 'Enrollment date is required']"
+          :rules="[
+            (val) => !!val || 'Enrollment date is required',
+            (val) =>
+              !val ||
+              new Date(val) <= new Date(todayDateValue()) ||
+              'Enrollment date cannot be in the future',
+          ]"
         />
       </div>
 
@@ -217,6 +223,7 @@
 
 <script setup>
 import { ref, computed, watch, onMounted } from 'vue';
+import { date } from 'quasar';
 import { tables } from 'src/boot/appwrite';
 import { useSchoolStore } from '../stores/school-store';
 import {
@@ -261,10 +268,10 @@ function toDateInputValue(isoString) {
 }
 
 /**
- * Today's date as 'YYYY-MM-DD'
+ * Today's date as 'YYYY-MM-DD' (local timezone, not UTC)
  */
 function todayDateValue() {
-  return new Date().toISOString().slice(0, 10);
+  return date.formatDate(new Date(), 'YYYY-MM-DD');
 }
 
 const form = ref({
@@ -395,11 +402,13 @@ function onSubmit() {
   const payload = {
     resident_id: form.value.resident_id,
     grade_level: form.value.grade_level,
-    enrollment_date: new Date(form.value.enrollment_date).toISOString(),
+    // Anchor to midday UTC to avoid timezone-driven off-by-one day errors
+    enrollment_date: new Date(`${form.value.enrollment_date}T12:00:00Z`).toISOString(),
     enrollment_status: form.value.enrollment_status,
+    // Explicitly clear status_effective_date when reverting to a non-terminal status
     status_effective_date:
       requiresEffectiveDate.value && form.value.status_effective_date
-        ? new Date(form.value.status_effective_date).toISOString()
+        ? new Date(`${form.value.status_effective_date}T12:00:00Z`).toISOString()
         : null,
     parent_guardian_name: form.value.parent_guardian_name || null,
     parent_guardian_phone: form.value.parent_guardian_phone || null,

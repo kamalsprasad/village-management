@@ -108,7 +108,7 @@
             <q-tooltip>View Details</q-tooltip>
           </q-btn>
           <q-btn
-            v-if="canWrite"
+            v-if="canAdmin"
             flat
             dense
             round
@@ -146,6 +146,7 @@ const schoolStore = useSchoolStore();
 const { hasPermission } = usePermissions();
 
 const canWrite = computed(() => hasPermission('school:write'));
+const canAdmin = computed(() => hasPermission('school:admin'));
 
 const gradeLevelOptions = GRADE_LEVELS.map((g) => ({ label: g, value: g }));
 const statusOptions = ENROLLMENT_STATUSES.map((s) => ({ label: s.label, value: s.value }));

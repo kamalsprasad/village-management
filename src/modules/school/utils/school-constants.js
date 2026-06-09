@@ -22,11 +22,11 @@ export const GRADE_LEVELS = [
 ];
 
 export const ENROLLMENT_STATUSES = [
-  { value: 'Active', label: 'Active', color: 'positive' },
-  { value: 'Inactive', label: 'Inactive', color: 'grey' },
-  { value: 'Graduated', label: 'Graduated', color: 'info' },
-  { value: 'Transferred', label: 'Transferred', color: 'warning' },
-  { value: 'Dropped Out', label: 'Dropped Out', color: 'negative' },
+  { value: 'Active', label: 'Active', color: 'positive', textColor: 'white' },
+  { value: 'Inactive', label: 'Inactive', color: 'grey', textColor: 'white' },
+  { value: 'Graduated', label: 'Graduated', color: 'info', textColor: 'white' },
+  { value: 'Transferred', label: 'Transferred', color: 'warning', textColor: 'black' },
+  { value: 'Dropped Out', label: 'Dropped Out', color: 'negative', textColor: 'white' },
 ];
 
 /**

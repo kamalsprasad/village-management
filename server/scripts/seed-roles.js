@@ -79,7 +79,7 @@ const defaultRoles = [
   {
     name: 'Head Teacher',
     category: 'school',
-    permissions: ['school:read', 'school:write', 'reports:read'],
+    permissions: ['school:read', 'school:write', 'school:admin', 'reports:read'],
     storage_quota: 50,
   },
   {

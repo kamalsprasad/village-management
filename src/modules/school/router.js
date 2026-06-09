@@ -55,7 +55,7 @@ const schoolRoutes = [
     component: () => import('./pages/EnrollLearnerPage.vue'),
     meta: {
       requiresAuth: true,
-      requiresPermission: 'school:write',
+      requiresPermission: 'school:admin',
     },
   },
 ];

@@ -26,7 +26,8 @@ const props = defineProps({
 const badgeColor = computed(() => getStatusColor(props.status));
 
 const badgeTextColor = computed(() => {
-  return props.status === 'Transferred' ? 'black' : 'white';
+  const match = ENROLLMENT_STATUSES.find((s) => s.value === props.status);
+  return match ? match.textColor : 'white';
 });
 
 const displayStatus = computed(() => {
