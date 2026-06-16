@@ -62,6 +62,7 @@
               <q-item-label caption>
                 {{
                   classNameMap[learner.class_id_normalized || learner.class_id] ||
+                  classNameMap[normalizeClassId(learner.class_id)] ||
                   learner.grade_level ||
                   '—'
                 }}
@@ -82,7 +83,7 @@
 import { computed, onMounted } from 'vue';
 import { date } from 'quasar';
 import { useLearnerStore } from '../stores/learner-store';
-import { useClassStore } from '../stores/class-store';
+import { normalizeClassId, useClassStore } from '../stores/class-store';
 import EnrollmentStatusBadge from './EnrollmentStatusBadge.vue';
 
 const learnerStore = useLearnerStore();

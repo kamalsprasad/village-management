@@ -1055,12 +1055,6 @@ const tableSchemas = {
         columns: ['enrollment_status'],
         orders: ['ASC'],
       },
-      {
-        key: 'idx_learners_class',
-        type: 'key',
-        columns: ['class_id'],
-        orders: ['ASC'],
-      },
     ],
   },
   test_scores: {

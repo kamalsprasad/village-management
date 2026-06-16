@@ -286,7 +286,7 @@ export const useLearnerStore = defineStore('learner', {
     },
 
     /**
-     * Update a learner record (grade promotion, status changes, edits)
+     * Update a learner record (class reassignment, status changes, edits)
      * @param {string} learnerId - Learner row ID
      * @param {Object} data - Fields to update
      */

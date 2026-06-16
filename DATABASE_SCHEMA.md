@@ -417,12 +417,13 @@ Tracks physical village assets, supplies, and harvested goods.
 
 ### learners
 
-Stores learner enrollment records for the School module (Story 4.1). Learners are village residents with school-specific attributes — personal data (name, DOB, gender, household) is never duplicated; it is always read from the linked `residents` row. **One learner row per resident, ever**: status changes (promotion, graduation, re-enrollment) mutate the single row, preserving a stable learner ID for test scores, attendance, and interventions in Stories 4.2+. Uniqueness is enforced in the school store (Appwrite does not support indexes on relationship columns).
+Stores learner enrollment records for the School module (Story 4.1). Learners are village residents with school-specific attributes — personal data (name, DOB, gender, household) is never duplicated; it is always read from the linked `residents` row. **One learner row per resident, ever**: status changes (class reassignment, graduation, re-enrollment) mutate the single row, preserving a stable learner ID for test scores, attendance, and interventions in Stories 4.2+. Uniqueness is enforced in the school store (Appwrite does not support indexes on relationship columns). Learners are assigned to classes through `class_id`; `grade_level` is optional/backward-compatible.
 
 | Column                    | Type     | Constraints                                                                                  | Description                                    |
 | ------------------------- | -------- | -------------------------------------------------------------------------------------------- | ---------------------------------------------- |
 | `resident_id`             | rel      | Required, manyToOne → residents, onDelete: restrict                                          | Linked resident (source of personal info)      |
-| `grade_level`             | enum     | Required: 'Early Childhood', 'Grade 1'–'Grade 12'                                            | Current grade level                            |
+| `grade_level`             | enum     | Optional: 'Early Childhood', 'Grade 1'–'Grade 12'                                            | Legacy/denormalized grade level                |
+| `class_id`                | rel      | Optional, manyToOne → school_classes, onDelete: setNull                                      | Assigned class section                         |
 | `enrollment_date`         | datetime | Required                                                                                     | Date of (initial) enrollment                   |
 | `enrollment_status`       | enum     | Required: 'Active', 'Inactive', 'Graduated', 'Transferred', 'Dropped Out'. Default: 'Active' | Current enrollment status                      |
 | `status_effective_date`   | datetime | Optional                                                                                     | Effective date of most recent status change    |
@@ -437,11 +438,12 @@ Stores learner enrollment records for the School module (Story 4.1). Learners ar
 
 ### test_scores
 
-Stores individual test/assessment scores for learners (Story 4.2). Grouping of scores into "assessments" is performed client-side based on matching headers: `assessment_date`, `subject`, `assessment_type`, `term`, `academic_year`.
+Stores individual test/assessment scores for learners (Story 4.2). Grouping of scores into "assessments" is performed client-side based on matching headers: `class_id`, `assessment_date`, `subject`, `assessment_type`, `term`, `academic_year`.
 
 | Column            | Type     | Constraints                                                 | Description                                        |
 | ----------------- | -------- | ----------------------------------------------------------- | -------------------------------------------------- |
 | `learner_id`      | rel      | Required, manyToOne → learners, onDelete: cascade           | Linked learner record                              |
+| `class_id`        | rel      | Optional, manyToOne → school_classes, onDelete: cascade     | Class context at score recording time              |
 | `subject`         | enum     | Required: 'Mathematics', 'English', 'Integrated Science'... | Academic subject                                   |
 | `assessment_type` | enum     | Required: 'Class Exercise', 'Monthly Test', 'Exam'...       | Type of assessment                                 |
 | `term`            | enum     | Required: 'Term 1', 'Term 2', 'Term 3'                      | Academic term                                      |
@@ -451,7 +453,7 @@ Stores individual test/assessment scores for learners (Story 4.2). Grouping of s
 | `max_score`       | double   | Required                                                    | Maximum achievable score (e.g. 20.0, 100.0)        |
 | `notes`           | string   | Optional, max 500                                           | Teacher notes regarding this learner's performance |
 
-**Indexes:** `idx_test_scores_learner` on `(learner_id ASC)`, `idx_test_scores_subject_date` on `(assessment_date DESC, subject ASC, assessment_type ASC)`
+**Indexes:** `idx_test_scores_subject_date` on `(assessment_date DESC, subject ASC, assessment_type ASC)`
 
 ### teacher_assignments
 
@@ -494,7 +496,11 @@ All relationships use Appwrite's native relationship columns (type `rel`). Key r
 **School:**
 
 - **learners → residents**: manyToOne via `learners.resident_id` (onDelete: restrict — residents with learner records cannot be deleted)
+- **learners → school_classes**: manyToOne via `learners.class_id` (onDelete: setNull — learners become unassigned if a class is deleted)
 - **test_scores → learners**: manyToOne via `test_scores.learner_id` (onDelete: cascade)
+- **test_scores → school_classes**: manyToOne via `test_scores.class_id` (onDelete: cascade)
+- **school_timetable → school_classes**: manyToOne via `school_timetable.class_id` (onDelete: cascade)
+- **learner_attendance → school_classes**: manyToOne via `learner_attendance.class_id` (onDelete: cascade)
 - **teacher_assignments → residents**: manyToOne via `teacher_assignments.teacher_id` (onDelete: cascade)
 
 **Finance:**

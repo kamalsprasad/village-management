@@ -220,7 +220,7 @@
 
         <q-card-section class="q-pt-none">
           There are already <strong>{{ existingMatchesCount }}</strong> recorded scores for this
-          grade, subject, and date. Do you want to overwrite them or cancel?
+          class, subject, and date. Do you want to overwrite them or cancel?
         </q-card-section>
 
         <q-card-actions align="right">
@@ -238,7 +238,7 @@ import { useRouter, useRoute } from 'vue-router';
 import { useQuasar } from 'quasar';
 import { useLearnerStore } from '../stores/learner-store';
 import { useSchoolStore } from '../stores/school-store';
-import { useClassStore } from '../stores/class-store';
+import { normalizeClassId, useClassStore } from '../stores/class-store';
 import { SUBJECTS, ASSESSMENT_TYPES, TERMS } from '../utils/school-constants';
 import { computeScorePercent } from '../utils/school-utils';
 
@@ -322,7 +322,7 @@ async function onClassChange(targetClassId) {
         s.term === term.value &&
         s.academic_year === academicYear.value &&
         s.assessment_date.slice(0, 10) === dateStr &&
-        s.class_id === targetClassId,
+        (s.class_id_normalized || normalizeClassId(s.class_id)) === targetClassId,
     );
 
     const existingMap = {};
@@ -413,7 +413,7 @@ async function validateAndSave() {
         score.term === term.value &&
         score.academic_year === academicYear.value &&
         score.assessment_date.slice(0, 10) === searchDate &&
-        score.class_id === classId.value;
+        (score.class_id_normalized || normalizeClassId(score.class_id)) === classId.value;
       return matchHeader;
     });
 

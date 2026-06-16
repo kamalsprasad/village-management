@@ -3,7 +3,9 @@
     <div class="row items-center q-mb-md">
       <div>
         <div class="text-h5">School Classes & Sections</div>
-        <div class="text-caption text-grey-7">Manage grade-level classes, teachers, student rosters, and schedules</div>
+        <div class="text-caption text-grey-7">
+          Manage grade-level classes, teachers, student rosters, and schedules
+        </div>
       </div>
       <q-space />
       <q-btn
@@ -53,10 +55,15 @@
       <div class="text-caption q-mt-sm">Loading school classes...</div>
     </div>
 
-    <div v-else-if="filteredClasses.length === 0" class="text-center q-pa-xl text-grey-7 bg-grey-1 rounded-borders border-dashed">
+    <div
+      v-else-if="filteredClasses.length === 0"
+      class="text-center q-pa-xl text-grey-7 bg-grey-1 rounded-borders border-dashed"
+    >
       <q-icon name="groups_3" size="48px" />
       <div>No classes found matching the criteria.</div>
-      <div v-if="canAdmin" class="text-caption q-mt-xs">Click "Add Class / Split" to create your first class.</div>
+      <div v-if="canAdmin" class="text-caption q-mt-xs">
+        Click "Add Class / Split" to create your first class.
+      </div>
     </div>
 
     <div v-else class="row q-col-gutter-md">
@@ -81,7 +88,10 @@
               </div>
               <div class="col-6 border-left">
                 <div class="text-caption text-grey-7">Class Performance</div>
-                <div class="text-h6 text-weight-bold" :class="getAverageColorClass(getRollingAverage(cls.$id))">
+                <div
+                  class="text-h6 text-weight-bold"
+                  :class="getAverageColorClass(getRollingAverage(cls.$id))"
+                >
                   <q-icon name="analytics" class="q-mr-xs" size="sm" />
                   {{ getRollingAverage(cls.$id) > 0 ? getRollingAverage(cls.$id) + '%' : 'N/A' }}
                 </div>
@@ -91,18 +101,49 @@
             <q-separator class="q-my-sm" />
 
             <div class="row items-center q-mt-xs">
-              <q-avatar size="32px" color="blue-1" text-color="primary" icon="person" class="q-mr-sm" />
+              <q-avatar
+                size="32px"
+                color="blue-1"
+                text-color="primary"
+                icon="person"
+                class="q-mr-sm"
+              />
               <div>
                 <div class="text-caption text-grey-6">Class Teacher</div>
-                <div class="text-subtitle2 text-weight-medium">{{ cls.teacher_name || 'No assigned teacher' }}</div>
+                <div class="text-subtitle2 text-weight-medium">
+                  {{ cls.teacher_name || 'No assigned teacher' }}
+                </div>
               </div>
             </div>
           </q-card-section>
 
           <q-card-actions align="right" class="q-py-xs bg-grey-1">
-            <q-btn flat dense color="primary" icon="visibility" label="View Class" @click.stop="viewClass(cls)" />
-            <q-btn v-if="canAdmin" flat dense color="secondary" icon="edit" label="Edit" @click.stop="openEditClassDialog(cls)" />
-            <q-btn v-if="canAdmin" flat dense color="negative" icon="delete" label="Delete" @click.stop="confirmDelete(cls)" />
+            <q-btn
+              flat
+              dense
+              color="primary"
+              icon="visibility"
+              label="View Class"
+              @click.stop="viewClass(cls)"
+            />
+            <q-btn
+              v-if="canAdmin"
+              flat
+              dense
+              color="secondary"
+              icon="edit"
+              label="Edit"
+              @click.stop="openEditClassDialog(cls)"
+            />
+            <q-btn
+              v-if="canAdmin"
+              flat
+              dense
+              color="negative"
+              icon="delete"
+              label="Delete"
+              @click.stop="confirmDelete(cls)"
+            />
           </q-card-actions>
         </q-card>
       </div>
@@ -176,7 +217,12 @@
 
         <q-card-actions align="right" class="q-pa-md">
           <q-btn flat color="grey-7" label="Cancel" v-close-popup />
-          <q-btn color="primary" :label="isEditing ? 'Save Changes' : 'Create Class'" :loading="isSubmitting" @click="saveClass" />
+          <q-btn
+            color="primary"
+            :label="isEditing ? 'Save Changes' : 'Create Class'"
+            :loading="isSubmitting"
+            @click="saveClass"
+          />
         </q-card-actions>
       </q-card>
     </q-dialog>
@@ -187,7 +233,7 @@
 import { ref, onMounted, computed } from 'vue';
 import { useRouter } from 'vue-router';
 import { useQuasar } from 'quasar';
-import { useClassStore } from '../stores/class-store';
+import { normalizeClassId, useClassStore } from '../stores/class-store';
 import { useLearnerStore } from '../stores/learner-store';
 import { useSchoolStore } from '../stores/school-store';
 import { usePermissions } from 'src/composables/usePermissions';
@@ -269,8 +315,8 @@ function filterTeachers(val, update) {
 
   update(() => {
     const needle = val.toLowerCase();
-    filteredTeachersList.value = allTeachers.value.filter(
-      (v) => v.label.toLowerCase().includes(needle)
+    filteredTeachersList.value = allTeachers.value.filter((v) =>
+      v.label.toLowerCase().includes(needle),
     );
   });
 }
@@ -288,7 +334,7 @@ const filteredClasses = computed(() => {
       (c) =>
         c.name.toLowerCase().includes(term) ||
         c.grade_level.toLowerCase().includes(term) ||
-        (c.teacher_name && c.teacher_name.toLowerCase().includes(term))
+        (c.teacher_name && c.teacher_name.toLowerCase().includes(term)),
     );
   }
 
@@ -302,7 +348,7 @@ function getStudentCount(classId) {
 function getRollingAverage(classId) {
   const scores = schoolStore.testScores.filter((s) => {
     const l = learnerStore.learners.find((l) => l.$id === s.learner_id_normalized);
-    return l && l.class_id === classId;
+    return l && (l.class_id_normalized || normalizeClassId(l.class_id)) === classId;
   });
 
   if (scores.length === 0) return 0;
@@ -372,7 +418,9 @@ async function saveClass() {
     const payload = {
       ...formModel.value,
       class_teacher_id: selectedTeacherOption.value ? selectedTeacherOption.value.value : null,
-      teacher_name: selectedTeacherOption.value ? selectedTeacherOption.value.label : 'No Teacher Assigned',
+      teacher_name: selectedTeacherOption.value
+        ? selectedTeacherOption.value.label
+        : 'No Teacher Assigned',
     };
 
     let result;
@@ -385,7 +433,9 @@ async function saveClass() {
     if (result.success) {
       $q.notify({
         type: 'positive',
-        message: isEditing.value ? 'Class details updated successfully.' : 'Class created successfully.',
+        message: isEditing.value
+          ? 'Class details updated successfully.'
+          : 'Class created successfully.',
       });
       showClassDialog.value = false;
     } else {
@@ -420,7 +470,9 @@ function confirmDelete(cls) {
 
 <style scoped>
 .class-card {
-  transition: transform 0.2s, box-shadow 0.2s;
+  transition:
+    transform 0.2s,
+    box-shadow 0.2s;
   border-radius: 8px;
   overflow: hidden;
 }

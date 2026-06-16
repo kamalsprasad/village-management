@@ -108,12 +108,6 @@ learners: {
       columns: ['enrollment_status'],
       orders: ['ASC'],
     },
-    {
-      key: 'idx_learners_class',
-      type: 'key',
-      columns: ['class_id'],
-      orders: ['ASC'],
-    },
   ],
 }
 ```
@@ -485,14 +479,14 @@ const ENROLLMENT_STATUSES = [
 - [ ] Enroll new learner with all fields
 - [ ] Enroll with only required fields
 - [ ] Attempt duplicate active enrollment → validation error
-- [ ] Edit learner grade (promotion)
+- [ ] Edit learner class assignment
 - [ ] Change status to Graduated
 - [ ] Delete learner → confirmation → removed from list
 
 ### List Page
 
 - [ ] All learners display
-- [ ] Filter by grade = Grade 5
+- [ ] Filter by class
 - [ ] Filter by status = Active
 - [ ] Search by resident name
 - [ ] Sort by enrollment date

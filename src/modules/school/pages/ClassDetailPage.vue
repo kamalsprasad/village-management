@@ -12,7 +12,9 @@
         </div>
         <div class="text-caption text-grey-7 row items-center">
           <span class="q-mr-md"><strong>Grade Level:</strong> {{ cls.grade_level }}</span>
-          <span class="q-mr-md"><strong>Class Teacher:</strong> {{ cls.teacher_name || 'No Teacher Assigned' }}</span>
+          <span class="q-mr-md"
+            ><strong>Class Teacher:</strong> {{ cls.teacher_name || 'No Teacher Assigned' }}</span
+          >
           <span><strong>Students Enrolled:</strong> {{ studentCount }}</span>
         </div>
       </div>
@@ -38,7 +40,9 @@
             <q-icon name="event_available" color="secondary" size="lg" class="q-mr-md" />
             <div>
               <div class="text-caption text-grey-7">Monthly Attendance</div>
-              <div class="text-h5 text-weight-bold text-secondary">{{ classAttendanceRate }}% Avg</div>
+              <div class="text-h5 text-weight-bold text-secondary">
+                {{ classAttendanceRate }}% Avg
+              </div>
             </div>
           </q-card-section>
         </q-card>
@@ -50,7 +54,9 @@
             <q-icon name="analytics" color="positive" size="lg" class="q-mr-md" />
             <div>
               <div class="text-caption text-grey-7">Academic Average</div>
-              <div class="text-h5 text-weight-bold text-positive">{{ rollingAverage > 0 ? rollingAverage + '%' : 'N/A' }}</div>
+              <div class="text-h5 text-weight-bold text-positive">
+                {{ rollingAverage > 0 ? rollingAverage + '%' : 'N/A' }}
+              </div>
             </div>
           </q-card-section>
         </q-card>
@@ -70,8 +76,13 @@
     >
       <div class="text-weight-bold">At-Risk Attendance Alert!</div>
       <div class="text-caption">
-        The following students have fallen below the 90% attendance threshold and require intervention:
-        <span v-for="(std, idx) in atRiskStudents" :key="std.$id" class="text-weight-medium text-primary">
+        The following students have fallen below the 90% attendance threshold and require
+        intervention:
+        <span
+          v-for="(std, idx) in atRiskStudents"
+          :key="std.$id"
+          class="text-weight-medium text-primary"
+        >
           {{ std.name }} ({{ std.rate }}%){{ idx < atRiskStudents.length - 1 ? ', ' : '' }}
         </span>
       </div>
@@ -122,7 +133,11 @@
           >
             <!-- Name Custom Slot -->
             <template #body-cell-name="props">
-              <q-td :props="props" class="text-weight-medium text-primary cursor-pointer" @click="viewLearnerDetail(props.row.$id)">
+              <q-td
+                :props="props"
+                class="text-weight-medium text-primary cursor-pointer"
+                @click="viewLearnerDetail(props.row.$id)"
+              >
                 {{ props.value }}
               </q-td>
             </template>
@@ -161,13 +176,24 @@
         <!-- Tab 2: Attendance Roll-Call -->
         <q-tab-panel name="attendance" class="q-pa-md">
           <div class="row q-col-gutter-sm items-center q-mb-md">
-            <div class="col-12 col-sm-4 text-subtitle1 text-weight-bold">
-              Attendance Roll-Call
-            </div>
+            <div class="col-12 col-sm-4 text-subtitle1 text-weight-bold">Attendance Roll-Call</div>
             <q-space class="gt-xs" />
             <div class="col-12 col-sm-4 row items-center justify-end q-gutter-sm">
-              <q-input v-model="attendanceDate" outlined dense type="date" label="Date" @update:model-value="loadAttendance" style="max-width: 180px" />
-              <q-btn color="secondary" icon="done_all" label="Mark All Present" @click="markAllPresent" />
+              <q-input
+                v-model="attendanceDate"
+                outlined
+                dense
+                type="date"
+                label="Date"
+                @update:model-value="loadAttendance"
+                style="max-width: 180px"
+              />
+              <q-btn
+                color="secondary"
+                icon="done_all"
+                label="Mark All Present"
+                @click="markAllPresent"
+              />
             </div>
           </div>
 
@@ -200,7 +226,7 @@
                       { label: 'Present', value: 'Present' },
                       { label: 'Absent', value: 'Absent' },
                       { label: 'Late', value: 'Late' },
-                      { label: 'Excused', value: 'Excused' }
+                      { label: 'Excused', value: 'Excused' },
                     ]"
                   />
                 </q-td>
@@ -222,7 +248,13 @@
             </q-table>
 
             <div class="text-right q-mt-md">
-              <q-btn color="primary" icon="save" label="Save Attendance" :loading="savingAttendance" @click="saveAttendance" />
+              <q-btn
+                color="primary"
+                icon="save"
+                label="Save Attendance"
+                :loading="savingAttendance"
+                @click="saveAttendance"
+              />
             </div>
           </template>
         </q-tab-panel>
@@ -241,10 +273,15 @@
             />
           </div>
 
-          <div v-if="classAssessments.length === 0" class="text-center q-pa-xl text-grey-7 bg-grey-1 rounded-borders border-dashed">
+          <div
+            v-if="classAssessments.length === 0"
+            class="text-center q-pa-xl text-grey-7 bg-grey-1 rounded-borders border-dashed"
+          >
             <q-icon name="quiz" size="48px" />
             <div>No past assessments found for this class.</div>
-            <div v-if="canWrite" class="text-caption q-mt-xs">Click "Record Scores" to create your first assessment.</div>
+            <div v-if="canWrite" class="text-caption q-mt-xs">
+              Click "Record Scores" to create your first assessment.
+            </div>
           </div>
 
           <q-table
@@ -320,7 +357,9 @@
           <div class="row items-center q-mb-md">
             <div>
               <div class="text-subtitle1 text-weight-bold">Weekly Schedule & Periods</div>
-              <div class="text-caption text-grey-6">Click on any period slot to assign subjects and subject teachers.</div>
+              <div class="text-caption text-grey-6">
+                Click on any period slot to assign subjects and subject teachers.
+              </div>
             </div>
             <q-space />
             <q-btn
@@ -338,7 +377,11 @@
               <thead>
                 <tr>
                   <th class="time-col bg-grey-2">Period & Time</th>
-                  <th v-for="day in DAYS" :key="day" class="day-header bg-grey-2 text-primary text-weight-bold">
+                  <th
+                    v-for="day in DAYS"
+                    :key="day"
+                    class="day-header bg-grey-2 text-primary text-weight-bold"
+                  >
                     {{ day }}
                   </th>
                 </tr>
@@ -348,7 +391,9 @@
                   <!-- Period Indicator column -->
                   <td class="period-info text-center bg-grey-1">
                     <div class="text-weight-bold">P{{ period.num }}</div>
-                    <div class="text-caption text-grey-7" style="font-size: 10px">{{ period.start }} - {{ period.end }}</div>
+                    <div class="text-caption text-grey-7" style="font-size: 10px">
+                      {{ period.start }} - {{ period.end }}
+                    </div>
                   </td>
 
                   <!-- Day Columns -->
@@ -359,7 +404,9 @@
                     @click="canAdmin && editPeriod(day, period)"
                   >
                     <div class="cell-content q-pa-xs">
-                      <div class="text-subtitle2 text-weight-bold text-primary">{{ getPeriodSubject(day, period.num) }}</div>
+                      <div class="text-subtitle2 text-weight-bold text-primary">
+                        {{ getPeriodSubject(day, period.num) }}
+                      </div>
                       <div class="text-caption text-grey-8 text-weight-medium">
                         <q-icon name="person" size="xs" class="q-mr-xs" />
                         {{ getPeriodTeacher(day, period.num) }}
@@ -379,7 +426,9 @@
       <q-card style="min-width: 450px">
         <q-card-section class="bg-primary text-white">
           <div class="text-h6">Enroll Student in {{ cls.name }}</div>
-          <div class="text-caption text-white-5">Select a student from the active list to enroll in this class section.</div>
+          <div class="text-caption text-white-5">
+            Select a student from the active list to enroll in this class section.
+          </div>
         </q-card-section>
 
         <q-card-section>
@@ -397,7 +446,9 @@
           >
             <template #no-option>
               <q-item>
-                <q-item-section class="text-grey">No students available (all assigned or inactive)</q-item-section>
+                <q-item-section class="text-grey"
+                  >No students available (all assigned or inactive)</q-item-section
+                >
               </q-item>
             </template>
           </q-select>
@@ -405,7 +456,12 @@
 
         <q-card-actions align="right" class="q-pa-md">
           <q-btn flat color="grey-7" label="Cancel" v-close-popup />
-          <q-btn color="primary" label="Enroll Student" :loading="isSubmittingEnrollment" @click="enrollStudent" />
+          <q-btn
+            color="primary"
+            label="Enroll Student"
+            :loading="isSubmittingEnrollment"
+            @click="enrollStudent"
+          />
         </q-card-actions>
       </q-card>
     </q-dialog>
@@ -416,7 +472,10 @@
         <q-card-section class="bg-primary text-white">
           <div class="text-h6">Edit Timetable Period</div>
           <div class="text-caption text-white-5">
-            {{ activeCell.day }} - Period {{ activeCell.period_number }} ({{ activeCell.start_time }} - {{ activeCell.end_time }})
+            {{ activeCell.day }} - Period {{ activeCell.period_number }} ({{
+              activeCell.start_time
+            }}
+            - {{ activeCell.end_time }})
           </div>
         </q-card-section>
 
@@ -444,7 +503,12 @@
 
         <q-card-actions align="right" class="q-pa-md">
           <q-btn flat color="grey-7" label="Cancel" v-close-popup />
-          <q-btn color="primary" label="Save Period" :loading="isSavingPeriod" @click="savePeriod" />
+          <q-btn
+            color="primary"
+            label="Save Period"
+            :loading="isSavingPeriod"
+            @click="savePeriod"
+          />
         </q-card-actions>
       </q-card>
     </q-dialog>
@@ -455,7 +519,7 @@
 import { ref, onMounted, computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useQuasar, date } from 'quasar';
-import { useClassStore } from '../stores/class-store';
+import { normalizeClassId, useClassStore } from '../stores/class-store';
 import { useLearnerStore } from '../stores/learner-store';
 import { useSchoolStore } from '../stores/school-store';
 import { usePermissions } from 'src/composables/usePermissions';
@@ -523,7 +587,7 @@ onMounted(async () => {
   await classStore.fetchClasses();
   await learnerStore.fetchLearners();
   await schoolStore.fetchTestScores();
-  
+
   if (!cls.value) {
     $q.notify({
       type: 'negative',
@@ -567,9 +631,13 @@ async function loadAllTeachers() {
 async function loadAllActiveStudents() {
   await learnerStore.fetchLearners();
   allActiveStudents.value = learnerStore.learners
-    .filter((l) => l.enrollment_status === 'Active' && l.class_id !== route.params.id)
+    .filter(
+      (l) =>
+        l.enrollment_status === 'Active' &&
+        !(l.class_id_normalized || normalizeClassId(l.class_id)),
+    )
     .map((l) => ({
-      label: `${learnerStore.getLearnerName(l)} (${l.grade_level})`,
+      label: `${learnerStore.getLearnerName(l)} (${l.grade_level || 'Unassigned'})`,
       value: l.$id,
     }));
   filteredStudentsList.value = allActiveStudents.value;
@@ -587,8 +655,8 @@ function filterStudents(val, update) {
 
   update(() => {
     const needle = val.toLowerCase();
-    filteredStudentsList.value = allActiveStudents.value.filter(
-      (v) => v.label.toLowerCase().includes(needle)
+    filteredStudentsList.value = allActiveStudents.value.filter((v) =>
+      v.label.toLowerCase().includes(needle),
     );
   });
 }
@@ -648,7 +716,7 @@ async function loadAttendance() {
   loadingAttendance.value = true;
   try {
     await classStore.fetchAttendance(route.params.id, attendanceDate.value);
-    
+
     // Map class learners with their recorded attendance state
     attendanceRows.value = classLearners.value.map((learner) => {
       const match = classStore.attendance.find((a) => {
@@ -680,7 +748,11 @@ function markAllPresent() {
 async function saveAttendance() {
   savingAttendance.value = true;
   try {
-    const res = await classStore.saveAttendance(route.params.id, attendanceDate.value, attendanceRows.value);
+    const res = await classStore.saveAttendance(
+      route.params.id,
+      attendanceDate.value,
+      attendanceRows.value,
+    );
     if (res.success) {
       $q.notify({
         type: 'positive',
@@ -697,7 +769,8 @@ async function saveAttendance() {
 const classAttendanceRate = computed(() => {
   // Static average for visual purposes, normally computed across historical attendance records.
   // Generate random stable rate per class
-  const seed = route.params.id.charCodeAt(0) + route.params.id.charCodeAt(route.params.id.length - 1);
+  const seed =
+    route.params.id.charCodeAt(0) + route.params.id.charCodeAt(route.params.id.length - 1);
   return 85 + (seed % 14); // yields 85% to 98%
 });
 
@@ -720,22 +793,28 @@ const atRiskStudents = computed(() => {
 
 // Timetable queries
 function getPeriodSubject(day, periodNumber) {
-  const match = classStore.timetable.find((t) => t.day_of_week === day && t.period_number === periodNumber);
+  const match = classStore.timetable.find(
+    (t) => t.day_of_week === day && t.period_number === periodNumber,
+  );
   return match ? match.subject : 'No Subject';
 }
 
 function getPeriodTeacher(day, periodNumber) {
-  const match = classStore.timetable.find((t) => t.day_of_week === day && t.period_number === periodNumber);
+  const match = classStore.timetable.find(
+    (t) => t.day_of_week === day && t.period_number === periodNumber,
+  );
   if (!match) return 'No Teacher';
   if (match.teacher_name) return match.teacher_name;
-  
+
   const teacher = allTeachers.value.find((t) => t.value === match.teacher_id);
   return teacher ? teacher.label : 'No Teacher';
 }
 
 function editPeriod(day, period) {
-  const match = classStore.timetable.find((t) => t.day_of_week === day && t.period_number === period.num);
-  
+  const match = classStore.timetable.find(
+    (t) => t.day_of_week === day && t.period_number === period.num,
+  );
+
   activeCell.value = {
     $id: match ? match.$id : null,
     day: day,
@@ -843,8 +922,8 @@ function viewAssessmentPerformance(evt, row) {
   const dStr = row.assessment_date.slice(0, 10);
   router.push(
     `/school/classes/${route.params.id}/performance?subject=${encodeURIComponent(row.subject)}&assessmentType=${encodeURIComponent(
-      row.assessment_type
-    )}&term=${encodeURIComponent(row.term)}&year=${row.academic_year}&date=${dStr}`
+      row.assessment_type,
+    )}&term=${encodeURIComponent(row.term)}&year=${row.academic_year}&date=${dStr}`,
   );
 }
 
@@ -852,10 +931,10 @@ function editAssessment(row) {
   const dStr = row.assessment_date.slice(0, 10);
   router.push(
     `/school/classes/${route.params.id}/record?subject=${encodeURIComponent(row.subject)}&assessmentType=${encodeURIComponent(
-      row.assessment_type
+      row.assessment_type,
     )}&term=${encodeURIComponent(row.term)}&year=${row.academic_year}&date=${dStr}&maxScore=${
       row.max_score
-    }`
+    }`,
   );
 }
 
@@ -879,10 +958,21 @@ function confirmDeleteAssessment(row) {
 
 // Column layouts
 const learnerColumns = [
-  { name: 'name', label: 'Learner Name', field: 'resident_full_name', align: 'left', sortable: true },
+  {
+    name: 'name',
+    label: 'Learner Name',
+    field: 'resident_full_name',
+    align: 'left',
+    sortable: true,
+  },
   { name: 'age', label: 'Age', field: 'age', align: 'center', sortable: true },
   { name: 'gender', label: 'Gender', field: 'gender', align: 'center' },
-  { name: 'parent_guardian', label: 'Parent / Guardian', field: 'parent_guardian_name', align: 'left' },
+  {
+    name: 'parent_guardian',
+    label: 'Parent / Guardian',
+    field: 'parent_guardian_name',
+    align: 'left',
+  },
   { name: 'phone', label: 'Guardian Phone', field: 'parent_guardian_phone', align: 'left' },
   { name: 'actions', label: 'Actions', align: 'right' },
 ];
@@ -894,11 +984,29 @@ const attendanceColumns = [
 ];
 
 const assessmentColumns = [
-  { name: 'assessment_date', label: 'Date', field: 'assessment_date', align: 'left', sortable: true },
+  {
+    name: 'assessment_date',
+    label: 'Date',
+    field: 'assessment_date',
+    align: 'left',
+    sortable: true,
+  },
   { name: 'subject', label: 'Subject', field: 'subject', align: 'left', sortable: true },
-  { name: 'assessment_type', label: 'Type', field: 'assessment_type', align: 'left', sortable: true },
+  {
+    name: 'assessment_type',
+    label: 'Type',
+    field: 'assessment_type',
+    align: 'left',
+    sortable: true,
+  },
   { name: 'learner_count', label: 'Students Assessed', field: 'learner_count', align: 'center' },
-  { name: 'class_average', label: 'Class Average', field: 'class_average', align: 'center', sortable: true },
+  {
+    name: 'class_average',
+    label: 'Class Average',
+    field: 'class_average',
+    align: 'center',
+    sortable: true,
+  },
   { name: 'actions', label: 'Actions', align: 'right' },
 ];
 

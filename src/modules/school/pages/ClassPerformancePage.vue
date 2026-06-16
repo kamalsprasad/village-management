@@ -197,7 +197,7 @@ import { computed, onMounted, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { date } from 'quasar';
 import { useSchoolStore } from '../stores/school-store';
-import { useClassStore } from '../stores/class-store';
+import { normalizeClassId, useClassStore } from '../stores/class-store';
 import { useTeacherStore } from '../stores/teacher-store';
 import { usePermissions } from 'src/composables/usePermissions';
 import { computeScorePercent } from '../utils/school-utils';
@@ -270,7 +270,7 @@ const matchedScores = computed(() => {
       score.term === term.value &&
       score.academic_year === academicYear.value &&
       score.assessment_date.slice(0, 10) === dStr &&
-      score.class_id === classId.value
+      (score.class_id_normalized || normalizeClassId(score.class_id)) === classId.value
     );
   });
 });

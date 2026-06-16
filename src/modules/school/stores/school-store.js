@@ -15,6 +15,11 @@ import { computeScorePercent } from '../utils/school-utils';
 
 const errorHandler = useErrorHandler();
 
+function normalizeId(value) {
+  if (!value) return null;
+  return typeof value === 'object' ? value.$id : value;
+}
+
 export const useSchoolStore = defineStore('school', {
   state: () => ({
     testScores: [],
@@ -25,7 +30,7 @@ export const useSchoolStore = defineStore('school', {
   getters: {
     /**
      * Group flat test scores into unique past assessments.
-     * An assessment is grouped by: Date, Grade, Subject, Assessment Type, Term, Year, Max Score.
+     * An assessment is grouped by: Date, Class, Subject, Assessment Type, Term, Year, Max Score.
      * Includes aggregated metrics: learner count, class average %.
      */
     assessmentsList: (state) => {
@@ -33,20 +38,24 @@ export const useSchoolStore = defineStore('school', {
       const groups = {};
 
       state.testScores.forEach((score) => {
-        // Find learner to know their grade at enrollment
         const learner = learnerStore.learners.find((l) => l.$id === score.learner_id_normalized);
-        const gradeLevel = learner?.grade_level || 'Unknown';
+        const classId =
+          score.class_id_normalized ||
+          normalizeId(score.class_id) ||
+          learner?.class_id_normalized ||
+          normalizeId(learner?.class_id) ||
+          'Unknown';
 
         // Extract ISO date portion
         const dateStr = score.assessment_date ? score.assessment_date.slice(0, 10) : 'Unknown';
 
-        const key = `${dateStr}_${gradeLevel}_${score.subject}_${score.assessment_type}_${score.term}_${score.academic_year}`;
+        const key = `${dateStr}_${classId}_${score.subject}_${score.assessment_type}_${score.term}_${score.academic_year}`;
 
         if (!groups[key]) {
           groups[key] = {
             id: key,
             assessment_date: score.assessment_date,
-            grade_level: gradeLevel,
+            class_id: classId,
             subject: score.subject,
             assessment_type: score.assessment_type,
             term: score.term,
@@ -114,13 +123,14 @@ export const useSchoolStore = defineStore('school', {
      */
     enrichTestScore(score) {
       const learnerStore = useLearnerStore();
-      const learnerId =
-        typeof score.learner_id === 'object' ? score.learner_id?.$id : score.learner_id;
+      const learnerId = normalizeId(score.learner_id);
+      const classId = normalizeId(score.class_id);
       const learner = learnerStore.learners.find((l) => l.$id === learnerId);
 
       return {
         ...score,
         learner_id_normalized: learnerId,
+        class_id_normalized: classId,
         learner_name: learner ? learnerStore.getLearnerName(learner) : 'Unknown Learner',
         learner_grade: learner?.grade_level || 'Unknown',
       };
@@ -225,12 +235,17 @@ export const useSchoolStore = defineStore('school', {
         const dateStr = assessmentParams.assessment_date.slice(0, 10);
         const matches = this.testScores.filter((score) => {
           const learner = learnerStore.learners.find((l) => l.$id === score.learner_id_normalized);
-          const gradeLevel = learner?.grade_level || 'Unknown';
+          const classId =
+            score.class_id_normalized ||
+            normalizeId(score.class_id) ||
+            learner?.class_id_normalized ||
+            normalizeId(learner?.class_id) ||
+            'Unknown';
           const sDateStr = score.assessment_date ? score.assessment_date.slice(0, 10) : '';
 
           return (
             sDateStr === dateStr &&
-            gradeLevel === assessmentParams.grade_level &&
+            classId === assessmentParams.class_id &&
             score.subject === assessmentParams.subject &&
             score.assessment_type === assessmentParams.assessment_type &&
             score.term === assessmentParams.term &&

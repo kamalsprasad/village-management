@@ -19,6 +19,11 @@ const LOCAL_STORAGE_KEYS = {
   ATTENDANCE: 'school_attendance_fallback',
 };
 
+export function normalizeClassId(value) {
+  if (!value) return null;
+  return typeof value === 'object' ? value.$id : value;
+}
+
 export const useClassStore = defineStore('class', {
   state: () => ({
     classes: [],
@@ -37,7 +42,9 @@ export const useClassStore = defineStore('class', {
     getClassSize: () => (classId) => {
       const learnerStore = useLearnerStore();
       return learnerStore.learners.filter(
-        (l) => l.class_id === classId && l.enrollment_status === 'Active',
+        (l) =>
+          (l.class_id_normalized || normalizeClassId(l.class_id)) === classId &&
+          l.enrollment_status === 'Active',
       ).length;
     },
 
@@ -47,7 +54,11 @@ export const useClassStore = defineStore('class', {
     getActiveLearnersByClass: () => (classId) => {
       const learnerStore = useLearnerStore();
       return learnerStore.learners
-        .filter((l) => l.class_id === classId && l.enrollment_status === 'Active')
+        .filter(
+          (l) =>
+            (l.class_id_normalized || normalizeClassId(l.class_id)) === classId &&
+            l.enrollment_status === 'Active',
+        )
         .sort((a, b) => {
           const nameA = learnerStore.getLearnerName(a).toLowerCase();
           const nameB = learnerStore.getLearnerName(b).toLowerCase();
@@ -66,8 +77,12 @@ export const useClassStore = defineStore('class', {
 
       schoolStore.testScores.forEach((score) => {
         // Enforce class match
+        const scoreClassId = score.class_id_normalized || normalizeClassId(score.class_id);
         const learner = learnerStore.learners.find((l) => l.$id === score.learner_id_normalized);
-        if (!learner || learner.class_id !== classId) return;
+        const learnerClassId = learner
+          ? learner.class_id_normalized || normalizeClassId(learner.class_id)
+          : null;
+        if (scoreClassId !== classId && learnerClassId !== classId) return;
 
         const dateStr = score.assessment_date ? score.assessment_date.slice(0, 10) : 'Unknown';
         const key = `${dateStr}_${score.subject}_${score.assessment_type}_${score.term}_${score.academic_year}`;
@@ -258,24 +273,17 @@ export const useClassStore = defineStore('class', {
     },
 
     /**
-     * Distribute learners to classes for fallback support if class_id is unassigned
+     * Assign legacy learners to classes only when a matching grade_level exists.
      */
     async autoAssignLearnersToClasses() {
       const learnerStore = useLearnerStore();
       await learnerStore.fetchLearners();
 
       learnerStore.learners.forEach((learner) => {
-        if (!learner.class_id) {
-          // Distribute based on grade level
+        if (!normalizeClassId(learner.class_id) && learner.grade_level) {
           const matchClass = this.classes.find((c) => c.grade_level === learner.grade_level);
           if (matchClass) {
             learner.class_id = matchClass.$id;
-          } else {
-            // Default to Grade 1 fallback
-            const g1 = this.classes.find((c) => c.grade_level === 'Grade 1');
-            if (g1) {
-              learner.class_id = g1.$id;
-            }
           }
         }
       });

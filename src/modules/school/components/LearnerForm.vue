@@ -5,7 +5,7 @@
   - Create mode: resident is selectable; duplicate enrollment is detected on
     selection (Option A: one learner row per resident, ever) and a banner
     offers navigation to the existing record.
-  - Edit mode: resident is locked; grade promotion and status changes allowed.
+  - Edit mode: resident is locked; class reassignment and status changes allowed.
     Status changes to Graduated/Transferred/Dropped Out require an effective date.
 
   Emits:
@@ -92,6 +92,18 @@
         </div>
       </template>
 
+      <div v-if="!classStore.isLoading && !hasClassOptions" class="col-12">
+        <q-banner class="bg-warning text-black" rounded dense>
+          <template #avatar>
+            <q-icon name="warning" color="black" />
+          </template>
+          No classes have been created yet. Create a class before enrolling learners.
+          <template #action>
+            <q-btn flat dense label="Go to Classes" to="/school/classes" />
+          </template>
+        </q-banner>
+      </div>
+
       <!-- Class Assignment -->
       <div class="col-12 col-sm-6">
         <q-select
@@ -101,6 +113,7 @@
           outlined
           emit-value
           map-options
+          :disable="!hasClassOptions"
           :rules="[(val) => !!val || 'Class is required']"
         />
       </div>
@@ -215,7 +228,7 @@
         :label="isEditMode ? 'Save Changes' : 'Enroll Learner'"
         color="primary"
         :loading="submitting"
-        :disable="!!(existingLearner && !isEditMode)"
+        :disable="!!(existingLearner && !isEditMode) || (!isEditMode && !hasClassOptions)"
       />
     </div>
   </q-form>
@@ -257,6 +270,7 @@ const isEditMode = computed(() => !!props.learner);
 const classOptions = computed(() =>
   classStore.classes.map((c) => ({ label: c.name, value: c.$id })),
 );
+const hasClassOptions = computed(() => classOptions.value.length > 0);
 const statusOptions = ENROLLMENT_STATUSES.map((s) => ({ label: s.label, value: s.value }));
 
 /**

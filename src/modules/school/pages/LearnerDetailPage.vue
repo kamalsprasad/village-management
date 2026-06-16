@@ -513,7 +513,7 @@ const learnerName = computed(() =>
 
 const learnerClassName = computed(() => {
   if (!learner.value) return '';
-  const classId = learner.value.class_id_normalized || learner.value.class_id;
+  const classId = learner.value.class_id_normalized || normalizeClassId(learner.value.class_id);
   const cls = classStore.classes.find((c) => c.$id === classId);
   return cls ? cls.name : learner.value.grade_level || '';
 });
@@ -527,7 +527,7 @@ function formatDate(isoString) {
 
 // Academics Tab Calculations (Story 4.2)
 import { computeScorePercent, getScoreColorClass } from '../utils/school-utils';
-import { useClassStore } from '../stores/class-store';
+import { normalizeClassId, useClassStore } from '../stores/class-store';
 
 const classStore = useClassStore();
 

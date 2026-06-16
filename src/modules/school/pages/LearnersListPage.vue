@@ -1,6 +1,6 @@
 <!--
   LearnersListPage.vue (Story 4.1)
-  Learner list with grade/status filters, name search, sorting, and pagination.
+  Learner list with class/status filters, name search, sorting, and pagination.
 -->
 <template>
   <q-page padding>
@@ -74,11 +74,11 @@
 
     <!-- Learners Table (AC3) -->
     <q-table
-      :rows="learnerStore.filteredLearners"
+      :rows="sortedLearners"
       :columns="columns"
       row-key="$id"
       :loading="learnerStore.isLoading"
-      :pagination="{ rowsPerPage: 25, sortBy: 'name' }"
+      :pagination="{ rowsPerPage: 25 }"
       flat
       bordered
       @row-click="(evt, row) => $router.push(`/school/learners/${row.$id}`)"
@@ -138,7 +138,7 @@
 import { computed, onMounted } from 'vue';
 import { date } from 'quasar';
 import { useLearnerStore } from '../stores/learner-store';
-import { useClassStore } from '../stores/class-store';
+import { normalizeClassId, useClassStore } from '../stores/class-store';
 import { usePermissions } from 'src/composables/usePermissions';
 import { ENROLLMENT_STATUSES } from '../utils/school-constants';
 import EnrollmentStatusBadge from '../components/EnrollmentStatusBadge.vue';
@@ -155,6 +155,18 @@ const classOptions = computed(() =>
 );
 const statusOptions = ENROLLMENT_STATUSES.map((s) => ({ label: s.label, value: s.value }));
 
+const sortedLearners = computed(() => {
+  return [...learnerStore.filteredLearners].sort((a, b) => {
+    const aClassId = a.class_id_normalized || normalizeClassId(a.class_id);
+    const bClassId = b.class_id_normalized || normalizeClassId(b.class_id);
+
+    if (!aClassId && bClassId) return -1;
+    if (aClassId && !bClassId) return 1;
+
+    return learnerStore.getLearnerName(a).localeCompare(learnerStore.getLearnerName(b));
+  });
+});
+
 const columns = [
   {
     name: 'name',
@@ -167,9 +179,9 @@ const columns = [
     name: 'class',
     label: 'Class',
     field: (row) => {
-      const classId = row.class_id_normalized || row.class_id;
+      const classId = row.class_id_normalized || normalizeClassId(row.class_id);
       const cls = classStore.classes.find((c) => c.$id === classId);
-      return cls ? cls.name : '—';
+      return cls ? cls.name : 'Unassigned';
     },
     align: 'left',
     sortable: true,
