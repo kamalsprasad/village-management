@@ -14,7 +14,7 @@
         <div class="text-caption text-grey-7">
           {{
             isEditMode
-              ? 'Update enrollment details, promote grade, or change status'
+              ? 'Update enrollment details, change class, or update status'
               : 'Select a resident to enroll as a learner'
           }}
         </div>
@@ -22,12 +22,12 @@
     </div>
 
     <q-card flat bordered style="max-width: 900px">
-      <q-card-section v-if="isEditMode && schoolStore.isCurrentLearnerLoading">
+      <q-card-section v-if="isEditMode && learnerStore.isCurrentLearnerLoading">
         <q-skeleton type="rect" height="400px" />
       </q-card-section>
       <q-card-section v-else>
         <LearnerForm
-          :learner="isEditMode ? schoolStore.currentLearner : null"
+          :learner="isEditMode ? learnerStore.currentLearner : null"
           :submitting="isSubmitting"
           @submit="onSubmit"
           @cancel="$router.push(backTarget)"
@@ -41,13 +41,13 @@
 import { ref, computed, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useQuasar } from 'quasar';
-import { useSchoolStore } from '../stores/school-store';
+import { useLearnerStore } from '../stores/learner-store';
 import LearnerForm from '../components/LearnerForm.vue';
 
 const route = useRoute();
 const router = useRouter();
 const $q = useQuasar();
-const schoolStore = useSchoolStore();
+const learnerStore = useLearnerStore();
 
 const isSubmitting = ref(false);
 
@@ -63,13 +63,13 @@ async function onSubmit(payload) {
       // Resident cannot change on edit; drop it from the update payload
       const updateData = { ...payload };
       delete updateData.resident_id;
-      const result = await schoolStore.updateLearner(route.params.id, updateData);
+      const result = await learnerStore.updateLearner(route.params.id, updateData);
       if (result.success) {
         $q.notify({ type: 'positive', message: 'Learner updated successfully.' });
         router.push(`/school/learners/${route.params.id}`);
       }
     } else {
-      const result = await schoolStore.enrollLearner(payload);
+      const result = await learnerStore.enrollLearner(payload);
       if (result.success) {
         $q.notify({ type: 'positive', message: 'Learner enrolled successfully.' });
         router.push(`/school/learners/${result.data.$id}`);
@@ -84,7 +84,7 @@ async function onSubmit(payload) {
 
 onMounted(() => {
   if (isEditMode.value) {
-    schoolStore.fetchLearnerById(route.params.id);
+    learnerStore.fetchLearnerById(route.params.id);
   }
 });
 </script>

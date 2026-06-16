@@ -8,7 +8,7 @@
       <div>
         <div class="text-h5">Learners</div>
         <div class="text-caption text-grey-7">
-          {{ schoolStore.filteredLearners.length }} of {{ schoolStore.learners.length }} learners
+          {{ learnerStore.filteredLearners.length }} of {{ learnerStore.learners.length }} learners
         </div>
       </div>
       <q-space />
@@ -26,7 +26,7 @@
       <q-card-section class="row q-col-gutter-sm items-center">
         <div class="col-12 col-sm-4">
           <q-input
-            v-model="schoolStore.filters.searchQuery"
+            v-model="learnerStore.filters.searchQuery"
             label="Search by name"
             outlined
             dense
@@ -40,9 +40,9 @@
         </div>
         <div class="col-6 col-sm-3">
           <q-select
-            v-model="schoolStore.filters.gradeLevels"
-            :options="gradeLevelOptions"
-            label="Grade Level"
+            v-model="learnerStore.filters.classIds"
+            :options="classOptions"
+            label="Class"
             outlined
             dense
             multiple
@@ -54,7 +54,7 @@
         </div>
         <div class="col-6 col-sm-3">
           <q-select
-            v-model="schoolStore.filters.statuses"
+            v-model="learnerStore.filters.statuses"
             :options="statusOptions"
             label="Status"
             outlined
@@ -67,17 +67,17 @@
           />
         </div>
         <div class="col-12 col-sm-2">
-          <q-btn flat color="grey-7" label="Clear Filters" @click="schoolStore.resetFilters()" />
+          <q-btn flat color="grey-7" label="Clear Filters" @click="learnerStore.resetFilters()" />
         </div>
       </q-card-section>
     </q-card>
 
     <!-- Learners Table (AC3) -->
     <q-table
-      :rows="schoolStore.filteredLearners"
+      :rows="learnerStore.filteredLearners"
       :columns="columns"
       row-key="$id"
-      :loading="schoolStore.isLoading"
+      :loading="learnerStore.isLoading"
       :pagination="{ rowsPerPage: 25, sortBy: 'name' }"
       flat
       bordered
@@ -123,7 +123,7 @@
 
       <template #no-data>
         <div class="full-width text-center q-pa-lg text-grey-7">
-          <template v-if="schoolStore.learners.length === 0">
+          <template v-if="learnerStore.learners.length === 0">
             No learners enrolled yet.
             <span v-if="canWrite">Click "Enroll Learner" to get started.</span>
           </template>
@@ -137,35 +137,42 @@
 <script setup>
 import { computed, onMounted } from 'vue';
 import { date } from 'quasar';
-import { useSchoolStore } from '../stores/school-store';
+import { useLearnerStore } from '../stores/learner-store';
+import { useClassStore } from '../stores/class-store';
 import { usePermissions } from 'src/composables/usePermissions';
-import { GRADE_LEVELS, ENROLLMENT_STATUSES } from '../utils/school-constants';
+import { ENROLLMENT_STATUSES } from '../utils/school-constants';
 import EnrollmentStatusBadge from '../components/EnrollmentStatusBadge.vue';
 
-const schoolStore = useSchoolStore();
+const learnerStore = useLearnerStore();
+const classStore = useClassStore();
 const { hasPermission } = usePermissions();
 
 const canWrite = computed(() => hasPermission('school:write'));
 const canAdmin = computed(() => hasPermission('school:admin'));
 
-const gradeLevelOptions = GRADE_LEVELS.map((g) => ({ label: g, value: g }));
+const classOptions = computed(() =>
+  classStore.classes.map((c) => ({ label: c.name, value: c.$id })),
+);
 const statusOptions = ENROLLMENT_STATUSES.map((s) => ({ label: s.label, value: s.value }));
 
 const columns = [
   {
     name: 'name',
     label: 'Resident Name',
-    field: (row) => schoolStore.getLearnerName(row),
+    field: (row) => learnerStore.getLearnerName(row),
     align: 'left',
     sortable: true,
   },
   {
-    name: 'grade_level',
-    label: 'Grade Level',
-    field: 'grade_level',
+    name: 'class',
+    label: 'Class',
+    field: (row) => {
+      const classId = row.class_id_normalized || row.class_id;
+      const cls = classStore.classes.find((c) => c.$id === classId);
+      return cls ? cls.name : '—';
+    },
     align: 'left',
     sortable: true,
-    sort: (a, b) => GRADE_LEVELS.indexOf(a) - GRADE_LEVELS.indexOf(b),
   },
   {
     name: 'status',
@@ -191,6 +198,7 @@ const columns = [
 ];
 
 onMounted(() => {
-  schoolStore.fetchLearners();
+  learnerStore.fetchLearners();
+  classStore.fetchClasses();
 });
 </script>

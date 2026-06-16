@@ -92,16 +92,16 @@
         </div>
       </template>
 
-      <!-- Grade Level -->
+      <!-- Class Assignment -->
       <div class="col-12 col-sm-6">
         <q-select
-          v-model="form.grade_level"
-          :options="gradeLevelOptions"
-          label="Grade Level *"
+          v-model="form.class_id"
+          :options="classOptions"
+          label="Class *"
           outlined
           emit-value
           map-options
-          :rules="[(val) => !!val || 'Grade level is required']"
+          :rules="[(val) => !!val || 'Class is required']"
         />
       </div>
 
@@ -225,12 +225,9 @@
 import { ref, computed, watch, onMounted } from 'vue';
 import { date } from 'quasar';
 import { tables } from 'src/boot/appwrite';
-import { useSchoolStore } from '../stores/school-store';
-import {
-  GRADE_LEVELS,
-  ENROLLMENT_STATUSES,
-  STATUSES_REQUIRING_EFFECTIVE_DATE,
-} from '../utils/school-constants';
+import { useLearnerStore } from '../stores/learner-store';
+import { useClassStore } from '../stores/class-store';
+import { ENROLLMENT_STATUSES, STATUSES_REQUIRING_EFFECTIVE_DATE } from '../utils/school-constants';
 import ResidentSearchInput from 'src/components/inputs/ResidentSearchInput.vue';
 
 const props = defineProps({
@@ -247,7 +244,8 @@ const props = defineProps({
 
 const emit = defineEmits(['submit', 'cancel']);
 
-const schoolStore = useSchoolStore();
+const learnerStore = useLearnerStore();
+const classStore = useClassStore();
 
 const formRef = ref(null);
 const selectedResident = ref(null);
@@ -256,7 +254,9 @@ const existingLearner = ref(null);
 
 const isEditMode = computed(() => !!props.learner);
 
-const gradeLevelOptions = GRADE_LEVELS.map((g) => ({ label: g, value: g }));
+const classOptions = computed(() =>
+  classStore.classes.map((c) => ({ label: c.name, value: c.$id })),
+);
 const statusOptions = ENROLLMENT_STATUSES.map((s) => ({ label: s.label, value: s.value }));
 
 /**
@@ -276,7 +276,7 @@ function todayDateValue() {
 
 const form = ref({
   resident_id: null,
-  grade_level: null,
+  class_id: null,
   enrollment_date: todayDateValue(),
   enrollment_status: 'Active',
   status_effective_date: '',
@@ -317,7 +317,7 @@ const age = computed(() => {
 const existingLearnerName = computed(() => {
   if (!existingLearner.value) return 'This resident';
   return (
-    schoolStore.getLearnerName(existingLearner.value) || residentFullName.value || 'This resident'
+    learnerStore.getLearnerName(existingLearner.value) || residentFullName.value || 'This resident'
   );
 });
 
@@ -338,7 +338,7 @@ async function onResidentSelected(option) {
   // Duplicate check (Option A: one learner row per resident, ever)
   if (!isEditMode.value && option?.id) {
     try {
-      existingLearner.value = await schoolStore.checkExistingEnrollment(option.id);
+      existingLearner.value = await learnerStore.checkExistingEnrollment(option.id);
     } catch (error) {
       console.error('LearnerForm: duplicate enrollment check failed', error);
     }
@@ -370,7 +370,7 @@ async function loadHouseholdName(householdRef) {
 function populateFromLearner(learner) {
   form.value = {
     resident_id: learner.resident_id_normalized || null,
-    grade_level: learner.grade_level,
+    class_id: normalizeId(learner.class_id),
     enrollment_date: toDateInputValue(learner.enrollment_date),
     enrollment_status: learner.enrollment_status,
     status_effective_date: toDateInputValue(learner.status_effective_date),
@@ -394,14 +394,23 @@ watch(
   },
 );
 
+/**
+ * Normalize a relationship value to its row ID.
+ */
+function normalizeId(value) {
+  if (!value) return null;
+  return typeof value === 'object' ? value.$id : value;
+}
+
 onMounted(() => {
+  classStore.fetchClasses();
   if (props.learner) populateFromLearner(props.learner);
 });
 
 function onSubmit() {
   const payload = {
     resident_id: form.value.resident_id,
-    grade_level: form.value.grade_level,
+    class_id: form.value.class_id,
     // Anchor to midday UTC to avoid timezone-driven off-by-one day errors
     enrollment_date: new Date(`${form.value.enrollment_date}T12:00:00Z`).toISOString(),
     enrollment_status: form.value.enrollment_status,

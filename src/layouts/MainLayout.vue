@@ -328,6 +328,34 @@
               <q-item-label>Learners</q-item-label>
             </q-item-section>
           </q-item>
+
+          <q-item
+            clickable
+            to="/school/classes"
+            :class="{ 'bg-primary text-white': $route.path.startsWith('/school/classes') }"
+          >
+            <q-item-section avatar>
+              <q-icon name="groups_3" />
+            </q-item-section>
+            <q-item-section>
+              <q-item-label>Classes</q-item-label>
+            </q-item-section>
+          </q-item>
+
+          <q-item
+            clickable
+            to="/school/teachers"
+            :class="{
+              'bg-primary text-white': $route.path.startsWith('/school/teachers'),
+            }"
+          >
+            <q-item-section avatar>
+              <q-icon name="badge" />
+            </q-item-section>
+            <q-item-section>
+              <q-item-label>Teachers & Faculty</q-item-label>
+            </q-item-section>
+          </q-item>
         </q-expansion-item>
 
         <!-- Services Section -->

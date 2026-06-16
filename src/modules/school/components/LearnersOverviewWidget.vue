@@ -8,16 +8,16 @@
     <q-card-section class="row items-center q-pb-none">
       <div class="text-h6">Learners Overview</div>
       <q-space />
-      <q-btn flat dense round icon="refresh" :loading="schoolStore.isLoading" @click="refresh">
+      <q-btn flat dense round icon="refresh" :loading="learnerStore.isLoading" @click="refresh">
         <q-tooltip>Refresh</q-tooltip>
       </q-btn>
     </q-card-section>
 
-    <q-card-section v-if="schoolStore.isLoading && !schoolStore.learnersLoaded">
+    <card-section v-if="learnerStore.isLoading && !learnerStore.learnersLoaded">
       <q-skeleton type="rect" height="120px" />
-    </q-card-section>
+    </card-section>
 
-    <q-card-section v-else-if="schoolStore.learners.length === 0">
+    <q-card-section v-else-if="learnerStore.learners.length === 0">
       <div class="text-grey-7 text-center q-pa-md">
         No learners enrolled yet. Click "Enroll Learner" to get started.
       </div>
@@ -27,20 +27,20 @@
       <q-card-section class="row q-col-gutter-md">
         <div class="col-6 col-sm-4">
           <div class="text-caption text-grey-7">Active Learners</div>
-          <div class="text-h4 text-primary">{{ schoolStore.activeLearners.length }}</div>
+          <div class="text-h4 text-primary">{{ learnerStore.activeLearners.length }}</div>
         </div>
         <div class="col-6 col-sm-8">
-          <div class="text-caption text-grey-7 q-mb-xs">By Grade</div>
+          <div class="text-caption text-grey-7 q-mb-xs">By Class</div>
           <div class="row q-gutter-xs">
             <q-chip
-              v-for="(count, grade) in schoolStore.activeLearnersByGrade"
-              :key="grade"
+              v-for="(count, classId) in learnerStore.activeLearnersByClass"
+              :key="classId"
               dense
               size="sm"
               color="primary"
               text-color="white"
             >
-              {{ grade }}: {{ count }}
+              {{ classNameMap[classId] || classId }}: {{ count }}
             </q-chip>
           </div>
         </div>
@@ -52,15 +52,20 @@
         <div class="text-caption text-grey-7 q-mb-sm">Recent Enrollments</div>
         <q-list dense separator>
           <q-item
-            v-for="learner in schoolStore.recentEnrollments"
+            v-for="learner in learnerStore.recentEnrollments"
             :key="learner.$id"
             clickable
             :to="`/school/learners/${learner.$id}`"
           >
             <q-item-section>
-              <q-item-label>{{ schoolStore.getLearnerName(learner) || 'Unknown' }}</q-item-label>
+              <q-item-label>{{ learnerStore.getLearnerName(learner) || 'Unknown' }}</q-item-label>
               <q-item-label caption>
-                {{ learner.grade_level }} · {{ formatDate(learner.enrollment_date) }}
+                {{
+                  classNameMap[learner.class_id_normalized || learner.class_id] ||
+                  learner.grade_level ||
+                  '—'
+                }}
+                · {{ formatDate(learner.enrollment_date) }}
               </q-item-label>
             </q-item-section>
             <q-item-section side>
@@ -74,12 +79,22 @@
 </template>
 
 <script setup>
-import { onMounted } from 'vue';
+import { computed, onMounted } from 'vue';
 import { date } from 'quasar';
-import { useSchoolStore } from '../stores/school-store';
+import { useLearnerStore } from '../stores/learner-store';
+import { useClassStore } from '../stores/class-store';
 import EnrollmentStatusBadge from './EnrollmentStatusBadge.vue';
 
-const schoolStore = useSchoolStore();
+const learnerStore = useLearnerStore();
+const classStore = useClassStore();
+
+const classNameMap = computed(() => {
+  const map = {};
+  classStore.classes.forEach((c) => {
+    map[c.$id] = c.name;
+  });
+  return map;
+});
 
 function formatDate(isoString) {
   if (!isoString) return '—';
@@ -87,12 +102,14 @@ function formatDate(isoString) {
 }
 
 function refresh() {
-  schoolStore.fetchLearners(true);
+  learnerStore.fetchLearners(true);
+  classStore.fetchClasses();
 }
 
 onMounted(() => {
-  if (!schoolStore.learnersLoaded) {
-    schoolStore.fetchLearners();
+  if (!learnerStore.learnersLoaded) {
+    learnerStore.fetchLearners();
   }
+  classStore.fetchClasses();
 });
 </script>

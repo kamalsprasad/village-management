@@ -1,194 +1,156 @@
 /**
- * School Store (Story 4.1)
+ * School Store (Story 4.2)
  *
- * Pinia store for the School module. Manages learner enrollment records.
- *
- * Data model (Story 4.1, Option A): ONE learner row per resident, ever.
- * Status changes (promotion, graduation, re-enrollment) mutate the single row,
- * preserving a stable learner ID for test scores, attendance, and interventions
- * in Stories 4.2+. Uniqueness is enforced here via checkExistingEnrollment()
- * because Appwrite does not support indexes on relationship columns.
+ * Pinia store for school academics, including test scores.
+ * Maintains a flat test_scores database structure. Grouping into logical
+ * "assessments" is done client-side for reporting, lists, and performance analysis.
  */
 
 import { defineStore } from 'pinia';
 import { tables } from 'src/boot/appwrite';
 import { useErrorHandler } from 'src/composables/useErrorHandler';
+import { useLearnerStore } from './learner-store';
 import { ID, Query } from 'appwrite';
+import { computeScorePercent } from '../utils/school-utils';
 
 const errorHandler = useErrorHandler();
 
-/**
- * Normalize a relationship value to its row ID.
- * Appwrite returns relationship columns as embedded objects on reads,
- * but accepts plain IDs on writes.
- * @param {Object|string|null} value - Relationship value
- * @returns {string|null} Row ID
- */
-function normalizeId(value) {
-  if (!value) return null;
-  return typeof value === 'object' ? value.$id : value;
-}
-
-/**
- * Build full name from resident object parts (mirrors residents-store)
- * @param {Object} resident - Resident with first_name, middle_names, last_name
- * @returns {string} Full name
- */
-function buildResidentFullName(resident) {
-  if (!resident || typeof resident !== 'object') return '';
-  const parts = [resident.first_name];
-  if (resident.middle_names) {
-    parts.push(resident.middle_names);
-  }
-  parts.push(resident.last_name);
-  return parts.filter(Boolean).join(' ');
-}
-
 export const useSchoolStore = defineStore('school', {
   state: () => ({
-    learners: [],
-    learnersLoaded: false,
+    testScores: [],
+    testScoresLoaded: false,
     isLoading: false,
-    currentLearner: null,
-    isCurrentLearnerLoading: false,
-    filters: {
-      gradeLevels: [], // Multi-select grade filter
-      statuses: [], // Multi-select status filter
-      searchQuery: '',
-    },
   }),
 
   getters: {
     /**
-     * Learners with an Active enrollment status
+     * Group flat test scores into unique past assessments.
+     * An assessment is grouped by: Date, Grade, Subject, Assessment Type, Term, Year, Max Score.
+     * Includes aggregated metrics: learner count, class average %.
      */
-    activeLearners: (state) => state.learners.filter((l) => l.enrollment_status === 'Active'),
+    assessmentsList: (state) => {
+      const learnerStore = useLearnerStore();
+      const groups = {};
 
-    /**
-     * Count of active learners per grade level
-     * @returns {Object<string, number>} Map of grade level -> count
-     */
-    activeLearnersByGrade() {
-      return this.activeLearners.reduce((acc, learner) => {
-        const grade = learner.grade_level;
-        acc[grade] = (acc[grade] || 0) + 1;
-        return acc;
-      }, {});
+      state.testScores.forEach((score) => {
+        // Find learner to know their grade at enrollment
+        const learner = learnerStore.learners.find((l) => l.$id === score.learner_id_normalized);
+        const gradeLevel = learner?.grade_level || 'Unknown';
+
+        // Extract ISO date portion
+        const dateStr = score.assessment_date ? score.assessment_date.slice(0, 10) : 'Unknown';
+
+        const key = `${dateStr}_${gradeLevel}_${score.subject}_${score.assessment_type}_${score.term}_${score.academic_year}`;
+
+        if (!groups[key]) {
+          groups[key] = {
+            id: key,
+            assessment_date: score.assessment_date,
+            grade_level: gradeLevel,
+            subject: score.subject,
+            assessment_type: score.assessment_type,
+            term: score.term,
+            academic_year: score.academic_year,
+            max_score: score.max_score,
+            scores: [],
+          };
+        }
+        groups[key].scores.push(score);
+      });
+
+      return Object.values(groups)
+        .map((group) => {
+          const totalLearners = group.scores.length;
+          const totalPercent = group.scores.reduce((acc, score) => {
+            return acc + computeScorePercent(score.score_value, score.max_score);
+          }, 0);
+
+          return {
+            ...group,
+            learner_count: totalLearners,
+            class_average: totalLearners > 0 ? Math.round(totalPercent / totalLearners) : 0,
+          };
+        })
+        .sort((a, b) => new Date(b.assessment_date) - new Date(a.assessment_date));
     },
 
     /**
-     * Last 5 enrollments by enrollment date (most recent first)
+     * Get score history for a single learner
      */
-    recentEnrollments: (state) => {
-      return [...state.learners]
-        .sort((a, b) => new Date(b.enrollment_date) - new Date(a.enrollment_date))
-        .slice(0, 5);
+    getLearnerScoreHistory: (state) => (learnerId) => {
+      return state.testScores
+        .filter((s) => s.learner_id_normalized === learnerId)
+        .sort((a, b) => new Date(b.assessment_date) - new Date(a.assessment_date));
     },
 
     /**
-     * Learners filtered by grade, status, and name search (client-side)
+     * Get subject averages for a single learner in an academic year
      */
-    filteredLearners: (state) => {
-      let result = state.learners;
+    getLearnerSubjectAverages: (state) => (learnerId, academicYear) => {
+      const learnerScores = state.testScores.filter(
+        (s) => s.learner_id_normalized === learnerId && s.academic_year === academicYear,
+      );
 
-      if (state.filters.gradeLevels.length > 0) {
-        result = result.filter((l) => state.filters.gradeLevels.includes(l.grade_level));
-      }
+      const subjectsMap = {};
+      learnerScores.forEach((s) => {
+        if (!subjectsMap[s.subject]) {
+          subjectsMap[s.subject] = { total: 0, count: 0 };
+        }
+        subjectsMap[s.subject].total += computeScorePercent(s.score_value, s.max_score);
+        subjectsMap[s.subject].count += 1;
+      });
 
-      if (state.filters.statuses.length > 0) {
-        result = result.filter((l) => state.filters.statuses.includes(l.enrollment_status));
-      }
-
-      if (state.filters.searchQuery && state.filters.searchQuery.trim()) {
-        const term = state.filters.searchQuery.trim().toLowerCase();
-        result = result.filter((l) => {
-          const name = (l.resident_full_name || '').toLowerCase();
-          return name.includes(term);
-        });
-      }
-
-      return result;
-    },
-
-    /**
-     * Get full name for a learner's linked resident
-     * @returns {Function} (learner) => string
-     */
-    getLearnerName: () => (learner) => {
-      if (!learner) return '';
-      if (learner.resident_full_name) return learner.resident_full_name;
-      return buildResidentFullName(learner.resident_id);
+      return Object.entries(subjectsMap).map(([subject, data]) => ({
+        subject,
+        average: Math.round(data.total / data.count),
+        test_count: data.count,
+      }));
     },
   },
 
   actions: {
     /**
-     * Enrich a learner row with denormalized display fields from the
-     * embedded resident relationship (resident_full_name, resident object).
-     * @param {Object} learner - Raw learner row from Appwrite
-     * @returns {Object} Enriched learner
+     * Enrich raw test score rows with denormalized information
      */
-    enrichLearner(learner) {
-      const resident = typeof learner.resident_id === 'object' ? learner.resident_id : null;
+    enrichTestScore(score) {
+      const learnerStore = useLearnerStore();
+      const learnerId =
+        typeof score.learner_id === 'object' ? score.learner_id?.$id : score.learner_id;
+      const learner = learnerStore.learners.find((l) => l.$id === learnerId);
+
       return {
-        ...learner,
-        resident: resident,
-        resident_id_normalized: normalizeId(learner.resident_id),
-        resident_full_name: buildResidentFullName(resident),
+        ...score,
+        learner_id_normalized: learnerId,
+        learner_name: learner ? learnerStore.getLearnerName(learner) : 'Unknown Learner',
+        learner_grade: learner?.grade_level || 'Unknown',
       };
     },
 
     /**
-     * Fetch all learners (AC3, AC8)
-     * @param {boolean} force - Refetch even if already loaded
+     * Fetch all test scores
      */
-    async fetchLearners(force = false) {
-      if (this.learnersLoaded && !force) {
-        return { success: true, data: this.learners };
+    async fetchTestScores(force = false) {
+      if (this.testScoresLoaded && !force) {
+        return { success: true, data: this.testScores };
       }
       this.isLoading = true;
       try {
+        const learnerStore = useLearnerStore();
+        await learnerStore.fetchLearners(); // Ensure learners are loaded for enrichment
+
         const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
         const response = await tables.listRows({
           databaseId: dbId,
-          tableId: 'learners',
-          queries: [Query.limit(500), Query.orderDesc('enrollment_date')],
+          tableId: 'test_scores',
+          queries: [Query.limit(2000), Query.orderDesc('assessment_date')],
         });
-        let learners = response.rows.map((row) => this.enrichLearner(row));
 
-        // If relationships weren't expanded, batch-fetch residents
-        const missingIds = learners
-          .filter((l) => !l.resident_full_name && l.resident_id_normalized)
-          .map((l) => l.resident_id_normalized);
-
-        if (missingIds.length > 0) {
-          const residentsMap = new Map();
-          const tableId = import.meta.env.VITE_APPWRITE_TABLE_RESIDENTS;
-          const res = await tables.listRows({
-            databaseId: dbId,
-            tableId,
-            queries: [Query.equal('$id', missingIds), Query.limit(missingIds.length)],
-          });
-          res.rows.forEach((r) => residentsMap.set(r.$id, r));
-
-          learners = learners.map((l) => {
-            if (l.resident_full_name) return l;
-            const resident = residentsMap.get(l.resident_id_normalized);
-            if (!resident) return l;
-            return {
-              ...l,
-              resident,
-              resident_full_name: buildResidentFullName(resident),
-            };
-          });
-        }
-
-        this.learners = learners;
-        this.learnersLoaded = true;
-        return { success: true, data: this.learners };
+        this.testScores = response.rows.map((row) => this.enrichTestScore(row));
+        this.testScoresLoaded = true;
+        return { success: true, data: this.testScores };
       } catch (error) {
-        console.error('Error fetching learners:', error);
-        errorHandler.notifyError('Failed to load learners. Please try again.');
+        console.error('Error fetching test scores:', error);
+        errorHandler.notifyError('Failed to load academic test scores. Please try again.');
         return { success: false, error: error.message };
       } finally {
         this.isLoading = false;
@@ -196,130 +158,54 @@ export const useSchoolStore = defineStore('school', {
     },
 
     /**
-     * Fetch a single learner by ID (AC5)
-     * @param {string} learnerId - Learner row ID
+     * Save/Record a batch of test scores (Bulk entry)
+     * Handles both updates (overwrites) and inserts.
      */
-    async fetchLearnerById(learnerId) {
-      this.isCurrentLearnerLoading = true;
-      try {
-        const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
-        const response = await tables.getRow({
-          databaseId: dbId,
-          tableId: 'learners',
-          rowId: learnerId,
-        });
-        this.currentLearner = this.enrichLearner(response);
-        return { success: true, data: this.currentLearner };
-      } catch (error) {
-        console.error('Error fetching learner:', error);
-        errorHandler.notifyError('Failed to load learner details. Please try again.');
-        return { success: false, error: error.message };
-      } finally {
-        this.isCurrentLearnerLoading = false;
-      }
-    },
-
-    /**
-     * Check whether a resident already has a learner record (Option A:
-     * one learner row per resident, ever).
-     * @param {string} residentId - Resident row ID
-     * @returns {Object|null} Existing learner row (enriched) or null
-     */
-    async checkExistingEnrollment(residentId) {
-      const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
-      const response = await tables.listRows({
-        databaseId: dbId,
-        tableId: 'learners',
-        queries: [Query.equal('resident_id', residentId), Query.limit(1)],
-      });
-      return response.rows.length > 0 ? this.enrichLearner(response.rows[0]) : null;
-    },
-
-    /**
-     * Enroll a new learner (AC4)
-     * Validates that the resident has no existing learner record.
-     * @param {Object} data - Learner data (resident_id, grade_level, enrollment_date, ...)
-     */
-    async enrollLearner(data) {
-      this.isLoading = true;
-      try {
-        // Option A validation: one learner row per resident, ever
-        const existing = await this.checkExistingEnrollment(data.resident_id);
-        if (existing) {
-          const name = this.getLearnerName(existing) || 'This resident';
-          const status = existing.enrollment_status;
-          return {
-            success: false,
-            duplicate: true,
-            existingLearner: existing,
-            error:
-              status === 'Active'
-                ? `${name} is already enrolled as an active learner.`
-                : `${name} has a previous enrollment (${status}). Edit the existing record to re-enroll.`,
-          };
-        }
-
-        const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
-        const response = await tables.createRow({
-          databaseId: dbId,
-          tableId: 'learners',
-          rowId: ID.unique(),
-          data: {
-            ...data,
-            enrollment_status: data.enrollment_status || 'Active',
-          },
-        });
-        const enriched = this.enrichLearner(response);
-        this.learners.unshift(enriched);
-        return { success: true, data: enriched };
-      } catch (error) {
-        console.error('Error enrolling learner:', error);
-        errorHandler.notifyError('Failed to enroll learner. Please try again.');
-        return { success: false, error: error.message };
-      } finally {
-        this.isLoading = false;
-      }
-    },
-
-    /**
-     * Update a learner record (AC6: grade promotion, status changes, edits)
-     * @param {string} learnerId - Learner row ID
-     * @param {Object} data - Fields to update
-     */
-    async updateLearner(learnerId, data) {
+    async saveTestScores(scoresList) {
       this.isLoading = true;
       try {
         const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
-        const response = await tables.updateRow({
-          databaseId: dbId,
-          tableId: 'learners',
-          rowId: learnerId,
-          data: data,
-        });
-        let enriched = this.enrichLearner(response);
-        // Preserve resident data if Appwrite response didn't expand the relationship
-        if (!enriched.resident_full_name) {
-          const existing = this.learners.find((l) => l.$id === learnerId) || this.currentLearner;
-          if (existing?.$id === learnerId && existing.resident) {
-            enriched = {
-              ...enriched,
-              resident: existing.resident,
-              resident_full_name: existing.resident_full_name,
-              resident_id_normalized: existing.resident_id_normalized,
-            };
+
+        // Perform parallel saves
+        const savePromises = scoresList.map(async (scoreData) => {
+          if (scoreData.$id) {
+            // Update existing row
+            const { $id, ...writeFields } = scoreData;
+            const updatedRow = await tables.updateRow({
+              databaseId: dbId,
+              tableId: 'test_scores',
+              rowId: $id,
+              data: writeFields,
+            });
+            return this.enrichTestScore(updatedRow);
+          } else {
+            // Create new row
+            const createdRow = await tables.createRow({
+              databaseId: dbId,
+              tableId: 'test_scores',
+              rowId: ID.unique(),
+              data: scoreData,
+            });
+            return this.enrichTestScore(createdRow);
           }
-        }
-        const index = this.learners.findIndex((l) => l.$id === learnerId);
-        if (index !== -1) {
-          this.learners.splice(index, 1, enriched);
-        }
-        if (this.currentLearner && this.currentLearner.$id === learnerId) {
-          this.currentLearner = enriched;
-        }
-        return { success: true, data: enriched };
+        });
+
+        const savedScores = await Promise.all(savePromises);
+
+        // Update local state
+        savedScores.forEach((saved) => {
+          const index = this.testScores.findIndex((s) => s.$id === saved.$id);
+          if (index !== -1) {
+            this.testScores.splice(index, 1, saved);
+          } else {
+            this.testScores.unshift(saved);
+          }
+        });
+
+        return { success: true, data: savedScores };
       } catch (error) {
-        console.error('Error updating learner:', error);
-        errorHandler.notifyError('Failed to update learner. Please try again.');
+        console.error('Error saving bulk test scores:', error);
+        errorHandler.notifyError('Failed to record test scores. Please try again.');
         return { success: false, error: error.message };
       } finally {
         this.isLoading = false;
@@ -327,49 +213,54 @@ export const useSchoolStore = defineStore('school', {
     },
 
     /**
-     * Delete a learner record (AC6: hard delete, Admin/Head Teacher only — enforced in UI)
-     * @param {string} learnerId - Learner row ID
+     * Delete an entire assessment (all scores matching header combo)
      */
-    async deleteLearner(learnerId) {
+    async deleteAssessment(assessmentParams) {
       this.isLoading = true;
       try {
         const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
-        await tables.deleteRow({
-          databaseId: dbId,
-          tableId: 'learners',
-          rowId: learnerId,
+        const learnerStore = useLearnerStore();
+
+        // Find all local matching score IDs
+        const dateStr = assessmentParams.assessment_date.slice(0, 10);
+        const matches = this.testScores.filter((score) => {
+          const learner = learnerStore.learners.find((l) => l.$id === score.learner_id_normalized);
+          const gradeLevel = learner?.grade_level || 'Unknown';
+          const sDateStr = score.assessment_date ? score.assessment_date.slice(0, 10) : '';
+
+          return (
+            sDateStr === dateStr &&
+            gradeLevel === assessmentParams.grade_level &&
+            score.subject === assessmentParams.subject &&
+            score.assessment_type === assessmentParams.assessment_type &&
+            score.term === assessmentParams.term &&
+            score.academic_year === assessmentParams.academic_year
+          );
         });
-        this.learners = this.learners.filter((l) => l.$id !== learnerId);
-        if (this.currentLearner && this.currentLearner.$id === learnerId) {
-          this.currentLearner = null;
-        }
+
+        // Parallel delete from Appwrite
+        const deletePromises = matches.map((score) =>
+          tables.deleteRow({
+            databaseId: dbId,
+            tableId: 'test_scores',
+            rowId: score.$id,
+          }),
+        );
+
+        await Promise.all(deletePromises);
+
+        // Filter out deleted rows from local state
+        const deletedIds = new Set(matches.map((m) => m.$id));
+        this.testScores = this.testScores.filter((s) => !deletedIds.has(s.$id));
+
         return { success: true };
       } catch (error) {
-        console.error('Error deleting learner:', error);
-        errorHandler.notifyError('Failed to delete learner. Please try again.');
+        console.error('Error deleting assessment:', error);
+        errorHandler.notifyError('Failed to delete assessment records. Please try again.');
         return { success: false, error: error.message };
       } finally {
         this.isLoading = false;
       }
-    },
-
-    /**
-     * Patch the current learner with additional fields (e.g., manually loaded
-     * resident data when Appwrite didn't expand the relationship).
-     * @param {Object} patch - Fields to merge into currentLearner
-     */
-    patchCurrentLearner(patch) {
-      if (!this.currentLearner) return;
-      this.currentLearner = { ...this.currentLearner, ...patch };
-    },
-
-    /**
-     * Reset list filters (AC7)
-     */
-    resetFilters() {
-      this.filters.gradeLevels = [];
-      this.filters.statuses = [];
-      this.filters.searchQuery = '';
     },
   },
 });

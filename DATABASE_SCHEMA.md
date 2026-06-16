@@ -435,6 +435,36 @@ Stores learner enrollment records for the School module (Story 4.1). Learners ar
 
 **Indexes:** `idx_learners_grade` on `(grade_level ASC)`, `idx_learners_status` on `(enrollment_status ASC)`
 
+### test_scores
+
+Stores individual test/assessment scores for learners (Story 4.2). Grouping of scores into "assessments" is performed client-side based on matching headers: `assessment_date`, `subject`, `assessment_type`, `term`, `academic_year`.
+
+| Column            | Type     | Constraints                                                 | Description                                        |
+| ----------------- | -------- | ----------------------------------------------------------- | -------------------------------------------------- |
+| `learner_id`      | rel      | Required, manyToOne → learners, onDelete: cascade           | Linked learner record                              |
+| `subject`         | enum     | Required: 'Mathematics', 'English', 'Integrated Science'... | Academic subject                                   |
+| `assessment_type` | enum     | Required: 'Class Exercise', 'Monthly Test', 'Exam'...       | Type of assessment                                 |
+| `term`            | enum     | Required: 'Term 1', 'Term 2', 'Term 3'                      | Academic term                                      |
+| `academic_year`   | integer  | Required                                                    | Numeric year (e.g. 2026)                           |
+| `assessment_date` | datetime | Required                                                    | Date of the assessment                             |
+| `score_value`     | double   | Required                                                    | Raw score received                                 |
+| `max_score`       | double   | Required                                                    | Maximum achievable score (e.g. 20.0, 100.0)        |
+| `notes`           | string   | Optional, max 500                                           | Teacher notes regarding this learner's performance |
+
+**Indexes:** `idx_test_scores_learner` on `(learner_id ASC)`, `idx_test_scores_subject_date` on `(assessment_date DESC, subject ASC, assessment_type ASC)`
+
+### teacher_assignments
+
+Stores grade-level teacher assignments for runtime authorization check (Story 4.2).
+
+| Column        | Type   | Constraints                                        | Description                            |
+| ------------- | ------ | -------------------------------------------------- | -------------------------------------- |
+| `teacher_id`  | rel    | Required, manyToOne → residents, onDelete: cascade | Linked resident profile of the Teacher |
+| `grade_level` | enum   | Required: 'Early Childhood', 'Grade 1'–'Grade 12'  | Assigned grade level                   |
+| `notes`       | string | Optional, max 500                                  | Assignment details                     |
+
+**Indexes:** `idx_teacher_assignments_teacher` on `(teacher_id ASC)`, `idx_teacher_assignments_grade` on `(grade_level ASC)`
+
 ## Relationships
 
 All relationships use Appwrite's native relationship columns (type `rel`). Key relationships:
@@ -464,6 +494,8 @@ All relationships use Appwrite's native relationship columns (type `rel`). Key r
 **School:**
 
 - **learners → residents**: manyToOne via `learners.resident_id` (onDelete: restrict — residents with learner records cannot be deleted)
+- **test_scores → learners**: manyToOne via `test_scores.learner_id` (onDelete: cascade)
+- **teacher_assignments → residents**: manyToOne via `teacher_assignments.teacher_id` (onDelete: cascade)
 
 **Finance:**
 

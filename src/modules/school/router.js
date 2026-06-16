@@ -58,6 +58,51 @@ const schoolRoutes = [
       requiresPermission: 'school:admin',
     },
   },
+  {
+    path: 'school/classes',
+    name: 'school-classes',
+    component: () => import('./pages/ClassesListPage.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresPermission: 'school:read',
+    },
+  },
+  {
+    path: 'school/classes/:id',
+    name: 'school-class-detail',
+    component: () => import('./pages/ClassDetailPage.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresPermission: 'school:read',
+    },
+  },
+  {
+    path: 'school/classes/:id/record',
+    name: 'school-record-scores',
+    component: () => import('./pages/RecordScoresPage.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresPermission: 'school:write',
+    },
+  },
+  {
+    path: 'school/classes/:id/performance',
+    name: 'school-class-performance',
+    component: () => import('./pages/ClassPerformancePage.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresPermission: 'school:read',
+    },
+  },
+  {
+    path: 'school/teachers',
+    name: 'school-teachers',
+    component: () => import('./pages/TeachersListPage.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresPermission: 'school:read',
+    },
+  },
 ];
 
 export default schoolRoutes;

@@ -28,12 +28,14 @@ This story delivers:
 
 **Key Architectural Decisions (final, as implemented):**
 
-- Learners are **not** a standalone entity; they are residents with additional school-specific attributes (grade, enrollment date, status)
+- Learners are **not** a standalone entity; they are residents with additional school-specific attributes (class assignment, enrollment date, status)
 - **Option A:** ONE learner row per resident, ever. Status changes (promotion, graduation, re-enrollment) mutate the single row, preserving a stable learner ID for test scores/attendance/interventions in Stories 4.2+. Re-enrollment of a returning learner re-activates the existing row via the edit page — no new row is created
 - `resident_id` is a relationship column (onDelete: restrict). Uniqueness is enforced in the store (`checkExistingEnrollment`) because Appwrite does not support indexes on relationship columns
+- `class_id` is a relationship to `school_classes` (onDelete: setNull). Class assignment replaces direct grade assignment during enrollment.
+- `grade_level` is kept as an optional enum on the learner for backward compatibility and quick reporting, but the primary grouping is via `class_id`
 - `status_effective_date` column added: required (in UI) when status changes to Graduated/Transferred/Dropped Out
 - Learner detail page is **tabbed** (Overview / Academics / Attendance / Interventions) so Stories 4.2–4.5 fill in tabs without restructuring the page
-- Grade levels use a fixed enum for MVP; configurable grade levels are POST-MVP
+- Grade levels use a fixed enum on `school_classes` for MVP; configurable grade levels are POST-MVP
 - Parent/guardian and emergency contact are free-text fields for MVP (may reference non-residents)
 - Reuses existing `ResidentSearchInput.vue` for resident selection
 
@@ -75,7 +77,7 @@ learners: {
         'Grade 5', 'Grade 6', 'Grade 7', 'Grade 8',
         'Grade 9', 'Grade 10', 'Grade 11', 'Grade 12',
       ],
-      required: true,
+      required: false,
     },
     { key: 'enrollment_date', type: 'datetime', required: true },
     {
@@ -106,6 +108,12 @@ learners: {
       columns: ['enrollment_status'],
       orders: ['ASC'],
     },
+    {
+      key: 'idx_learners_class',
+      type: 'key',
+      columns: ['class_id'],
+      orders: ['ASC'],
+    },
   ],
 }
 ```
@@ -116,7 +124,7 @@ learners: {
 
 - `school:read` — View school module, learners, dashboard
 - `school:write` — Create/edit learners, enrollments, interventions
-- `school:admin` — Configure school settings, grade promotion, full access
+- `school:admin` — Configure school settings, class management, full access
 
 **Role definitions (already updated in `seed-roles.js`):**
 
@@ -149,7 +157,7 @@ Add a new "School Tables" section after "Farm Tables" documenting the `learners`
 
 - [x] School dashboard (`/school` or `/school/dashboard`) displays overview cards:
   - Total Enrolled Learners (status = 'Active')
-  - Learners by Grade (count per grade level)
+  - Learners by Class (count per class section)
   - Recent Enrollments (last 5 enrollments)
 - [x] Empty state: "No learners enrolled yet. Click 'Enroll Learner' to get started."
 - [x] Dashboard responsive on mobile (cards stack vertically)
@@ -157,11 +165,11 @@ Add a new "School Tables" section after "Farm Tables" documenting the `learners`
 ### AC3: Learners List Page
 
 - [x] Learners list page accessible at `/school/learners`
-- [x] Table columns: Resident Name (auto-populated), Grade Level, Enrollment Status, Enrollment Date, Actions
+- [x] Table columns: Resident Name (auto-populated), Class, Enrollment Status, Enrollment Date, Actions
 - [x] Status badges with color coding: Active (green), Inactive (grey), Graduated (blue), Transferred (orange), Dropped Out (red)
-- [x] Filter by: grade level, enrollment status
+- [x] Filter by: class, enrollment status
 - [x] Search by resident name
-- [x] Sort by name, grade level, enrollment date
+- [x] Sort by name, class, enrollment date
 - [x] Pagination for lists > 25 learners
 - [x] "Enroll Learner" button prominently displayed
 
@@ -169,7 +177,7 @@ Add a new "School Tables" section after "Farm Tables" documenting the `learners`
 
 - [x] "Enroll Learner" button opens form with:
   - **Resident** (required, searchable dropdown of all residents; shows "[First Name] [Last Name] — [Household Name]")
-  - **Grade Level** (required, dropdown: Early Childhood, Grade 1–12)
+  - **Class** (required, dropdown of active school classes; grade is implicit through class selection)
   - **Enrollment Date** (required, date picker, defaults to today)
   - **Parent/Guardian Name** (optional, text)
   - **Parent/Guardian Phone** (optional, text)
@@ -189,7 +197,7 @@ Add a new "School Tables" section after "Farm Tables" documenting the `learners`
 - [x] **Personal Info Section** (read-only, from resident):
   - Full Name, DOB, Gender, Household (with link to household detail)
 - [x] **Enrollment Info Section**:
-  - Grade Level, Enrollment Date, Enrollment Status, Enrollment History
+  - Class, Enrollment Date, Enrollment Status, Enrollment History
 - [x] **Guardian Info Section**:
   - Parent/Guardian, Emergency Contact, Medical Notes
 - [x] **Academic Performance Section** (placeholder):
@@ -201,10 +209,10 @@ Add a new "School Tables" section after "Farm Tables" documenting the `learners`
 - [x] Edit button for Head Teacher/Admin; Teacher can view only
 - [x] "Back to Learners" navigation link
 
-### AC6: Edit and Grade Promotion
+### AC6: Edit and Class Reassignment
 
 - [x] Edit form pre-populates all fields
-- [x] Grade can be changed (grade promotion)
+- [x] Class can be changed (class reassignment / promotion)
 - [x] Enrollment status can be changed (e.g., Active → Graduated)
 - [x] When status changed to Graduated/Transferred/Dropped Out, require an effective date
 - [x] Validation: Cannot create a duplicate active enrollment for a resident (one learner row per resident, enforced in store)
@@ -214,7 +222,7 @@ Add a new "School Tables" section after "Farm Tables" documenting the `learners`
 ### AC7: Search and Filter
 
 - [x] Search by resident first name or last name
-- [x] Filter by grade level (multi-select dropdown)
+- [x] Filter by class (multi-select dropdown)
 - [x] Filter by enrollment status (multi-select dropdown)
 - [x] Filters persist during session (not across reloads, per existing pattern)
 
@@ -335,10 +343,12 @@ export const useSchoolStore = defineStore('school', {
   }),
   getters: {
     activeLearners: (state) => state.learners.filter((l) => l.enrollment_status === 'Active'),
-    learnersByGrade: (state) => {
+    learnersByClass: (state) => {
       return state.learners.reduce((acc, learner) => {
-        const grade = learner.grade_level;
-        acc[grade] = (acc[grade] || 0) + 1;
+        const classId = learner.class_id_normalized || learner.class_id;
+        if (classId) {
+          acc[classId] = (acc[classId] || 0) + 1;
+        }
         return acc;
       }, {});
     },
@@ -517,10 +527,10 @@ const ENROLLMENT_STATUSES = [
    - **Decision:** `school:write` at RBAC level. Granular class-level restrictions (e.g., "only edit scores for Grade 5") are enforced at runtime via a `teacher_assignments` table, introduced in Story 4.2.
 
 3. **Q: Should grade levels be a configurable table instead of an enum?**
-   - **Recommendation:** Enum for MVP. Some Zambian schools have unusual grade structures; configurability can be added in School Settings (POST-MVP).
+   - **Recommendation:** Enum on `school_classes` for MVP. Classes (e.g., Grade 3A, Grade 3B) carry the grade level. Configurability can be added in School Settings (POST-MVP).
 
-4. **Q: Should the learner detail page show a full enrollment history (e.g., Grade 5 → Grade 6 → Grade 7)?**
-   - **Recommendation:** Not in Story 4.1. The current model stores one enrollment record per resident with a mutable `grade_level`. Full audit history (tracking every grade change) requires a separate `enrollment_history` table. Defer to POST-MVP unless required.
+4. **Q: Should the learner detail page show a full enrollment history (e.g., Grade 5A → Grade 6B)?**
+   - **Recommendation:** Not in Story 4.1. The current model stores one enrollment record per resident with a mutable `class_id`. Full audit history (tracking every class change) requires a separate `enrollment_history` table. Defer to POST-MVP unless required.
 
 5. **Q: Should we support enrolling non-residents (e.g., children from neighboring villages)?**
    - **Recommendation:** All learners must be residents for MVP. This maintains the resident→learner relationship and avoids creating a parallel "student" entity. If external learners are needed later, they can be added as residents first.

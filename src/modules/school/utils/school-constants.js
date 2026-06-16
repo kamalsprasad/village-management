@@ -34,6 +34,43 @@ export const ENROLLMENT_STATUSES = [
  */
 export const STATUSES_REQUIRING_EFFECTIVE_DATE = ['Graduated', 'Transferred', 'Dropped Out'];
 
+export const SUBJECTS = [
+  'Mathematics',
+  'English',
+  'Integrated Science',
+  'Social Studies',
+  'Religious Education',
+  'Civic Education',
+  'Creative and Technology Studies',
+  'Local Language',
+  'Computer Studies',
+  'Agriculture Science',
+  'History',
+  'Geography',
+  'Biology',
+  'Chemistry',
+  'Physics',
+  'Business Studies',
+  'French',
+  'Art',
+  'Music',
+  'Physical Education',
+  'Other',
+];
+
+export const ASSESSMENT_TYPES = [
+  'Class Exercise',
+  'Monthly Test',
+  'Mid-Term Exam',
+  'End-of-Term Exam',
+  'Quiz',
+  'Project',
+  'Assignment',
+  'Other',
+];
+
+export const TERMS = ['Term 1', 'Term 2', 'Term 3'];
+
 /**
  * Get the badge color for an enrollment status
  * @param {string} status - Enrollment status value

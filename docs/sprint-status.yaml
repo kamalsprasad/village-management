@@ -61,13 +61,13 @@ development_status:
   epic-3-retrospective: optional
   epic-4: contexted
   4-1-school-module-learner-enrollment-from-residents: done
-  4-2-school-module-test-score-recording-bulk-entry-by-grade: backlog
-  4-3-school-module-attendance-tracking-bulk-entry-by-grade: backlog
-  4-4-school-module-at-risk-learner-identification-90-percent-attendance-threshold: backlog
+  4-2-school-module-test-score-recording-bulk-entry-by-grade: done
+  4-3-school-module-attendance-tracking-bulk-entry-by-grade: done
+  4-4-school-module-at-risk-learner-identification-90-percent-attendance-threshold: done
   4-5-school-module-intervention-planning-and-progress-tracking: backlog
-  4-6-school-module-peer-review-with-enhanced-categories-and-checked-status: backlog
-  4-7-school-module-self-evaluation-and-head-teacher-evaluation: backlog
-  4-8-school-module-collaborative-teaching-practices-documentation: backlog
+  4-6-school-module-peer-review-with-enhanced-categories-and-checked-status: deferred
+  4-7-school-module-self-evaluation-and-head-teacher-evaluation: deferred
+  4-8-school-module-collaborative-teaching-practices-documentation: deferred
   4-9-school-module-progress-toward-long-term-educational-goal-90-percent-in-90th-percentile: backlog
   4-10-school-module-learner-progress-reports-and-school-dashboard-completion: backlog
   epic-4-retrospective: optional

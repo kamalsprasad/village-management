@@ -29,7 +29,7 @@
             <div class="text-caption text-grey-7">Total Enrolled (Active)</div>
             <div class="text-h3 text-primary">
               <q-skeleton v-if="isInitialLoading" type="text" width="60px" />
-              <span v-else>{{ schoolStore.activeLearners.length }}</span>
+              <span v-else>{{ learnerStore.activeLearners.length }}</span>
             </div>
           </q-card-section>
         </q-card>
@@ -37,10 +37,10 @@
       <div class="col-12 col-sm-4">
         <q-card flat bordered>
           <q-card-section>
-            <div class="text-caption text-grey-7">Grades with Learners</div>
+            <div class="text-caption text-grey-7">Classes with Learners</div>
             <div class="text-h3 text-secondary">
               <q-skeleton v-if="isInitialLoading" type="text" width="60px" />
-              <span v-else>{{ Object.keys(schoolStore.activeLearnersByGrade).length }}</span>
+              <span v-else>{{ Object.keys(learnerStore.activeLearnersByClass).length }}</span>
             </div>
           </q-card-section>
         </q-card>
@@ -51,7 +51,7 @@
             <div class="text-caption text-grey-7">Total Records</div>
             <div class="text-h3 text-accent">
               <q-skeleton v-if="isInitialLoading" type="text" width="60px" />
-              <span v-else>{{ schoolStore.learners.length }}</span>
+              <span v-else>{{ learnerStore.learners.length }}</span>
             </div>
           </q-card-section>
         </q-card>
@@ -77,22 +77,26 @@
                   <q-item-label caption>View and manage enrolled learners</q-item-label>
                 </q-item-section>
               </q-item>
-              <q-item disable>
+              <q-item clickable to="/school/classes">
                 <q-item-section avatar>
-                  <q-icon name="quiz" color="grey" />
+                  <q-icon name="groups_3" color="primary" />
                 </q-item-section>
                 <q-item-section>
-                  <q-item-label class="text-grey">Test Scores</q-item-label>
-                  <q-item-label caption>Coming in Story 4.2</q-item-label>
+                  <q-item-label>Classes & Timetables</q-item-label>
+                  <q-item-label caption
+                    >Manage grade sections, daily attendance, and schedules</q-item-label
+                  >
                 </q-item-section>
               </q-item>
-              <q-item disable>
+              <q-item clickable to="/school/teachers">
                 <q-item-section avatar>
-                  <q-icon name="event_available" color="grey" />
+                  <q-icon name="badge" color="primary" />
                 </q-item-section>
                 <q-item-section>
-                  <q-item-label class="text-grey">Attendance</q-item-label>
-                  <q-item-label caption>Coming in Story 4.3</q-item-label>
+                  <q-item-label>Teachers & Faculty</q-item-label>
+                  <q-item-label caption
+                    >View teacher assignments and weekly master schedules</q-item-label
+                  >
                 </q-item-section>
               </q-item>
             </q-list>
@@ -105,17 +109,17 @@
 
 <script setup>
 import { computed, onMounted } from 'vue';
-import { useSchoolStore } from '../stores/school-store';
+import { useLearnerStore } from '../stores/learner-store';
 import { usePermissions } from 'src/composables/usePermissions';
 import LearnersOverviewWidget from '../components/LearnersOverviewWidget.vue';
 
-const schoolStore = useSchoolStore();
+const learnerStore = useLearnerStore();
 const { hasPermission } = usePermissions();
 
 const canWrite = computed(() => hasPermission('school:write'));
-const isInitialLoading = computed(() => schoolStore.isLoading && !schoolStore.learnersLoaded);
+const isInitialLoading = computed(() => learnerStore.isLoading && !learnerStore.learnersLoaded);
 
 onMounted(() => {
-  schoolStore.fetchLearners();
+  learnerStore.fetchLearners();
 });
 </script>
