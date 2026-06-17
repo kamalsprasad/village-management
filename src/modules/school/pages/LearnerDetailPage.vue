@@ -1,11 +1,10 @@
 <!--
   LearnerDetailPage.vue (Story 4.1)
-  Tabbed learner detail page. Tabs are designed so future stories fill in
-  content without restructuring the page:
-    - Overview (this story): personal, enrollment, guardian info
-    - Academics (Story 4.2 placeholder)
-    - Attendance (Story 4.3 placeholder)
-    - Interventions (Story 4.5 placeholder)
+  Tabbed learner detail page.
+    - Overview: personal, enrollment, guardian info
+    - Academics: test scores, performance trends, subject averages
+    - Attendance: daily rolls and attendance rate
+    - Interventions: support and intervention tracking
 -->
 <template>
   <q-page padding>
@@ -454,12 +453,12 @@
           </q-table>
         </q-tab-panel>
 
-        <!-- Interventions Tab (Story 4.5 placeholder) -->
+        <!-- Interventions Tab -->
         <q-tab-panel name="interventions">
           <div class="text-center q-pa-xl text-grey-7">
             <q-icon name="support" size="48px" class="q-mb-sm" />
             <div>No interventions recorded yet.</div>
-            <div class="text-caption">Intervention tracking coming in Story 4.5.</div>
+            <div class="text-caption">Intervention tracking will be available here.</div>
           </div>
         </q-tab-panel>
       </q-tab-panels>
@@ -515,7 +514,7 @@ const learnerClassName = computed(() => {
   if (!learner.value) return '';
   const classId = learner.value.class_id_normalized || normalizeClassId(learner.value.class_id);
   const cls = classStore.classes.find((c) => c.$id === classId);
-  return cls ? cls.name : learner.value.grade_level || '';
+  return cls ? cls.name : '';
 });
 
 function formatDate(isoString) {

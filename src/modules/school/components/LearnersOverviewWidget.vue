@@ -63,7 +63,6 @@
                 {{
                   classNameMap[learner.class_id_normalized || learner.class_id] ||
                   classNameMap[normalizeClassId(learner.class_id)] ||
-                  learner.grade_level ||
                   '—'
                 }}
                 · {{ formatDate(learner.enrollment_date) }}

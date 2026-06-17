@@ -35,13 +35,16 @@
                   </p>
                   <div class="text-caption text-grey-6">
                     <q-icon name="check_circle" size="xs" color="positive" class="q-mr-xs" />
-                    15-20 sample residents
+                    30+ sample residents
                     <br />
                     <q-icon name="check_circle" size="xs" color="positive" class="q-mr-xs" />
                     5-6 households
                     <br />
                     <q-icon name="check_circle" size="xs" color="positive" class="q-mr-xs" />
                     Council members configured
+                    <br />
+                    <q-icon name="check_circle" size="xs" color="positive" class="q-mr-xs" />
+                    School classes, learners & test scores
                   </div>
                 </q-card-section>
                 <q-card-actions class="justify-center q-pb-lg">
@@ -89,26 +92,35 @@
               style="max-width: 400px; margin: 0 auto"
             />
             <q-linear-progress
-              v-if="seedingProgress >= 0.9 && seedingProgress < 0.95"
+              v-if="seedingProgress >= 0.85 && seedingProgress < 0.92"
               :value="financeSeedingProgress"
               color="secondary"
               class="q-mb-md"
               style="max-width: 400px; margin: 0 auto"
             />
             <q-linear-progress
-              v-if="seedingProgress >= 0.95"
+              v-if="seedingProgress >= 0.92 && seedingProgress < 0.98"
               :value="farmSeedingProgress"
               color="accent"
               class="q-mb-md"
               style="max-width: 400px; margin: 0 auto"
             />
+            <q-linear-progress
+              v-if="seedingProgress >= 0.98"
+              :value="schoolSeedingProgress"
+              color="positive"
+              class="q-mb-md"
+              style="max-width: 400px; margin: 0 auto"
+            />
             <p class="text-body2 text-grey-7">
               {{
-                seedingProgress >= 0.95
-                  ? farmSeedingStatus
-                  : seedingProgress >= 0.9
-                    ? financeSeedingStatus
-                    : seedingStatus
+                seedingProgress >= 0.98
+                  ? schoolSeedingStatus
+                  : seedingProgress >= 0.92
+                    ? farmSeedingStatus
+                    : seedingProgress >= 0.85
+                      ? financeSeedingStatus
+                      : seedingStatus
               }}
             </p>
           </div>
@@ -133,6 +145,8 @@ const {
   financeSeedingStatus,
   farmSeedingProgress,
   farmSeedingStatus,
+  schoolSeedingProgress,
+  schoolSeedingStatus,
 } = useSampleData();
 
 const selectedOption = ref(null);

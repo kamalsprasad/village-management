@@ -417,12 +417,11 @@ Tracks physical village assets, supplies, and harvested goods.
 
 ### learners
 
-Stores learner enrollment records for the School module (Story 4.1). Learners are village residents with school-specific attributes — personal data (name, DOB, gender, household) is never duplicated; it is always read from the linked `residents` row. **One learner row per resident, ever**: status changes (class reassignment, graduation, re-enrollment) mutate the single row, preserving a stable learner ID for test scores, attendance, and interventions in Stories 4.2+. Uniqueness is enforced in the school store (Appwrite does not support indexes on relationship columns). Learners are assigned to classes through `class_id`; `grade_level` is optional/backward-compatible.
+Stores learner enrollment records for the School module (Story 4.1). Learners are village residents with school-specific attributes — personal data (name, DOB, gender, household) is never duplicated; it is always read from the linked `residents` row. **One learner row per resident, ever**: status changes (class reassignment, graduation, re-enrollment) mutate the single row, preserving a stable learner ID for test scores, attendance, and interventions in Stories 4.2+. Uniqueness is enforced in the school store (Appwrite does not support indexes on relationship columns). Learners are assigned to classes through `class_id`; grade level is derived from the linked class.
 
 | Column                    | Type     | Constraints                                                                                  | Description                                    |
 | ------------------------- | -------- | -------------------------------------------------------------------------------------------- | ---------------------------------------------- |
 | `resident_id`             | rel      | Required, manyToOne → residents, onDelete: restrict                                          | Linked resident (source of personal info)      |
-| `grade_level`             | enum     | Optional: 'Early Childhood', 'Grade 1'–'Grade 12'                                            | Legacy/denormalized grade level                |
 | `class_id`                | rel      | Optional, manyToOne → school_classes, onDelete: setNull                                      | Assigned class section                         |
 | `enrollment_date`         | datetime | Required                                                                                     | Date of (initial) enrollment                   |
 | `enrollment_status`       | enum     | Required: 'Active', 'Inactive', 'Graduated', 'Transferred', 'Dropped Out'. Default: 'Active' | Current enrollment status                      |
@@ -434,7 +433,7 @@ Stores learner enrollment records for the School module (Story 4.1). Learners ar
 | `medical_notes`           | string   | Optional, max 1000                                                                           | Medical conditions, allergies, etc.            |
 | `notes`                   | string   | Optional, max 1000                                                                           | Additional notes (incl. status change history) |
 
-**Indexes:** `idx_learners_grade` on `(grade_level ASC)`, `idx_learners_status` on `(enrollment_status ASC)`
+**Indexes:** `idx_learners_status` on `(enrollment_status ASC)`
 
 ### test_scores
 
@@ -457,13 +456,14 @@ Stores individual test/assessment scores for learners (Story 4.2). Grouping of s
 
 ### teacher_assignments
 
-Stores grade-level teacher assignments for runtime authorization check (Story 4.2).
+Stores grade-level teacher assignments with optional subject specialization (Story 4.2). Grade teachers (EC–5) teach all subjects; subject teachers (Grade 6+) have specific subject assignments.
 
-| Column        | Type   | Constraints                                        | Description                            |
-| ------------- | ------ | -------------------------------------------------- | -------------------------------------- |
-| `teacher_id`  | rel    | Required, manyToOne → residents, onDelete: cascade | Linked resident profile of the Teacher |
-| `grade_level` | enum   | Required: 'Early Childhood', 'Grade 1'–'Grade 12'  | Assigned grade level                   |
-| `notes`       | string | Optional, max 500                                  | Assignment details                     |
+| Column        | Type     | Constraints                                        | Description                            |
+| ------------- | -------- | -------------------------------------------------- | -------------------------------------- |
+| `teacher_id`  | rel      | Required, manyToOne → residents, onDelete: cascade | Linked resident profile of the Teacher |
+| `grade_level` | enum     | Required: 'Early Childhood', 'Grade 1'–'Grade 12'  | Assigned grade level                   |
+| `subjects`    | string[] | Optional array of subject names                    | Subjects taught (Grade 6+ only)        |
+| `notes`       | string   | Optional, max 500                                  | Assignment details                     |
 
 **Indexes:** `idx_teacher_assignments_teacher` on `(teacher_id ASC)`, `idx_teacher_assignments_grade` on `(grade_level ASC)`
 
@@ -538,7 +538,6 @@ Live indexes as configured in Appwrite:
 | `plantings`  | `idx_plantings_status`       | key    | `status ASC`                    |
 | `farm_sales` | `idx_farm_sales_date`        | key    | `sale_date DESC`                |
 | `farm_sales` | `idx_farm_sales_buyer`       | key    | `buyer_type ASC, buyer_id ASC`  |
-| `learners`   | `idx_learners_grade`         | key    | `grade_level ASC`               |
 | `learners`   | `idx_learners_status`        | key    | `enrollment_status ASC`         |
 
 ## Permissions

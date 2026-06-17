@@ -5,6 +5,7 @@ import { useResidentsStore } from 'src/stores/residents-store';
 import { useErrorHandler } from 'src/composables/useErrorHandler';
 import { useFinanceSampleData } from 'src/composables/useFinanceSampleData';
 import { useFarmSampleData } from 'src/composables/useFarmSampleData';
+import { useSchoolSampleData } from 'src/composables/useSchoolSampleData';
 
 /**
  * Composable for seeding sample data (Katete Model Village)
@@ -19,6 +20,7 @@ export function useSampleData() {
   const errorHandler = useErrorHandler();
   const { seedFinanceData, financeSeedingProgress, financeSeedingStatus } = useFinanceSampleData();
   const { seedFarmData, farmSeedingProgress, farmSeedingStatus } = useFarmSampleData();
+  const { seedSchoolData, schoolSeedingProgress, schoolSeedingStatus } = useSchoolSampleData();
 
   const isSeeding = ref(false);
   const seedingProgress = ref(0);
@@ -42,7 +44,15 @@ export function useSampleData() {
     country_phone_code: '+260',
     yield_unit: 'kg_per_hectare',
     is_using_sample_data: true,
-    modules_enabled: ['residents', 'households', 'dashboard', 'finance', 'inventory', 'farm'],
+    modules_enabled: [
+      'residents',
+      'households',
+      'dashboard',
+      'finance',
+      'inventory',
+      'farm',
+      'school',
+    ],
     council_members: [], // Will be populated after residents are created
   };
 
@@ -145,6 +155,33 @@ export function useSampleData() {
       householdIndex: 0,
       notes: 'Youngest child. Currently in secondary school.',
     },
+    {
+      first_name: 'Lucy',
+      middle_names: '',
+      last_name: 'Banda',
+      dob: '2016-09-20',
+      gender: 'Female',
+      householdIndex: 0,
+      notes: 'Daughter. Primary school student.',
+    },
+    {
+      first_name: 'Thomas',
+      middle_names: 'Mumba',
+      last_name: 'Banda',
+      dob: '2012-01-10',
+      gender: 'Male',
+      householdIndex: 0,
+      notes: 'Son. Junior secondary student.',
+    },
+    {
+      first_name: 'Sophia',
+      middle_names: '',
+      last_name: 'Banda',
+      dob: '2009-12-01',
+      gender: 'Female',
+      householdIndex: 0,
+      notes: 'Daughter. Senior secondary student.',
+    },
 
     // Phiri Family (Household 1) - Deputy Village Head family
     {
@@ -185,6 +222,33 @@ export function useSampleData() {
       gender: 'Female',
       householdIndex: 1,
       notes: 'Daughter. Primary school student.',
+    },
+    {
+      first_name: 'Esther',
+      middle_names: 'Mwila',
+      last_name: 'Phiri',
+      dob: '2015-05-30',
+      gender: 'Female',
+      householdIndex: 1,
+      notes: 'Daughter. Primary school student.',
+    },
+    {
+      first_name: 'Joshua',
+      middle_names: '',
+      last_name: 'Phiri',
+      dob: '2013-08-14',
+      gender: 'Male',
+      householdIndex: 1,
+      notes: 'Son. Junior secondary student.',
+    },
+    {
+      first_name: 'Daniel',
+      middle_names: 'Tembo',
+      last_name: 'Phiri',
+      dob: '2021-09-15',
+      gender: 'Male',
+      householdIndex: 1,
+      notes: 'Son. Early childhood education.',
     },
 
     // Mwale Extended Family (Household 2) - Finance Manager family
@@ -236,6 +300,33 @@ export function useSampleData() {
       householdIndex: 2,
       notes: 'Youngest son. Primary school student.',
     },
+    {
+      first_name: 'Catherine',
+      middle_names: '',
+      last_name: 'Mwale',
+      dob: '2014-11-22',
+      gender: 'Female',
+      householdIndex: 2,
+      notes: 'Daughter. Primary school student.',
+    },
+    {
+      first_name: 'Michael',
+      middle_names: 'Bwalya',
+      last_name: 'Mwale',
+      dob: '2011-03-05',
+      gender: 'Male',
+      householdIndex: 2,
+      notes: 'Son. Junior secondary student.',
+    },
+    {
+      first_name: 'Margaret',
+      middle_names: '',
+      last_name: 'Mwale',
+      dob: '2007-08-20',
+      gender: 'Female',
+      householdIndex: 2,
+      notes: 'Daughter. Final year of secondary school.',
+    },
 
     // Tembo Family (Staff Quarters - Household 3)
     {
@@ -257,6 +348,26 @@ export function useSampleData() {
       householdIndex: 3,
       room_number: 'Room 1',
       notes: "Michael's wife. Kitchen staff.",
+    },
+    {
+      first_name: 'Joseph',
+      middle_names: '',
+      last_name: 'Tembo',
+      dob: '2019-06-18',
+      gender: 'Male',
+      householdIndex: 3,
+      room_number: 'Room 1',
+      notes: 'Son. Starting primary school.',
+    },
+    {
+      first_name: 'Faith',
+      middle_names: 'Zulu',
+      last_name: 'Tembo',
+      dob: '2020-02-11',
+      gender: 'Female',
+      householdIndex: 3,
+      room_number: 'Room 1',
+      notes: 'Daughter. Early childhood education.',
     },
 
     // Zulu Family (Staff Quarters - Household 3)
@@ -289,6 +400,26 @@ export function useSampleData() {
       householdIndex: 3,
       room_number: 'Room 3',
       notes: 'Young child.',
+    },
+    {
+      first_name: 'Blessing',
+      middle_names: '',
+      last_name: 'Zulu',
+      dob: '2017-04-03',
+      gender: 'Female',
+      householdIndex: 3,
+      room_number: 'Room 3',
+      notes: 'Daughter. Primary school student.',
+    },
+    {
+      first_name: 'Abel',
+      middle_names: 'Mulenga',
+      last_name: 'Zulu',
+      dob: '2022-07-25',
+      gender: 'Male',
+      householdIndex: 3,
+      room_number: 'Room 3',
+      notes: 'Son. Early childhood.',
     },
 
     // Mulenga Family (Guest House - Household 5, visiting volunteers)
@@ -413,9 +544,9 @@ export function useSampleData() {
         throw new Error(`Failed to generate finance data: ${financeResult.error}`);
       }
 
-      seedingProgress.value = 0.95;
+      seedingProgress.value = 0.85;
 
-      // Step 4: Seed Farm Data (Epic 3) - depends on residents + finance categories/funding sources
+      // Step 5: Seed Farm Data (Epic 3) - depends on residents + finance categories/funding sources
       seedingStatus.value = 'Generating farm plots, plantings, harvests and sales...';
       const farmResult = await seedFarmData(createdResidentIds, sampleResidents);
 
@@ -423,7 +554,17 @@ export function useSampleData() {
         throw new Error(`Failed to generate farm data: ${farmResult.error}`);
       }
 
-      // Step 6: Create village settings with council members
+      seedingProgress.value = 0.92;
+
+      // Step 6: Seed School Data (Epic 4) - depends on residents
+      seedingStatus.value = 'Creating school classes, enrolling learners, recording scores...';
+      const schoolResult = await seedSchoolData(createdResidentIds, sampleResidents);
+
+      if (!schoolResult.success) {
+        throw new Error(`Failed to generate school data: ${schoolResult.error}`);
+      }
+
+      // Step 7: Create village settings with council members
       seedingStatus.value = 'Configuring village settings...';
       const settingsData = {
         ...sampleVillageSettings,
@@ -463,6 +604,8 @@ export function useSampleData() {
     financeSeedingStatus,
     farmSeedingProgress,
     farmSeedingStatus,
+    schoolSeedingProgress,
+    schoolSeedingStatus,
     // Export sample data for use in seed script
     sampleVillageSettings,
     sampleHouseholds,

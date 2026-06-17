@@ -637,7 +637,7 @@ async function loadAllActiveStudents() {
         !(l.class_id_normalized || normalizeClassId(l.class_id)),
     )
     .map((l) => ({
-      label: `${learnerStore.getLearnerName(l)} (${l.grade_level || 'Unassigned'})`,
+      label: `${learnerStore.getLearnerName(l)}`,
       value: l.$id,
     }));
   filteredStudentsList.value = allActiveStudents.value;
@@ -848,7 +848,7 @@ async function savePeriod() {
       end_time: activeCell.value.end_time,
       subject: activeCell.value.subject,
       teacher_id: selectedPeriodTeacher.value ? selectedPeriodTeacher.value.value : null,
-      teacher_name: selectedPeriodTeacher.value ? selectedPeriodTeacher.value.label : 'Grace Mwale',
+      teacher_name: selectedPeriodTeacher.value ? selectedPeriodTeacher.value.label : '',
       notes: activeCell.value.notes,
     };
 

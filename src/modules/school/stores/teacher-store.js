@@ -46,14 +46,25 @@ export const useTeacherStore = defineStore('teacher', {
     /**
      * Enrich dynamic record with resident details
      */
-    enrichAssignment(assignment) {
-      const teacherId = typeof assignment.teacher_id === 'object' ? assignment.teacher_id?.$id : assignment.teacher_id;
+    enrichAssignment(assignment, residentsMap = null) {
+      const teacherId =
+        typeof assignment.teacher_id === 'object'
+          ? assignment.teacher_id?.$id
+          : assignment.teacher_id;
       const resident = typeof assignment.teacher_id === 'object' ? assignment.teacher_id : null;
 
       let teacherName = 'Unknown Teacher';
       if (resident) {
-        const parts = [resident.first_name, resident.middle_names, resident.last_name].filter(Boolean);
-        teacherName = parts.join(' ');
+        const parts = [resident.first_name, resident.middle_names, resident.last_name].filter(
+          Boolean,
+        );
+        teacherName = parts.join(' ') || teacherName;
+      } else if (teacherId && residentsMap) {
+        const r = residentsMap.get(teacherId);
+        if (r) {
+          const parts = [r.first_name, r.middle_names, r.last_name].filter(Boolean);
+          teacherName = parts.join(' ') || teacherName;
+        }
       }
 
       return {
@@ -79,8 +90,24 @@ export const useTeacherStore = defineStore('teacher', {
           queries: [Query.limit(500)],
         });
 
+        // Build residents map for name lookup when teacher_id is a string ID
+        let residentsMap = null;
+        try {
+          const resTableId = import.meta.env.VITE_APPWRITE_TABLE_RESIDENTS;
+          const residentsRes = await tables.listRows({
+            databaseId: dbId,
+            tableId: resTableId,
+            queries: [Query.limit(500)],
+          });
+          residentsMap = new Map(residentsRes.rows.map((r) => [r.$id, r]));
+        } catch {
+          // non-fatal — teacher names will show as 'Unknown Teacher'
+        }
+
         // Enrich assignments with resident names
-        this.teacherAssignments = response.rows.map((row) => this.enrichAssignment(row));
+        this.teacherAssignments = response.rows.map((row) =>
+          this.enrichAssignment(row, residentsMap),
+        );
         this.teacherAssignmentsLoaded = true;
         return { success: true, data: this.teacherAssignments };
       } catch (error) {
@@ -95,13 +122,13 @@ export const useTeacherStore = defineStore('teacher', {
     /**
      * Assign a teacher to a grade level
      */
-    async createTeacherAssignment(teacherId, gradeLevel, notes = '') {
+    async createTeacherAssignment(teacherId, gradeLevel, notes = '', subjects = []) {
       this.isLoading = true;
       try {
         // Enforce uniqueness of (teacher_id, grade_level) client-side
         await this.fetchTeacherAssignments();
         const existing = this.teacherAssignments.find(
-          (a) => a.teacher_id_normalized === teacherId && a.grade_level === gradeLevel
+          (a) => a.teacher_id_normalized === teacherId && a.grade_level === gradeLevel,
         );
 
         if (existing) {
@@ -112,15 +139,19 @@ export const useTeacherStore = defineStore('teacher', {
         }
 
         const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
+        const data = {
+          teacher_id: teacherId,
+          grade_level: gradeLevel,
+          notes,
+        };
+        if (subjects && subjects.length > 0) {
+          data.subjects = subjects;
+        }
         const response = await tables.createRow({
           databaseId: dbId,
           tableId: 'teacher_assignments',
           rowId: ID.unique(),
-          data: {
-            teacher_id: teacherId,
-            grade_level: gradeLevel,
-            notes,
-          },
+          data,
         });
 
         const enriched = this.enrichAssignment(response);
@@ -192,9 +223,7 @@ export const useTeacherStore = defineStore('teacher', {
 
       if (!residentId) return [];
 
-      const matches = this.teacherAssignments.filter(
-        (a) => a.teacher_id_normalized === residentId
-      );
+      const matches = this.teacherAssignments.filter((a) => a.teacher_id_normalized === residentId);
 
       return matches.map((a) => a.grade_level);
     },

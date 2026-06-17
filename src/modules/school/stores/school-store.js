@@ -123,16 +123,20 @@ export const useSchoolStore = defineStore('school', {
      */
     enrichTestScore(score) {
       const learnerStore = useLearnerStore();
+      const classStore = useClassStore();
       const learnerId = normalizeId(score.learner_id);
       const classId = normalizeId(score.class_id);
       const learner = learnerStore.learners.find((l) => l.$id === learnerId);
 
+      const className = classId
+        ? classStore.classes.find((c) => c.$id === classId)?.name || ''
+        : '';
       return {
         ...score,
         learner_id_normalized: learnerId,
         class_id_normalized: classId,
         learner_name: learner ? learnerStore.getLearnerName(learner) : 'Unknown Learner',
-        learner_grade: learner?.grade_level || 'Unknown',
+        learner_grade: className,
       };
     },
 
@@ -279,3 +283,6 @@ export const useSchoolStore = defineStore('school', {
     },
   },
 });
+
+// Import class-store at bottom to avoid circular dependency
+import { useClassStore } from './class-store';

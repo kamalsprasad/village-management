@@ -19,7 +19,7 @@
  *   npm run setup:appwrite
  */
 
-import { Client, Databases, TablesDB, RelationshipType, RelationMutate } from 'node-appwrite';
+import { Client, Databases, TablesDB, RelationshipType } from 'node-appwrite';
 import dotenv from 'dotenv';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
@@ -996,26 +996,6 @@ const tableSchemas = {
         onDelete: 'restrict',
         required: true,
       },
-      {
-        key: 'grade_level',
-        type: 'enum',
-        elements: [
-          'Early Childhood',
-          'Grade 1',
-          'Grade 2',
-          'Grade 3',
-          'Grade 4',
-          'Grade 5',
-          'Grade 6',
-          'Grade 7',
-          'Grade 8',
-          'Grade 9',
-          'Grade 10',
-          'Grade 11',
-          'Grade 12',
-        ],
-        required: false,
-      },
       { key: 'enrollment_date', type: 'datetime', required: true },
       {
         key: 'enrollment_status',
@@ -1043,12 +1023,6 @@ const tableSchemas = {
       },
     ],
     indexes: [
-      {
-        key: 'idx_learners_grade',
-        type: 'key',
-        columns: ['grade_level'],
-        orders: ['ASC'],
-      },
       {
         key: 'idx_learners_status',
         type: 'key',
@@ -1176,6 +1150,7 @@ const tableSchemas = {
         ],
         required: true,
       },
+      { key: 'subjects', type: 'string', size: 100, array: true, required: false },
       { key: 'notes', type: 'string', size: 500, required: false },
     ],
     indexes: [
@@ -1267,14 +1242,7 @@ const tableSchemas = {
       },
       { key: 'notes', type: 'string', size: 255, required: false },
     ],
-    indexes: [
-      {
-        key: 'idx_timetable_class_day',
-        type: 'key',
-        columns: ['class_id', 'day_of_week'],
-        orders: ['ASC', 'ASC'],
-      },
-    ],
+    indexes: [],
   },
   learner_attendance: {
     name: 'Learner Attendance',
@@ -1308,28 +1276,21 @@ const tableSchemas = {
       { key: 'absence_reason', type: 'string', size: 255, required: false },
       { key: 'notes', type: 'string', size: 500, required: false },
     ],
-    indexes: [
-      {
-        key: 'idx_attendance_class_date',
-        type: 'key',
-        columns: ['class_id', 'attendance_date'],
-        orders: ['ASC', 'DESC'],
-      },
-    ],
+    indexes: [],
   },
 };
 
 // Helper functions
 async function createTable(tableId, schema) {
+  const permissions = schema.permissions || [
+    'read("any")',
+    'create("any")',
+    'update("any")',
+    'delete("any")',
+  ];
+
   try {
     console.log(`\n📦 Creating table: ${schema.name} (${tableId})`);
-
-    const permissions = schema.permissions || [
-      'read("any")',
-      'create("any")',
-      'update("any")',
-      'delete("any")',
-    ];
 
     await tables.createTable({
       databaseId: config.databaseId,
@@ -1345,6 +1306,13 @@ async function createTable(tableId, schema) {
   } catch (error) {
     if (error.code === 409) {
       console.log(`   ⚠️  Table already exists: ${schema.name}`);
+      // Sync permissions on existing tables so schema changes take effect
+      try {
+        await databases.updateCollection(config.databaseId, tableId, schema.name, permissions);
+        console.log(`   🔄 Permissions synced: ${schema.name}`);
+      } catch (permErr) {
+        console.warn(`   ⚠️  Could not sync permissions for ${schema.name}:`, permErr.message);
+      }
       return false;
     }
     throw error;

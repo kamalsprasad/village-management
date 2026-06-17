@@ -27,6 +27,7 @@ export function normalizeClassId(value) {
 export const useClassStore = defineStore('class', {
   state: () => ({
     classes: [],
+    allClassRows: [],
     timetable: [],
     attendance: [],
     classesLoaded: false,
@@ -39,11 +40,24 @@ export const useClassStore = defineStore('class', {
     /**
      * Get class size of active learners in a class ID
      */
-    getClassSize: () => (classId) => {
+    getClassSize: (state) => (classId) => {
       const learnerStore = useLearnerStore();
-      return learnerStore.learners.filter(
+      const byId = learnerStore.learners.filter(
         (l) =>
           (l.class_id_normalized || normalizeClassId(l.class_id)) === classId &&
+          l.enrollment_status === 'Active',
+      ).length;
+      if (byId > 0) return byId;
+      // Fallback: match by grade_level (handles duplicate class rows from re-seeding)
+      const rows = state.allClassRows.length ? state.allClassRows : state.classes;
+      const cls = rows.find((c) => c.$id === classId);
+      if (!cls?.grade_level) return 0;
+      const allClassIdsForGrade = rows
+        .filter((c) => c.grade_level === cls.grade_level)
+        .map((c) => c.$id);
+      return learnerStore.learners.filter(
+        (l) =>
+          allClassIdsForGrade.includes(l.class_id_normalized || normalizeClassId(l.class_id)) &&
           l.enrollment_status === 'Active',
       ).length;
     },
@@ -198,8 +212,48 @@ export const useClassStore = defineStore('class', {
           queries: [Query.limit(100)],
         });
 
+        // Build a residents map for teacher name resolution
+        let residentsMap = null;
+        try {
+          const tableId = import.meta.env.VITE_APPWRITE_TABLE_RESIDENTS;
+          const residentsRes = await tables.listRows({
+            databaseId: dbId,
+            tableId,
+            queries: [Query.limit(500)],
+          });
+          residentsMap = new Map(residentsRes.rows.map((r) => [r.$id, r]));
+        } catch {
+          // non-fatal — teacher names will show as 'No Teacher Assigned'
+        }
+
+        // Store all raw rows for cross-ID learner lookups
+        this.allClassRows = response.rows;
+
+        // Deduplicate by grade_level for display:
+        // prefer rows with a teacher assigned, then most recently updated
+        const latestByGrade = new Map();
+        for (const row of response.rows) {
+          const grade = row.grade_level;
+          if (!grade) continue;
+          const existing = latestByGrade.get(grade);
+          if (!existing) {
+            latestByGrade.set(grade, row);
+          } else {
+            const rowHasTeacher = !!row.class_teacher_id;
+            const existingHasTeacher = !!existing.class_teacher_id;
+            if (rowHasTeacher && !existingHasTeacher) {
+              latestByGrade.set(grade, row);
+            } else if (rowHasTeacher === existingHasTeacher) {
+              if (new Date(row.$updatedAt) > new Date(existing.$updatedAt)) {
+                latestByGrade.set(grade, row);
+              }
+            }
+          }
+        }
+        const deduped = Array.from(latestByGrade.values());
+
         // Enrich classes with teacher name details dynamically
-        this.classes = response.rows.map((row) => this.enrichClass(row));
+        this.classes = deduped.map((row) => this.enrichClass(row, residentsMap));
         this.classesLoaded = true;
         this.saveToLocalCache(LOCAL_STORAGE_KEYS.CLASSES, this.classes);
         this.autoAssignLearnersToClasses();
@@ -214,54 +268,7 @@ export const useClassStore = defineStore('class', {
         if (cached) {
           this.classes = JSON.parse(cached);
         } else {
-          // Initialize robust seed data
-          this.classes = [
-            {
-              $id: 'class_g1',
-              name: 'Grade 1',
-              grade_level: 'Grade 1',
-              academic_year: 2026,
-              class_teacher_id: null,
-              teacher_name: 'Grace Mwale',
-              notes: 'General Primary Class',
-            },
-            {
-              $id: 'class_g2',
-              name: 'Grade 2',
-              grade_level: 'Grade 2',
-              academic_year: 2026,
-              class_teacher_id: null,
-              teacher_name: 'Peter Banda',
-              notes: 'General Primary Class',
-            },
-            {
-              $id: 'class_g3_a',
-              name: 'Grade 3A',
-              grade_level: 'Grade 3',
-              academic_year: 2026,
-              class_teacher_id: null,
-              teacher_name: 'Grace Mwale',
-              notes: 'Section A - High capacity',
-            },
-            {
-              $id: 'class_g3_b',
-              name: 'Grade 3B',
-              grade_level: 'Grade 3',
-              academic_year: 2026,
-              class_teacher_id: null,
-              teacher_name: 'Peter Banda',
-              notes: 'Section B - Smaller group support',
-            },
-            {
-              $id: 'class_g5',
-              name: 'Grade 5',
-              grade_level: 'Grade 5',
-              academic_year: 2026,
-              class_teacher_id: null,
-              teacher_name: 'Peter Banda',
-              notes: 'Intermediate Grade',
-            },
-          ];
+          this.classes = [];
           this.saveToLocalCache(LOCAL_STORAGE_KEYS.CLASSES, this.classes);
         }
         this.classesLoaded = true;
@@ -273,7 +280,7 @@ export const useClassStore = defineStore('class', {
     },
 
     /**
-     * Assign legacy learners to classes only when a matching grade_level exists.
+     * Assign learners to classes when class_id is missing but grade_level is present.
      */
     async autoAssignLearnersToClasses() {
       const learnerStore = useLearnerStore();
@@ -289,17 +296,24 @@ export const useClassStore = defineStore('class', {
       });
     },
 
-    enrichClass(cls) {
-      // Find assigned teacher from standard resident records if possible
+    enrichClass(cls, residentsMap = null) {
       let teacherName = 'No Teacher Assigned';
       const teacherId =
         typeof cls.class_teacher_id === 'object' ? cls.class_teacher_id?.$id : cls.class_teacher_id;
+
       if (cls.class_teacher_id && typeof cls.class_teacher_id === 'object') {
         const parts = [cls.class_teacher_id.first_name, cls.class_teacher_id.last_name].filter(
           Boolean,
         );
-        teacherName = parts.join(' ');
+        teacherName = parts.join(' ') || teacherName;
+      } else if (teacherId && residentsMap) {
+        const resident = residentsMap.get(teacherId);
+        if (resident) {
+          const parts = [resident.first_name, resident.last_name].filter(Boolean);
+          teacherName = parts.join(' ') || teacherName;
+        }
       }
+
       return {
         ...cls,
         class_teacher_id_normalized: teacherId,
@@ -339,7 +353,7 @@ export const useClassStore = defineStore('class', {
           grade_level: classData.grade_level,
           academic_year: Number(classData.academic_year || 2026),
           class_teacher_id: classData.class_teacher_id || null,
-          teacher_name: classData.teacher_name || 'Assigned Teacher',
+          teacher_name: classData.teacher_name || '',
           notes: classData.notes || '',
         };
         this.classes.push(newClass);
@@ -446,88 +460,10 @@ export const useClassStore = defineStore('class', {
         if (cached) {
           this.timetable = JSON.parse(cached);
         } else {
-          // Auto-generate realistic schedule Mon-Fri for 6 periods
-          const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
-          const periods = [
-            {
-              num: 1,
-              start: '08:00',
-              end: '08:45',
-              subjects: ['Mathematics', 'English', 'Science', 'Social Studies', 'Local Language'],
-            },
-            {
-              num: 2,
-              start: '08:45',
-              end: '09:30',
-              subjects: ['English', 'Mathematics', 'English', 'Science', 'Mathematics'],
-            },
-            {
-              num: 3,
-              start: '10:00',
-              end: '10:45',
-              subjects: [
-                'Integrated Science',
-                'Social Studies',
-                'Mathematics',
-                'English',
-                'Physical Education',
-              ],
-            },
-            {
-              num: 4,
-              start: '10:45',
-              end: '11:30',
-              subjects: [
-                'Creative Studies',
-                'Local Language',
-                'Computer Studies',
-                'Religious Ed',
-                'English',
-              ],
-            },
-            {
-              num: 5,
-              start: '12:00',
-              end: '12:45',
-              subjects: [
-                'Local Language',
-                'Religious Ed',
-                'History',
-                'Local Language',
-                'Creative Studies',
-              ],
-            },
-            {
-              num: 6,
-              start: '12:45',
-              end: '13:30',
-              subjects: ['Civic Education', 'Computer Studies', 'Art', 'Geography', 'Music'],
-            },
-          ];
-
-          const generated = [];
-          days.forEach((day, dayIndex) => {
-            periods.forEach((p) => {
-              // Distribute subject cyclically
-              const subject = p.subjects[dayIndex % p.subjects.length];
-              generated.push({
-                $id: `local_period_${classId}_${day}_${p.num}`,
-                class_id: classId,
-                day_of_week: day,
-                period_number: p.num,
-                start_time: p.start,
-                end_time: p.end,
-                subject: subject,
-                teacher_id: null,
-                teacher_name: 'Grace Mwale', // Default class teacher
-              });
-            });
-          });
-
-          this.timetable = generated;
+          this.timetable = [];
           localStorage.setItem(
             `${LOCAL_STORAGE_KEYS.TIMETABLE}_${classId}`,
-            JSON.stringify(generated),
+            JSON.stringify(this.timetable),
           );
         }
         this.timetableLoaded = true;
