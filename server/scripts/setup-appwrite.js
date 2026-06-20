@@ -1096,12 +1096,10 @@ const tableSchemas = {
         ],
         required: true,
       },
-      {
-        key: 'term',
-        type: 'enum',
-        elements: ['Term 1', 'Term 2', 'Term 3'],
-        required: true,
-      },
+      // Story 4.3: Changed from enum to string — terms are now configurable via school_academic_terms.
+      // The term name at recording time is stored literally so historical scores remain valid
+      // even if terms are later renamed.
+      { key: 'term', type: 'string', size: 100, required: true },
       { key: 'academic_year', type: 'integer', required: true },
       { key: 'assessment_date', type: 'datetime', required: true },
       { key: 'score_value', type: 'double', required: true },
@@ -1208,10 +1206,152 @@ const tableSchemas = {
       },
     ],
   },
-  school_timetable: {
-    name: 'School Timetable',
+  // Story 4.3: Configurable academic terms (replaces hard-coded TERMS constant)
+  school_academic_terms: {
+    name: 'School Academic Terms',
     permissions: permissions,
     columns: [
+      { key: 'academic_year', type: 'integer', required: true },
+      // Free text — e.g. "Term 1", "Semester 1", "Quarter 3"
+      { key: 'term_name', type: 'string', size: 100, required: true },
+      // Ordering within the year (1, 2, 3...)
+      { key: 'term_order', type: 'integer', required: true },
+      { key: 'start_date', type: 'datetime', required: true },
+      { key: 'end_date', type: 'datetime', required: true },
+      { key: 'notes', type: 'string', size: 500, required: false },
+    ],
+    indexes: [
+      {
+        key: 'idx_academic_terms_year',
+        type: 'key',
+        columns: ['academic_year'],
+        orders: ['ASC'],
+      },
+      {
+        key: 'idx_academic_terms_year_order',
+        type: 'key',
+        columns: ['academic_year', 'term_order'],
+        orders: ['ASC', 'ASC'],
+      },
+    ],
+  },
+
+  // Story 4.3: School calendar events — holidays, PD days, exam blocks, etc.
+  school_calendar_events: {
+    name: 'School Calendar Events',
+    permissions: permissions,
+    columns: [
+      { key: 'title', type: 'string', size: 255, required: true },
+      {
+        key: 'event_type',
+        type: 'enum',
+        elements: [
+          'public_holiday',
+          'school_holiday',
+          'pd_day',
+          'exam_block',
+          'early_dismissal',
+          'assembly',
+          'other',
+        ],
+        required: true,
+      },
+      // start_date = end_date for single-day events
+      { key: 'start_date', type: 'datetime', required: true },
+      { key: 'end_date', type: 'datetime', required: true },
+      // false = school closed (not a school day); true = school open but modified
+      { key: 'is_school_day', type: 'boolean', required: true, default: false },
+      // Empty/null = school-wide; populated = only these class IDs affected.
+      // Stored as string array (not a relationship) to avoid cascade complexity.
+      { key: 'affected_class_ids', type: 'string', size: 50, array: true, required: false },
+      { key: 'notes', type: 'string', size: 500, required: false },
+    ],
+    indexes: [
+      {
+        key: 'idx_calendar_events_start',
+        type: 'key',
+        columns: ['start_date'],
+        orders: ['ASC'],
+      },
+      {
+        key: 'idx_calendar_events_type',
+        type: 'key',
+        columns: ['event_type'],
+        orders: ['ASC'],
+      },
+    ],
+  },
+
+  // Story 4.4: Per-grade daily bell schedule (replaces school_timetable stub)
+  school_period_slots: {
+    name: 'School Period Slots',
+    permissions: permissions,
+    columns: [
+      {
+        key: 'grade_level',
+        type: 'enum',
+        elements: [
+          'Early Childhood',
+          'Grade 1',
+          'Grade 2',
+          'Grade 3',
+          'Grade 4',
+          'Grade 5',
+          'Grade 6',
+          'Grade 7',
+          'Grade 8',
+          'Grade 9',
+          'Grade 10',
+          'Grade 11',
+          'Grade 12',
+        ],
+        required: true,
+      },
+      { key: 'academic_year', type: 'integer', required: true },
+      // Ordering within the day (1, 2, 3...)
+      { key: 'slot_number', type: 'integer', required: true },
+      // Display label: "Period 1", "Morning Break", "Lunch", "Assembly", etc.
+      { key: 'label', type: 'string', size: 100, required: true },
+      {
+        key: 'slot_type',
+        type: 'enum',
+        elements: ['class', 'break', 'lunch', 'assembly', 'free'],
+        required: true,
+        default: 'class',
+      },
+      // HH:mm 24-hour format stored as string (e.g. "08:00")
+      { key: 'start_time', type: 'string', size: 5, required: true },
+      { key: 'end_time', type: 'string', size: 5, required: true },
+      // Empty array = applies every school day.
+      // Populated = only on listed days: ['Monday', 'Friday'] etc.
+      { key: 'applies_to_days', type: 'string', size: 10, array: true, required: false },
+      { key: 'notes', type: 'string', size: 255, required: false },
+    ],
+    indexes: [
+      {
+        key: 'idx_period_slots_grade_year',
+        type: 'key',
+        columns: ['grade_level', 'academic_year'],
+        orders: ['ASC', 'ASC'],
+      },
+      {
+        key: 'idx_period_slots_grade_year_slot',
+        type: 'key',
+        columns: ['grade_level', 'academic_year', 'slot_number'],
+        orders: ['ASC', 'ASC', 'ASC'],
+      },
+    ],
+  },
+
+  // Story 4.5: Class timetable entries — weekly subject grid per class or grade template.
+  // Replaces the removed school_timetable stub.
+  // is_template = true + class_id = null → grade-level template
+  // is_template = false + class_id set → class-specific schedule
+  class_timetable_entries: {
+    name: 'Class Timetable Entries',
+    permissions: permissions,
+    columns: [
+      // null when is_template = true
       {
         key: 'class_id',
         type: 'relationship',
@@ -1219,18 +1359,40 @@ const tableSchemas = {
         relationType: 'manyToOne',
         twoWay: false,
         onDelete: 'cascade',
+        required: false,
+      },
+      { key: 'is_template', type: 'boolean', required: true, default: false },
+      {
+        key: 'grade_level',
+        type: 'enum',
+        elements: [
+          'Early Childhood',
+          'Grade 1',
+          'Grade 2',
+          'Grade 3',
+          'Grade 4',
+          'Grade 5',
+          'Grade 6',
+          'Grade 7',
+          'Grade 8',
+          'Grade 9',
+          'Grade 10',
+          'Grade 11',
+          'Grade 12',
+        ],
         required: true,
       },
+      // school_period_slots.$id stored as string (not relationship) — intentional,
+      // avoids cascade and allows slot reuse across grades.
+      { key: 'slot_id', type: 'string', size: 50, required: true },
       {
         key: 'day_of_week',
         type: 'enum',
         elements: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'],
         required: true,
       },
-      { key: 'period_number', type: 'integer', required: true },
-      { key: 'start_time', type: 'string', size: 10, required: true },
-      { key: 'end_time', type: 'string', size: 10, required: true },
-      { key: 'subject', type: 'string', size: 100, required: true },
+      // Free string — not enum — allows subjects not in the standard SUBJECTS list
+      { key: 'subject', type: 'string', size: 100, required: false },
       {
         key: 'teacher_id',
         type: 'relationship',
@@ -1240,9 +1402,20 @@ const tableSchemas = {
         onDelete: 'setNull',
         required: false,
       },
+      { key: 'academic_year', type: 'integer', required: true },
+      // Date range for mid-year timetable changes. null valid_to = currently active.
+      { key: 'valid_from', type: 'datetime', required: false },
+      { key: 'valid_to', type: 'datetime', required: false },
       { key: 'notes', type: 'string', size: 255, required: false },
     ],
-    indexes: [],
+    indexes: [
+      {
+        key: 'idx_timetable_grade_template',
+        type: 'key',
+        columns: ['grade_level', 'is_template', 'academic_year'],
+        orders: ['ASC', 'ASC', 'ASC'],
+      },
+    ],
   },
   learner_attendance: {
     name: 'Learner Attendance',
@@ -1560,9 +1733,9 @@ async function setupDatabase() {
 
     console.log('\n✅ Database setup complete!');
     console.log('\n📋 Summary:');
-    console.log('   - 21 Tables created/verified');
-    console.log('   - 130+ columns created/verified');
-    console.log('   - 16 indexes created/verified');
+    console.log('   - 24 Tables created/verified');
+    console.log('   - 150+ columns created/verified');
+    console.log('   - 25+ indexes created/verified');
     console.log('   - Permissions configured');
     console.log('\n🎉 You can now test the database connection at /appwrite-test');
     console.log('\n📦 Tables created:');
@@ -1574,6 +1747,12 @@ async function setupDatabase() {
       '   Finance: finance_categories, funding_sources, loans, inventory, finance_transactions, transaction_links',
     );
     console.log('   Loan Mgmt: repayment_schedule, loan_payments');
+    console.log(
+      '   School: school_classes, learners, test_scores, teacher_assignments, learner_attendance,',
+    );
+    console.log(
+      '           school_academic_terms, school_calendar_events, school_period_slots, class_timetable_entries',
+    );
   } catch (error) {
     console.error('\n❌ Setup failed:', error.message);
     if (error.response) {

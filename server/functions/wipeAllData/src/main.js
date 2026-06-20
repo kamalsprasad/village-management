@@ -32,8 +32,11 @@ const TABLES_TO_WIPE = [
   'finance_categories',
   'funding_sources',
   // School tables (children before parents)
+  'school_calendar_events',
+  'school_academic_terms',
+  'class_timetable_entries',
+  'school_period_slots',
   'test_scores',
-  'school_timetable',
   'learner_attendance',
   'teacher_assignments',
   'learners',

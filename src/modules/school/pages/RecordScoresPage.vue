@@ -56,7 +56,7 @@
           <div class="col-12 col-sm-6 col-md-2">
             <q-select
               v-model="term"
-              :options="TERMS"
+              :options="termOptions"
               label="Term *"
               outlined
               dense
@@ -233,13 +233,14 @@
 </template>
 
 <script setup>
-import { ref, onMounted, computed } from 'vue';
+import { ref, onMounted, computed, watch } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { useQuasar } from 'quasar';
 import { useLearnerStore } from '../stores/learner-store';
 import { useSchoolStore } from '../stores/school-store';
 import { normalizeClassId, useClassStore } from '../stores/class-store';
 import { SUBJECTS, ASSESSMENT_TYPES, TERMS } from '../utils/school-constants';
+import { useAcademicTermsStore } from '../stores/academic-terms-store';
 import { computeScorePercent } from '../utils/school-utils';
 
 const router = useRouter();
@@ -248,6 +249,7 @@ const $q = useQuasar();
 const learnerStore = useLearnerStore();
 const schoolStore = useSchoolStore();
 const classStore = useClassStore();
+const termsStore = useAcademicTermsStore();
 
 const headerForm = ref(null);
 const classId = ref(null);
@@ -273,6 +275,38 @@ const classOptions = computed(() => {
   }));
 });
 
+/**
+ * Term options for the dropdown, loaded from school_academic_terms for the selected year.
+ * Falls back to the static TERMS constant if no DB terms are configured yet (e.g. first run).
+ * Term names are plain strings — exactly what gets stored in test_scores.term.
+ */
+const termOptions = computed(() => {
+  const dbTerms = termsStore.termsByYear(academicYear.value);
+  if (dbTerms.length > 0) {
+    return dbTerms.map((t) => t.term_name);
+  }
+  // Fallback to static list when no terms are configured in DB
+  return TERMS;
+});
+
+// If the user changes the academic year, invalidate any term that no longer exists
+// for the new year so we don't silently save stale term names.
+watch(academicYear, () => {
+  if (term.value && !termOptions.value.includes(term.value)) {
+    term.value = termOptions.value[0] || null;
+  }
+});
+
+// When the assessment date changes, update the term to the one whose range contains the date.
+// This keeps the term dropdown consistent with the selected assessment date.
+watch(assessmentDate, () => {
+  if (!assessmentDate.value || termOptions.value.length === 0) return;
+  const dateTerm = termsStore.getTermForDate(assessmentDate.value);
+  if (dateTerm && termOptions.value.includes(dateTerm.term_name)) {
+    term.value = dateTerm.term_name;
+  }
+});
+
 const columns = [
   { name: 'name', label: 'Learner Name', field: 'learner_name', align: 'left', sortable: true },
   { name: 'score', label: 'Score', field: 'score_value', align: 'left' },
@@ -281,8 +315,12 @@ const columns = [
 ];
 
 onMounted(async () => {
-  await classStore.fetchClasses();
-  await learnerStore.fetchLearners();
+  // Fetch classes, learners, and terms in parallel for best performance
+  await Promise.all([
+    classStore.fetchClasses(),
+    learnerStore.fetchLearners(),
+    termsStore.fetchAcademicTerms(),
+  ]);
 
   classId.value = route.params.id;
 
@@ -294,6 +332,17 @@ onMounted(async () => {
     if (route.query.year) academicYear.value = Number(route.query.year);
     if (route.query.date) assessmentDate.value = route.query.date;
     if (route.query.maxScore) maxScore.value = Number(route.query.maxScore);
+  }
+
+  // Auto-select the term for the assessment date if no term is set from query params.
+  // Finds the term whose date range contains the assessment date, or falls back to the first term.
+  if (!term.value && termOptions.value.length > 0) {
+    const dateTerm = termsStore.getTermForDate(assessmentDate.value || new Date());
+    if (dateTerm && termOptions.value.includes(dateTerm.term_name)) {
+      term.value = dateTerm.term_name;
+    } else {
+      term.value = termOptions.value[0];
+    }
   }
 
   if (classId.value) {

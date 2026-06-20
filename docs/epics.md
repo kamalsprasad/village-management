@@ -29,13 +29,15 @@ Each epic includes:
 
 ## Complete Epic Summary
 
-**Total Stories: 51 stories**
+**Total Stories: 54 stories**
 
 - **Epic 1:** 11 stories (Project Foundation & Core Infrastructure)
 - **Epic 2:** 9 stories (Financial Management and Inventory Tracking)
 - **Epic 3:** 10 stories (Farm Management and Agricultural Tracking)
-- **Epic 4:** 10 stories (School Management and Educational Accountability)
+- **Epic 4:** 13 stories (School Management and Educational Accountability)
 - **Epic 5:** 10 stories (Village Calendar, Storage, and Optional Modules)
+
+> **Epic 4 updated 2026-06-20:** 3 new stories (4.3–4.5) added for School Calendar (academic terms, bell schedules, class timetable). The original stories 4.3–4.10 have been renumbered to 4.6–4.13.
 
 ---
 
@@ -675,11 +677,11 @@ As a **Farm Manager**, I want configurable alerts for farm operations, so that I
 
 ---
 
-## Epic 4: School Management and Educational Accountability (10 stories)
+## Epic 4: School Management and Educational Accountability (13 stories)
 
-**Expanded Goal:** Enable systematic tracking of learner performance and teacher effectiveness to support early intervention for struggling learners and meaningful teacher accountability.
+**Expanded Goal:** Enable systematic tracking of learner performance and teacher effectiveness to support early intervention for struggling learners and meaningful teacher accountability. Includes a fully configurable school calendar (academic terms, bell schedules, class timetables) that underpins attendance tracking and at-risk identification.
 
-**Value Delivered:** Head Teacher can identify struggling learners early, implement and track interventions, conduct meaningful teacher evaluations (peer reviews with consequences), and demonstrate measurable educational outcomes to donors.
+**Value Delivered:** Head Teacher can configure the school calendar, define the daily bell schedule, build class timetables, identify struggling learners early, implement and track interventions, conduct meaningful teacher evaluations (peer reviews with consequences), and demonstrate measurable educational outcomes to donors.
 
 ---
 
@@ -688,6 +690,8 @@ As a **Farm Manager**, I want configurable alerts for farm operations, so that I
 As a **Head Teacher**, I want to enroll learners by selecting from residents table, so that learner data is pre-populated and consistent.
 
 **Acceptance Criteria:** 1. School navigation appears for Head Teacher, Teacher, Admin roles 2. "Enroll Learner" button: select resident (dropdown), auto-populated fields (name, DOB, gender, household - read-only), additional fields (grade level, enrollment date, parent/guardian, medical notes, emergency contact) 3. Validation: Resident can only be enrolled once 4. Learner detail page shows: personal info, grade, enrollment status, academic performance, test scores, attendance, interventions 5. Grade promotion, enrollment status changes, search/filter learners
+
+**Status:** Done
 
 **Prerequisites:** Epic 1 Story 1.6, 1.7
 
@@ -699,41 +703,73 @@ As a **Teacher**, I want to record test scores for entire grade in spreadsheet f
 
 **Acceptance Criteria:** 1. "Record Scores for Class" button 2. Select grade, subject, assessment type, test date 3. Spreadsheet-style table: columns (Learner Name, Score - editable, Notes), Tab navigation, visual validation 4. "Save All Scores" button 5. Learner detail shows test scores (view only), filters, averages, performance trend chart 6. Class performance view with averages, distribution chart
 
-**Prerequisites:** Story 4.1
-
----
-
-### Story 4.3: School Module - Attendance Tracking (Bulk Entry by Grade)
-
-As a **Teacher**, I want to record daily attendance for my class in spreadsheet format.
-
-**Acceptance Criteria:** 1. "Record Attendance" page 2. Select date, grade 3. Spreadsheet table: columns (Learner Name, Status dropdown, Reason), "Mark All Present" button 4. Attendance history: calendar view, color-coded, statistics 5. Class attendance report, dashboard widget
+**Status:** Done
 
 **Prerequisites:** Story 4.1
 
 ---
 
-### Story 4.4: School Module - At-Risk Learner Identification (90% Attendance Threshold)
+### Story 4.3: School Calendar — Academic Terms & School Holidays
 
-As a **Head Teacher**, I want to automatically identify struggling learners.
+As a **School Administrator** or **Head Teacher**, I want to configure academic terms (name, start/end dates) and mark school holidays and non-teaching days, so that the system knows which dates are school days and can drive attendance and at-risk calculations correctly.
 
-**Acceptance Criteria:** 1. At-risk criteria: Academic (<50% any subject, <60% overall), Attendance (<90%) 2. Attendance intervention trigger: does NOT trigger until after first 5 school days, system tracks school year start date, alerts suppressed for first 5 days 3. "At-Risk Learners" dashboard widget and dedicated page 4. Automatic alerts to Head Teacher 5. At-risk status updates automatically
+**Acceptance Criteria:** 1. `school_academic_terms` table: configurable term names, count, start/end dates per academic year 2. `school_calendar_events` table: public holidays, PD days, school holidays, exam blocks, early dismissals — school-wide with optional per-class scoping 3. School Calendar page with vue-cal monthly view: term boundary bands, color-coded events 4. Admin UI: add/edit/delete terms and calendar events; "Copy from previous year" for terms 5. `test_scores.term` changed from hard-coded enum to free string (size 100) 6. Term dropdown in Record Scores page populated from database 7. `academic-terms-store.js` and `calendar-events-store.js` Pinia stores with `isSchoolDay(date)` and `schoolDaysBetween()` getters 8. Sample data seeded: 3 terms + 5 calendar events
 
-**Prerequisites:** Story 4.2, 4.3
+**Prerequisites:** Story 4.2
 
 ---
 
-### Story 4.5: School Module - Intervention Planning and Progress Tracking
+### Story 4.4: School Calendar — Grade Bell Schedules (Period Slots)
 
-As a **Head Teacher**, I want to create and track intervention plans for struggling learners.
+As a **School Administrator**, I want to define the daily bell schedule per grade level — number of periods, breaks, lunch, start/end times — so that the timetable builder has a structured grid.
 
-**Acceptance Criteria:** 1. "Create Intervention Plan" button: learner, intervention type, assigned teacher, focus areas, frequency, schedule, success criteria 2. Intervention detail page: progress notes, status, outcome 3. Teacher dashboard: "My Interventions" widget 4. Intervention effectiveness tracking
+**Acceptance Criteria:** 1. `school_period_slots` table: per-grade, per-academic-year slots with label, type (class/break/lunch/assembly/free), start/end time (HH:mm), applies-to-days array 2. Bell Schedules settings page: add/edit/delete/reorder slots per grade + year 3. Visual daily timeline preview (proportional CSS blocks, color-coded by slot type) 4. "Copy from Grade/Year" feature 5. Grade completeness indicator showing configured/unconfigured grades 6. `period-slots-store.js` with `classSlotsByGradeYear()` and `slotDurationMinutes()` getters 7. `school_timetable` stub replaced (removed here, replaced by `class_timetable_entries` in Story 4.5) 8. Sample data: bell schedules for Early Childhood and Grade 5
+
+**Prerequisites:** Story 4.3
+
+---
+
+### Story 4.5: Class Timetable — Weekly Schedule Builder
+
+As a **School Administrator** or **Head Teacher**, I want to build a weekly subject schedule for each class, assigning subjects and teachers to period slots, with conflict detection and a grade-level template system.
+
+**Acceptance Criteria:** 1. `class_timetable_entries` table: per-class or grade-template entries with class_id, grade_level, slot_id, day_of_week, subject (free string), teacher_id, academic_year, valid_from/valid_to, is_template flag 2. Grade timetable template builder in School Settings: weekly grid (class slots × Mon–Fri), edit mode with subject and teacher dropdowns 3. Class Timetable tab in ClassDetailPage now fully functional: shows grade template preview when no class-specific timetable exists; "Apply Template" button copies template to class 4. Per-class edit mode: subject/teacher per cell, teacher conflict detection (warning not hard block), save/discard 5. vue-cal weekly display for read-only view 6. Teacher schedule view: weekly grid of all classes/subjects a teacher is assigned 7. `timetable-store.js` with conflict detection, bulk save, apply-template, reset-to-template actions 8. Sample data: Grade 3 template + Grade 3A customized timetable
 
 **Prerequisites:** Story 4.4
 
 ---
 
-### Story 4.6: School Module - Peer Review with Enhanced Categories and Checked Status
+### Story 4.6: School Module - Attendance Tracking (Bulk Entry by Grade)
+
+As a **Teacher**, I want to record daily attendance for my class in spreadsheet format, with the school calendar determining which days are valid attendance days.
+
+**Acceptance Criteria:** 1. "Record Attendance" page 2. Select date, grade — date picker warns if selected date is a holiday/non-school day per the school calendar 3. Spreadsheet table: columns (Learner Name, Status dropdown, Reason), "Mark All Present" button 4. Attendance history: calendar view, color-coded, statistics 5. Class attendance report, dashboard widget 6. `isSchoolDay()` from calendar-events-store used to validate date selection and calculate attendance percentages correctly
+
+**Prerequisites:** Story 4.3 (school calendar must be configured before attendance is tracked)
+
+---
+
+### Story 4.7: School Module - At-Risk Learner Identification (90% Attendance Threshold)
+
+As a **Head Teacher**, I want to automatically identify struggling learners.
+
+**Acceptance Criteria:** 1. At-risk criteria: Academic (<50% any subject, <60% overall), Attendance (<90%) 2. Attendance intervention trigger: does NOT trigger until after first 5 school days (school year start date from `school_academic_terms`); alerts suppressed for first 5 days 3. "At-Risk Learners" dashboard widget and dedicated page 4. Automatic alerts to Head Teacher 5. At-risk status updates automatically
+
+**Prerequisites:** Story 4.5 (timetable), Story 4.6 (attendance)
+
+---
+
+### Story 4.8: School Module - Intervention Planning and Progress Tracking
+
+As a **Head Teacher**, I want to create and track intervention plans for struggling learners.
+
+**Acceptance Criteria:** 1. "Create Intervention Plan" button: learner, intervention type, assigned teacher, focus areas, frequency, schedule, success criteria 2. Intervention detail page: progress notes, status, outcome 3. Teacher dashboard: "My Interventions" widget 4. Intervention effectiveness tracking
+
+**Prerequisites:** Story 4.7
+
+---
+
+### Story 4.9: School Module - Peer Review with Enhanced Categories and Checked Status
 
 As a **Teacher**, I want to conduct peer evaluations with comprehensive rating categories.
 
@@ -743,27 +779,27 @@ As a **Teacher**, I want to conduct peer evaluations with comprehensive rating c
 
 ---
 
-### Story 4.7: School Module - Self-Evaluation and Head Teacher Evaluation
+### Story 4.10: School Module - Self-Evaluation and Head Teacher Evaluation
 
 As a **Teacher**, I want to complete self-evaluations. As a **Head Teacher**, I want to conduct formal evaluations of teachers.
 
 **Acceptance Criteria:** 1. Self-Evaluation: same 10 rating categories, goals, challenges, support needed 2. Head Teacher Evaluation: same categories + Impact on Learner Outcomes, recommendation (Exceeds Expectations/Meets Expectations/Needs Improvement/Unsatisfactory) 3. Teacher profile shows combined evaluation summary: weighted (Peer 30%, Self 20%, Head Teacher 50%) 4. School dashboard widget: "Teacher Performance Overview"
 
-**Prerequisites:** Story 4.6
+**Prerequisites:** Story 4.9
 
 ---
 
-### Story 4.8: School Module - Collaborative Teaching Practices Documentation
+### Story 4.11: School Module - Collaborative Teaching Practices Documentation
 
 As a **Teacher**, I want to document collaborative teaching practices.
 
 **Acceptance Criteria:** 1. Teaching practice entry form: title, subject, grade, practice type, description, materials, implementation steps, outcomes, effectiveness rating 2. Teaching practices library: list view, filters, search 3. Practice detail page: comments, "I've tried this" button, adoption tracking 4. Export to PDF
 
-**Prerequisites:** Story 4.6
+**Prerequisites:** Story 4.9
 
 ---
 
-### Story 4.9: School Module - Progress Toward Long-Term Educational Goal (90% in 90th Percentile)
+### Story 4.12: School Module - Progress Toward Long-Term Educational Goal (90% in 90th Percentile)
 
 As a **Head Teacher**, I want to track progress toward the goal of 90% of learners in 90th percentile by year 10.
 
@@ -773,17 +809,17 @@ As a **Head Teacher**, I want to track progress toward the goal of 90% of learne
 
 ---
 
-### Story 4.10: School Module - Learner Progress Reports and School Dashboard Completion
+### Story 4.13: School Module - Learner Progress Reports and School Dashboard Completion
 
 As a **Head Teacher**, I want to generate comprehensive learner progress reports.
 
 **Acceptance Criteria:** 1. "Generate Progress Report" button: select term, report type, include sections 2. Generated report: header, academic performance, attendance, interventions, teacher comments, next steps 3. Export to PDF, bulk report generation 4. School dashboard completion: all widgets functional, loads within 2 seconds, mobile-responsive
 
-**Prerequisites:** Story 4.2, 4.3, 4.5, 4.9
+**Prerequisites:** Story 4.2, 4.6, 4.8, 4.12
 
 ---
 
-**Epic 4 Summary:** 10 stories, 20-30 hours. Deliverables: School management (learners from residents, bulk test scores/attendance), at-risk identification (90% attendance, 5-day delay), interventions, teacher evaluations (10 categories, checked status), teaching practices, progress tracking, learner reports.
+**Epic 4 Summary:** 13 stories. Deliverables: School management (learners from residents, bulk test scores/attendance), configurable school calendar (academic terms, grade bell schedules, class timetables), at-risk identification (90% attendance, calendar-aware 5-day delay), interventions, teacher evaluations (10 categories, checked status), teaching practices, progress tracking, learner reports.
 
 ---
 

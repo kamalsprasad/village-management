@@ -439,20 +439,91 @@ Stores learner enrollment records for the School module (Story 4.1). Learners ar
 
 Stores individual test/assessment scores for learners (Story 4.2). Grouping of scores into "assessments" is performed client-side based on matching headers: `class_id`, `assessment_date`, `subject`, `assessment_type`, `term`, `academic_year`.
 
-| Column            | Type     | Constraints                                                 | Description                                        |
-| ----------------- | -------- | ----------------------------------------------------------- | -------------------------------------------------- |
-| `learner_id`      | rel      | Required, manyToOne → learners, onDelete: cascade           | Linked learner record                              |
-| `class_id`        | rel      | Optional, manyToOne → school_classes, onDelete: cascade     | Class context at score recording time              |
-| `subject`         | enum     | Required: 'Mathematics', 'English', 'Integrated Science'... | Academic subject                                   |
-| `assessment_type` | enum     | Required: 'Class Exercise', 'Monthly Test', 'Exam'...       | Type of assessment                                 |
-| `term`            | enum     | Required: 'Term 1', 'Term 2', 'Term 3'                      | Academic term                                      |
-| `academic_year`   | integer  | Required                                                    | Numeric year (e.g. 2026)                           |
-| `assessment_date` | datetime | Required                                                    | Date of the assessment                             |
-| `score_value`     | double   | Required                                                    | Raw score received                                 |
-| `max_score`       | double   | Required                                                    | Maximum achievable score (e.g. 20.0, 100.0)        |
-| `notes`           | string   | Optional, max 500                                           | Teacher notes regarding this learner's performance |
+> **Schema change (Story 4.3):** The `term` column was changed from a hard-coded enum (`'Term 1'`, `'Term 2'`, `'Term 3'`) to a free string (`size: 100`). Terms are now configurable via `school_academic_terms`. The term name is stored literally on each score row so historical records remain valid even if terms are later renamed.
+
+| Column            | Type     | Constraints                                                              | Description                                        |
+| ----------------- | -------- | ------------------------------------------------------------------------ | -------------------------------------------------- |
+| `learner_id`      | rel      | Required, manyToOne → learners, onDelete: cascade                        | Linked learner record                              |
+| `class_id`        | rel      | Optional, manyToOne → school_classes, onDelete: cascade                  | Class context at score recording time              |
+| `subject`         | enum     | Required: 'Mathematics', 'English', 'Integrated Science'...              | Academic subject                                   |
+| `assessment_type` | enum     | Required: 'Class Exercise', 'Monthly Test', 'Exam'...                    | Type of assessment                                 |
+| `term`            | string   | Required, max 100 — free string (term name from `school_academic_terms`) | Academic term name as recorded                     |
+| `academic_year`   | integer  | Required                                                                 | Numeric year (e.g. 2026)                           |
+| `assessment_date` | datetime | Required                                                                 | Date of the assessment                             |
+| `score_value`     | double   | Required                                                                 | Raw score received                                 |
+| `max_score`       | double   | Required                                                                 | Maximum achievable score (e.g. 20.0, 100.0)        |
+| `notes`           | string   | Optional, max 500                                                        | Teacher notes regarding this learner's performance |
 
 **Indexes:** `idx_test_scores_subject_date` on `(assessment_date DESC, subject ASC, assessment_type ASC)`
+
+### school_academic_terms
+
+Configurable academic terms for each academic year (Story 4.3). Replaces the hard-coded `TERMS` constant. Each row defines one term or semester for a given year. Term count, names, and dates are fully configurable by the School Administrator.
+
+| Column          | Type     | Constraints       | Description                                          |
+| --------------- | -------- | ----------------- | ---------------------------------------------------- |
+| `academic_year` | integer  | Required          | Numeric year (e.g. 2026)                             |
+| `term_name`     | string   | Required, max 100 | Term name (e.g. "Term 1", "Semester 1", "Quarter 3") |
+| `term_order`    | integer  | Required          | Ordering within the year (1, 2, 3...)                |
+| `start_date`    | datetime | Required          | First day of the term                                |
+| `end_date`      | datetime | Required          | Last day of the term                                 |
+| `notes`         | string   | Optional, max 500 | Additional notes                                     |
+
+**Indexes:** `idx_academic_terms_year` on `(academic_year ASC)`, `idx_academic_terms_year_order` on `(academic_year ASC, term_order ASC)`
+
+### school_calendar_events
+
+School calendar events including public holidays, PD days, exam blocks, early dismissals, and other non-standard school days (Story 4.3). Events are school-wide by default; `affected_class_ids` enables optional per-class scoping for field trips or class-specific closures.
+
+| Column               | Type     | Constraints                                                                                                  | Description                                                              |
+| -------------------- | -------- | ------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------ |
+| `title`              | string   | Required, max 255                                                                                            | Event name (e.g. "Independence Day", "Staff PD Day")                     |
+| `event_type`         | enum     | Required: 'public_holiday', 'school_holiday', 'pd_day', 'exam_block', 'early_dismissal', 'assembly', 'other' | Type of event                                                            |
+| `start_date`         | datetime | Required                                                                                                     | Start date (= end_date for single-day events)                            |
+| `end_date`           | datetime | Required                                                                                                     | End date (= start_date for single-day events)                            |
+| `is_school_day`      | boolean  | Required, default: false                                                                                     | false = school closed; true = school open but modified (early dismissal) |
+| `affected_class_ids` | string[] | Optional                                                                                                     | Empty/null = school-wide; populated = only these class IDs affected      |
+| `notes`              | string   | Optional, max 500                                                                                            | Additional notes                                                         |
+
+**Indexes:** `idx_calendar_events_start` on `(start_date ASC)`, `idx_calendar_events_type` on `(event_type ASC)`
+
+### school_period_slots
+
+Daily bell schedule per grade level and academic year (Story 4.4). Defines the ordered sequence of period slots (class periods, breaks, lunch, assembly, free periods) for each grade. Different grades may have different bell schedules.
+
+| Column            | Type     | Constraints                                                               | Description                                                                |
+| ----------------- | -------- | ------------------------------------------------------------------------- | -------------------------------------------------------------------------- |
+| `grade_level`     | enum     | Required: 'Early Childhood', 'Grade 1'–'Grade 12'                         | Grade this slot belongs to                                                 |
+| `academic_year`   | integer  | Required                                                                  | Numeric year (e.g. 2026)                                                   |
+| `slot_number`     | integer  | Required                                                                  | Display order within the day (1, 2, 3...)                                  |
+| `label`           | string   | Required, max 100                                                         | Display label (e.g. "Period 1", "Morning Break", "Lunch")                  |
+| `slot_type`       | enum     | Required, default: 'class': 'class', 'break', 'lunch', 'assembly', 'free' | Type of slot; only 'class' slots appear in the timetable subject grid      |
+| `start_time`      | string   | Required, max 5                                                           | Start time in HH:mm 24-hour format (e.g. "08:00")                          |
+| `end_time`        | string   | Required, max 5                                                           | End time in HH:mm 24-hour format (e.g. "08:45")                            |
+| `applies_to_days` | string[] | Optional                                                                  | Empty = all school days; populated = only on listed days (e.g. ['Friday']) |
+| `notes`           | string   | Optional, max 255                                                         | Additional notes                                                           |
+
+**Indexes:** `idx_period_slots_grade_year` on `(grade_level ASC, academic_year ASC)`, `idx_period_slots_grade_year_slot` on `(grade_level ASC, academic_year ASC, slot_number ASC)`
+
+### class_timetable_entries
+
+Weekly class timetable entries per day and period slot (Story 4.5). Replaces the original `school_timetable` stub. Stores both grade-level templates (`is_template = true`, `class_id = null`) and class-specific schedules (`is_template = false`). Date ranges (`valid_from`/`valid_to`) support mid-year timetable changes without destroying history.
+
+| Column          | Type     | Constraints                                                      | Description                                                                   |
+| --------------- | -------- | ---------------------------------------------------------------- | ----------------------------------------------------------------------------- |
+| `class_id`      | rel      | Optional, manyToOne → school_classes, onDelete: cascade          | Null when `is_template = true`; set for class-specific entries                |
+| `is_template`   | boolean  | Required, default: false                                         | true = grade-level template (class_id is null)                                |
+| `grade_level`   | enum     | Required: 'Early Childhood', 'Grade 1'–'Grade 12'                | Stored on both template and class entries for efficient querying              |
+| `slot_id`       | string   | Required, max 50                                                 | `school_period_slots.$id` stored as string (not a relationship — intentional) |
+| `day_of_week`   | enum     | Required: 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday' | Day this entry applies to                                                     |
+| `subject`       | string   | Optional, max 100                                                | Subject name — free string (not enum) to allow non-standard subjects          |
+| `teacher_id`    | rel      | Optional, manyToOne → residents, onDelete: setNull               | Teacher delivering this specific slot                                         |
+| `academic_year` | integer  | Required                                                         | Numeric year (e.g. 2026)                                                      |
+| `valid_from`    | datetime | Optional                                                         | Start of date range this entry is active; null = from start of year           |
+| `valid_to`      | datetime | Optional                                                         | End of date range; null = currently active                                    |
+| `notes`         | string   | Optional, max 255                                                | Additional notes                                                              |
+
+**Indexes:** `idx_timetable_class_year` on `(class_id ASC, academic_year ASC)`, `idx_timetable_grade_template` on `(grade_level ASC, is_template ASC, academic_year ASC)`, `idx_timetable_teacher_year` on `(teacher_id ASC, academic_year ASC)`
 
 ### teacher_assignments
 
@@ -499,9 +570,13 @@ All relationships use Appwrite's native relationship columns (type `rel`). Key r
 - **learners → school_classes**: manyToOne via `learners.class_id` (onDelete: setNull — learners become unassigned if a class is deleted)
 - **test_scores → learners**: manyToOne via `test_scores.learner_id` (onDelete: cascade)
 - **test_scores → school_classes**: manyToOne via `test_scores.class_id` (onDelete: cascade)
-- **school_timetable → school_classes**: manyToOne via `school_timetable.class_id` (onDelete: cascade)
-- **learner_attendance → school_classes**: manyToOne via `learner_attendance.class_id` (onDelete: cascade)
 - **teacher_assignments → residents**: manyToOne via `teacher_assignments.teacher_id` (onDelete: cascade)
+- **class_timetable_entries → school_classes**: manyToOne via `class_timetable_entries.class_id` (onDelete: cascade; null when `is_template = true`)
+- **class_timetable_entries → residents**: manyToOne via `class_timetable_entries.teacher_id` (onDelete: setNull)
+- **learner_attendance → school_classes**: manyToOne via `learner_attendance.class_id` (onDelete: cascade)
+- **`school_academic_terms`**: standalone (no relationships — self-contained calendar data)
+- **`school_calendar_events`**: standalone (no relationships — `affected_class_ids` stored as string array, not relationship column, to support optional scoping without cascade complexity)
+- **`school_period_slots`**: standalone (no relationships — `slot_id` on `class_timetable_entries` references `school_period_slots.$id` as a string, intentionally avoiding cascade to allow slot reuse across grades)
 
 **Finance:**
 

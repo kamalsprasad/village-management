@@ -1,11 +1,17 @@
 /**
- * School Module Routes (Story 4.1)
+ * School Module Routes (Story 4.1, updated Story 4.3)
  *
  * Route definitions for the School module. Registered in src/router/routes.js
  * via spread, same as the Farm and Finance modules.
  *
  * IMPORTANT: 'school/learners/enroll' must be defined BEFORE 'school/learners/:id'
  * to prevent the :id param from capturing 'enroll' as an ID.
+ *
+ * Story 4.3 additions:
+ *   /school/calendar              — SchoolCalendarPage (school:read)
+ *   /school/settings              — SchoolSettingsPage hub (school:admin)
+ *   /school/settings/terms        — AcademicTermsSettingsPage (school:admin)
+ *   /school/settings/calendar-events — CalendarEventsSettingsPage (school:admin)
  */
 
 const schoolRoutes = [
@@ -101,6 +107,44 @@ const schoolRoutes = [
     meta: {
       requiresAuth: true,
       requiresPermission: 'school:read',
+    },
+  },
+
+  // ── Story 4.3: School Calendar & Settings ────────────────────
+  {
+    path: 'school/calendar',
+    name: 'school-calendar',
+    component: () => import('./pages/SchoolCalendarPage.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresPermission: 'school:read',
+    },
+  },
+  {
+    path: 'school/settings',
+    name: 'school-settings',
+    component: () => import('./pages/SchoolSettingsPage.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresPermission: 'school:admin',
+    },
+  },
+  {
+    path: 'school/settings/terms',
+    name: 'school-settings-terms',
+    component: () => import('./pages/AcademicTermsSettingsPage.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresPermission: 'school:admin',
+    },
+  },
+  {
+    path: 'school/settings/calendar-events',
+    name: 'school-settings-calendar-events',
+    component: () => import('./pages/CalendarEventsSettingsPage.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresPermission: 'school:admin',
     },
   },
 ];

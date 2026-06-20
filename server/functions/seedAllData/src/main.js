@@ -1748,13 +1748,15 @@ async function seedSchool(tablesDB, dbId, residentIds, log) {
   log(`  ${scoreTasks.length} test scores`);
 
   log('Phase 4: Timetable...');
+  // Story 4.5: school_timetable was replaced by school_period_slots + class_timetable_entries.
+  const TIMETABLE_ACADEMIC_YEAR = 2026;
   const PERIODS = [
-    { num: 1, start: '08:00', end: '08:45' },
-    { num: 2, start: '08:45', end: '09:30' },
-    { num: 3, start: '10:00', end: '10:45' },
-    { num: 4, start: '10:45', end: '11:30' },
-    { num: 5, start: '12:00', end: '12:45' },
-    { num: 6, start: '12:45', end: '13:30' },
+    { num: 1, start: '08:00', end: '08:45', label: 'Period 1' },
+    { num: 2, start: '08:45', end: '09:30', label: 'Period 2' },
+    { num: 3, start: '10:00', end: '10:45', label: 'Period 3' },
+    { num: 4, start: '10:45', end: '11:30', label: 'Period 4' },
+    { num: 5, start: '12:00', end: '12:45', label: 'Period 5' },
+    { num: 6, start: '12:45', end: '13:30', label: 'Period 6' },
   ];
   const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
   const primaryTeacher = {
@@ -1785,35 +1787,65 @@ async function seedSchool(tablesDB, dbId, residentIds, log) {
       return gNum >= 10 ? findResId('Agnes', 'Phiri') : findResId('Lilian', 'Zulu');
     return subjectTeacher[subject] || null;
   };
+
+  // Create period slots per grade (bell schedule). Empty applies_to_days means every school day.
+  const slotIdsByGrade = {}; // grade -> slot_number -> slot_id
+  const slotTasks = [];
+  for (const grade of Object.keys(TIMETABLE_SCHEDULE)) {
+    if (!classes[grade]) continue;
+    slotIdsByGrade[grade] = {};
+    for (const p of PERIODS) {
+      slotTasks.push(async () => {
+        const slot = await createRow(tablesDB, dbId, 'school_period_slots', {
+          grade_level: grade,
+          academic_year: TIMETABLE_ACADEMIC_YEAR,
+          slot_number: p.num,
+          label: p.label,
+          slot_type: 'class',
+          start_time: p.start,
+          end_time: p.end,
+          applies_to_days: [],
+          notes: '',
+        });
+        slotIdsByGrade[grade][p.num] = slot.$id;
+      });
+    }
+  }
+  await batchRun(slotTasks, 25);
+  log(`  ${slotTasks.length} period slots`);
+
+  // Create class timetable entries referencing the grade-specific slots.
   const ttTasks = [];
   for (const [grade, weekSchedule] of Object.entries(TIMETABLE_SCHEDULE)) {
     const cId2 = clsId(grade);
-    if (!cId2) continue;
+    if (!cId2 || !slotIdsByGrade[grade]) continue;
     const isPrimary = grade in primaryTeacher;
     const gNum = grade === 'Early Childhood' ? 0 : parseInt(grade.replace('Grade ', '')) || 0;
     const ctId = isPrimary ? primaryTeacher[grade] : null;
     for (let dIdx = 0; dIdx < DAYS.length; dIdx++)
       for (let pIdx = 0; pIdx < weekSchedule[dIdx].length; pIdx++) {
         const subject = weekSchedule[dIdx][pIdx];
-        const period = PERIODS[pIdx];
+        const periodNum = PERIODS[pIdx].num;
         const teacherId = isPrimary ? ctId : resolveSecTeacher(subject, gNum);
         ttTasks.push(() =>
-          createRow(tablesDB, dbId, 'school_timetable', {
+          createRow(tablesDB, dbId, 'class_timetable_entries', {
             class_id: cId2,
+            is_template: false,
+            grade_level: grade,
+            slot_id: slotIdsByGrade[grade][periodNum],
             day_of_week: DAYS[dIdx],
-            period_number: period.num,
-            start_time: period.start,
-            end_time: period.end,
             subject,
             teacher_id: teacherId || null,
+            academic_year: TIMETABLE_ACADEMIC_YEAR,
+            valid_from: null,
+            valid_to: null,
             notes: '',
           }),
         );
       }
   }
   await batchRun(ttTasks, 25);
-  const ttCount = ttTasks.length;
-  log(`  ${ttCount} timetable entries`);
+  log(`  ${ttTasks.length} timetable entries`);
 
   log('Phase 4: Attendance...');
   const attendanceDates = [];
@@ -1910,6 +1942,648 @@ async function seedVillageSettings(tablesDB, dbId, councilMemberIds, log) {
 }
 
 // =============================================================================
+// PHASE 5 — SCHOOL CALENDAR (academic terms + events)
+// =============================================================================
+
+async function seedCalendar(tablesDB, dbId, log) {
+  log('Phase 5: Academic terms (2025 & 2026)...');
+
+  // Zambian school calendar: 3 terms per year, Jan–Dec
+  // Term 1: late Jan – late Mar/early Apr
+  // Term 2: late Apr/early May – late Jul/early Aug
+  // Term 3: late Aug/early Sep – early Dec
+  const TERMS = [
+    // 2025
+    {
+      academic_year: 2025,
+      term_name: 'Term 1',
+      term_order: 1,
+      start_date: '2025-01-20',
+      end_date: '2025-04-04',
+      notes: 'First term 2025',
+    },
+    {
+      academic_year: 2025,
+      term_name: 'Term 2',
+      term_order: 2,
+      start_date: '2025-04-28',
+      end_date: '2025-08-01',
+      notes: 'Second term 2025',
+    },
+    {
+      academic_year: 2025,
+      term_name: 'Term 3',
+      term_order: 3,
+      start_date: '2025-08-25',
+      end_date: '2025-11-28',
+      notes: 'Third term 2025',
+    },
+    // 2026
+    {
+      academic_year: 2026,
+      term_name: 'Term 1',
+      term_order: 1,
+      start_date: '2026-01-12',
+      end_date: '2026-04-03',
+      notes: 'First term 2026',
+    },
+    {
+      academic_year: 2026,
+      term_name: 'Term 2',
+      term_order: 2,
+      start_date: '2026-04-27',
+      end_date: '2026-07-31',
+      notes: 'Second term 2026',
+    },
+    {
+      academic_year: 2026,
+      term_name: 'Term 3',
+      term_order: 3,
+      start_date: '2026-08-24',
+      end_date: '2026-11-27',
+      notes: 'Third term 2026',
+    },
+  ];
+
+  const toDateTime = (date) => new Date(`${date}T12:00:00Z`).toISOString();
+  for (const term of TERMS) {
+    await createRow(tablesDB, dbId, 'school_academic_terms', {
+      ...term,
+      start_date: toDateTime(term.start_date),
+      end_date: toDateTime(term.end_date),
+    });
+  }
+  log(`  ${TERMS.length} academic terms created`);
+
+  log('Phase 5: Calendar events (2025 & 2026)...');
+
+  // Each event: title, event_type, start_date, end_date (null = single day), all_day, description, village_id
+  // event_type values match CALENDAR_EVENT_TYPES in school-constants.js:
+  //   public_holiday, school_holiday, pd_day, exam_block, early_dismissal, assembly, other
+  // is_school_day: false = school closed; true = school open but modified.
+  const isSchoolDay = (type) => !['public_holiday', 'school_holiday', 'pd_day'].includes(type);
+  const EVENTS = [
+    // ─── 2025 Public Holidays ─────────────────────────────────────────────
+    {
+      title: "New Year's Day",
+      event_type: 'public_holiday',
+      start_date: '2025-01-01',
+      end_date: null,
+      all_day: true,
+      description: 'National public holiday',
+    },
+    {
+      title: 'Youth Day',
+      event_type: 'public_holiday',
+      start_date: '2025-03-12',
+      end_date: null,
+      all_day: true,
+      description: 'National Youth Day – Zambia',
+    },
+    {
+      title: 'Good Friday',
+      event_type: 'public_holiday',
+      start_date: '2025-04-18',
+      end_date: null,
+      all_day: true,
+      description: 'Public holiday',
+    },
+    {
+      title: 'Holy Saturday',
+      event_type: 'public_holiday',
+      start_date: '2025-04-19',
+      end_date: null,
+      all_day: true,
+      description: 'Public holiday',
+    },
+    {
+      title: 'Easter Monday',
+      event_type: 'public_holiday',
+      start_date: '2025-04-21',
+      end_date: null,
+      all_day: true,
+      description: 'Public holiday',
+    },
+    {
+      title: 'Labour Day',
+      event_type: 'public_holiday',
+      start_date: '2025-05-01',
+      end_date: null,
+      all_day: true,
+      description: 'International Labour Day',
+    },
+    {
+      title: 'Africa Freedom Day',
+      event_type: 'public_holiday',
+      start_date: '2025-05-25',
+      end_date: null,
+      all_day: true,
+      description: 'Africa Freedom Day – Zambia',
+    },
+    {
+      title: 'Heroes Day',
+      event_type: 'public_holiday',
+      start_date: '2025-07-07',
+      end_date: null,
+      all_day: true,
+      description: 'Heroes Day – Zambia',
+    },
+    {
+      title: 'Unity Day',
+      event_type: 'public_holiday',
+      start_date: '2025-07-08',
+      end_date: null,
+      all_day: true,
+      description: 'Unity Day – Zambia',
+    },
+    {
+      title: 'Farmers Day',
+      event_type: 'public_holiday',
+      start_date: '2025-08-04',
+      end_date: null,
+      all_day: true,
+      description: 'Farmers Day – Zambia',
+    },
+    {
+      title: 'Independence Day',
+      event_type: 'public_holiday',
+      start_date: '2025-10-24',
+      end_date: null,
+      all_day: true,
+      description: 'Zambia Independence Day',
+    },
+    {
+      title: 'Christmas Day',
+      event_type: 'public_holiday',
+      start_date: '2025-12-25',
+      end_date: null,
+      all_day: true,
+      description: 'Public holiday',
+    },
+    {
+      title: 'Boxing Day',
+      event_type: 'public_holiday',
+      start_date: '2025-12-26',
+      end_date: null,
+      all_day: true,
+      description: 'Public holiday',
+    },
+    // ─── 2025 Term Breaks (school_holiday) ───────────────────────────────
+    {
+      title: 'Term 1 Break',
+      event_type: 'school_holiday',
+      start_date: '2025-04-05',
+      end_date: '2025-04-27',
+      all_day: true,
+      description: 'School holiday between Term 1 and Term 2',
+    },
+    {
+      title: 'Term 2 Break',
+      event_type: 'school_holiday',
+      start_date: '2025-08-02',
+      end_date: '2025-08-24',
+      all_day: true,
+      description: 'School holiday between Term 2 and Term 3',
+    },
+    {
+      title: 'Year-End Holidays 2025',
+      event_type: 'school_holiday',
+      start_date: '2025-11-29',
+      end_date: '2026-01-11',
+      all_day: true,
+      description: 'End-of-year school break',
+    },
+    // ─── 2025 Exam Blocks ────────────────────────────────────────────────
+    {
+      title: 'Term 1 Mid-Term Exams',
+      event_type: 'exam_block',
+      start_date: '2025-02-24',
+      end_date: '2025-02-28',
+      all_day: true,
+      description: 'Mid-term examinations for all grades',
+    },
+    {
+      title: 'Term 1 End-of-Term Exams',
+      event_type: 'exam_block',
+      start_date: '2025-03-24',
+      end_date: '2025-04-03',
+      all_day: true,
+      description: 'End-of-term examinations',
+    },
+    {
+      title: 'Term 2 Mid-Term Exams',
+      event_type: 'exam_block',
+      start_date: '2025-06-09',
+      end_date: '2025-06-13',
+      all_day: true,
+      description: 'Mid-term examinations for all grades',
+    },
+    {
+      title: 'Term 2 End-of-Term Exams',
+      event_type: 'exam_block',
+      start_date: '2025-07-21',
+      end_date: '2025-07-31',
+      all_day: true,
+      description: 'End-of-term examinations',
+    },
+    {
+      title: 'Term 3 Mid-Term Exams',
+      event_type: 'exam_block',
+      start_date: '2025-10-06',
+      end_date: '2025-10-10',
+      all_day: true,
+      description: 'Mid-term examinations for all grades',
+    },
+    {
+      title: 'Term 3 End-of-Term Exams',
+      event_type: 'exam_block',
+      start_date: '2025-11-17',
+      end_date: '2025-11-27',
+      all_day: true,
+      description: 'Final end-of-term examinations',
+    },
+    // ─── 2025 PD Days ────────────────────────────────────────────────────
+    {
+      title: 'Term 1 PD Day – Staff Planning',
+      event_type: 'pd_day',
+      start_date: '2025-01-17',
+      end_date: '2025-01-19',
+      all_day: true,
+      description: 'Teacher professional development and curriculum planning before term starts',
+    },
+    {
+      title: 'Term 2 PD Day – Curriculum Review',
+      event_type: 'pd_day',
+      start_date: '2025-04-25',
+      end_date: '2025-04-25',
+      all_day: true,
+      description: 'Mid-year curriculum review and assessment moderation',
+    },
+    {
+      title: 'Term 3 PD Day – STEM Workshop',
+      event_type: 'pd_day',
+      start_date: '2025-08-22',
+      end_date: '2025-08-22',
+      all_day: true,
+      description: 'STEM teaching methods workshop for science and maths teachers',
+    },
+    // ─── 2025 Assemblies ─────────────────────────────────────────────────
+    {
+      title: 'Opening Assembly – Term 1',
+      event_type: 'assembly',
+      start_date: '2025-01-20',
+      end_date: null,
+      all_day: false,
+      description: 'School opening assembly – welcome back and term overview',
+    },
+    {
+      title: 'Opening Assembly – Term 2',
+      event_type: 'assembly',
+      start_date: '2025-04-28',
+      end_date: null,
+      all_day: false,
+      description: 'Term 2 opening assembly',
+    },
+    {
+      title: 'Opening Assembly – Term 3',
+      event_type: 'assembly',
+      start_date: '2025-08-25',
+      end_date: null,
+      all_day: false,
+      description: 'Term 3 opening assembly',
+    },
+    {
+      title: 'Prize-Giving Ceremony 2025',
+      event_type: 'assembly',
+      start_date: '2025-11-28',
+      end_date: null,
+      all_day: true,
+      description: 'Annual prize-giving and end-of-year ceremony',
+    },
+    // ─── 2025 Early Dismissals ───────────────────────────────────────────
+    {
+      title: 'Independence Day Preparations',
+      event_type: 'early_dismissal',
+      start_date: '2025-10-23',
+      end_date: null,
+      all_day: false,
+      description: 'Early dismissal for Independence Day eve celebrations',
+    },
+    // ─── 2025 Other ──────────────────────────────────────────────────────
+    {
+      title: 'Sports Day',
+      event_type: 'other',
+      start_date: '2025-06-27',
+      end_date: null,
+      all_day: true,
+      description: 'Annual inter-class sports competition',
+    },
+    {
+      title: 'Cultural Day',
+      event_type: 'other',
+      start_date: '2025-09-19',
+      end_date: null,
+      all_day: true,
+      description: 'Students showcase traditional Zambian culture, food, and dress',
+    },
+    {
+      title: 'School Open Day',
+      event_type: 'other',
+      start_date: '2025-03-07',
+      end_date: null,
+      all_day: true,
+      description: 'Parents and guardians invited to visit classrooms and meet teachers',
+    },
+
+    // ─── 2026 Public Holidays ─────────────────────────────────────────────
+    {
+      title: "New Year's Day",
+      event_type: 'public_holiday',
+      start_date: '2026-01-01',
+      end_date: null,
+      all_day: true,
+      description: 'National public holiday',
+    },
+    {
+      title: 'Youth Day',
+      event_type: 'public_holiday',
+      start_date: '2026-03-12',
+      end_date: null,
+      all_day: true,
+      description: 'National Youth Day – Zambia',
+    },
+    {
+      title: 'Good Friday',
+      event_type: 'public_holiday',
+      start_date: '2026-04-03',
+      end_date: null,
+      all_day: true,
+      description: 'Public holiday',
+    },
+    {
+      title: 'Holy Saturday',
+      event_type: 'public_holiday',
+      start_date: '2026-04-04',
+      end_date: null,
+      all_day: true,
+      description: 'Public holiday',
+    },
+    {
+      title: 'Easter Monday',
+      event_type: 'public_holiday',
+      start_date: '2026-04-06',
+      end_date: null,
+      all_day: true,
+      description: 'Public holiday',
+    },
+    {
+      title: 'Labour Day',
+      event_type: 'public_holiday',
+      start_date: '2026-05-01',
+      end_date: null,
+      all_day: true,
+      description: 'International Labour Day',
+    },
+    {
+      title: 'Africa Freedom Day',
+      event_type: 'public_holiday',
+      start_date: '2026-05-25',
+      end_date: null,
+      all_day: true,
+      description: 'Africa Freedom Day – Zambia',
+    },
+    {
+      title: 'Heroes Day',
+      event_type: 'public_holiday',
+      start_date: '2026-07-06',
+      end_date: null,
+      all_day: true,
+      description: 'Heroes Day – Zambia',
+    },
+    {
+      title: 'Unity Day',
+      event_type: 'public_holiday',
+      start_date: '2026-07-07',
+      end_date: null,
+      all_day: true,
+      description: 'Unity Day – Zambia',
+    },
+    {
+      title: 'Farmers Day',
+      event_type: 'public_holiday',
+      start_date: '2026-08-03',
+      end_date: null,
+      all_day: true,
+      description: 'Farmers Day – Zambia',
+    },
+    {
+      title: 'Independence Day',
+      event_type: 'public_holiday',
+      start_date: '2026-10-24',
+      end_date: null,
+      all_day: true,
+      description: 'Zambia Independence Day',
+    },
+    {
+      title: 'Christmas Day',
+      event_type: 'public_holiday',
+      start_date: '2026-12-25',
+      end_date: null,
+      all_day: true,
+      description: 'Public holiday',
+    },
+    {
+      title: 'Boxing Day',
+      event_type: 'public_holiday',
+      start_date: '2026-12-26',
+      end_date: null,
+      all_day: true,
+      description: 'Public holiday',
+    },
+    // ─── 2026 Term Breaks ────────────────────────────────────────────────
+    {
+      title: 'Term 1 Break',
+      event_type: 'school_holiday',
+      start_date: '2026-04-04',
+      end_date: '2026-04-26',
+      all_day: true,
+      description: 'School holiday between Term 1 and Term 2',
+    },
+    {
+      title: 'Term 2 Break',
+      event_type: 'school_holiday',
+      start_date: '2026-08-01',
+      end_date: '2026-08-23',
+      all_day: true,
+      description: 'School holiday between Term 2 and Term 3',
+    },
+    {
+      title: 'Year-End Holidays 2026',
+      event_type: 'school_holiday',
+      start_date: '2026-11-28',
+      end_date: '2027-01-10',
+      all_day: true,
+      description: 'End-of-year school break',
+    },
+    // ─── 2026 Exam Blocks ────────────────────────────────────────────────
+    {
+      title: 'Term 1 Mid-Term Exams',
+      event_type: 'exam_block',
+      start_date: '2026-02-23',
+      end_date: '2026-02-27',
+      all_day: true,
+      description: 'Mid-term examinations for all grades',
+    },
+    {
+      title: 'Term 1 End-of-Term Exams',
+      event_type: 'exam_block',
+      start_date: '2026-03-23',
+      end_date: '2026-04-02',
+      all_day: true,
+      description: 'End-of-term examinations',
+    },
+    {
+      title: 'Term 2 Mid-Term Exams',
+      event_type: 'exam_block',
+      start_date: '2026-06-08',
+      end_date: '2026-06-12',
+      all_day: true,
+      description: 'Mid-term examinations for all grades',
+    },
+    {
+      title: 'Term 2 End-of-Term Exams',
+      event_type: 'exam_block',
+      start_date: '2026-07-20',
+      end_date: '2026-07-30',
+      all_day: true,
+      description: 'End-of-term examinations',
+    },
+    {
+      title: 'Term 3 Mid-Term Exams',
+      event_type: 'exam_block',
+      start_date: '2026-10-05',
+      end_date: '2026-10-09',
+      all_day: true,
+      description: 'Mid-term examinations for all grades',
+    },
+    {
+      title: 'Term 3 End-of-Term Exams',
+      event_type: 'exam_block',
+      start_date: '2026-11-16',
+      end_date: '2026-11-26',
+      all_day: true,
+      description: 'Final end-of-term examinations',
+    },
+    // ─── 2026 PD Days ────────────────────────────────────────────────────
+    {
+      title: 'Term 1 PD Day – Staff Planning',
+      event_type: 'pd_day',
+      start_date: '2026-01-09',
+      end_date: '2026-01-11',
+      all_day: true,
+      description: 'Teacher professional development and curriculum planning before term starts',
+    },
+    {
+      title: 'Term 2 PD Day – Curriculum Review',
+      event_type: 'pd_day',
+      start_date: '2026-04-24',
+      end_date: '2026-04-24',
+      all_day: true,
+      description: 'Mid-year curriculum review and assessment moderation',
+    },
+    {
+      title: 'Term 3 PD Day – Inclusive Education Workshop',
+      event_type: 'pd_day',
+      start_date: '2026-08-21',
+      end_date: '2026-08-21',
+      all_day: true,
+      description: 'Workshop on inclusive education practices',
+    },
+    // ─── 2026 Assemblies ─────────────────────────────────────────────────
+    {
+      title: 'Opening Assembly – Term 1',
+      event_type: 'assembly',
+      start_date: '2026-01-12',
+      end_date: null,
+      all_day: false,
+      description: 'School opening assembly – welcome back and term overview',
+    },
+    {
+      title: 'Opening Assembly – Term 2',
+      event_type: 'assembly',
+      start_date: '2026-04-27',
+      end_date: null,
+      all_day: false,
+      description: 'Term 2 opening assembly',
+    },
+    {
+      title: 'Opening Assembly – Term 3',
+      event_type: 'assembly',
+      start_date: '2026-08-24',
+      end_date: null,
+      all_day: false,
+      description: 'Term 3 opening assembly',
+    },
+    {
+      title: 'Prize-Giving Ceremony 2026',
+      event_type: 'assembly',
+      start_date: '2026-11-27',
+      end_date: null,
+      all_day: true,
+      description: 'Annual prize-giving and end-of-year ceremony',
+    },
+    // ─── 2026 Early Dismissals ───────────────────────────────────────────
+    {
+      title: 'Independence Day Preparations',
+      event_type: 'early_dismissal',
+      start_date: '2026-10-23',
+      end_date: null,
+      all_day: false,
+      description: 'Early dismissal for Independence Day eve celebrations',
+    },
+    // ─── 2026 Other ──────────────────────────────────────────────────────
+    {
+      title: 'Sports Day',
+      event_type: 'other',
+      start_date: '2026-06-26',
+      end_date: null,
+      all_day: true,
+      description: 'Annual inter-class sports competition',
+    },
+    {
+      title: 'Cultural Day',
+      event_type: 'other',
+      start_date: '2026-09-18',
+      end_date: null,
+      all_day: true,
+      description: 'Students showcase traditional Zambian culture, food, and dress',
+    },
+    {
+      title: 'School Open Day',
+      event_type: 'other',
+      start_date: '2026-03-06',
+      end_date: null,
+      all_day: true,
+      description: 'Parents and guardians invited to visit classrooms and meet teachers',
+    },
+  ];
+
+  const eventTasks = EVENTS.map((ev) => async () => {
+    const data = {
+      title: ev.title,
+      event_type: ev.event_type,
+      start_date: toDateTime(ev.start_date),
+      end_date: toDateTime(ev.end_date || ev.start_date),
+      is_school_day: isSchoolDay(ev.event_type),
+      notes: ev.description || '',
+    };
+    return createRow(tablesDB, dbId, 'school_calendar_events', data);
+  });
+  await batchRun(eventTasks, 20);
+  log(`  ${EVENTS.length} calendar events created`);
+}
+
+// =============================================================================
 // ENTRY POINT
 // =============================================================================
 
@@ -1936,6 +2610,7 @@ export default async ({ req, res, log, error }) => {
     const { categories, fundingSources } = await seedFinance(tablesDB, dbId, residentIds, log);
     await seedFarm(tablesDB, dbId, residentIds, categories, fundingSources, log);
     await seedSchool(tablesDB, dbId, residentIds, log);
+    await seedCalendar(tablesDB, dbId, log);
     await seedVillageSettings(tablesDB, dbId, councilMemberIds, log);
 
     log('=== seedAllData: complete ===');

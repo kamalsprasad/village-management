@@ -99,6 +99,24 @@
                   >
                 </q-item-section>
               </q-item>
+              <q-item clickable to="/school/calendar">
+                <q-item-section avatar>
+                  <q-icon name="event" color="primary" />
+                </q-item-section>
+                <q-item-section>
+                  <q-item-label>School Calendar</q-item-label>
+                  <q-item-label caption>Academic terms, holidays, and school events</q-item-label>
+                </q-item-section>
+              </q-item>
+              <q-item v-if="canAdmin" clickable to="/school/settings">
+                <q-item-section avatar>
+                  <q-icon name="tune" color="grey-6" />
+                </q-item-section>
+                <q-item-section>
+                  <q-item-label>School Settings</q-item-label>
+                  <q-item-label caption>Configure terms, bell schedules, and more</q-item-label>
+                </q-item-section>
+              </q-item>
             </q-list>
           </q-card-section>
         </q-card>
@@ -117,6 +135,7 @@ const learnerStore = useLearnerStore();
 const { hasPermission } = usePermissions();
 
 const canWrite = computed(() => hasPermission('school:write'));
+const canAdmin = computed(() => hasPermission('school:admin'));
 const isInitialLoading = computed(() => learnerStore.isLoading && !learnerStore.learnersLoaded);
 
 onMounted(() => {

@@ -206,6 +206,16 @@ Enable knowledge transfer from external facilitators → local power users → p
 - Calculate progress toward goal: 90% of learners in 90th percentile by year 10
 - Identify struggling learners automatically based on configurable thresholds for early intervention
 
+**FR-11a: School Calendar (added 2026-06-20)**
+
+- Configure academic terms with custom names (e.g. "Term 1", "Semester 1"), count, and start/end dates per academic year; term count and names are not hard-coded
+- Mark school holidays, public holidays, professional development days, exam blocks, and early dismissal days on a school calendar; closures apply school-wide with optional per-class overrides
+- Define the daily bell schedule per grade level: configurable number of periods, break and lunch slots, period start/end times, and day-of-week applicability; different grades may have different bell schedules
+- Build class timetables on a weekly grid: assign subjects and teachers to each period slot per day; grade-level templates with per-class override capability
+- Teacher schedule view showing all classes and subjects a teacher is assigned across the week, with conflict detection when the same teacher is double-booked
+- Attendance tracking uses the school calendar to determine valid school days and correctly exclude holidays from attendance percentage calculations
+- At-risk attendance alerts respect the school calendar — the "first 5 school days" grace period is counted from the term start date in `school_academic_terms`, not from the calendar year start
+
 **FR-12: Guests Management**
 
 - Track guest types: Paying Guest, Education Trainee, Farm Trainee, Village Management Trainee, Volunteer, Researcher, Other
@@ -761,18 +771,23 @@ Break complex multi-step processes into guided workflows with clear progress ind
 
 ---
 
-### Epic 4: School Management and Educational Accountability (7-9 stories)
+### Epic 4: School Management and Educational Accountability (13 stories)
 
-**Goal:** Enable systematic tracking of learner performance and teacher effectiveness. Support early intervention for struggling learners and meaningful teacher accountability through peer reviews.
+**Goal:** Enable systematic tracking of learner performance and teacher effectiveness. Support early intervention for struggling learners and meaningful teacher accountability through peer reviews. Includes a fully configurable school calendar that drives accurate attendance tracking and at-risk identification.
 
-**Value Delivered:** Head Teacher can identify at-risk learners early, implement interventions, track progress toward ambitious educational goals (90% in 90th percentile), and demonstrate measurable outcomes to donors.
+**Value Delivered:** Head Teacher can configure the school's academic calendar, define bell schedules per grade, build class timetables, identify at-risk learners early, implement interventions, track progress toward ambitious educational goals (90% in 90th percentile), and demonstrate measurable outcomes to donors.
 
 **Key Capabilities:**
 
 - Learner enrollment with grade level, personal info, household linkage
 - Test score recording by subject, term, and assessment type
-- Attendance tracking (daily, by class) with absence reasons
-- At-risk learner identification with configurable thresholds
+- Configurable academic terms (name, count, start/end dates) replacing hard-coded Term 1/2/3
+- School calendar with holidays, PD days, exam blocks, and early dismissal events
+- Per-grade daily bell schedules with configurable period count, times, and break/lunch slots
+- Class weekly timetable builder with grade-level templates and per-class overrides
+- Teacher schedule view with double-booking conflict detection
+- Attendance tracking (daily, by class) — calendar-aware, correctly excludes non-school days
+- At-risk learner identification with configurable thresholds; calendar-aware 5-day grace period
 - Intervention planning and progress tracking
 - Teacher evaluations: peer review, self-evaluation, head teacher evaluation
 - Collaborative teaching practices documentation

@@ -356,6 +356,37 @@
               <q-item-label>Teachers & Faculty</q-item-label>
             </q-item-section>
           </q-item>
+
+          <q-item
+            clickable
+            to="/school/calendar"
+            :class="{
+              'bg-primary text-white': $route.path.startsWith('/school/calendar'),
+            }"
+          >
+            <q-item-section avatar>
+              <q-icon name="event" />
+            </q-item-section>
+            <q-item-section>
+              <q-item-label>School Calendar</q-item-label>
+            </q-item-section>
+          </q-item>
+
+          <q-item
+            v-if="hasPermission('school:admin')"
+            clickable
+            to="/school/settings"
+            :class="{
+              'bg-primary text-white': $route.path.startsWith('/school/settings'),
+            }"
+          >
+            <q-item-section avatar>
+              <q-icon name="tune" />
+            </q-item-section>
+            <q-item-section>
+              <q-item-label>School Settings</q-item-label>
+            </q-item-section>
+          </q-item>
         </q-expansion-item>
 
         <!-- Services Section -->
