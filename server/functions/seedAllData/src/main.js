@@ -1,0 +1,1947 @@
+import { Client, TablesDB, ID, Query } from 'node-appwrite';
+import { SAMPLE_HOUSEHOLDS, SAMPLE_RESIDENTS, TIMETABLE_SCHEDULE } from './data.js';
+
+// =============================================================================
+// HELPERS
+// =============================================================================
+
+async function createRow(tablesDB, dbId, tableId, data) {
+  return tablesDB.createRow({ databaseId: dbId, tableId, rowId: ID.unique(), data });
+}
+
+async function batchRun(tasks, concurrency = 20) {
+  const results = [];
+  for (let i = 0; i < tasks.length; i += concurrency) {
+    const chunk = tasks.slice(i, i + concurrency);
+    const chunkResults = await Promise.all(chunk.map((fn) => fn()));
+    results.push(...chunkResults);
+  }
+  return results;
+}
+
+async function listAll(tablesDB, dbId, tableId) {
+  const res = await tablesDB.listRows({ databaseId: dbId, tableId, queries: [Query.limit(100)] });
+  return res.rows || [];
+}
+
+function toISO(v) {
+  if (!v) return new Date().toISOString();
+  if (typeof v === 'string' && v.includes('T')) return v;
+  return new Date(`${v}T12:00:00Z`).toISOString();
+}
+
+function invStatus(qty, thr) {
+  if (!qty || qty <= 0) return 'out_of_stock';
+  if (thr != null && qty <= thr) return 'low_stock';
+  return 'in_stock';
+}
+
+function findResIdx(first, last) {
+  return SAMPLE_RESIDENTS.findIndex((r) => r.first_name === first && r.last_name === last);
+}
+
+// =============================================================================
+// PHASE 1 — HOUSEHOLDS + RESIDENTS
+// =============================================================================
+
+async function seedHouseholdsAndResidents(tablesDB, dbId, log) {
+  log('Phase 1: Households...');
+  const householdIds = [];
+  for (const h of SAMPLE_HOUSEHOLDS) {
+    const row = await createRow(tablesDB, dbId, 'households', h);
+    householdIds.push(row.$id);
+  }
+
+  log('Phase 1: Residents...');
+  const residentIds = [];
+  const councilMemberIds = [];
+  const headMap = {};
+  for (let i = 0; i < SAMPLE_RESIDENTS.length; i++) {
+    const r = SAMPLE_RESIDENTS[i];
+    const row = await createRow(tablesDB, dbId, 'residents', {
+      first_name: r.first_name,
+      middle_names: r.middle_names || '',
+      last_name: r.last_name,
+      dob: r.dob,
+      gender: r.gender,
+      household_id: householdIds[r.householdIndex],
+      room_number: r.room_number || '',
+      phone: r.phone || '',
+      notes: r.notes || '',
+    });
+    residentIds.push(row.$id);
+    if (r.isCouncilMember) councilMemberIds.push({ residentId: row.$id, role: r.councilRole });
+    if (headMap[r.householdIndex] === undefined) headMap[r.householdIndex] = row.$id;
+  }
+
+  log('Phase 1: Setting household heads...');
+  for (const [hIdx, headId] of Object.entries(headMap)) {
+    const i = parseInt(hIdx);
+    await tablesDB.updateRow({
+      databaseId: dbId,
+      tableId: 'households',
+      rowId: householdIds[i],
+      data: { ...SAMPLE_HOUSEHOLDS[i], head_resident_id: headId },
+    });
+  }
+  log(`  Done: ${householdIds.length} households, ${residentIds.length} residents`);
+  return { residentIds, councilMemberIds };
+}
+
+// =============================================================================
+// PHASE 2 — FINANCE
+// =============================================================================
+
+async function seedFinance(tablesDB, dbId, residentIds, log) {
+  log('Phase 2: Finance categories...');
+  const catDefs = [
+    {
+      name: 'Community Contributions',
+      type: 'income',
+      subcategories: ['Monthly Fee', 'Special Levy'],
+    },
+    {
+      name: 'Grants & Donations',
+      type: 'income',
+      subcategories: ['Government Grant', 'NGO Donation'],
+    },
+    { name: 'Farming Revenue', type: 'income', subcategories: ['Crop Sales', 'Livestock'] },
+    { name: 'Loan Repayment', type: 'income', subcategories: ['Principal', 'Interest'] },
+    {
+      name: 'Infrastructure Maintenance',
+      type: 'expense',
+      subcategories: ['Water Pump', 'Solar Panels', 'Road Repair'],
+    },
+    {
+      name: 'Education Support',
+      type: 'expense',
+      subcategories: ['School Supplies', 'Teacher Allowance'],
+    },
+    { name: 'Health Clinic', type: 'expense', subcategories: ['Medicines', 'Equipment'] },
+    { name: 'Administration', type: 'expense', subcategories: ['Office Supplies', 'Travel'] },
+    { name: 'Loan Disbursement', type: 'expense', subcategories: ['Agriculture', 'Business'] },
+  ];
+  const categories = await Promise.all(
+    catDefs.map((c) => createRow(tablesDB, dbId, 'finance_categories', c)),
+  );
+  const getCatId = (name) => categories.find((c) => c.name === name)?.$id;
+
+  log('Phase 2: Funding sources...');
+  const now = new Date();
+  const mAgo = (n) =>
+    new Date(now.getFullYear(), now.getMonth() - n, 1).toISOString().split('T')[0];
+  const fundingSources = await Promise.all([
+    createRow(tablesDB, dbId, 'funding_sources', {
+      name: 'Village General Fund',
+      type: 'income',
+      total_received: 50000,
+      current_balance: 15500,
+      date_received: mAgo(18),
+      status: 'active',
+    }),
+    createRow(tablesDB, dbId, 'funding_sources', {
+      name: 'Water Sanitation Grant 2024',
+      type: 'grant',
+      total_received: 120000,
+      current_balance: 45000,
+      date_received: mAgo(14),
+      restrictions: 'Water infrastructure only',
+      status: 'active',
+    }),
+    createRow(tablesDB, dbId, 'funding_sources', {
+      name: 'Rotary Education Initiative',
+      type: 'donation',
+      total_received: 30000,
+      current_balance: 0,
+      date_received: mAgo(12),
+      restrictions: 'School supplies and teacher allowances',
+      status: 'depleted',
+    }),
+    createRow(tablesDB, dbId, 'funding_sources', {
+      name: 'Micro-Finance Seed Fund',
+      type: 'grant',
+      total_received: 80000,
+      current_balance: 32000,
+      date_received: mAgo(16),
+      restrictions: 'Village loans only',
+      status: 'active',
+    }),
+  ]);
+  const getSrcId = (name) => fundingSources.find((s) => s.name === name)?.$id;
+
+  log('Phase 2: Transactions (18 months)...');
+  const txTasks = [];
+  for (let i = 18; i >= 0; i--) {
+    const md = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const y = md.getFullYear(),
+      m = md.getMonth();
+    const dt = (d) => new Date(Date.UTC(y, m, d)).toISOString();
+    txTasks.push(() =>
+      createRow(tablesDB, dbId, 'finance_transactions', {
+        type: 'income',
+        amount_needed: 2500,
+        amount_funded: 2650,
+        payment_method: 'Cash',
+        category_id: getCatId('Community Contributions'),
+        source_module: 'Village',
+        funding_source_id: getSrcId('Village General Fund'),
+        date: dt(5),
+        description: `Monthly contributions ${md.toLocaleString('default', { month: 'long', year: 'numeric' })}`,
+        status: 'completed',
+      }),
+    );
+    txTasks.push(() =>
+      createRow(tablesDB, dbId, 'finance_transactions', {
+        type: 'expense',
+        amount_needed: 900,
+        amount_funded: 900,
+        payment_method: 'Bank Transfer',
+        category_id: getCatId('Administration'),
+        source_module: 'Village',
+        funding_source_id: getSrcId('Village General Fund'),
+        date: dt(15),
+        description: 'Monthly office supplies',
+        status: 'completed',
+      }),
+    );
+    if (m % 2 === 0)
+      txTasks.push(() =>
+        createRow(tablesDB, dbId, 'finance_transactions', {
+          type: 'expense',
+          amount_needed: 2500,
+          amount_funded: 2500,
+          payment_method: 'Bank Transfer',
+          category_id: getCatId('Infrastructure Maintenance'),
+          source_module: 'Village',
+          funding_source_id: getSrcId('Water Sanitation Grant 2024'),
+          date: dt(20),
+          description: 'Water pump maintenance',
+          status: 'completed',
+        }),
+      );
+    if (m % 3 === 0 && i <= 12)
+      txTasks.push(() =>
+        createRow(tablesDB, dbId, 'finance_transactions', {
+          type: 'expense',
+          amount_needed: 2500,
+          amount_funded: 2500,
+          payment_method: 'Cash',
+          category_id: getCatId('Education Support'),
+          source_module: 'School',
+          funding_source_id: getSrcId('Rotary Education Initiative'),
+          date: dt(8),
+          description: 'Teacher allowances',
+          status: 'completed',
+        }),
+      );
+    if (m >= 4 && m <= 6)
+      txTasks.push(() =>
+        createRow(tablesDB, dbId, 'finance_transactions', {
+          type: 'income',
+          amount_needed: 8000,
+          amount_funded: 8000,
+          payment_method: 'Mobile Money',
+          category_id: getCatId('Farming Revenue'),
+          source_module: 'Farm',
+          funding_source_id: getSrcId('Village General Fund'),
+          date: dt(18),
+          description: 'Harvest sales',
+          status: 'completed',
+        }),
+      );
+  }
+  await batchRun(txTasks, 20);
+
+  log('Phase 2: Loans...');
+  const today = new Date();
+  const ds = (y, mo, d) => new Date(y, mo, d).toISOString().split('T')[0];
+  const loanCfgs = [
+    {
+      bi: 0,
+      p: 3000,
+      ir: 10,
+      term: 6,
+      mp: 6,
+      purpose: 'farm',
+      coll: 'Tractor',
+      smo: -15,
+      sd: 5,
+      status: 'paid_off',
+      ndmo: null,
+    },
+    {
+      bi: 1,
+      p: 5000,
+      ir: 12,
+      term: 12,
+      mp: 6,
+      purpose: 'business',
+      coll: 'Bicycle',
+      smo: -6,
+      sd: 12,
+      status: 'active',
+      ndmo: 1,
+      ndd: 12,
+    },
+    {
+      bi: 2,
+      p: 2000,
+      ir: 15,
+      term: 12,
+      mp: 4,
+      purpose: 'medical',
+      coll: 'Car',
+      smo: -8,
+      sd: 20,
+      status: 'active',
+      ndmo: -3,
+      ndd: 20,
+    },
+  ];
+  for (const cfg of loanCfgs) {
+    const start = new Date(today.getFullYear(), today.getMonth() + cfg.smo, cfg.sd);
+    const total = Math.round(cfg.p * (1 + cfg.ir / 100));
+    const pay = Math.round(total / cfg.term);
+    const outstanding = cfg.status === 'paid_off' ? 0 : total - pay * cfg.mp;
+    const nextDue =
+      cfg.ndmo === null ? null : ds(today.getFullYear(), today.getMonth() + cfg.ndmo, cfg.ndd);
+    const loan = await createRow(tablesDB, dbId, 'loans', {
+      borrower_id: residentIds[cfg.bi],
+      principal_amount: cfg.p,
+      interest_rate: cfg.ir,
+      term_months: cfg.term,
+      repayment_frequency: 'monthly',
+      collateral_description: cfg.coll,
+      purpose: cfg.purpose,
+      disbursement_date: ds(start.getFullYear(), start.getMonth(), cfg.sd),
+      status: cfg.status,
+      outstanding_balance: outstanding,
+      total_repayment: total,
+      payment_amount: pay,
+      next_due_date: nextDue,
+    });
+    const installmentTasks = [];
+    for (let i = 1; i <= cfg.term; i++) {
+      const due = new Date(start.getFullYear(), start.getMonth() + i, start.getDate());
+      const isPaid = i <= cfg.mp;
+      installmentTasks.push(async () => {
+        await createRow(tablesDB, dbId, 'repayment_schedule', {
+          loan_id: loan.$id,
+          installment_number: i,
+          due_date: due.toISOString().split('T')[0],
+          amount: pay,
+          status: isPaid ? 'paid' : due < today ? 'overdue' : 'pending',
+          paid_date: isPaid ? due.toISOString().split('T')[0] : null,
+        });
+        if (isPaid) {
+          const tx = await createRow(tablesDB, dbId, 'finance_transactions', {
+            type: 'income',
+            amount_needed: pay,
+            amount_funded: pay,
+            payment_method: 'Cash',
+            category_id: getCatId('Loan Repayment'),
+            source_module: 'Finance',
+            date: due.toISOString(),
+            description: `Loan repayment installment ${i}`,
+            status: 'completed',
+          });
+          await createRow(tablesDB, dbId, 'loan_payments', {
+            loan_id: loan.$id,
+            amount: pay,
+            payment_date: due.toISOString().split('T')[0],
+            payment_method: 'Cash',
+            notes: `Installment ${i}/${cfg.term}`,
+            finance_transaction_id: tx.$id,
+          });
+        }
+      });
+    }
+    await batchRun(installmentTasks, 10);
+  }
+  log('  Finance done');
+  return { categories, fundingSources };
+}
+
+// =============================================================================
+// PHASE 3 — FARM
+// =============================================================================
+
+async function seedFarm(tablesDB, dbId, residentIds, categories, fundingSources, log) {
+  log('Phase 3: Soil types...');
+  const SOIL_TYPES = [
+    { name: 'Sandy', description: 'Light, warm.', color_code: '#F4E4C1', is_system_default: true },
+    {
+      name: 'Clay',
+      description: 'Heavy, nutrient-rich.',
+      color_code: '#8B7355',
+      is_system_default: true,
+    },
+    { name: 'Loam', description: 'Ideal mix.', color_code: '#5D4E37', is_system_default: true },
+    {
+      name: 'Silt',
+      description: 'Fertile, moisture-retentive.',
+      color_code: '#A89F91',
+      is_system_default: true,
+    },
+    {
+      name: 'Peaty',
+      description: 'High organic matter.',
+      color_code: '#3D2914',
+      is_system_default: true,
+    },
+    {
+      name: 'Chalky',
+      description: 'Alkaline, free-draining.',
+      color_code: '#E5E4E2',
+      is_system_default: true,
+    },
+    { name: 'Other', description: 'Unclassified.', color_code: '#888888', is_system_default: true },
+  ];
+  let soilTypes = await listAll(tablesDB, dbId, 'soil_types');
+  if (!soilTypes.length)
+    soilTypes = await Promise.all(
+      SOIL_TYPES.map((t) => createRow(tablesDB, dbId, 'soil_types', t)),
+    );
+  const soilId = (n) => soilTypes.find((s) => s.name === n)?.$id || null;
+
+  log('Phase 3: Crops...');
+  const CROPS = [
+    {
+      crop_name: 'Maize',
+      category: 'Grain',
+      crop_type: 'Annual',
+      maturity_days: 120,
+      typical_yield_per_hectare: 3500,
+      growing_season: 'Warm',
+      notes: 'Staple crop.',
+    },
+    {
+      crop_name: 'Groundnuts',
+      category: 'Legume',
+      crop_type: 'Annual',
+      maturity_days: 100,
+      typical_yield_per_hectare: 1800,
+      growing_season: 'Warm',
+      notes: 'Nitrogen-fixing.',
+    },
+    {
+      crop_name: 'Soybeans',
+      category: 'Legume',
+      crop_type: 'Annual',
+      maturity_days: 110,
+      typical_yield_per_hectare: 2200,
+      growing_season: 'Warm',
+      notes: 'High protein.',
+    },
+    {
+      crop_name: 'Tomatoes',
+      category: 'Vegetable',
+      crop_type: 'Annual',
+      maturity_days: 75,
+      typical_yield_per_hectare: 25000,
+      growing_season: 'All Year',
+      notes: 'High-value.',
+    },
+    {
+      crop_name: 'Rape',
+      category: 'Vegetable',
+      crop_type: 'Annual',
+      maturity_days: 45,
+      typical_yield_per_hectare: 8000,
+      growing_season: 'Cool',
+      notes: 'Fast-growing.',
+    },
+    {
+      crop_name: 'Sweet Potato',
+      category: 'Root',
+      crop_type: 'Annual',
+      maturity_days: 120,
+      typical_yield_per_hectare: 14000,
+      growing_season: 'All Year',
+      notes: 'Nutritious.',
+    },
+    {
+      crop_name: 'Cabbage',
+      category: 'Vegetable',
+      crop_type: 'Annual',
+      maturity_days: 90,
+      typical_yield_per_hectare: 40000,
+      growing_season: 'Cool',
+      notes: 'Cool-season.',
+    },
+    {
+      crop_name: 'Onions',
+      category: 'Vegetable',
+      crop_type: 'Annual',
+      maturity_days: 120,
+      typical_yield_per_hectare: 20000,
+      growing_season: 'Cool',
+      notes: 'Good storage.',
+    },
+    {
+      crop_name: 'Banana',
+      category: 'Fruit',
+      crop_type: 'Perennial',
+      maturity_days: 365,
+      harvest_frequency_days: 90,
+      typical_yield_per_hectare: 20000,
+      growing_season: 'All Year',
+      notes: 'Continuous perennial.',
+    },
+    {
+      crop_name: 'Mango',
+      category: 'Fruit',
+      crop_type: 'Perennial',
+      maturity_days: 730,
+      harvest_frequency_days: 365,
+      typical_yield_per_hectare: 15000,
+      growing_season: 'Warm',
+      notes: 'Annual harvest perennial.',
+    },
+    {
+      crop_name: 'Papaya',
+      category: 'Fruit',
+      crop_type: 'Perennial',
+      maturity_days: 180,
+      harvest_frequency_days: 60,
+      typical_yield_per_hectare: 30000,
+      growing_season: 'All Year',
+      notes: 'Frequent-harvest perennial.',
+    },
+    {
+      crop_name: 'Moringa',
+      category: 'Vegetable',
+      crop_type: 'Perennial',
+      maturity_days: 240,
+      harvest_frequency_days: 45,
+      typical_yield_per_hectare: 25000,
+      growing_season: 'All Year',
+      notes: 'Nutrient-dense perennial.',
+    },
+  ];
+  let crops = await listAll(tablesDB, dbId, 'crops');
+  if (!crops.length)
+    crops = await Promise.all(
+      CROPS.map((c) => createRow(tablesDB, dbId, 'crops', { ...c, is_active: true })),
+    );
+  const cropId = (n) => crops.find((c) => c.crop_name === n)?.$id || null;
+
+  const today = new Date();
+  const dAgo = (n) => {
+    const d = new Date(today);
+    d.setDate(d.getDate() - n);
+    return d.toISOString().split('T')[0];
+  };
+  const addD = (base, n) => {
+    const d = new Date(base);
+    d.setDate(d.getDate() + n);
+    return d.toISOString().split('T')[0];
+  };
+  const isoMo = (mo) => new Date(today.getFullYear(), today.getMonth() - mo, 15).toISOString();
+
+  const findResId = (f, l) => {
+    const i = findResIdx(f, l);
+    return i >= 0 ? residentIds[i] : null;
+  };
+  const emmanuelId = findResId('Emmanuel', 'Phiri');
+  const danielId = findResId('Daniel', 'Zulu');
+
+  log('Phase 3: Farm inputs...');
+  const inputs = [
+    {
+      item_name: 'Maize Seed (SC627)',
+      item_type: 'farm_inputs',
+      quantity: 40,
+      unit: 'kg',
+      unit_cost: 55,
+      source: 'finance_purchase',
+      reorder_threshold: 20,
+      date_added: isoMo(8),
+    },
+    {
+      item_name: 'Groundnut Seed (MGV-4)',
+      item_type: 'farm_inputs',
+      quantity: 25,
+      unit: 'kg',
+      unit_cost: 80,
+      source: 'finance_purchase',
+      reorder_threshold: 10,
+      date_added: isoMo(7),
+    },
+    {
+      item_name: 'Soybean Seed (Hernon-147)',
+      item_type: 'farm_inputs',
+      quantity: 18,
+      unit: 'kg',
+      unit_cost: 65,
+      source: 'finance_purchase',
+      reorder_threshold: 10,
+      date_added: isoMo(6),
+    },
+    {
+      item_name: 'Tomato Seedlings (Roma VF)',
+      item_type: 'farm_inputs',
+      quantity: 600,
+      unit: 'seedlings',
+      unit_cost: 1.5,
+      source: 'finance_purchase',
+      reorder_threshold: 200,
+      date_added: isoMo(2),
+    },
+    {
+      item_name: 'Rape Seed (Chinese Cabbage)',
+      item_type: 'farm_inputs',
+      quantity: 3,
+      unit: 'kg',
+      unit_cost: 90,
+      source: 'donation',
+      reorder_threshold: 2,
+      date_added: isoMo(3),
+    },
+    {
+      item_name: 'Sweet Potato Vines (Orange-flesh)',
+      item_type: 'farm_inputs',
+      quantity: 0,
+      unit: 'bundles',
+      unit_cost: 20,
+      source: 'donation',
+      reorder_threshold: 10,
+      date_added: isoMo(5),
+    },
+    {
+      item_name: 'D-Compound Fertilizer',
+      item_type: 'farm_inputs',
+      quantity: 8,
+      unit: 'bags_50kg',
+      unit_cost: 550,
+      source: 'finance_purchase',
+      reorder_threshold: 4,
+      date_added: isoMo(6),
+    },
+    {
+      item_name: 'Urea Top-Dressing Fertilizer',
+      item_type: 'farm_inputs',
+      quantity: 5,
+      unit: 'bags_50kg',
+      unit_cost: 600,
+      source: 'finance_purchase',
+      reorder_threshold: 4,
+      date_added: isoMo(5),
+    },
+  ];
+  for (const inp of inputs)
+    await createRow(tablesDB, dbId, 'inventory', {
+      ...inp,
+      estimated_value: Math.round(inp.quantity * inp.unit_cost * 100) / 100,
+      status: invStatus(inp.quantity, inp.reorder_threshold),
+      last_updated: inp.date_added,
+    });
+
+  log('Phase 3: Plots...');
+  const plotDefs = [
+    {
+      _k: 'north_field',
+      name: 'North Field',
+      size_hectares: 5.0,
+      location_description: 'Largest plot along the main road.',
+      soil_type_id: soilId('Loam'),
+      status: 'Active',
+      crop_manager_id: emmanuelId,
+    },
+    {
+      _k: 'south_field',
+      name: 'South Field',
+      size_hectares: 3.5,
+      location_description: 'Rolling land south of the river bank.',
+      soil_type_id: soilId('Sandy'),
+      status: 'Active',
+      crop_manager_id: danielId,
+    },
+    {
+      _k: 'east_garden',
+      name: 'East Garden',
+      size_hectares: 1.0,
+      location_description: 'Fenced vegetable garden near the clinic.',
+      soil_type_id: soilId('Loam'),
+      status: 'Active',
+      crop_manager_id: emmanuelId,
+    },
+    {
+      _k: 'west_plot',
+      name: 'West Plot',
+      size_hectares: 2.5,
+      location_description: 'Western plot resting after last season.',
+      soil_type_id: soilId('Clay'),
+      status: 'Fallow',
+      crop_manager_id: danielId,
+    },
+    {
+      _k: 'riverside_plot',
+      name: 'Riverside Plot',
+      size_hectares: 1.5,
+      location_description: 'Silty soil near the stream.',
+      soil_type_id: soilId('Silt'),
+      status: 'Active',
+      crop_manager_id: emmanuelId,
+    },
+  ];
+  const plots = {};
+  for (const { _k, ...data } of plotDefs) {
+    const r = await createRow(tablesDB, dbId, 'plots', data);
+    plots[_k] = r;
+  }
+  const plotId = (k) => plots[k]?.$id;
+
+  log('Phase 3: Plantings...');
+  const pd = [
+    {
+      _k: 'p_maize_completed',
+      plot_id: plotId('north_field'),
+      crop_id: cropId('Maize'),
+      planting_date: dAgo(300),
+      expected_harvest_date: addD(dAgo(300), 120),
+      area_used_hectares: 1.5,
+      quantity_planted: 60,
+      unit: 'kg',
+      inputs_cost: 6050,
+      labor_cost: 1200,
+      other_cost: 0,
+      notes: 'Maize planting.',
+      status: 'completed',
+    },
+    {
+      _k: 'p_tomato_harvesting',
+      plot_id: plotId('east_garden'),
+      crop_id: cropId('Tomatoes'),
+      planting_date: dAgo(80),
+      expected_harvest_date: addD(dAgo(80), 75),
+      area_used_hectares: 0.5,
+      quantity_planted: 400,
+      unit: 'seedlings',
+      inputs_cost: 1050,
+      labor_cost: 600,
+      other_cost: 0,
+      notes: 'Tomato transplanting.',
+      status: 'harvesting',
+    },
+    {
+      _k: 'p_groundnut_growing',
+      plot_id: plotId('south_field'),
+      crop_id: cropId('Groundnuts'),
+      planting_date: dAgo(60),
+      expected_harvest_date: addD(dAgo(60), 100),
+      area_used_hectares: 1.0,
+      quantity_planted: 40,
+      unit: 'kg',
+      inputs_cost: 3200,
+      labor_cost: 900,
+      other_cost: 0,
+      notes: 'Groundnut planting.',
+      status: 'growing',
+    },
+    {
+      _k: 'p_rape_planted',
+      plot_id: plotId('east_garden'),
+      crop_id: cropId('Rape'),
+      planting_date: dAgo(15),
+      expected_harvest_date: addD(dAgo(15), 45),
+      area_used_hectares: 0.3,
+      quantity_planted: 2,
+      unit: 'kg',
+      inputs_cost: 180,
+      labor_cost: 200,
+      other_cost: 0,
+      notes: 'Rape seeding.',
+      status: 'planted',
+    },
+    {
+      _k: 'p_maize_failed',
+      plot_id: plotId('riverside_plot'),
+      crop_id: cropId('Maize'),
+      planting_date: dAgo(200),
+      expected_harvest_date: addD(dAgo(200), 120),
+      area_used_hectares: 0.8,
+      quantity_planted: 20,
+      unit: 'kg',
+      inputs_cost: 2200,
+      labor_cost: 450,
+      other_cost: 0,
+      notes: 'Failed due to drought.',
+      status: 'failed',
+    },
+    {
+      _k: 'p_sp_completed',
+      plot_id: plotId('south_field'),
+      crop_id: cropId('Sweet Potato'),
+      planting_date: dAgo(240),
+      expected_harvest_date: addD(dAgo(240), 120),
+      area_used_hectares: 1.2,
+      quantity_planted: null,
+      unit: 'bundles',
+      inputs_cost: 0,
+      labor_cost: 750,
+      other_cost: 200,
+      notes: 'Donated vines.',
+      status: 'completed',
+    },
+    {
+      _k: 'p_soy_growing',
+      plot_id: plotId('north_field'),
+      crop_id: cropId('Soybeans'),
+      planting_date: dAgo(50),
+      expected_harvest_date: addD(dAgo(50), 110),
+      area_used_hectares: 0.5,
+      quantity_planted: null,
+      unit: 'kg',
+      inputs_cost: 2900,
+      labor_cost: 750,
+      other_cost: 0,
+      notes: 'Purchased seed.',
+      status: 'growing',
+    },
+    {
+      _k: 'p_cabbage_planted',
+      plot_id: plotId('riverside_plot'),
+      crop_id: cropId('Cabbage'),
+      planting_date: dAgo(20),
+      expected_harvest_date: addD(dAgo(20), 90),
+      area_used_hectares: 0.7,
+      quantity_planted: null,
+      unit: 'seedlings',
+      inputs_cost: 300,
+      labor_cost: 450,
+      other_cost: 0,
+      notes: 'Cabbage planting.',
+      status: 'planted',
+    },
+    {
+      _k: 'p_upcoming_harvest',
+      plot_id: plotId('east_garden'),
+      crop_id: cropId('Tomatoes'),
+      planting_date: dAgo(75),
+      expected_harvest_date: addD(dAgo(75), 80),
+      area_used_hectares: 0.5,
+      quantity_planted: 300,
+      unit: 'seedlings',
+      inputs_cost: 500,
+      labor_cost: 800,
+      other_cost: 0,
+      notes: 'Upcoming harvest demo.',
+      status: 'growing',
+    },
+    {
+      _k: 'p_banana_harvesting',
+      plot_id: plotId('north_field'),
+      crop_id: cropId('Banana'),
+      planting_date: dAgo(365),
+      expected_harvest_date: addD(dAgo(365), 90),
+      area_used_hectares: 1.0,
+      quantity_planted: 50,
+      unit: 'suckers',
+      inputs_cost: 2000,
+      labor_cost: 1500,
+      other_cost: 500,
+      notes: 'Banana plantation.',
+      status: 'harvesting',
+    },
+    {
+      _k: 'p_papaya_harvesting',
+      plot_id: plotId('east_garden'),
+      crop_id: cropId('Papaya'),
+      planting_date: dAgo(180),
+      expected_harvest_date: addD(dAgo(180), 60),
+      area_used_hectares: 0.4,
+      quantity_planted: 15,
+      unit: 'seedlings',
+      inputs_cost: 800,
+      labor_cost: 600,
+      other_cost: 200,
+      notes: 'Papaya frequent harvests.',
+      status: 'harvesting',
+    },
+    {
+      _k: 'p_maize_underperforming',
+      plot_id: plotId('south_field'),
+      crop_id: cropId('Maize'),
+      planting_date: dAgo(270),
+      expected_harvest_date: addD(dAgo(270), 120),
+      area_used_hectares: 1.0,
+      quantity_planted: 10,
+      unit: 'kg',
+      inputs_cost: 800,
+      labor_cost: 1200,
+      other_cost: 200,
+      notes: 'Drought-stressed.',
+      status: 'completed',
+    },
+    {
+      _k: 'p_moringa_harvesting',
+      plot_id: plotId('west_plot'),
+      crop_id: cropId('Moringa'),
+      planting_date: dAgo(240),
+      expected_harvest_date: addD(dAgo(240), 45),
+      area_used_hectares: 0.2,
+      quantity_planted: 30,
+      unit: 'seedlings',
+      inputs_cost: 400,
+      labor_cost: 800,
+      other_cost: 100,
+      notes: 'Moringa leaf harvest.',
+      status: 'harvesting',
+    },
+  ].filter((d) => d.plot_id && d.crop_id);
+  const plantings = {};
+  for (const { _k, ...data } of pd) {
+    const r = await createRow(tablesDB, dbId, 'plantings', data);
+    plantings[_k] = r;
+  }
+  const pByK = (k) => plantings[k];
+
+  log('Phase 3: Harvests + produce + sales...');
+  const farmRevCat = categories.find((c) => c.name === 'Farming Revenue');
+  const villageFund = fundingSources.find((s) => s.name === 'Village General Fund');
+
+  const harvestPlans = buildHarvestPlans(dAgo, pByK, cropId);
+  for (const plan of harvestPlans) {
+    const hRow = await createRow(tablesDB, dbId, 'harvests', plan.harvest);
+    for (const entry of plan.entries || [])
+      await createRow(tablesDB, dbId, 'harvest_entries', { ...entry, harvest_id: hRow.$id });
+    if (!plan.produce) continue;
+    const pData = {
+      ...plan.produce,
+      source_reference_id: hRow.$id,
+      planting_id: plan.planting_id,
+      crop_id: plan.crop_id,
+      date_added: toISO(plan.harvest.harvest_end_date || plan.harvest.harvest_start_date),
+    };
+    pData.last_updated = pData.date_added;
+    const pRow = await createRow(tablesDB, dbId, 'inventory', pData);
+    if (!plan.sale || !farmRevCat) continue;
+    const tx = await createRow(tablesDB, dbId, 'finance_transactions', {
+      type: 'income',
+      amount_needed: plan.sale.total_amount,
+      amount_funded: plan.sale.total_amount,
+      payment_method: plan.sale.payment_method,
+      category_id: farmRevCat.$id,
+      source_module: 'Farm',
+      funding_source_id: villageFund?.$id || null,
+      date: new Date(`${plan.sale.sale_date}T10:00:00Z`).toISOString(),
+      description: `Sale: ${plan.sale.quantity_sold}kg to ${plan.sale.buyer_name}`,
+      status: 'completed',
+    });
+    await createRow(tablesDB, dbId, 'farm_sales', {
+      harvest_id: hRow.$id,
+      inventory_item_id: pRow.$id,
+      finance_transaction_id: tx.$id,
+      ...(plan.crop_id ? { crop_id: plan.crop_id } : {}),
+      buyer_type: plan.sale.buyer_type,
+      buyer_id: '',
+      buyer_name: plan.sale.buyer_name,
+      sale_date: toISO(plan.sale.sale_date),
+      quantity_sold: plan.sale.quantity_sold,
+      unit: plan.sale.unit || 'kg',
+      price_per_unit: plan.sale.price_per_unit,
+      total_amount: plan.sale.total_amount,
+      payment_status: plan.sale.payment_status || 'Completed',
+      payment_method: plan.sale.payment_method,
+      notes: plan.sale.notes || '',
+    });
+    let totalSold = plan.sale.quantity_sold;
+    if (plan.additional_sale) {
+      const aS = plan.additional_sale;
+      const aTx = await createRow(tablesDB, dbId, 'finance_transactions', {
+        type: 'income',
+        amount_needed: aS.total_amount,
+        amount_funded: aS.total_amount,
+        payment_method: aS.payment_method,
+        category_id: farmRevCat.$id,
+        source_module: 'Farm',
+        funding_source_id: villageFund?.$id || null,
+        date: new Date(`${aS.sale_date}T14:00:00Z`).toISOString(),
+        description: `Sale: ${aS.quantity_sold}kg to ${aS.buyer_name}`,
+        status: 'completed',
+      });
+      await createRow(tablesDB, dbId, 'farm_sales', {
+        harvest_id: hRow.$id,
+        inventory_item_id: pRow.$id,
+        finance_transaction_id: aTx.$id,
+        ...(plan.crop_id ? { crop_id: plan.crop_id } : {}),
+        buyer_type: aS.buyer_type,
+        buyer_id: '',
+        buyer_name: aS.buyer_name,
+        sale_date: toISO(aS.sale_date),
+        quantity_sold: aS.quantity_sold,
+        unit: aS.unit || 'kg',
+        price_per_unit: aS.price_per_unit,
+        total_amount: aS.total_amount,
+        payment_status: aS.payment_status || 'Completed',
+        payment_method: aS.payment_method,
+        notes: aS.notes || '',
+      });
+      totalSold += aS.quantity_sold;
+    }
+    const rem = Math.max(0, (pData.quantity || 0) - totalSold);
+    try {
+      await tablesDB.updateRow({
+        databaseId: dbId,
+        tableId: 'inventory',
+        rowId: pRow.$id,
+        data: {
+          quantity: rem,
+          estimated_value: Math.round(rem * (pData.unit_cost || 0) * 100) / 100,
+          status: invStatus(rem, pData.reorder_threshold),
+          last_updated: toISO(plan.additional_sale?.sale_date || plan.sale.sale_date),
+        },
+      });
+    } catch (_) {
+      /* non-fatal */
+    }
+  }
+  log('  Farm done');
+}
+
+function buildHarvestPlans(dAgo, pByK, cropId) {
+  const plans = [];
+  const mCId = cropId('Maize');
+  const maize = pByK('p_maize_completed');
+  if (maize && mCId) {
+    const hd = dAgo(180);
+    plans.push({
+      planting_id: maize.$id,
+      crop_id: mCId,
+      harvest: {
+        planting_id: maize.$id,
+        harvest_start_date: hd,
+        harvest_end_date: hd,
+        total_quantity_kg: 4200,
+        total_labor_cost: 1800,
+        total_other_costs: 400,
+        status: 'Completed',
+        notes: 'Grade A quality.',
+      },
+      entries: [
+        {
+          entry_date: hd,
+          quantity_kg: 4200,
+          farmhands_count: 10,
+          labor_cost: 1800,
+          other_costs: 400,
+          other_costs_notes: 'Transport',
+          notes: 'Single-day pick.',
+        },
+      ],
+      produce: {
+        item_name: 'Maize – North Field 2025/26 Wet Season',
+        item_type: 'farm_produce',
+        quantity: 4200,
+        unit: 'kg',
+        unit_cost: 3.5,
+        status: 'in_stock',
+        source: 'farm_harvest',
+        reorder_threshold: 0,
+        estimated_value: 14700,
+      },
+      sale: {
+        buyer_type: 'external',
+        buyer_name: 'Zambia Food Reserve Agency',
+        quantity_sold: 3000,
+        unit: 'kg',
+        price_per_unit: 13,
+        total_amount: 39000,
+        payment_method: 'Bank Transfer',
+        payment_status: 'Completed',
+        sale_date: dAgo(160),
+        notes: 'Bulk sale to FRA.',
+      },
+      additional_sale: {
+        buyer_type: 'external',
+        buyer_name: 'Katete Local Miller',
+        quantity_sold: 800,
+        unit: 'kg',
+        price_per_unit: 15,
+        total_amount: 12000,
+        payment_method: 'Mobile Money',
+        payment_status: 'Pending',
+        sale_date: dAgo(120),
+        notes: 'Second batch.',
+      },
+    });
+  }
+  const tomato = pByK('p_tomato_harvesting');
+  const tCId = cropId('Tomatoes');
+  if (tomato && tCId) {
+    const s = dAgo(10),
+      mid = dAgo(5),
+      e = dAgo(1);
+    plans.push({
+      planting_id: tomato.$id,
+      crop_id: tCId,
+      harvest: {
+        planting_id: tomato.$id,
+        harvest_start_date: s,
+        harvest_end_date: e,
+        total_quantity_kg: 850,
+        total_labor_cost: 450,
+        total_other_costs: 120,
+        status: 'In Progress',
+        notes: 'Continuous picking.',
+      },
+      entries: [
+        {
+          entry_date: s,
+          quantity_kg: 300,
+          farmhands_count: 3,
+          labor_cost: 150,
+          other_costs: 40,
+          other_costs_notes: 'Crates',
+          notes: 'First pick.',
+        },
+        {
+          entry_date: mid,
+          quantity_kg: 280,
+          farmhands_count: 3,
+          labor_cost: 150,
+          other_costs: 40,
+          notes: 'Mid pick.',
+        },
+        {
+          entry_date: e,
+          quantity_kg: 270,
+          farmhands_count: 3,
+          labor_cost: 150,
+          other_costs: 40,
+          notes: 'Latest pick.',
+        },
+      ],
+      produce: {
+        item_name: 'Tomatoes – East Garden 2025/26 Wet Season',
+        item_type: 'farm_produce',
+        quantity: 850,
+        unit: 'kg',
+        unit_cost: 8,
+        status: 'in_stock',
+        source: 'farm_harvest',
+        reorder_threshold: 0,
+        estimated_value: 6800,
+      },
+      sale: {
+        buyer_type: 'market',
+        buyer_name: 'Katete Market Vendors',
+        quantity_sold: 600,
+        unit: 'kg',
+        price_per_unit: 25,
+        total_amount: 15000,
+        payment_method: 'Cash',
+        payment_status: 'Completed',
+        sale_date: dAgo(8),
+        notes: 'Market vendors.',
+      },
+    });
+  }
+  const sp = pByK('p_sp_completed');
+  const spCId = cropId('Sweet Potato');
+  if (sp && spCId) {
+    const s = dAgo(125),
+      mid = dAgo(123),
+      e = dAgo(120);
+    plans.push({
+      planting_id: sp.$id,
+      crop_id: spCId,
+      harvest: {
+        planting_id: sp.$id,
+        harvest_start_date: s,
+        harvest_end_date: e,
+        total_quantity_kg: 3800,
+        total_labor_cost: 900,
+        total_other_costs: 200,
+        status: 'Completed',
+        notes: 'Multi-day.',
+      },
+      entries: [
+        {
+          entry_date: s,
+          quantity_kg: 1200,
+          farmhands_count: 6,
+          labor_cost: 300,
+          other_costs: 70,
+          other_costs_notes: 'Bags',
+          notes: 'Day 1.',
+        },
+        {
+          entry_date: mid,
+          quantity_kg: 1400,
+          farmhands_count: 6,
+          labor_cost: 300,
+          other_costs: 60,
+          notes: 'Day 3.',
+        },
+        {
+          entry_date: e,
+          quantity_kg: 1200,
+          farmhands_count: 6,
+          labor_cost: 300,
+          other_costs: 70,
+          notes: 'Final.',
+        },
+      ],
+      produce: {
+        item_name: 'Sweet Potato – South Field 2025/26 Wet Season',
+        item_type: 'farm_produce',
+        quantity: 3800,
+        unit: 'kg',
+        unit_cost: 2.5,
+        status: 'in_stock',
+        source: 'farm_harvest',
+        reorder_threshold: 0,
+        estimated_value: 9500,
+      },
+      sale: {
+        buyer_type: 'external',
+        buyer_name: 'Chipata Urban Wholesaler',
+        quantity_sold: 2500,
+        unit: 'kg',
+        price_per_unit: 12,
+        total_amount: 30000,
+        payment_method: 'Mobile Money',
+        payment_status: 'Completed',
+        sale_date: dAgo(110),
+        notes: 'Bulk.',
+      },
+    });
+  }
+  const banana = pByK('p_banana_harvesting');
+  const bCId = cropId('Banana');
+  if (banana && bCId)
+    for (const { days, qty, labor, seq } of [
+      { days: 270, qty: 120, labor: 150, seq: 1 },
+      { days: 180, qty: 180, labor: 160, seq: 2 },
+      { days: 90, qty: 200, labor: 170, seq: 3 },
+    ]) {
+      const hd = dAgo(days);
+      plans.push({
+        planting_id: banana.$id,
+        crop_id: bCId,
+        harvest: {
+          planting_id: banana.$id,
+          harvest_start_date: hd,
+          harvest_end_date: hd,
+          total_quantity_kg: qty,
+          total_labor_cost: labor,
+          total_other_costs: 30,
+          status: 'Completed',
+          is_continuous_picking: true,
+          harvest_sequence: seq,
+          notes: `Banana harvest ${seq}.`,
+        },
+        entries: [
+          {
+            entry_date: hd,
+            quantity_kg: qty,
+            farmhands_count: 2,
+            labor_cost: labor,
+            other_costs: 30,
+            notes: `Harvest ${seq}.`,
+          },
+        ],
+        produce:
+          seq === 3
+            ? {
+                item_name: 'Banana – North Field (Ongoing)',
+                item_type: 'farm_produce',
+                quantity: 500,
+                unit: 'kg',
+                unit_cost: 5,
+                status: 'in_stock',
+                source: 'farm_harvest',
+                reorder_threshold: 0,
+                estimated_value: 2500,
+              }
+            : undefined,
+      });
+    }
+  const papaya = pByK('p_papaya_harvesting');
+  const papCId = cropId('Papaya');
+  if (papaya && papCId)
+    for (const { days, qty, labor, seq } of [
+      { days: 120, qty: 45, labor: 80, seq: 1 },
+      { days: 60, qty: 60, labor: 90, seq: 2 },
+      { days: 1, qty: 75, labor: 100, seq: 3 },
+    ]) {
+      const hd = dAgo(days);
+      plans.push({
+        planting_id: papaya.$id,
+        crop_id: papCId,
+        harvest: {
+          planting_id: papaya.$id,
+          harvest_start_date: hd,
+          harvest_end_date: hd,
+          total_quantity_kg: qty,
+          total_labor_cost: labor,
+          total_other_costs: 20,
+          status: seq === 3 ? 'In Progress' : 'Completed',
+          is_continuous_picking: true,
+          harvest_sequence: seq,
+          notes: `Papaya ${seq}.`,
+        },
+        entries: [
+          {
+            entry_date: hd,
+            quantity_kg: qty,
+            farmhands_count: 1,
+            labor_cost: labor,
+            other_costs: 20,
+            notes: `Harvest ${seq}.`,
+          },
+        ],
+        produce:
+          seq === 2
+            ? {
+                item_name: 'Papaya – East Garden (Ongoing)',
+                item_type: 'farm_produce',
+                quantity: 105,
+                unit: 'kg',
+                unit_cost: 8,
+                status: 'in_stock',
+                source: 'farm_harvest',
+                reorder_threshold: 0,
+                estimated_value: 840,
+              }
+            : undefined,
+      });
+    }
+  const moringa = pByK('p_moringa_harvesting');
+  const morCId = cropId('Moringa');
+  if (moringa && morCId)
+    for (const { days, qty, labor, seq } of [
+      { days: 135, qty: 30, labor: 50, seq: 1 },
+      { days: 90, qty: 35, labor: 55, seq: 2 },
+      { days: 45, qty: 40, labor: 60, seq: 3 },
+      { days: 3, qty: 42, labor: 65, seq: 4 },
+    ]) {
+      const hd = dAgo(days);
+      plans.push({
+        planting_id: moringa.$id,
+        crop_id: morCId,
+        harvest: {
+          planting_id: moringa.$id,
+          harvest_start_date: hd,
+          harvest_end_date: hd,
+          total_quantity_kg: qty,
+          total_labor_cost: labor,
+          total_other_costs: 10,
+          status: seq === 4 ? 'In Progress' : 'Completed',
+          is_continuous_picking: true,
+          harvest_sequence: seq,
+          notes: `Moringa ${seq}.`,
+        },
+        entries: [
+          {
+            entry_date: hd,
+            quantity_kg: qty,
+            farmhands_count: 2,
+            labor_cost: labor,
+            other_costs: 10,
+            notes: `Leaf harvest ${seq}.`,
+          },
+        ],
+        produce:
+          seq === 3
+            ? {
+                item_name: 'Moringa – West Plot (Ongoing)',
+                item_type: 'farm_produce',
+                quantity: 105,
+                unit: 'kg',
+                unit_cost: 12,
+                status: 'in_stock',
+                source: 'farm_harvest',
+                reorder_threshold: 0,
+                estimated_value: 1260,
+              }
+            : undefined,
+      });
+    }
+  const maizeU = pByK('p_maize_underperforming');
+  if (maizeU && mCId) {
+    const hd = dAgo(150);
+    plans.push({
+      planting_id: maizeU.$id,
+      crop_id: mCId,
+      harvest: {
+        planting_id: maizeU.$id,
+        harvest_start_date: hd,
+        harvest_end_date: hd,
+        total_quantity_kg: 700,
+        total_labor_cost: 500,
+        total_other_costs: 100,
+        status: 'Completed',
+        notes: 'Poor yield — drought.',
+      },
+      entries: [
+        {
+          entry_date: hd,
+          quantity_kg: 700,
+          farmhands_count: 5,
+          labor_cost: 500,
+          other_costs: 100,
+          other_costs_notes: 'Transport',
+          notes: 'Drought harvest.',
+        },
+      ],
+      produce: {
+        item_name: 'Maize – South Field 2024/25 Wet Season (Low Yield)',
+        item_type: 'farm_produce',
+        quantity: 700,
+        unit: 'kg',
+        unit_cost: 3.5,
+        status: 'in_stock',
+        source: 'farm_harvest',
+        reorder_threshold: 0,
+        estimated_value: 2450,
+      },
+    });
+  }
+  return plans;
+}
+
+// =============================================================================
+// PHASE 4 — SCHOOL
+// =============================================================================
+
+async function seedSchool(tablesDB, dbId, residentIds, log) {
+  const findResId = (f, l) => {
+    const i = findResIdx(f, l);
+    return i >= 0 ? residentIds[i] : null;
+  };
+
+  log('Phase 4: School classes...');
+  const gradeLevels = [
+    'Early Childhood',
+    'Grade 1',
+    'Grade 2',
+    'Grade 3',
+    'Grade 4',
+    'Grade 5',
+    'Grade 6',
+    'Grade 7',
+    'Grade 8',
+    'Grade 9',
+    'Grade 10',
+    'Grade 11',
+    'Grade 12',
+  ];
+  const classes = {};
+  for (const gl of gradeLevels) {
+    const r = await createRow(tablesDB, dbId, 'school_classes', {
+      name: gl,
+      grade_level: gl,
+      academic_year: 2026,
+      notes: '',
+    });
+    classes[gl] = r;
+  }
+  const clsId = (g) => classes[g]?.$id;
+
+  log('Phase 4: Class teachers...');
+  const clsTeachers = [
+    ['Early Childhood', 'Grace', 'Banda'],
+    ['Grade 1', 'Rebecca', 'Tembo'],
+    ['Grade 2', 'Esther', 'Zulu'],
+    ['Grade 3', 'Ruth', 'Phiri'],
+    ['Grade 4', 'Mary', 'Banda'],
+    ['Grade 5', 'Elizabeth', 'Mwale'],
+    ['Grade 6', 'Nkosi', 'Mumba'],
+    ['Grade 7', 'Lilian', 'Zulu'],
+    ['Grade 8', 'James', 'Mwale'],
+    ['Grade 9', 'Michael', 'Tembo'],
+    ['Grade 10', 'Daniel', 'Zulu'],
+    ['Grade 11', 'Andrew', 'Mulenga'],
+    ['Grade 12', 'Priscilla', 'Mulenga'],
+  ];
+  for (const [grade, f, l] of clsTeachers) {
+    const cls = classes[grade];
+    const tid = findResId(f, l);
+    if (cls && tid)
+      try {
+        await tablesDB.updateRow({
+          databaseId: dbId,
+          tableId: 'school_classes',
+          rowId: cls.$id,
+          data: {
+            name: cls.name,
+            grade_level: cls.grade_level,
+            academic_year: cls.academic_year,
+            notes: cls.notes || '',
+            class_teacher_id: tid,
+          },
+        });
+      } catch (_) {
+        /* non-fatal */
+      }
+  }
+
+  log('Phase 4: Learners...');
+  const en = (f, l, grade, date, g, gp) => ({
+    resident_id: findResId(f, l),
+    class_id: clsId(grade),
+    enrollment_date: new Date(`${date}T12:00:00Z`).toISOString(),
+    enrollment_status: 'Active',
+    parent_guardian_name: g || '',
+    parent_guardian_phone: gp || '',
+    emergency_contact_name: g || '',
+    emergency_contact_phone: gp || '',
+    medical_notes: '',
+    notes: '',
+  });
+  const learnerDefs = [
+    en('Abel', 'Zulu', 'Early Childhood', '2026-01-12', 'Daniel Zulu', '+260976789012'),
+    en('Daniel', 'Phiri', 'Early Childhood', '2026-01-12', 'Emmanuel Phiri', '+260972345678'),
+    en('Natasha', 'Mumba', 'Early Childhood', '2026-01-12', 'Nkosi Mumba', '+260977001001'),
+    en('Isaac', 'Kapata', 'Early Childhood', '2026-01-12', 'Bernard Kapata', '+260977002002'),
+    en('Faith', 'Tembo', 'Grade 1', '2025-01-13', 'Michael Tembo', ''),
+    en('Joseph', 'Tembo', 'Grade 1', '2025-01-13', 'Michael Tembo', ''),
+    en('Chisomo', 'Banda', 'Grade 1', '2025-01-13', 'Joseph Banda', '+260971234567'),
+    en('Thandeka', 'Phiri', 'Grade 1', '2025-01-13', 'Emmanuel Phiri', '+260972345678'),
+    en('Samuel', 'Zulu', 'Grade 2', '2024-01-15', 'Daniel Zulu', ''),
+    en('Naomi', 'Tembo', 'Grade 2', '2024-01-15', 'Michael Tembo', ''),
+    en('Moses', 'Kapata', 'Grade 2', '2024-01-15', 'Bernard Kapata', '+260977002002'),
+    en('Priscah', 'Zulu', 'Grade 2', '2024-01-15', 'Esther Zulu', '+260976789012'),
+    en('Blessing', 'Zulu', 'Grade 3', '2023-01-16', 'Daniel Zulu', ''),
+    en('Elijah', 'Banda', 'Grade 3', '2023-01-16', 'Joseph Banda', '+260971234567'),
+    en('Rachel', 'Phiri', 'Grade 3', '2023-01-16', 'Emmanuel Phiri', '+260972345678'),
+    en('Caleb', 'Mwale', 'Grade 3', '2023-01-16', 'James Mwale', '+260973456789'),
+    en('Esther', 'Phiri', 'Grade 4', '2022-01-17', 'Emmanuel Phiri', '+260972345678'),
+    en('Hannah', 'Mwale', 'Grade 4', '2022-01-17', 'James Mwale', '+260973456789'),
+    en('Levi', 'Banda', 'Grade 4', '2022-01-17', 'Joseph Banda', '+260971234567'),
+    en('Joy', 'Tembo', 'Grade 4', '2022-01-17', 'Michael Tembo', ''),
+    en('Lucy', 'Banda', 'Grade 5', '2021-01-18', 'Joseph Banda', '+260971234567'),
+    en('Aaron', 'Phiri', 'Grade 5', '2021-01-18', 'Emmanuel Phiri', '+260972345678'),
+    en('Miriam', 'Mwale', 'Grade 5', '2021-01-18', 'James Mwale', '+260973456789'),
+    en('Simon', 'Zulu', 'Grade 5', '2021-01-18', 'Daniel Zulu', '+260976789012'),
+    en('Catherine', 'Mwale', 'Grade 6', '2020-01-14', 'James Mwale', '+260973456789'),
+    en('Emmanuel', 'Banda', 'Grade 6', '2020-01-14', 'Joseph Banda', '+260971234567'),
+    en('Lydia', 'Phiri', 'Grade 6', '2020-01-14', 'Emmanuel Phiri', '+260972345678'),
+    en('Nathan', 'Zulu', 'Grade 6', '2020-01-14', 'Daniel Zulu', '+260976789012'),
+    en('Joshua', 'Phiri', 'Grade 7', '2019-01-15', 'Emmanuel Phiri', '+260972345678'),
+    en('Deborah', 'Mwale', 'Grade 7', '2019-01-15', 'James Mwale', '+260973456789'),
+    en('Philip', 'Banda', 'Grade 7', '2019-01-15', 'Joseph Banda', '+260971234567'),
+    en('Ruth', 'Zulu', 'Grade 7', '2019-01-15', 'Daniel Zulu', '+260976789012'),
+    en('Michael', 'Mwale', 'Grade 8', '2018-01-15', 'James Mwale', '+260973456789'),
+    en('Naomi', 'Banda', 'Grade 8', '2018-01-15', 'Joseph Banda', '+260971234567'),
+    en('Daniel', 'Tembo', 'Grade 8', '2018-01-15', 'Michael Tembo', ''),
+    en('Abigail', 'Phiri', 'Grade 8', '2018-01-15', 'Emmanuel Phiri', '+260972345678'),
+    en('Thomas', 'Banda', 'Grade 9', '2017-01-16', 'Joseph Banda', '+260971234567'),
+    en('Rebecca', 'Mwale', 'Grade 9', '2017-01-16', 'James Mwale', '+260973456789'),
+    en('Jonathan', 'Phiri', 'Grade 9', '2017-01-16', 'Emmanuel Phiri', '+260972345678'),
+    en('Leah', 'Zulu', 'Grade 9', '2017-01-16', 'Daniel Zulu', '+260976789012'),
+    en('Paul', 'Mwale', 'Grade 10', '2016-01-18', 'James Mwale', '+260973456789'),
+    en('Zoe', 'Banda', 'Grade 10', '2016-01-18', 'Joseph Banda', '+260971234567'),
+    en('Isaiah', 'Phiri', 'Grade 10', '2016-01-18', 'Emmanuel Phiri', '+260972345678'),
+    en('Eunice', 'Tembo', 'Grade 10', '2016-01-18', 'Michael Tembo', ''),
+    en('Sophia', 'Banda', 'Grade 11', '2015-01-19', 'Joseph Banda', '+260971234567'),
+    en('Sarah', 'Phiri', 'Grade 11', '2015-01-19', 'Emmanuel Phiri', '+260972345678'),
+    en('Cornelius', 'Mwale', 'Grade 11', '2015-01-19', 'James Mwale', '+260973456789'),
+    en('Gloria', 'Zulu', 'Grade 11', '2015-01-19', 'Daniel Zulu', '+260976789012'),
+    en('Margaret', 'Mwale', 'Grade 12', '2014-01-20', 'James Mwale', '+260973456789'),
+    en('Peter', 'Banda', 'Grade 12', '2014-01-20', 'Joseph Banda', '+260971234567'),
+    en('Dorcas', 'Phiri', 'Grade 12', '2014-01-20', 'Emmanuel Phiri', '+260972345678'),
+    en('Tobias', 'Tembo', 'Grade 12', '2014-01-20', 'Michael Tembo', ''),
+  ].filter((l) => l.resident_id && l.class_id);
+  const createdLearners = await batchRun(
+    learnerDefs.map((ld) => () => createRow(tablesDB, dbId, 'learners', ld)),
+    20,
+  );
+  log(`  ${createdLearners.length} learners`);
+
+  log('Phase 4: Teacher assignments...');
+  const ta = (f, l, ...entries) =>
+    entries.map((en) => ({
+      teacher_id: findResId(f, l),
+      grade_level: typeof en === 'string' ? en : en.g,
+      subjects: typeof en === 'string' ? undefined : en.s,
+      notes: '',
+    }));
+  const asgns = [
+    ...ta('Grace', 'Banda', 'Early Childhood'),
+    ...ta('Rebecca', 'Tembo', 'Grade 1'),
+    ...ta('Esther', 'Zulu', 'Grade 2'),
+    ...ta('Ruth', 'Phiri', 'Grade 3'),
+    ...ta('Mary', 'Banda', 'Grade 4'),
+    ...ta('Elizabeth', 'Mwale', 'Grade 5'),
+    ...ta(
+      'Nkosi',
+      'Mumba',
+      { g: 'Grade 6', s: ['Mathematics'] },
+      { g: 'Grade 7', s: ['Mathematics'] },
+      { g: 'Grade 8', s: ['Mathematics'] },
+      { g: 'Grade 9', s: ['Mathematics'] },
+    ),
+    ...ta(
+      'Chanda',
+      'Mwamba',
+      { g: 'Grade 10', s: ['Mathematics'] },
+      { g: 'Grade 11', s: ['Mathematics'] },
+      { g: 'Grade 12', s: ['Mathematics'] },
+    ),
+    ...ta(
+      'Lilian',
+      'Zulu',
+      { g: 'Grade 6', s: ['English'] },
+      { g: 'Grade 7', s: ['English'] },
+      { g: 'Grade 8', s: ['English'] },
+      { g: 'Grade 9', s: ['English'] },
+    ),
+    ...ta(
+      'Agnes',
+      'Phiri',
+      { g: 'Grade 10', s: ['English'] },
+      { g: 'Grade 11', s: ['English'] },
+      { g: 'Grade 12', s: ['English'] },
+    ),
+    ...ta(
+      'Emmanuel',
+      'Phiri',
+      { g: 'Grade 6', s: ['Integrated Science', 'Agriculture Science'] },
+      { g: 'Grade 7', s: ['Integrated Science', 'Agriculture Science'] },
+      { g: 'Grade 8', s: ['Integrated Science', 'Agriculture Science'] },
+      { g: 'Grade 9', s: ['Agriculture Science'] },
+    ),
+    ...ta(
+      'Daniel',
+      'Zulu',
+      { g: 'Grade 9', s: ['Biology'] },
+      { g: 'Grade 10', s: ['Biology'] },
+      { g: 'Grade 11', s: ['Biology'] },
+      { g: 'Grade 12', s: ['Biology'] },
+    ),
+    ...ta(
+      'Joseph',
+      'Banda',
+      { g: 'Grade 6', s: ['Social Studies'] },
+      { g: 'Grade 7', s: ['Social Studies'] },
+      { g: 'Grade 8', s: ['Social Studies'] },
+      { g: 'Grade 9', s: ['Civic Education'] },
+      { g: 'Grade 10', s: ['Civic Education'] },
+    ),
+    ...ta(
+      'James',
+      'Mwale',
+      { g: 'Grade 8', s: ['Business Studies'] },
+      { g: 'Grade 9', s: ['Business Studies'] },
+      { g: 'Grade 10', s: ['Business Studies'] },
+      { g: 'Grade 11', s: ['Business Studies'] },
+      { g: 'Grade 12', s: ['Business Studies'] },
+    ),
+    ...ta(
+      'Michael',
+      'Tembo',
+      { g: 'Grade 9', s: ['Chemistry'] },
+      { g: 'Grade 10', s: ['Chemistry'] },
+      { g: 'Grade 11', s: ['Chemistry'] },
+      { g: 'Grade 12', s: ['Chemistry'] },
+    ),
+    ...ta(
+      'Andrew',
+      'Mulenga',
+      { g: 'Grade 6', s: ['Geography'] },
+      { g: 'Grade 7', s: ['Geography'] },
+      { g: 'Grade 8', s: ['Geography'] },
+      { g: 'Grade 9', s: ['Geography'] },
+      { g: 'Grade 10', s: ['Physics', 'Geography'] },
+      { g: 'Grade 11', s: ['Physics'] },
+      { g: 'Grade 12', s: ['Physics'] },
+    ),
+    ...ta(
+      'Priscilla',
+      'Mulenga',
+      { g: 'Grade 6', s: ['Local Language', 'Creative and Technology Studies'] },
+      { g: 'Grade 7', s: ['Local Language', 'Creative and Technology Studies'] },
+      { g: 'Grade 8', s: ['Local Language', 'Creative and Technology Studies'] },
+      { g: 'Grade 9', s: ['Local Language'] },
+      { g: 'Grade 10', s: ['Local Language'] },
+      { g: 'Grade 11', s: ['Local Language'] },
+      { g: 'Grade 12', s: ['Local Language'] },
+    ),
+  ].filter((a) => a.teacher_id);
+  await batchRun(
+    asgns.map((a) => () => createRow(tablesDB, dbId, 'teacher_assignments', a)),
+    20,
+  );
+  log(`  ${asgns.length} teacher assignments`);
+
+  log('Phase 4: Test scores...');
+  const subsByGrade = {
+    'Early Childhood': ['Local Language', 'Mathematics', 'Creative and Technology Studies'],
+    'Grade 1': ['Mathematics', 'English', 'Local Language'],
+    'Grade 2': ['Mathematics', 'English', 'Local Language'],
+    'Grade 3': ['Mathematics', 'English', 'Integrated Science'],
+    'Grade 4': ['Mathematics', 'English', 'Integrated Science', 'Social Studies'],
+    'Grade 5': ['Mathematics', 'English', 'Integrated Science', 'Social Studies'],
+    'Grade 6': [
+      'Mathematics',
+      'English',
+      'Integrated Science',
+      'Social Studies',
+      'Agriculture Science',
+    ],
+    'Grade 7': [
+      'Mathematics',
+      'English',
+      'Integrated Science',
+      'Social Studies',
+      'Agriculture Science',
+    ],
+    'Grade 8': ['Mathematics', 'English', 'Integrated Science', 'Business Studies', 'Geography'],
+    'Grade 9': [
+      'Mathematics',
+      'English',
+      'Biology',
+      'Chemistry',
+      'Agriculture Science',
+      'Civic Education',
+    ],
+    'Grade 10': ['Mathematics', 'English', 'Biology', 'Chemistry', 'Physics', 'Business Studies'],
+    'Grade 11': ['Mathematics', 'English', 'Biology', 'Chemistry', 'Physics', 'Business Studies'],
+    'Grade 12': ['Mathematics', 'English', 'Biology', 'Chemistry', 'Physics', 'Business Studies'],
+  };
+  const assessments = [
+    { type: 'Mid-Term Exam', date: '2025-08-15', term: 'Term 2', year: 2025 },
+    { type: 'End-of-Term Exam', date: '2025-10-31', term: 'Term 3', year: 2025 },
+    { type: 'Mid-Term Exam', date: '2026-02-14', term: 'Term 1', year: 2026 },
+    { type: 'End-of-Term Exam', date: '2026-03-28', term: 'Term 1', year: 2026 },
+    { type: 'Mid-Term Exam', date: '2026-05-16', term: 'Term 2', year: 2026 },
+  ];
+  const bases = [
+    72, 65, 80, 58, 76, 62, 84, 69, 55, 74, 60, 78, 50, 88, 66, 45, 73, 81, 57, 67, 75, 61, 83, 70,
+    53, 77, 63, 85, 48, 90, 64, 52, 71, 79, 56, 68, 74, 60, 82, 69, 54, 76, 62, 86, 49, 91, 65, 51,
+  ];
+  const gradeByClsId = {};
+  for (const [g, cls] of Object.entries(classes)) gradeByClsId[cls.$id] = g;
+  const scoreTasks = [];
+  for (let li = 0; li < createdLearners.length; li++) {
+    const learner = createdLearners[li];
+    const cId2 = typeof learner.class_id === 'object' ? learner.class_id?.$id : learner.class_id;
+    const grade = gradeByClsId[cId2] || 'Grade 1';
+    const subjects = subsByGrade[grade] || ['Mathematics', 'English'];
+    const base = bases[li % bases.length];
+    for (let si = 0; si < subjects.length; si++)
+      for (let ai = 0; ai < assessments.length; ai++) {
+        const a = assessments[ai];
+        const variation = ((li * 31 + si * 7 + ai * 13) % 25) - 12;
+        const score = Math.max(20, Math.min(100, base + variation));
+        scoreTasks.push(() =>
+          createRow(tablesDB, dbId, 'test_scores', {
+            learner_id: learner.$id,
+            class_id: cId2,
+            subject: subjects[si],
+            assessment_type: a.type,
+            term: a.term,
+            academic_year: a.year,
+            assessment_date: new Date(`${a.date}T12:00:00Z`).toISOString(),
+            score_value: score,
+            max_score: 100,
+            notes: '',
+          }),
+        );
+      }
+  }
+  await batchRun(scoreTasks, 25);
+  log(`  ${scoreTasks.length} test scores`);
+
+  log('Phase 4: Timetable...');
+  const PERIODS = [
+    { num: 1, start: '08:00', end: '08:45' },
+    { num: 2, start: '08:45', end: '09:30' },
+    { num: 3, start: '10:00', end: '10:45' },
+    { num: 4, start: '10:45', end: '11:30' },
+    { num: 5, start: '12:00', end: '12:45' },
+    { num: 6, start: '12:45', end: '13:30' },
+  ];
+  const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
+  const primaryTeacher = {
+    'Early Childhood': findResId('Grace', 'Banda'),
+    'Grade 1': findResId('Rebecca', 'Tembo'),
+    'Grade 2': findResId('Esther', 'Zulu'),
+    'Grade 3': findResId('Ruth', 'Phiri'),
+    'Grade 4': findResId('Mary', 'Banda'),
+    'Grade 5': findResId('Elizabeth', 'Mwale'),
+  };
+  const subjectTeacher = {
+    'Integrated Science': findResId('Emmanuel', 'Phiri'),
+    'Agriculture Science': findResId('Emmanuel', 'Phiri'),
+    Biology: findResId('Daniel', 'Zulu'),
+    Chemistry: findResId('Michael', 'Tembo'),
+    Physics: findResId('Andrew', 'Mulenga'),
+    'Social Studies': findResId('Joseph', 'Banda'),
+    'Civic Education': findResId('Joseph', 'Banda'),
+    Geography: findResId('Andrew', 'Mulenga'),
+    'Business Studies': findResId('James', 'Mwale'),
+    'Local Language': findResId('Priscilla', 'Mulenga'),
+    'Creative and Technology Studies': findResId('Priscilla', 'Mulenga'),
+  };
+  const resolveSecTeacher = (subject, gNum) => {
+    if (subject === 'Mathematics')
+      return gNum >= 10 ? findResId('Chanda', 'Mwamba') : findResId('Nkosi', 'Mumba');
+    if (subject === 'English')
+      return gNum >= 10 ? findResId('Agnes', 'Phiri') : findResId('Lilian', 'Zulu');
+    return subjectTeacher[subject] || null;
+  };
+  const ttTasks = [];
+  for (const [grade, weekSchedule] of Object.entries(TIMETABLE_SCHEDULE)) {
+    const cId2 = clsId(grade);
+    if (!cId2) continue;
+    const isPrimary = grade in primaryTeacher;
+    const gNum = grade === 'Early Childhood' ? 0 : parseInt(grade.replace('Grade ', '')) || 0;
+    const ctId = isPrimary ? primaryTeacher[grade] : null;
+    for (let dIdx = 0; dIdx < DAYS.length; dIdx++)
+      for (let pIdx = 0; pIdx < weekSchedule[dIdx].length; pIdx++) {
+        const subject = weekSchedule[dIdx][pIdx];
+        const period = PERIODS[pIdx];
+        const teacherId = isPrimary ? ctId : resolveSecTeacher(subject, gNum);
+        ttTasks.push(() =>
+          createRow(tablesDB, dbId, 'school_timetable', {
+            class_id: cId2,
+            day_of_week: DAYS[dIdx],
+            period_number: period.num,
+            start_time: period.start,
+            end_time: period.end,
+            subject,
+            teacher_id: teacherId || null,
+            notes: '',
+          }),
+        );
+      }
+  }
+  await batchRun(ttTasks, 25);
+  const ttCount = ttTasks.length;
+  log(`  ${ttCount} timetable entries`);
+
+  log('Phase 4: Attendance...');
+  const attendanceDates = [];
+  const refDate = new Date();
+  for (let i = 30; i >= 1; i--) {
+    const d = new Date(refDate);
+    d.setDate(d.getDate() - i);
+    const wd = d.getDay();
+    if (wd >= 1 && wd <= 5) attendanceDates.push(d.toISOString().split('T')[0]);
+  }
+  const STATUSES = [
+    'Present',
+    'Present',
+    'Present',
+    'Present',
+    'Present',
+    'Present',
+    'Present',
+    'Late',
+    'Absent',
+  ];
+  const attTasks = [];
+  for (let li = 0; li < createdLearners.length; li++) {
+    const learner = createdLearners[li];
+    const cId2 = typeof learner.class_id === 'object' ? learner.class_id?.$id : learner.class_id;
+    for (let di = 0; di < attendanceDates.length; di++) {
+      const statusIdx = (li * 7 + di * 3) % STATUSES.length;
+      const status = STATUSES[statusIdx];
+      attTasks.push(() =>
+        createRow(tablesDB, dbId, 'learner_attendance', {
+          learner_id: learner.$id,
+          class_id: cId2,
+          attendance_date: new Date(`${attendanceDates[di]}T07:00:00Z`).toISOString(),
+          status,
+          notes: '',
+        }),
+      );
+    }
+  }
+  await batchRun(attTasks, 25);
+  log(`  ${attTasks.length} attendance records`);
+}
+
+// =============================================================================
+// PHASE 5 — VILLAGE SETTINGS
+// =============================================================================
+
+async function seedVillageSettings(tablesDB, dbId, councilMemberIds, log) {
+  log('Phase 5: Village settings...');
+  const councilResidentIds = councilMemberIds.map((c) => c.residentId);
+  const settingsData = {
+    village_name: 'Katete Model Village',
+    address: 'Katete District, Eastern Province, Zambia',
+    established_date: '2020-03-15',
+    default_currency: 'ZMW',
+    currency_symbol: 'K',
+    timezone: 'Africa/Lusaka',
+    country_code: 'ZM',
+    country_phone_code: '+260',
+    yield_unit: 'kg_per_hectare',
+    is_using_sample_data: true,
+    modules_enabled: [
+      'residents',
+      'households',
+      'dashboard',
+      'finance',
+      'inventory',
+      'farm',
+      'school',
+    ],
+    council_member_ids: councilResidentIds,
+  };
+  try {
+    const existing = await listAll(tablesDB, dbId, 'village_settings');
+    if (existing.length > 0) {
+      await tablesDB.updateRow({
+        databaseId: dbId,
+        tableId: 'village_settings',
+        rowId: existing[0].$id,
+        data: settingsData,
+      });
+    } else {
+      await tablesDB.createRow({
+        databaseId: dbId,
+        tableId: 'village_settings',
+        rowId: 'settings_root',
+        data: settingsData,
+      });
+    }
+  } catch (err) {
+    console.error('Village settings error (non-fatal):', err.message);
+  }
+  log('  Village settings done');
+}
+
+// =============================================================================
+// ENTRY POINT
+// =============================================================================
+
+export default async ({ req, res, log, error }) => {
+  const projectId = process.env.APPWRITE_PROJECT_ID;
+  const apiKey = process.env.APPWRITE_API_KEY;
+  const endpoint = process.env.APPWRITE_ENDPOINT || 'http://localhost/v1';
+  const dbId = process.env.APPWRITE_DATABASE_ID;
+
+  if (!apiKey || !dbId) {
+    return res.json(
+      { success: false, error: 'Missing APPWRITE_API_KEY or APPWRITE_DATABASE_ID env vars' },
+      500,
+    );
+  }
+
+  const client = new Client().setEndpoint(endpoint).setProject(projectId).setKey(apiKey);
+  const tablesDB = new TablesDB(client);
+
+  try {
+    log('=== seedAllData: starting ===');
+
+    const { residentIds, councilMemberIds } = await seedHouseholdsAndResidents(tablesDB, dbId, log);
+    const { categories, fundingSources } = await seedFinance(tablesDB, dbId, residentIds, log);
+    await seedFarm(tablesDB, dbId, residentIds, categories, fundingSources, log);
+    await seedSchool(tablesDB, dbId, residentIds, log);
+    await seedVillageSettings(tablesDB, dbId, councilMemberIds, log);
+
+    log('=== seedAllData: complete ===');
+    return res.json({ success: true, message: 'All sample data seeded successfully.' });
+  } catch (err) {
+    error(`seedAllData failed: ${err.message}`);
+    return res.json({ success: false, error: err.message }, 500);
+  }
+};

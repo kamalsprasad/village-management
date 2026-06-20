@@ -338,7 +338,12 @@ const filteredClasses = computed(() => {
     );
   }
 
-  return list;
+  return list.sort((a, b) => {
+    const indexA = GRADE_LEVELS.indexOf(a.grade_level);
+    const indexB = GRADE_LEVELS.indexOf(b.grade_level);
+    if (indexA !== indexB) return indexA - indexB;
+    return (a.name || '').localeCompare(b.name || '');
+  });
 });
 
 function getStudentCount(classId) {

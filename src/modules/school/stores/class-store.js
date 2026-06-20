@@ -40,24 +40,11 @@ export const useClassStore = defineStore('class', {
     /**
      * Get class size of active learners in a class ID
      */
-    getClassSize: (state) => (classId) => {
+    getClassSize: () => (classId) => {
       const learnerStore = useLearnerStore();
-      const byId = learnerStore.learners.filter(
-        (l) =>
-          (l.class_id_normalized || normalizeClassId(l.class_id)) === classId &&
-          l.enrollment_status === 'Active',
-      ).length;
-      if (byId > 0) return byId;
-      // Fallback: match by grade_level (handles duplicate class rows from re-seeding)
-      const rows = state.allClassRows.length ? state.allClassRows : state.classes;
-      const cls = rows.find((c) => c.$id === classId);
-      if (!cls?.grade_level) return 0;
-      const allClassIdsForGrade = rows
-        .filter((c) => c.grade_level === cls.grade_level)
-        .map((c) => c.$id);
       return learnerStore.learners.filter(
         (l) =>
-          allClassIdsForGrade.includes(l.class_id_normalized || normalizeClassId(l.class_id)) &&
+          (l.class_id_normalized || normalizeClassId(l.class_id)) === classId &&
           l.enrollment_status === 'Active',
       ).length;
     },
@@ -229,31 +216,8 @@ export const useClassStore = defineStore('class', {
         // Store all raw rows for cross-ID learner lookups
         this.allClassRows = response.rows;
 
-        // Deduplicate by grade_level for display:
-        // prefer rows with a teacher assigned, then most recently updated
-        const latestByGrade = new Map();
-        for (const row of response.rows) {
-          const grade = row.grade_level;
-          if (!grade) continue;
-          const existing = latestByGrade.get(grade);
-          if (!existing) {
-            latestByGrade.set(grade, row);
-          } else {
-            const rowHasTeacher = !!row.class_teacher_id;
-            const existingHasTeacher = !!existing.class_teacher_id;
-            if (rowHasTeacher && !existingHasTeacher) {
-              latestByGrade.set(grade, row);
-            } else if (rowHasTeacher === existingHasTeacher) {
-              if (new Date(row.$updatedAt) > new Date(existing.$updatedAt)) {
-                latestByGrade.set(grade, row);
-              }
-            }
-          }
-        }
-        const deduped = Array.from(latestByGrade.values());
-
         // Enrich classes with teacher name details dynamically
-        this.classes = deduped.map((row) => this.enrichClass(row, residentsMap));
+        this.classes = response.rows.map((row) => this.enrichClass(row, residentsMap));
         this.classesLoaded = true;
         this.saveToLocalCache(LOCAL_STORAGE_KEYS.CLASSES, this.classes);
         this.autoAssignLearnersToClasses();

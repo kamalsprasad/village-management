@@ -35,16 +35,16 @@
                   </p>
                   <div class="text-caption text-grey-6">
                     <q-icon name="check_circle" size="xs" color="positive" class="q-mr-xs" />
-                    30+ sample residents
+                    80+ sample residents across 8 families
                     <br />
                     <q-icon name="check_circle" size="xs" color="positive" class="q-mr-xs" />
-                    5-6 households
+                    18 months of finance history
                     <br />
                     <q-icon name="check_circle" size="xs" color="positive" class="q-mr-xs" />
-                    Council members configured
+                    Farm plots, plantings & harvests
                     <br />
                     <q-icon name="check_circle" size="xs" color="positive" class="q-mr-xs" />
-                    School classes, learners & test scores
+                    52 learners, timetables & test scores
                   </div>
                 </q-card-section>
                 <q-card-actions class="justify-center q-pb-lg">
@@ -85,44 +85,8 @@
 
           <!-- Progress Indicator -->
           <div v-if="isSeeding" class="text-center q-mt-xl">
-            <q-linear-progress
-              :value="seedingProgress"
-              color="primary"
-              class="q-mb-sm"
-              style="max-width: 400px; margin: 0 auto"
-            />
-            <q-linear-progress
-              v-if="seedingProgress >= 0.85 && seedingProgress < 0.92"
-              :value="financeSeedingProgress"
-              color="secondary"
-              class="q-mb-md"
-              style="max-width: 400px; margin: 0 auto"
-            />
-            <q-linear-progress
-              v-if="seedingProgress >= 0.92 && seedingProgress < 0.98"
-              :value="farmSeedingProgress"
-              color="accent"
-              class="q-mb-md"
-              style="max-width: 400px; margin: 0 auto"
-            />
-            <q-linear-progress
-              v-if="seedingProgress >= 0.98"
-              :value="schoolSeedingProgress"
-              color="positive"
-              class="q-mb-md"
-              style="max-width: 400px; margin: 0 auto"
-            />
-            <p class="text-body2 text-grey-7">
-              {{
-                seedingProgress >= 0.98
-                  ? schoolSeedingStatus
-                  : seedingProgress >= 0.92
-                    ? farmSeedingStatus
-                    : seedingProgress >= 0.85
-                      ? financeSeedingStatus
-                      : seedingStatus
-              }}
-            </p>
+            <q-spinner-dots color="primary" size="48px" class="q-mb-md" />
+            <p class="text-body2 text-grey-7">{{ seedingStatus }}</p>
           </div>
         </div>
       </q-page>
@@ -133,39 +97,115 @@
 <script setup>
 import { ref } from 'vue';
 import { useRouter } from 'vue-router';
-import { useSampleData } from 'src/composables/useSampleData';
+import { functions } from 'src/boot/appwrite';
+import { useAuthStore } from 'src/stores/auth-store';
+import { useSettingsStore } from 'src/stores/settings-store';
+import { useErrorHandler } from 'src/composables/useErrorHandler';
 
 const router = useRouter();
-const {
-  seedSampleData,
-  isSeeding,
-  seedingProgress,
-  seedingStatus,
-  financeSeedingProgress,
-  financeSeedingStatus,
-  farmSeedingProgress,
-  farmSeedingStatus,
-  schoolSeedingProgress,
-  schoolSeedingStatus,
-} = useSampleData();
+const authStore = useAuthStore();
+const settingsStore = useSettingsStore();
+const errorHandler = useErrorHandler();
 
 const selectedOption = ref(null);
+const isSeeding = ref(false);
+const seedingStatus = ref('');
+
+const POLL_INTERVAL_MS = 2000;
+const MAX_POLL_TIME_MS = 10 * 60 * 1000; // 10 minutes
 
 function selectOption(option) {
-  if (option === 'fresh') return; // Disabled option
+  if (option === 'fresh') return;
   selectedOption.value = option;
 }
 
 async function handleLoadSampleData() {
   selectedOption.value = 'sample';
 
-  const result = await seedSampleData();
-
-  if (result.success) {
-    // Redirect to dashboard after successful seeding
-    router.push('/');
+  const functionId = import.meta.env.VITE_APPWRITE_FUNCTION_SEED_DATA;
+  if (!functionId) {
+    errorHandler.notifyError(
+      'Seed function not configured. Please set VITE_APPWRITE_FUNCTION_SEED_DATA.',
+    );
+    return;
   }
-  // Error handling is done inside seedSampleData via useErrorHandler
+
+  if (!authStore.user?.$id) {
+    errorHandler.notifyError('You must be logged in to perform this action.');
+    return;
+  }
+
+  isSeeding.value = true;
+  seedingStatus.value = 'Starting sample data seeding...';
+
+  try {
+    const execution = await functions.createExecution(
+      functionId,
+      JSON.stringify({ userId: authStore.user.$id }),
+      true,
+    );
+
+    seedingStatus.value = 'Seeding in progress — this may take a few minutes...';
+
+    const result = await pollExecutionStatus(functionId, execution.$id);
+
+    if (result.success) {
+      await settingsStore.loadSettings();
+      errorHandler.notifySuccess('Sample data loaded successfully!');
+      router.push('/');
+    } else {
+      errorHandler.notifyError(result.error || 'Failed to seed sample data.');
+    }
+  } catch (err) {
+    console.error('seedAllData execution error:', err);
+    errorHandler.notifyError('Failed to start seeding. Please try again.');
+  } finally {
+    isSeeding.value = false;
+    seedingStatus.value = '';
+  }
+}
+
+async function pollExecutionStatus(functionId, executionId) {
+  const startTime = Date.now();
+  let lastStatus = '';
+
+  while (Date.now() - startTime < MAX_POLL_TIME_MS) {
+    await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS));
+
+    try {
+      const execution = await functions.getExecution(functionId, executionId);
+      const status = execution.status;
+
+      if (status !== lastStatus) {
+        lastStatus = status;
+        if (status === 'waiting') seedingStatus.value = 'Waiting for function to start...';
+        else if (status === 'processing')
+          seedingStatus.value = 'Seeding sample data on the server...';
+      }
+
+      if (status === 'completed') {
+        const body = execution.responseBody || '';
+        if (!body || body.trim() === '') return { success: true };
+        try {
+          const parsed = JSON.parse(body);
+          return parsed.success
+            ? { success: true, data: parsed }
+            : { success: false, error: parsed.error || 'Seeding failed.' };
+        } catch {
+          return { success: true };
+        }
+      }
+
+      if (status === 'failed') {
+        const errMsg = execution.responseBody || execution.errors || 'Function execution failed.';
+        return { success: false, error: errMsg };
+      }
+    } catch (pollErr) {
+      console.warn('Poll error (retrying):', pollErr.message);
+    }
+  }
+
+  return { success: false, error: 'Seeding timed out after 10 minutes.' };
 }
 </script>
 
