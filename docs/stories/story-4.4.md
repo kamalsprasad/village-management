@@ -2,7 +2,7 @@
 
 **Epic:** 4 — School Management and Educational Accountability  
 **Story ID:** 4.4  
-**Status:** ready-for-dev  
+**Status:** done  
 **Date:** 2026-06-20  
 **Author:** AI Assistant
 
@@ -204,14 +204,45 @@ school_period_slots: {
 
 ## Files to Create / Modify
 
-| Action | File |
-|--------|------|
-| Create | `src/modules/school/pages/BellSchedulesSettingsPage.vue` |
+| Action | File                                                                                        |
+| ------ | ------------------------------------------------------------------------------------------- |
+| Create | `src/modules/school/pages/BellSchedulesSettingsPage.vue`                                    |
 | Create | `src/modules/school/pages/SchoolSettingsPage.vue` (hub page, if not already created in 4.3) |
-| Create | `src/modules/school/stores/period-slots-store.js` |
-| Create | `src/modules/school/components/DailyScheduleTimeline.vue` |
-| Modify | `src/modules/school/router.js` (add bell-schedules route) |
-| Modify | `src/layouts/MainLayout.vue` (add School Settings nav item if not added in 4.3) |
-| Modify | `server/scripts/setup-appwrite.js` (remove school_timetable stub, add school_period_slots) |
-| Modify | `server/scripts/seed-sample-data.js` (seed bell schedule data) |
-| Modify | `DATABASE_SCHEMA.md` |
+| Create | `src/modules/school/stores/period-slots-store.js`                                           |
+| Create | `src/modules/school/components/DailyScheduleTimeline.vue`                                   |
+| Modify | `src/modules/school/router.js` (add bell-schedules route)                                   |
+| Modify | `src/layouts/MainLayout.vue` (add School Settings nav item if not added in 4.3)             |
+| Modify | `server/scripts/setup-appwrite.js` (remove school_timetable stub, add school_period_slots)  |
+| Modify | `server/scripts/seed-sample-data.js` (seed bell schedule data)                              |
+| Modify | `DATABASE_SCHEMA.md`                                                                        |
+
+---
+
+## Review Findings
+
+> Code review conducted against commit `128513c` (2026-06-20).
+> Layers: Blind Hunter · Edge Case Hunter · Acceptance Auditor.
+> 2 decision-needed · 5 patch · 7 deferred · 4 dismissed.
+
+### Decision-needed
+
+- [x] [Review][Decision] AC7 — Resolved: route guard lowered to `school:read`; edit controls remain behind `v-if="canAdmin"` [`router.js:156`]
+- [x] [Review][Decision] AC3 — Resolved: added two-step confirm dialog when target has existing slots [`BellSchedulesSettingsPage.vue` — `requestCopy()` + `showCopyConfirm` dialog]
+
+### Patch
+
+- [x] [Review][Patch] `presentTypes` crashes when `props.slots` is `null` (not `[]`) [`DailyScheduleTimeline.vue:148`]
+- [x] [Review][Patch] `copySchedule` allows source === target, deleting all slots then failing to re-create them (data loss) [`period-slots-store.js:337` + `BellSchedulesSettingsPage.vue:728`]
+- [x] [Review][Patch] `applies_to_days` omitted on create but explicitly set on update — Appwrite returns `null` for omitted array fields, causing inconsistency that can crash timeline rendering [`period-slots-store.js:216-221`]
+- [x] [Review][Patch] Year input has no min/max validation — negative years or year `0` reach the database and produce confusing empty states [`BellSchedulesSettingsPage.vue:70-77`]
+- [x] [Review][Patch] Timeline does not guard against zero-duration slots (start === end) — `slotFlexStyle` divides by `totalMinutes` (safe) but the block renders as invisible 5% minimum-width with no label, corrupting the visual [`DailyScheduleTimeline.vue:171-178`]
+
+### Deferred (pre-existing or out-of-scope)
+
+- [x] [Review][Defer] `useErrorHandler()` called at module scope in Pinia store — anti-pattern, but pre-existing across all stores in the codebase [`period-slots-store.js:28`] — deferred, pre-existing
+- [x] [Review][Defer] Concurrent `slot_number` assignment race condition — two simultaneous saves can produce duplicate slot_numbers; only affects multi-user concurrent edits which are outside this app's current scope [`BellSchedulesSettingsPage.vue:664-666`] — deferred, out-of-scope for single-admin app
+- [x] [Review][Defer] `reorderSlots` / `copySchedule` use `Promise.all` with no rollback — partial DB failure leaves inconsistent state; Appwrite has no transaction API [`period-slots-store.js:307`, `period-slots-store.js:380`] — deferred, no transaction support in Appwrite
+- [x] [Review][Defer] Overlap detection only warns on same start-time, not on overlapping ranges — spec explicitly says warn-but-allow for unusual schedules; full overlap detection is a Story 4.5 enhancement [`BellSchedulesSettingsPage.vue:650-661`] — deferred, beyond spec for 4.4
+- [x] [Review][Defer] Timeline legend has no `aria-label` on colour swatches — accessibility improvement [`DailyScheduleTimeline.vue:101-113`] — deferred, polish item
+- [x] [Review][Defer] "All Days" label is hardcoded — cosmetic, no functional impact [`DailyScheduleTimeline.vue:165`] — deferred, polish item
+- [x] [Review][Defer] AC1 delete confirmation does not warn on timetable references — intentionally deferred to Story 4.5 per in-code comment, noted in spec [`BellSchedulesSettingsPage.vue:14`] — deferred, Story 4.5

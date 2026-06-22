@@ -23,9 +23,7 @@
       <q-btn flat dense round icon="arrow_back" to="/school/settings" class="q-mr-sm" />
       <div>
         <div class="text-h5">Bell Schedules</div>
-        <div class="text-caption text-grey-7">
-          Define daily period slots per grade level
-        </div>
+        <div class="text-caption text-grey-7">Define daily period slots per grade level</div>
       </div>
     </div>
 
@@ -50,7 +48,9 @@
         <div class="row q-mt-xs q-gutter-md text-caption text-grey-7">
           <span><q-icon name="check_circle" color="positive" size="12px" /> Configured</span>
           <span><q-icon name="warning" color="warning" size="12px" /> No class periods</span>
-          <span><q-icon name="radio_button_unchecked" color="negative" size="12px" /> Not set up</span>
+          <span
+            ><q-icon name="radio_button_unchecked" color="negative" size="12px" /> Not set up</span
+          >
         </div>
       </q-card-section>
     </q-card>
@@ -74,6 +74,8 @@
           dense
           label="Year"
           style="width: 90px"
+          :rules="[(v) => (v >= 2000 && v <= 2100) || 'Enter a year between 2000–2100']"
+          hide-bottom-space
         />
         <q-btn flat dense round icon="chevron_right" @click="changeYear(1)" />
       </div>
@@ -86,13 +88,7 @@
         label="Copy from…"
         @click="openCopyDialog"
       />
-      <q-btn
-        v-if="canAdmin"
-        color="primary"
-        icon="add"
-        label="Add Slot"
-        @click="openAddDialog"
-      />
+      <q-btn v-if="canAdmin" color="primary" icon="add" label="Add Slot" @click="openAddDialog" />
     </div>
 
     <!-- ── Loading ─────────────────────────────────────────────── -->
@@ -110,19 +106,15 @@
         No bell schedule configured for {{ selectedGrade }} {{ selectedYear }}
       </div>
       <div class="text-caption">
-        Add period slots to define the daily schedule for this grade,
-        or use "Copy from…" to start from another grade.
+        Add period slots to define the daily schedule for this grade, or use "Copy from…" to start
+        from another grade.
       </div>
     </div>
 
     <!-- ── Slot list ────────────────────────────────────────────── -->
     <template v-else>
       <q-list bordered separator class="rounded-borders q-mb-md">
-        <q-item
-          v-for="(slot, index) in slotsForGradeYear"
-          :key="slot.$id"
-          class="q-py-sm"
-        >
+        <q-item v-for="(slot, index) in slotsForGradeYear" :key="slot.$id" class="q-py-sm">
           <!-- Slot number badge -->
           <q-item-section side style="min-width: 32px">
             <q-chip dense square color="grey-4" text-color="grey-8" size="sm">
@@ -334,10 +326,7 @@
             </div>
 
             <!-- Duration hint -->
-            <div
-              v-if="formDurationMinutes > 0"
-              class="text-caption text-grey-7 q-mt-none q-ml-xs"
-            >
+            <div v-if="formDurationMinutes > 0" class="text-caption text-grey-7 q-mt-none q-ml-xs">
               Duration: {{ formDurationMinutes }} minutes
             </div>
 
@@ -387,21 +376,14 @@
           <span class="q-ml-sm text-h6">Delete Slot?</span>
         </q-card-section>
         <q-card-section class="q-pt-none">
-          Delete <strong>{{ slotToDelete?.label }}</strong>?
+          Delete <strong>{{ slotToDelete?.label }}</strong
+          >?
           <br />
-          <span class="text-caption text-grey-7">
-            This cannot be undone.
-          </span>
+          <span class="text-caption text-grey-7"> This cannot be undone. </span>
         </q-card-section>
         <q-card-actions align="right">
           <q-btn v-close-popup flat label="Cancel" color="primary" />
-          <q-btn
-            flat
-            label="Delete"
-            color="negative"
-            :loading="isDeleting"
-            @click="deleteSlot"
-          />
+          <q-btn flat label="Delete" color="negative" :loading="isDeleting" @click="deleteSlot" />
         </q-card-actions>
       </q-card>
     </q-dialog>
@@ -416,7 +398,8 @@
         <q-card-section class="q-pt-none">
           <p class="text-body2 q-mb-md">
             Copy all period slots from a source grade/year into
-            <strong>{{ selectedGrade }} {{ selectedYear }}</strong>.
+            <strong>{{ selectedGrade }} {{ selectedYear }}</strong
+            >.
           </p>
           <q-form class="q-gutter-sm">
             <q-select
@@ -432,6 +415,8 @@
               outlined
               dense
               label="Source Year *"
+              :rules="[(v) => (v >= 2000 && v <= 2100) || 'Enter a year between 2000–2100']"
+              hide-bottom-space
             />
             <q-banner
               v-if="slotsForGradeYear.length > 0"
@@ -451,8 +436,29 @@
             label="Copy Schedule"
             :loading="isCopying"
             :disable="!copyForm.sourceGrade || !copyForm.sourceYear"
-            @click="executeCopy"
+            @click="requestCopy"
           />
+        </q-card-actions>
+      </q-card>
+    </q-dialog>
+
+    <!-- ── Copy Overwrite Confirmation Dialog ─────────────────────── -->
+    <q-dialog v-model="showCopyConfirm" persistent>
+      <q-card style="min-width: 320px; max-width: 440px">
+        <q-card-section class="row items-center">
+          <q-avatar icon="warning" color="warning" text-color="white" />
+          <span class="q-ml-sm text-h6">Replace existing slots?</span>
+        </q-card-section>
+        <q-card-section class="q-pt-none">
+          Existing <strong>{{ slotsForGradeYear.length }} slot(s)</strong> for
+          <strong>{{ selectedGrade }} {{ selectedYear }}</strong> will be permanently deleted and
+          replaced with slots from
+          <strong>{{ copyForm.sourceGrade }} {{ copyForm.sourceYear }}</strong
+          >. This cannot be undone.
+        </q-card-section>
+        <q-card-actions align="right">
+          <q-btn flat label="Cancel" color="grey-7" @click="showCopyConfirm = false" />
+          <q-btn color="warning" label="Yes, replace" :loading="isCopying" @click="executeCopy" />
         </q-card-actions>
       </q-card>
     </q-dialog>
@@ -462,7 +468,13 @@
 <script setup>
 import { ref, computed, watch, onMounted } from 'vue';
 import { useQuasar } from 'quasar';
-import { usePeriodSlotsStore, SLOT_TYPE_CONFIG, SLOT_TYPE_OPTIONS, DAYS_OF_WEEK, timeToMinutes } from '../stores/period-slots-store';
+import {
+  usePeriodSlotsStore,
+  SLOT_TYPE_CONFIG,
+  SLOT_TYPE_OPTIONS,
+  DAYS_OF_WEEK,
+  timeToMinutes,
+} from '../stores/period-slots-store';
 import { usePermissions } from 'src/composables/usePermissions';
 import { GRADE_LEVELS } from '../utils/school-constants';
 import DailyScheduleTimeline from '../components/DailyScheduleTimeline.vue';
@@ -478,9 +490,7 @@ const canAdmin = computed(() => hasPermission('school:admin'));
 const selectedGrade = ref(GRADE_LEVELS[0]);
 const selectedYear = ref(new Date().getFullYear());
 
-const isInitialLoading = computed(
-  () => slotsStore.isLoading && !slotsStore.periodSlotsLoaded,
-);
+const isInitialLoading = computed(() => slotsStore.isLoading && !slotsStore.periodSlotsLoaded);
 
 const slotsForGradeYear = computed(() =>
   slotsStore.slotsByGradeYear(selectedGrade.value, selectedYear.value),
@@ -672,7 +682,8 @@ async function submitForm() {
     grade_level: selectedGrade.value,
     academic_year: selectedYear.value,
     slot_number: form.value.$id
-      ? slotsForGradeYear.value.find((s) => s.$id === form.value.$id)?.slot_number ?? nextSlotNumber
+      ? (slotsForGradeYear.value.find((s) => s.$id === form.value.$id)?.slot_number ??
+        nextSlotNumber)
       : nextSlotNumber,
   };
 
@@ -683,7 +694,10 @@ async function submitForm() {
     $q.notify({ type: 'positive', message: isEditing.value ? 'Slot updated.' : 'Slot added.' });
     showDialog.value = false;
   } else {
-    $q.notify({ type: 'negative', message: result.error || 'Failed to save slot. Please try again.' });
+    $q.notify({
+      type: 'negative',
+      message: result.error || 'Failed to save slot. Please try again.',
+    });
   }
 }
 
@@ -707,12 +721,16 @@ async function deleteSlot() {
     showDeleteConfirm.value = false;
     slotToDelete.value = null;
   } else {
-    $q.notify({ type: 'negative', message: result.error || 'Failed to delete slot. Please try again.' });
+    $q.notify({
+      type: 'negative',
+      message: result.error || 'Failed to delete slot. Please try again.',
+    });
   }
 }
 
 // ── Copy schedule dialog ─────────────────────────────────────────
 const showCopyDialog = ref(false);
+const showCopyConfirm = ref(false);
 const isCopying = ref(false);
 const copyForm = ref({ sourceGrade: '', sourceYear: new Date().getFullYear() - 1 });
 
@@ -724,8 +742,25 @@ function openCopyDialog() {
   showCopyDialog.value = true;
 }
 
-async function executeCopy() {
+/** Called when the user clicks "Copy Schedule" in the copy dialog. */
+function requestCopy() {
   if (!copyForm.value.sourceGrade || !copyForm.value.sourceYear) return;
+  if (
+    copyForm.value.sourceGrade === selectedGrade.value &&
+    copyForm.value.sourceYear === selectedYear.value
+  ) {
+    $q.notify({ type: 'warning', message: 'Source and target must be different.' });
+    return;
+  }
+  // If target already has slots, require explicit second confirmation.
+  if (slotsForGradeYear.value.length > 0) {
+    showCopyConfirm.value = true;
+  } else {
+    executeCopy();
+  }
+}
+
+async function executeCopy() {
   isCopying.value = true;
   const result = await slotsStore.copySchedule(
     copyForm.value.sourceGrade,
@@ -734,6 +769,7 @@ async function executeCopy() {
     selectedYear.value,
   );
   isCopying.value = false;
+  showCopyConfirm.value = false;
   showCopyDialog.value = false;
   if (result.success) {
     $q.notify({

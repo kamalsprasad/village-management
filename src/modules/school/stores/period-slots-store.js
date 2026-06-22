@@ -147,7 +147,11 @@ export const usePeriodSlotsStore = defineStore('periodSlots', {
         const response = await tables.listRows({
           databaseId: dbId,
           tableId: TABLE_ID,
-          queries: [Query.limit(1000), Query.orderAsc('grade_level'), Query.orderAsc('slot_number')],
+          queries: [
+            Query.limit(1000),
+            Query.orderAsc('grade_level'),
+            Query.orderAsc('slot_number'),
+          ],
         });
         this.periodSlots = response.rows;
         this.periodSlotsLoaded = true;
@@ -212,13 +216,11 @@ export const usePeriodSlotsStore = defineStore('periodSlots', {
         const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
         const { $id, ...writeFields } = slotData;
 
-        // Normalize applies_to_days: ensure it's always an array
+        // Normalize applies_to_days: always send an explicit [] rather than omitting the
+        // field. Appwrite returns null for omitted array fields, which breaks timeline
+        // rendering. Sending [] is safe for both create and update.
         if (!writeFields.applies_to_days || writeFields.applies_to_days.length === 0) {
-          if ($id) {
-            writeFields.applies_to_days = []; // Clear on update
-          } else {
-            delete writeFields.applies_to_days; // Omit on create (defaults to empty)
-          }
+          writeFields.applies_to_days = [];
         }
 
         let savedRow;
@@ -335,6 +337,9 @@ export const usePeriodSlotsStore = defineStore('periodSlots', {
      * @returns {{ success: boolean, created: number }}
      */
     async copySchedule(sourceGrade, sourceYear, targetGrade, targetYear) {
+      if (sourceGrade === targetGrade && sourceYear === targetYear) {
+        return { success: false, error: 'Source and target must be different.' };
+      }
       const sourceSlots = this.slotsByGradeYear(sourceGrade, sourceYear);
       if (sourceSlots.length === 0) {
         return { success: false, error: `No slots found for ${sourceGrade} ${sourceYear}.` };

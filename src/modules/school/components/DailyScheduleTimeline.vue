@@ -31,7 +31,7 @@
     </div>
 
     <!-- Empty state -->
-    <div v-else-if="!slots || slots.length === 0" class="timeline-empty text-grey-6">
+    <div v-else-if="!visibleSlots.length" class="timeline-empty text-grey-6">
       <q-icon name="schedule" size="32px" />
       <span class="q-ml-sm text-caption">No slots to display.</span>
     </div>
@@ -41,7 +41,7 @@
       <!-- Time axis labels -->
       <div class="timeline-axis">
         <div
-          v-for="slot in slots"
+          v-for="slot in visibleSlots"
           :key="'axis-' + slot.$id"
           class="timeline-axis-label"
           :style="slotFlexStyle(slot)"
@@ -57,32 +57,23 @@
       <!-- Slot blocks -->
       <div class="timeline-track">
         <div
-          v-for="slot in slots"
+          v-for="slot in visibleSlots"
           :key="slot.$id"
           class="timeline-block"
           :style="slotBlockStyle(slot)"
           :title="slotTooltip(slot)"
         >
           <!-- Type icon -->
-          <q-icon
-            :name="typeConfig(slot.slot_type).icon"
-            size="14px"
-            class="timeline-block-icon"
-          />
+          <q-icon :name="typeConfig(slot.slot_type).icon" size="14px" class="timeline-block-icon" />
 
           <!-- Label + time range -->
           <div class="timeline-block-content">
             <div class="timeline-block-label" :title="slot.label">{{ slot.label }}</div>
-            <div class="timeline-block-time">
-              {{ slot.start_time }}–{{ slot.end_time }}
-            </div>
+            <div class="timeline-block-time">{{ slot.start_time }}–{{ slot.end_time }}</div>
           </div>
 
           <!-- Duration badge (only shown on wider blocks) -->
-          <div
-            v-if="durationMinutes(slot) >= 30"
-            class="timeline-block-duration"
-          >
+          <div v-if="durationMinutes(slot) >= 30" class="timeline-block-duration">
             {{ durationMinutes(slot) }}m
           </div>
 
@@ -99,15 +90,8 @@
 
       <!-- Legend -->
       <div class="timeline-legend q-mt-sm">
-        <div
-          v-for="type in presentTypes"
-          :key="type"
-          class="timeline-legend-item"
-        >
-          <span
-            class="timeline-legend-dot"
-            :style="{ background: typeConfig(type).bgHex }"
-          />
+        <div v-for="type in presentTypes" :key="type" class="timeline-legend-item">
+          <span class="timeline-legend-dot" :style="{ background: typeConfig(type).bgHex }" />
           <span class="text-caption text-grey-7">{{ typeConfig(type).label }}</span>
         </div>
       </div>
@@ -131,21 +115,28 @@ const props = defineProps({
   },
 });
 
+/**
+ * Slots with a valid positive duration. Zero-duration slots (start === end or
+ * missing times) are excluded to avoid invisible/broken timeline blocks.
+ */
+const visibleSlots = computed(() => (props.slots || []).filter((s) => durationMinutes(s) > 0));
+
 /** Total school day duration in minutes (sum of all slot durations). */
 const totalMinutes = computed(() => {
-  if (!props.slots?.length) return 0;
-  return props.slots.reduce((sum, s) => sum + durationMinutes(s), 0);
+  if (!visibleSlots.value.length) return 0;
+  return visibleSlots.value.reduce((sum, s) => sum + durationMinutes(s), 0);
 });
 
 /** The end time of the last slot, for the axis trailing label. */
 const lastEndTime = computed(() => {
-  if (!props.slots?.length) return '';
-  return props.slots[props.slots.length - 1]?.end_time || '';
+  if (!visibleSlots.value.length) return '';
+  return visibleSlots.value[visibleSlots.value.length - 1]?.end_time || '';
 });
 
 /** Unique slot types present in the current slot list (for legend). */
 const presentTypes = computed(() => {
-  const seen = new Set(props.slots.map((s) => s.slot_type));
+  if (!visibleSlots.value.length) return [];
+  const seen = new Set(visibleSlots.value.map((s) => s.slot_type));
   return Object.keys(SLOT_TYPE_CONFIG).filter((t) => seen.has(t));
 });
 

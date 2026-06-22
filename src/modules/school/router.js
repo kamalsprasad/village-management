@@ -153,7 +153,7 @@ const schoolRoutes = [
     component: () => import('./pages/BellSchedulesSettingsPage.vue'),
     meta: {
       requiresAuth: true,
-      requiresPermission: 'school:admin',
+      requiresPermission: 'school:read',
     },
   },
 ];
