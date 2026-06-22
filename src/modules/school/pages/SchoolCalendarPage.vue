@@ -78,6 +78,18 @@
 
       <!-- ── Month View ─────────────────────────────────────────── -->
       <template v-if="viewMode === 'month'">
+        <!-- Empty state: no terms or events configured -->
+        <div
+          v-if="calendarEvents.length === 0 && !isLoading"
+          class="text-center q-pa-xl text-grey-7 bg-grey-1 rounded-borders q-mb-md"
+        >
+          <q-icon name="calendar_month" size="48px" color="grey-5" />
+          <div class="text-subtitle1 q-mt-sm">No academic calendar has been set up yet.</div>
+          <div class="text-caption">Configure terms and holidays in School Settings.</div>
+          <router-link v-if="canAdmin" to="/school/settings" class="text-primary q-mt-sm block">
+            Go to School Settings
+          </router-link>
+        </div>
         <div class="calendar-wrapper">
           <VueCal
             :events="calendarEvents"
@@ -433,12 +445,12 @@ onMounted(async () => {
 }
 
 :deep(.cal-event-type--early_dismissal) {
-  background-color: rgba(0, 121, 107, 0.85) !important;
+  background-color: rgba(245, 124, 0, 0.85) !important; /* amber-7 */
   color: white !important;
 }
 
 :deep(.cal-event-type--assembly) {
-  background-color: rgba(46, 125, 50, 0.85) !important;
+  background-color: rgba(0, 121, 107, 0.85) !important; /* teal-6 */
   color: white !important;
 }
 

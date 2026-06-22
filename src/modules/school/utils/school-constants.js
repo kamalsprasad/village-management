@@ -89,8 +89,8 @@ export const CALENDAR_EVENT_TYPES = [
   { value: 'school_holiday', label: 'School Holiday', color: 'orange-7', icon: 'beach_access' },
   { value: 'pd_day', label: 'Professional Development Day', color: 'purple-6', icon: 'school' },
   { value: 'exam_block', label: 'Exam Block', color: 'blue-7', icon: 'quiz' },
-  { value: 'early_dismissal', label: 'Early Dismissal', color: 'teal-6', icon: 'timer' },
-  { value: 'assembly', label: 'Assembly', color: 'green-6', icon: 'groups' },
+  { value: 'early_dismissal', label: 'Early Dismissal', color: 'amber-7', icon: 'timer' },
+  { value: 'assembly', label: 'Assembly', color: 'teal-6', icon: 'groups' },
   { value: 'other', label: 'Other', color: 'grey-6', icon: 'event_note' },
 ];
 

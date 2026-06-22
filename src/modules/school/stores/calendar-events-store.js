@@ -82,11 +82,13 @@ export const useCalendarEventsStore = defineStore('calendarEvents', {
     isSchoolDay:
       (state) =>
       (date, classId = null) => {
+        if (!date) return false;
         const tz = useSettingsStore().timezone;
         const datePart =
           typeof date === 'string'
             ? toDateStrInTimezone(date, tz)
             : toDateStrInTimezone(date.toISOString(), tz);
+        if (!datePart) return false;
         const dayOfWeek = getDayOfWeekInTimezone(datePart, tz);
 
         // Rule 1: weekends
@@ -112,36 +114,35 @@ export const useCalendarEventsStore = defineStore('calendarEvents', {
 
         return !coveringClosedEvent;
       },
+  },
 
+  actions: {
     /**
      * Count the number of school days between two dates (inclusive).
      * Used by Story 4.7 for the 5-school-day attendance grace period.
+     *
+     * Implemented as an action (not a getter) to avoid a circular store reference
+     * when calling this.isSchoolDay() from within the same store.
      *
      * @param {string|Date} startDate
      * @param {string|Date} endDate
      * @param {string|null} classId - optional
      * @returns {number}
      */
-    schoolDaysBetween:
-      () =>
-      (startDate, endDate, classId = null) => {
-        const store = useCalendarEventsStore();
-        const tz = useSettingsStore().timezone;
-        let count = 0;
-        let current = toDateStrInTimezone(startDate, tz);
-        const end = toDateStrInTimezone(endDate, tz);
-
-        while (current <= end) {
-          if (store.isSchoolDay(current, classId)) {
-            count++;
-          }
-          current = addDaysToDateStr(current, 1);
+    countSchoolDaysBetween(startDate, endDate, classId = null) {
+      const tz = useSettingsStore().timezone;
+      let count = 0;
+      let current = toDateStrInTimezone(startDate, tz);
+      const end = toDateStrInTimezone(endDate, tz);
+      while (current <= end) {
+        if (this.isSchoolDay(current, classId)) {
+          count++;
         }
-        return count;
-      },
-  },
+        current = addDaysToDateStr(current, 1);
+      }
+      return count;
+    },
 
-  actions: {
     /**
      * Fetch all calendar events from Appwrite.
      * Uses cached state unless force=true.

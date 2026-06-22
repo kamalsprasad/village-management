@@ -95,7 +95,13 @@ export function getDayOfWeekInTimezone(date, timezone) {
  */
 export function addDaysToDateStr(dateStr, days) {
   if (!dateStr) return '';
-  return format(addDays(parseISO(dateStr), days), 'yyyy-MM-dd');
+  try {
+    const parsed = parseISO(dateStr);
+    if (Number.isNaN(parsed.getTime())) return '';
+    return format(addDays(parsed, days), 'yyyy-MM-dd');
+  } catch {
+    return '';
+  }
 }
 
 /**

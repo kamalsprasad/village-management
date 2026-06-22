@@ -13,6 +13,8 @@
  */
 
 import { defineStore } from 'pinia';
+import { addYears, parseISO } from 'date-fns';
+import { formatInTimeZone } from 'date-fns-tz';
 import { tables } from 'src/boot/appwrite';
 import { useErrorHandler } from 'src/composables/useErrorHandler';
 import { useSettingsStore } from 'src/stores/settings-store';
@@ -40,10 +42,11 @@ export const useAcademicTermsStore = defineStore('academicTerms', {
     },
 
     /**
-     * Returns terms for the current calendar year.
+     * Returns terms for the current calendar year in the configured village timezone.
      */
     currentYearTerms: (state) => {
-      const year = new Date().getFullYear();
+      const tz = useSettingsStore().timezone;
+      const year = parseInt(formatInTimeZone(new Date(), tz, 'yyyy'), 10);
       return state.academicTerms
         .filter((t) => t.academic_year === year)
         .sort((a, b) => a.term_order - b.term_order);
@@ -239,12 +242,11 @@ export const useAcademicTermsStore = defineStore('academicTerms', {
       this.isLoading = true;
       try {
         const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
-        const MS_PER_DAY = 86400000;
-        const SHIFT_MS = 365 * MS_PER_DAY;
 
         const createPromises = sourceTerms.map((t) => {
-          const newStart = new Date(new Date(t.start_date).getTime() + SHIFT_MS).toISOString();
-          const newEnd = new Date(new Date(t.end_date).getTime() + SHIFT_MS).toISOString();
+          // Use date-fns addYears to correctly handle leap years and DST transitions.
+          const newStart = addYears(parseISO(t.start_date), targetYear - sourceYear).toISOString();
+          const newEnd = addYears(parseISO(t.end_date), targetYear - sourceYear).toISOString();
           return tables.createRow({
             databaseId: dbId,
             tableId: TABLE_ID,

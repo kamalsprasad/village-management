@@ -63,6 +63,17 @@
               :rules="[(val) => !!val || 'Required']"
             />
           </div>
+          <div v-if="hasNoDbTermsForYear" class="col-12">
+            <q-banner class="bg-warning text-white rounded-borders" dense>
+              <template #avatar>
+                <q-icon name="warning" />
+              </template>
+              No terms configured for {{ academicYear }}. Using default term names as a fallback.
+              <router-link to="/school/settings/terms" class="text-white">
+                <strong>Configure terms in School Settings.</strong>
+              </router-link>
+            </q-banner>
+          </div>
           <div class="col-12 col-sm-4 col-md-2">
             <q-input
               v-model.number="academicYear"
@@ -287,6 +298,15 @@ const termOptions = computed(() => {
   }
   // Fallback to static list when no terms are configured in DB
   return TERMS;
+});
+
+/**
+ * True when the DB is loaded but has no terms configured for the selected academic year.
+ * In this case, termOptions falls back to the static TERMS constant.
+ * Used to show a warning prompting the admin to configure terms.
+ */
+const hasNoDbTermsForYear = computed(() => {
+  return termsStore.academicTermsLoaded && termsStore.termsByYear(academicYear.value).length === 0;
 });
 
 // If the user changes the academic year, invalidate any term that no longer exists

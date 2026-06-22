@@ -23,14 +23,38 @@
       </div>
     </div>
 
-    <!-- Year selector + Add button -->
-    <div class="row items-center q-mb-md q-gutter-sm">
+    <!-- Year selector + filter + Add button -->
+    <div class="row items-center q-mb-md q-gutter-sm flex-wrap">
       <q-btn flat dense round icon="chevron_left" @click="changeYear(-1)" />
       <div class="text-h6 text-weight-medium" style="min-width: 80px; text-align: center">
         {{ selectedYear }}
       </div>
       <q-btn flat dense round icon="chevron_right" @click="changeYear(1)" />
+      <q-select
+        v-model="filterEventType"
+        :options="[{ label: 'All Types', value: null }, ...eventTypeOptions]"
+        emit-value
+        map-options
+        outlined
+        dense
+        label="Filter by type"
+        clearable
+        style="min-width: 170px"
+        class="q-ml-sm"
+        @clear="filterEventType = null"
+      />
       <q-space />
+      <q-btn
+        v-if="canAdmin"
+        outline
+        color="grey-7"
+        icon="cloud_download"
+        label="Import holidays"
+        disable
+        class="q-mr-xs"
+      >
+        <q-tooltip>Coming soon — import public holidays from national calendar</q-tooltip>
+      </q-btn>
       <q-btn v-if="canAdmin" color="primary" icon="add" label="Add Event" @click="openAddDialog" />
     </div>
 
@@ -41,18 +65,28 @@
 
     <!-- Empty state -->
     <div
-      v-else-if="eventsForYear.length === 0"
+      v-else-if="filteredEvents.length === 0"
       class="text-center q-pa-xl text-grey-7 bg-grey-1 rounded-borders"
     >
       <q-icon name="event_busy" size="48px" />
-      <div class="text-subtitle1 q-mt-sm">No events configured for {{ selectedYear }}</div>
-      <div class="text-caption">Add public holidays, school closures, and PD days.</div>
+      <div class="text-subtitle1 q-mt-sm">
+        {{ filterEventType ? 'No events of this type for ' : 'No events configured for '
+        }}{{ selectedYear }}
+      </div>
+      <div class="text-caption">
+        {{
+          filterEventType
+            ? 'Try clearing the filter or'
+            : 'Add public holidays, school closures, and PD days, or'
+        }}
+        <span v-if="canAdmin"> add a new event above.</span>
+      </div>
     </div>
 
     <!-- Events table -->
     <q-table
       v-else
-      :rows="eventsForYear"
+      :rows="filteredEvents"
       :columns="columns"
       row-key="$id"
       flat
@@ -76,7 +110,7 @@
       <template #body-cell-dates="props">
         <q-td :props="props">
           {{ formatDate(props.row.start_date) }}
-          <template v-if="props.row.end_date !== props.row.start_date">
+          <template v-if="props.row.end_date?.slice(0, 10) !== props.row.start_date?.slice(0, 10)">
             &ndash; {{ formatDate(props.row.end_date) }}
           </template>
         </q-td>
@@ -211,6 +245,20 @@
               </q-item-section>
             </q-item>
 
+            <!-- Affected Classes: leave empty for school-wide events -->
+            <q-select
+              v-model="form.affected_class_ids"
+              :options="classOptions"
+              emit-value
+              map-options
+              multiple
+              use-chips
+              outlined
+              dense
+              label="Affected Classes (optional)"
+              hint="Leave empty for school-wide event. Select classes to limit scope."
+            />
+
             <q-input
               v-model="form.notes"
               outlined
@@ -259,6 +307,7 @@
 import { ref, computed, onMounted } from 'vue';
 import { useQuasar } from 'quasar';
 import { useCalendarEventsStore } from '../stores/calendar-events-store';
+import { useClassStore } from '../stores/class-store';
 import { usePermissions } from 'src/composables/usePermissions';
 import { useSettingsStore } from 'src/stores/settings-store';
 import { CALENDAR_EVENT_TYPES, getCalendarEventType } from '../utils/school-constants';
@@ -270,16 +319,27 @@ import {
 
 const $q = useQuasar();
 const eventsStore = useCalendarEventsStore();
+const classStore = useClassStore();
 const settingsStore = useSettingsStore();
 const { hasPermission } = usePermissions();
 
 const canAdmin = computed(() => hasPermission('school:admin'));
 const selectedYear = ref(new Date().getFullYear());
+const filterEventType = ref(null);
 const isInitialLoading = computed(() => eventsStore.isLoading && !eventsStore.calendarEventsLoaded);
 
 const eventsForYear = computed(() => eventsStore.eventsByYear(selectedYear.value));
+const filteredEvents = computed(() =>
+  filterEventType.value
+    ? eventsForYear.value.filter((e) => e.event_type === filterEventType.value)
+    : eventsForYear.value,
+);
 
 const eventTypeOptions = CALENDAR_EVENT_TYPES.map((t) => ({ label: t.label, value: t.value }));
+
+const classOptions = computed(() =>
+  classStore.classes.map((c) => ({ label: c.name, value: c.$id })),
+);
 
 const columns = [
   { name: 'title', label: 'Event', field: 'title', align: 'left', sortable: true },
@@ -305,6 +365,7 @@ const emptyForm = () => ({
   start_date: '',
   end_date: '',
   is_school_day: false,
+  affected_class_ids: [],
   notes: '',
 });
 
@@ -342,6 +403,7 @@ function openEditDialog(event) {
     start_date: event.start_date ? event.start_date.slice(0, 10) : '',
     end_date: event.end_date ? event.end_date.slice(0, 10) : '',
     is_school_day: event.is_school_day ?? false,
+    affected_class_ids: event.affected_class_ids ? [...event.affected_class_ids] : [],
     notes: event.notes || '',
   };
   showDialog.value = true;
@@ -379,6 +441,11 @@ async function submitForm() {
       message: isEditing.value ? 'Event updated.' : 'Event added.',
     });
     showDialog.value = false;
+  } else {
+    $q.notify({
+      type: 'negative',
+      message: result.error || 'Failed to save event. Please try again.',
+    });
   }
 }
 
@@ -396,10 +463,16 @@ async function deleteEvent() {
     $q.notify({ type: 'positive', message: 'Event deleted.' });
     showDeleteConfirm.value = false;
     eventToDelete.value = null;
+  } else {
+    $q.notify({
+      type: 'negative',
+      message: result.error || 'Failed to delete event. Please try again.',
+    });
   }
 }
 
 onMounted(() => {
   eventsStore.fetchCalendarEvents();
+  classStore.fetchClasses();
 });
 </script>

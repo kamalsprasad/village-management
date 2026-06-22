@@ -208,8 +208,7 @@
           >?
           <br />
           <span class="text-caption text-grey-7">
-            Existing test scores that used this term name will not be affected — the name is stored
-            as a literal string on each score record.
+            Deleting this term will not affect existing test scores.
           </span>
         </q-card-section>
         <q-card-actions align="right">
@@ -313,7 +312,9 @@ const termForm = ref(null);
 const emptyForm = () => ({
   $id: null,
   term_name: '',
-  term_order: (termsForYear.value.length || 0) + 1,
+  term_order: termsForYear.value.length
+    ? Math.max(...termsForYear.value.map((t) => t.term_order)) + 1
+    : 1,
   start_date: '',
   end_date: '',
   notes: '',
@@ -348,7 +349,9 @@ function endDateOptions(dateStr) {
 function openAddDialog() {
   isEditing.value = false;
   form.value = emptyForm();
-  form.value.term_order = (termsForYear.value.length || 0) + 1;
+  form.value.term_order = termsForYear.value.length
+    ? Math.max(...termsForYear.value.map((t) => t.term_order)) + 1
+    : 1;
   showDialog.value = true;
 }
 
@@ -434,6 +437,11 @@ async function submitForm() {
   if (result.success) {
     $q.notify({ type: 'positive', message: isEditing.value ? 'Term updated.' : 'Term added.' });
     showDialog.value = false;
+  } else {
+    $q.notify({
+      type: 'negative',
+      message: result.error || 'Failed to save term. Please try again.',
+    });
   }
 }
 
@@ -451,6 +459,11 @@ async function deleteTerm() {
     $q.notify({ type: 'positive', message: 'Term deleted.' });
     showDeleteConfirm.value = false;
     termToDelete.value = null;
+  } else {
+    $q.notify({
+      type: 'negative',
+      message: result.error || 'Failed to delete term. Please try again.',
+    });
   }
 }
 
@@ -468,6 +481,11 @@ async function deleteAllForYear() {
       message: `Deleted ${result.deleted} term(s) for ${selectedYear.value}.`,
     });
     showDeleteAllConfirm.value = false;
+  } else {
+    $q.notify({
+      type: 'negative',
+      message: result.error || 'Failed to delete terms. Please try again.',
+    });
   }
 }
 
@@ -488,6 +506,11 @@ async function executeCopy() {
     $q.notify({
       type: 'positive',
       message: `Copied ${result.created} term(s) from ${selectedYear.value - 1}. Review and adjust dates.`,
+    });
+  } else {
+    $q.notify({
+      type: 'negative',
+      message: result.error || 'Failed to copy terms. Please try again.',
     });
   }
 }
