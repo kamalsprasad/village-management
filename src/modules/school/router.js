@@ -147,6 +147,15 @@ const schoolRoutes = [
       requiresPermission: 'school:admin',
     },
   },
+  {
+    path: 'school/settings/bell-schedules',
+    name: 'school-settings-bell-schedules',
+    component: () => import('./pages/BellSchedulesSettingsPage.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresPermission: 'school:admin',
+    },
+  },
 ];
 
 export default schoolRoutes;

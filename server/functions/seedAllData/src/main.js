@@ -2584,6 +2584,91 @@ async function seedCalendar(tablesDB, dbId, log) {
 }
 
 // =============================================================================
+// seedBellSchedules — Story 4.4
+// Seeds representative bell schedules for Early Childhood and Grade 5.
+// =============================================================================
+
+async function seedBellSchedules(tablesDB, dbId, log) {
+  log('  Seeding bell schedules…');
+
+  const toSlot = (
+    grade,
+    year,
+    slotNumber,
+    label,
+    slotType,
+    startTime,
+    endTime,
+    appliesToDays,
+    notes,
+  ) => ({
+    grade_level: grade,
+    academic_year: year,
+    slot_number: slotNumber,
+    label,
+    slot_type: slotType,
+    start_time: startTime,
+    end_time: endTime,
+    ...(appliesToDays && appliesToDays.length > 0 ? { applies_to_days: appliesToDays } : {}),
+    ...(notes ? { notes } : {}),
+  });
+
+  const YEARS = [2025, 2026];
+
+  // ─── Early Childhood ──────────────────────────────────────────────────────
+  // Shorter day, 3 class periods, 2 breaks, no separate lunch (early finish)
+  const earlyChildhoodSlots = [
+    // slot  label                  type        start   end
+    [1, 'Morning Assembly', 'assembly', '07:30', '07:50', ['Monday'], 'Weekly Monday assembly'],
+    [2, 'Period 1', 'class', '07:50', '08:35', []],
+    [3, 'Period 2', 'class', '08:35', '09:20', []],
+    [4, 'Morning Break', 'break', '09:20', '09:45', []],
+    [5, 'Period 3', 'class', '09:45', '10:30', []],
+    [6, 'Lunch Break', 'lunch', '10:30', '11:00', []],
+    [7, 'Period 4', 'class', '11:00', '11:45', []],
+    [8, 'Afternoon Break', 'break', '11:45', '12:00', []],
+    [9, 'Period 5', 'class', '12:00', '12:30', []],
+  ];
+
+  // ─── Grade 5 ──────────────────────────────────────────────────────────────
+  // Standard full day, 6 class periods, 2 breaks, 1 lunch
+  const grade5Slots = [
+    [1, 'Morning Assembly', 'assembly', '07:30', '07:45', ['Monday'], 'Weekly Monday assembly'],
+    [2, 'Period 1', 'class', '07:45', '08:35', []],
+    [3, 'Period 2', 'class', '08:35', '09:25', []],
+    [4, 'Period 3', 'class', '09:25', '10:15', []],
+    [5, 'Morning Break', 'break', '10:15', '10:35', []],
+    [6, 'Period 4', 'class', '10:35', '11:25', []],
+    [7, 'Period 5', 'class', '11:25', '12:15', []],
+    [8, 'Lunch Break', 'lunch', '12:15', '13:00', []],
+    [9, 'Period 6', 'class', '13:00', '13:50', []],
+    [10, 'Afternoon Break', 'break', '13:50', '14:05', []],
+    [11, 'Period 7', 'class', '14:05', '14:55', []],
+  ];
+
+  const allSlots = [];
+
+  for (const year of YEARS) {
+    for (const [slotNum, label, slotType, startTime, endTime, days, notes] of earlyChildhoodSlots) {
+      allSlots.push(
+        toSlot('Early Childhood', year, slotNum, label, slotType, startTime, endTime, days, notes),
+      );
+    }
+    for (const [slotNum, label, slotType, startTime, endTime, days, notes] of grade5Slots) {
+      allSlots.push(
+        toSlot('Grade 5', year, slotNum, label, slotType, startTime, endTime, days, notes),
+      );
+    }
+  }
+
+  const slotTasks = allSlots.map(
+    (slot) => async () => createRow(tablesDB, dbId, 'school_period_slots', slot),
+  );
+  await batchRun(slotTasks, 20);
+  log(`  ${allSlots.length} period slots created (Early Childhood + Grade 5, 2025 & 2026)`);
+}
+
+// =============================================================================
 // ENTRY POINT
 // =============================================================================
 
@@ -2611,6 +2696,7 @@ export default async ({ req, res, log, error }) => {
     await seedFarm(tablesDB, dbId, residentIds, categories, fundingSources, log);
     await seedSchool(tablesDB, dbId, residentIds, log);
     await seedCalendar(tablesDB, dbId, log);
+    await seedBellSchedules(tablesDB, dbId, log);
     await seedVillageSettings(tablesDB, dbId, councilMemberIds, log);
 
     log('=== seedAllData: complete ===');

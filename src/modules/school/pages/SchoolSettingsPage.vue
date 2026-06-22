@@ -1,9 +1,8 @@
 <!--
-  SchoolSettingsPage.vue (Story 4.3)
+  SchoolSettingsPage.vue (Story 4.3, updated Story 4.4)
 
   Hub page for all School Settings sub-sections.
   Accessible at /school/settings — requires school:admin permission.
-  Future stories add Bell Schedules (4.4) as a third card.
 -->
 <template>
   <q-page padding>
@@ -72,20 +71,27 @@
         </q-card>
       </div>
 
-      <!-- Placeholder: Bell Schedules (Story 4.4) -->
+      <!-- Bell Schedules card -->
       <div class="col-12 col-sm-6 col-md-4">
-        <q-card flat bordered class="settings-card bg-grey-1">
+        <q-card
+          flat
+          bordered
+          class="cursor-pointer settings-card"
+          role="button"
+          tabindex="0"
+          aria-label="Configure Bell Schedules"
+          @click="$router.push('/school/settings/bell-schedules')"
+          @keydown.enter="$router.push('/school/settings/bell-schedules')"
+        >
           <q-card-section class="row items-center q-gutter-md">
-            <q-icon name="schedule" size="48px" color="grey-5" />
+            <q-icon name="schedule" size="48px" color="teal-6" />
             <div>
-              <div class="text-h6 text-grey-6">Bell Schedules</div>
-              <div class="text-caption text-grey-5">
-                Define daily period slots per grade level — coming in Story 4.4
-              </div>
+              <div class="text-h6">Bell Schedules</div>
+              <div class="text-caption text-grey-7">Define daily period slots per grade level</div>
             </div>
           </q-card-section>
           <q-card-actions align="right">
-            <q-badge color="grey-5" label="Coming Soon" />
+            <q-btn flat color="teal-6" label="Configure" icon-right="chevron_right" />
           </q-card-actions>
         </q-card>
       </div>
