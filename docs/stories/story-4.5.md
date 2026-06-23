@@ -2,7 +2,7 @@
 
 **Epic:** 4 — School Management and Educational Accountability  
 **Story ID:** 4.5  
-**Status:** ready-for-dev  
+**Status:** done  
 **Date:** 2026-06-20  
 **Author:** AI Assistant
 
@@ -146,29 +146,29 @@ class_timetable_entries: {
 
 ### AC1: Grade Timetable Template Builder (`/school/settings/timetable-templates`)
 
-- [ ] Page accessible from School Settings hub, gated on `school:admin`.
-- [ ] **Grade Level selector** + **Academic Year selector** at top.
-- [ ] Displays a **weekly grid**: rows = period slots (class-type only, from `school_period_slots` for selected grade/year), columns = Monday–Friday.
-- [ ] Each cell in the grid shows the assigned subject (if any). Empty cells show a placeholder "—".
-- [ ] **Edit mode** (toggle button, admin only):
+- [x] Page accessible from School Settings hub, gated on `school:admin`.
+- [x] **Grade Level selector** + **Academic Year selector** at top.
+- [x] Displays a **weekly grid**: rows = period slots (class-type only, from `school_period_slots` for selected grade/year), columns = Monday–Friday.
+- [x] Each cell in the grid shows the assigned subject (if any). Empty cells show a placeholder "—".
+- [x] **Edit mode** (toggle button, admin only):
   - Each cell becomes a dropdown (subject from `SUBJECTS` constant + free-text option) + a teacher dropdown (populated from residents who have a `teacher_assignment` for this grade level).
   - Cells for non-class slots (breaks, lunch) are shown as read-only shaded rows in the grid (not editable).
   - "Clear Cell" button per cell to remove subject/teacher assignment.
   - "Apply to All Days" per row — applies same subject to all 5 days for that slot.
-- [ ] **"Save Template"** button — saves all entries in bulk. Shows save confirmation.
-- [ ] **"Clear Template"** button — removes all entries for the selected grade/year template (with confirmation).
-- [ ] Non-class slot rows (breaks, lunch, assembly) are displayed in the grid as shaded, non-editable rows with their label ("Morning Break", "Lunch", etc.) spanning all 5 columns.
-- [ ] Empty state (no slots configured for the grade): "No bell schedule configured for [Grade] [Year]. Set up the bell schedule first." with link to Bell Schedules settings.
+- [x] **"Save Template"** button — saves all entries in bulk. Shows save confirmation.
+- [x] **"Clear Template"** button — removes all entries for the selected grade/year template (with confirmation).
+- [x] Non-class slot rows (breaks, lunch, assembly) are displayed in the grid as shaded, non-editable rows with their label ("Morning Break", "Lunch", etc.) spanning all 5 columns.
+- [x] Empty state (no slots configured for the grade): "No bell schedule configured for [Grade] [Year]. Set up the bell schedule first." with link to Bell Schedules settings.
 
 ### AC2: Class Timetable Tab (in `ClassDetailPage.vue`)
 
-- [ ] The existing **Timetable tab** in `ClassDetailPage.vue` is now fully implemented.
-- [ ] **Default view**: weekly grid (same visual as the template builder but read-only) showing the class's current timetable.
-- [ ] If no class-specific timetable exists yet, display:
+- [x] The existing **Timetable tab** in `ClassDetailPage.vue` is now fully implemented.
+- [x] **Default view**: weekly grid (same visual as the template builder but read-only) showing the class's current timetable.
+- [x] If no class-specific timetable exists yet, display:
   - The grade-level template (greyed out / read-only) as a preview.
   - A banner: "This class does not have a customized timetable. It is currently using the [Grade X] template. [Apply Template to Class] button."
   - "Apply Template to Class" button (admin only): copies the grade template entries into class-specific entries for this class. Prompts: "Apply the Grade [X] template to [Class Name]? You can then customize individual slots." Confirm/Cancel.
-- [ ] If a class-specific timetable exists:
+- [x] If a class-specific timetable exists:
   - Show the weekly grid.
   - Cells that differ from the grade template are shown with a subtle indicator (e.g., a small "custom" badge or different border).
   - **"Edit Timetable"** button (admin only) enters edit mode.
@@ -176,40 +176,40 @@ class_timetable_entries: {
 
 ### AC3: Class Timetable Edit Mode
 
-- [ ] Activated by "Edit Timetable" button (admin only).
-- [ ] Same grid UI as the template builder (AC1), but scoped to this specific class.
-- [ ] Teacher dropdown shows residents with a `teacher_assignment` for this class's grade level.
-- [ ] **Teacher conflict detection**: when a teacher is assigned to a slot/day, the system checks all other class timetable entries for the same teacher, same day, same slot. If a conflict is found, show an inline warning: "⚠ [Teacher Name] is already assigned to [Other Class] at this time." (Warning, not a hard block — unusual but valid in split-teaching scenarios.)
-- [ ] **"Save Changes"** button — saves all modified cells in bulk.
-- [ ] **"Discard Changes"** button — reverts unsaved changes.
-- [ ] Subject field supports free-text entry in addition to the SUBJECTS dropdown options.
+- [x] Activated by "Edit Timetable" button (admin only).
+- [x] Same grid UI as the template builder (AC1), but scoped to this specific class.
+- [x] Teacher dropdown shows residents with a `teacher_assignment` for this class's grade level.
+- [x] **Teacher conflict detection**: when a teacher is assigned to a slot/day, the system checks all other class timetable entries for the same teacher, same day, same slot. If a conflict is found, show an inline warning: "⚠ [Teacher Name] is already assigned to [Other Class] at this time." (Warning, not a hard block — unusual but valid in split-teaching scenarios.)
+- [x] **"Save Changes"** button — saves all modified cells in bulk.
+- [x] **"Discard Changes"** button — reverts unsaved changes.
+- [x] Subject field supports free-text entry in addition to the SUBJECTS dropdown options.
 
 ### AC4: Timetable Read View (vue-cal Weekly Display)
 
-- [ ] On the Class Timetable tab (view mode, not edit mode), render a **vue-cal week view** showing the class's full week schedule.
-- [ ] Each period slot appears as a vue-cal event: title = subject name, time = slot start/end, color = based on subject (consistent color mapping).
-- [ ] Break/lunch/assembly slots appear as background events (non-interactive, shaded).
-- [ ] Clicking a period event shows a popup: subject, teacher name, slot time, slot label.
-- [ ] If no subject is assigned to a slot, the slot still appears but with a greyed-out "No subject assigned" label.
-- [ ] Navigation: the week view shows the current real-world week by default. Navigation arrows move to prev/next week (schedule is the same every week — no real-world events here, just the repeating structure).
+- [x] On the Class Timetable tab (view mode, not edit mode), render a **vue-cal week view** showing the class's full week schedule.
+- [x] Each period slot appears as a vue-cal event: title = subject name, time = slot start/end, color = based on subject (consistent color mapping).
+- [x] Break/lunch/assembly slots appear as background events (non-interactive, shaded).
+- [x] Clicking a period event shows a popup: subject, teacher name, slot time, slot label.
+- [x] If no subject is assigned to a slot, the slot still appears but with a greyed-out "No subject assigned" label.
+- [x] Navigation: the week view shows the current real-world week by default. Navigation arrows move to prev/next week (schedule is the same every week — no real-world events here, just the repeating structure).
 
 ### AC5: Teacher Schedule View (New Tab or Page)
 
-- [ ] A **"My Timetable"** section added to the Teacher's view within `TeachersListPage.vue` (or a dedicated `TeacherDetailPage.vue` tab if one exists).
-- [ ] Shows all class timetable entries where `teacher_id` matches the selected teacher, for the current academic year.
-- [ ] Displayed as a weekly grid: rows = unique time slots across all grades they teach, columns = Monday–Friday, cells show class name + subject.
-- [ ] This is read-only for all roles (teachers can see their own schedule; admins can see any teacher's schedule).
+- [x] A **"My Timetable"** section added to the Teacher's view within `TeachersListPage.vue` (or a dedicated `TeacherDetailPage.vue` tab if one exists).
+- [x] Shows all class timetable entries where `teacher_id` matches the selected teacher, for the current academic year.
+- [x] Displayed as a weekly grid: rows = unique time slots across all grades they teach, columns = Monday–Friday, cells show class name + subject.
+- [x] This is read-only for all roles (teachers can see their own schedule; admins can see any teacher's schedule).
 
 ### AC6: `timetable-store.js` (New Pinia Store)
 
-- [ ] Store file: `src/modules/school/stores/timetable-store.js`
-- [ ] **State:** `timetableEntries[]`, `timetableLoaded`, `isLoading`
-- [ ] **Getters:**
+- [x] Store file: `src/modules/school/stores/timetable-store.js`
+- [x] **State:** `timetableEntries[]`, `timetableLoaded`, `isLoading`
+- [x] **Getters:**
   - `templateByGradeYear(gradeLevel, academicYear)` — Returns `is_template = true` entries for the grade/year
   - `classTimetable(classId, academicYear)` — Returns entries for a specific class
   - `teacherSchedule(teacherId, academicYear)` — Returns all entries for a teacher across all classes
   - `hasConflict(teacherId, dayOfWeek, slotId, academicYear, excludeEntryId?)` — Returns conflicting entry or null
-- [ ] **Actions:**
+- [x] **Actions:**
   - `fetchTimetableEntries(force)` — Load all entries (follows existing store patterns)
   - `saveTemplateEntries(gradeLevel, academicYear, entries[])` — Bulk replace template entries
   - `applyTemplateToClass(classId, gradeLevel, academicYear)` — Copy template entries to class
@@ -219,23 +219,23 @@ class_timetable_entries: {
 
 ### AC7: Class Detail Page — Timetable Tab Completion
 
-- [ ] `ClassDetailPage.vue` Timetable tab is now fully functional (was a placeholder in Story 4.2).
-- [ ] The tab shows "Loading timetable..." while fetching.
-- [ ] The tab shows a "No timetable configured" empty state with the apply-template call-to-action when no entries exist.
-- [ ] The tab correctly distinguishes between "template not applied" vs. "template applied but no subjects filled in yet."
+- [x] `ClassDetailPage.vue` Timetable tab is now fully functional (was a placeholder in Story 4.2).
+- [x] The tab shows "Loading timetable..." while fetching.
+- [x] The tab shows a "No timetable configured" empty state with the apply-template call-to-action when no entries exist.
+- [x] The tab correctly distinguishes between "template not applied" vs. "template applied but no subjects filled in yet."
 
 ### AC8: Sample Data
 
-- [ ] `server/scripts/seed-sample-data.js` updated to seed:
+- [x] `server/scripts/seed-sample-data.js` updated to seed:
   - A grade-level template for **Grade 3** (the most common grade in the sample data): all 5 days × all class slots filled with subjects, 2–3 different teachers assigned.
   - Class-specific timetable for **Grade 3A** (one of the sample classes): apply the template, with one override (e.g., Monday Period 1 has a different teacher or subject).
   - No timetable for **Grade 3B** (leaves it in "template not applied" state to test the empty-state UI).
 
 ### AC9: Permissions
 
-- [ ] `school:read` — view timetables (class timetable tab, teacher schedule view).
-- [ ] `school:admin` — add/edit/delete timetable entries, manage grade templates, apply template to class, reset class to template (School Administrator, Head Teacher).
-- [ ] Teachers can view their own schedule (filtered to their assigned classes/grades).
+- [x] `school:read` — view timetables (class timetable tab, teacher schedule view).
+- [x] `school:admin` — add/edit/delete timetable entries, manage grade templates, apply template to class, reset class to template (School Administrator, Head Teacher).
+- [x] Teachers can view their own schedule (filtered to their assigned classes/grades).
 
 ---
 
@@ -248,25 +248,41 @@ class_timetable_entries: {
 
 ---
 
-## Pre-Implementation Notes / Blockers (2026-06-23)
+## Resolved Blockers / Pre-Implementation Notes (2026-06-23)
 
-- **Old timetable code regression:** Story 4.4 removed the `school_timetable` table from the schema. However, `src/modules/school/stores/class-store.js` still has `fetchTimetable`, `saveTimetableEntry`, `deleteTimetableEntry`, and `LOCAL_STORAGE_KEYS.TIMETABLE` targeting the old table. `ClassDetailPage.vue` still renders the Weekly Timetable tab using `classStore.timetable` keyed by `period_number` and `day_of_week`. On a fresh database this tab will fail to load; on a seeded database the new `class_timetable_entries` rows will not be displayed.
-  - **Recommendation:** The first task in Story 4.5 should be to delete the old timetable actions from `class-store.js`, remove the old timetable tab markup from `ClassDetailPage.vue`, and build the new implementation on `class_timetable_entries` + `school_period_slots`. Alternatively, hide the old tab behind a placeholder until the new builder is ready.
-- **Sample data location mismatch:** Same as Stories 4.3 and 4.4 — the timetable sample data is in `server/functions/seedAllData/src/main.js`, not in `server/scripts/seed-sample-data.js`.
+- **Old timetable code regression:** Resolved — the old `school_timetable` actions and `LOCAL_STORAGE_KEYS.TIMETABLE` were removed from `class-store.js`, and `ClassDetailPage.vue` was updated to use the new `class_timetable_entries` + `school_period_slots` implementation.
+- **Sample data location mismatch:** Resolved — the timetable sample data was seeded via `server/functions/seedAllData/src/main.js`, consistent with Stories 4.3 and 4.4.
+
+---
+
+## Implementation Notes / Completed (2026-06-24)
+
+- **Active-entry filtering:** All display getters (`templateByGradeYear`, `classTimetable`, `teacherSchedule`) and `hasConflict` respect `valid_from` / `valid_to` ranges.
+- **Conflict detection:** `hasConflict` now runs in O(1) per lookup via the pre-built `conflictIndex` getter.
+- **Bulk save atomicity:** `saveTemplateEntries` and `saveclassEntries` delete all existing entries before creating new ones. Local Pinia state is updated only after the full operation succeeds; on failure, the store re-fetches to resync. Because Appwrite TablesDB does not support multi-row transactions, a partial failure (delete succeeds, create fails) can leave the database in an empty intermediate state.
+- **Custom subjects:** `TimetableCellEditor.vue` keeps a session-level list of custom subjects and adds them to the dropdown as they are typed.
+- **Calendar colors:** The vue-cal weekly view uses Quasar color classes (`bg-blue-1`, `bg-green-1`, etc.) for subject-based event coloring.
+- **Teacher schedule year selector:** `TeachersListPage.vue` includes an academic-year selector for the master teaching schedule, and period counts are computed per selected year.
+- **Code review follow-up:** The template builder page starts in view mode (admin can toggle to edit), and all bulk save/clear/delete actions have loading states and proper error handling.
 
 ---
 
 ## Files to Create / Modify
 
-| Action | File                                                                             |
-| ------ | -------------------------------------------------------------------------------- |
-| Create | `src/modules/school/pages/TimetableTemplatesPage.vue`                            |
-| Create | `src/modules/school/stores/timetable-store.js`                                   |
-| Create | `src/modules/school/components/TimetableGrid.vue`                                |
-| Modify | `src/modules/school/pages/ClassDetailPage.vue` (implement Timetable tab)         |
-| Modify | `src/modules/school/pages/TeachersListPage.vue` (add teacher schedule view)      |
-| Modify | `src/modules/school/pages/SchoolSettingsPage.vue` (add Timetable Templates link) |
-| Modify | `src/modules/school/router.js` (add timetable-templates route)                   |
-| Modify | `server/scripts/setup-appwrite.js` (add class_timetable_entries table)           |
-| Modify | `server/scripts/seed-sample-data.js` (seed timetable data)                       |
-| Modify | `DATABASE_SCHEMA.md`                                                             |
+| Action | File                                                                                        |
+| ------ | ------------------------------------------------------------------------------------------- |
+| Create | `src/modules/school/pages/TimetableTemplatesPage.vue`                                       |
+| Create | `src/modules/school/stores/timetable-store.js`                                              |
+| Create | `src/modules/school/components/TimetableGrid.vue`                                           |
+| Create | `src/modules/school/components/TimetableCellEditor.vue`                                     |
+| Create | `src/modules/school/components/TimetableCellDisplay.vue`                                    |
+| Create | `src/modules/school/components/ClassTimetablePanel.vue`                                     |
+| Create | `src/modules/school/components/TeacherScheduleGrid.vue`                                     |
+| Modify | `src/modules/school/pages/ClassDetailPage.vue` (implement Timetable tab)                    |
+| Modify | `src/modules/school/pages/TeachersListPage.vue` (add teacher schedule view + year selector) |
+| Modify | `src/modules/school/pages/SchoolSettingsPage.vue` (add Timetable Templates link)            |
+| Modify | `src/modules/school/router.js` (add timetable-templates route)                              |
+| Modify | `src/modules/school/stores/period-slots-store.js` (shared slot-type helpers)                |
+| Modify | `src/modules/school/stores/class-store.js` (remove old school_timetable code)               |
+| Modify | `server/functions/seedAllData/src/main.js` (seed timetable data)                            |
+| Modify | `DATABASE_SCHEMA.md` (add class_timetable_entries table)                                    |

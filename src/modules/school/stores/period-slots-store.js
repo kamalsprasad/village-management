@@ -43,6 +43,25 @@ export const SLOT_TYPE_OPTIONS = Object.entries(SLOT_TYPE_CONFIG).map(([value, c
   icon: cfg.icon,
 }));
 
+/**
+ * Return the base Quasar color name for a slot type (e.g. 'blue' for 'blue-7').
+ * Used for background classes like bg-blue-1.
+ * @param {string} type
+ * @returns {string}
+ */
+export function getSlotTypeColor(type) {
+  return SLOT_TYPE_CONFIG[type]?.color?.split('-')[0] || 'grey';
+}
+
+/**
+ * Return the Quasar icon name for a slot type.
+ * @param {string} type
+ * @returns {string}
+ */
+export function getSlotTypeIcon(type) {
+  return SLOT_TYPE_CONFIG[type]?.icon || 'schedule';
+}
+
 /** Days of the week used for applies_to_days multi-select. */
 export const DAYS_OF_WEEK = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
 

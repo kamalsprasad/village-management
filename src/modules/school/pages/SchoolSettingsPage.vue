@@ -95,6 +95,31 @@
           </q-card-actions>
         </q-card>
       </div>
+
+      <!-- Timetable Templates card -->
+      <div class="col-12 col-sm-6 col-md-4">
+        <q-card
+          flat
+          bordered
+          class="cursor-pointer settings-card"
+          role="button"
+          tabindex="0"
+          aria-label="Configure Timetable Templates"
+          @click="$router.push('/school/settings/timetable-templates')"
+          @keydown.enter="$router.push('/school/settings/timetable-templates')"
+        >
+          <q-card-section class="row items-center q-gutter-md">
+            <q-icon name="table_chart" size="48px" color="indigo-6" />
+            <div>
+              <div class="text-h6">Timetable Templates</div>
+              <div class="text-caption text-grey-7">Build grade-level weekly subject templates</div>
+            </div>
+          </q-card-section>
+          <q-card-actions align="right">
+            <q-btn flat color="indigo-6" label="Configure" icon-right="chevron_right" />
+          </q-card-actions>
+        </q-card>
+      </div>
     </div>
   </q-page>
 </template>

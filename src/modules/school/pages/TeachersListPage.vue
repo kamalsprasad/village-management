@@ -7,7 +7,13 @@
           View teaching profiles, class assignments, and master schedules
         </div>
       </div>
-      <q-btn color="primary" icon="person_add" label="Assign Teacher" @click="openAssignDialog" />
+      <q-btn
+        v-if="canAdmin"
+        color="primary"
+        icon="person_add"
+        label="Assign Teacher"
+        @click="openAssignDialog"
+      />
     </div>
 
     <!-- Main Content Grid -->
@@ -50,7 +56,7 @@
                     {{ getPrimaryClassLabel(teacher.$id) }}
                   </q-chip>
                   <q-chip outline color="secondary" dense square size="10px">
-                    {{ getTeachingPeriodsCount(teacher.$id, teacher.name) }} Periods Scheduled
+                    {{ getTeachingPeriodsCount(teacher.$id) }} Periods Scheduled
                   </q-chip>
                 </q-item-label>
               </q-item-section>
@@ -58,6 +64,7 @@
               <q-item-section side>
                 <div class="row items-center">
                   <q-btn
+                    v-if="canAdmin"
                     flat
                     round
                     dense
@@ -99,8 +106,7 @@
               <div class="col-6 border-left">
                 <div class="text-caption text-grey-7">Total Scheduled Periods</div>
                 <div class="text-subtitle2 text-weight-bold text-secondary">
-                  {{ getTeachingPeriodsCount(selectedTeacher.$id, selectedTeacher.name) }} periods
-                  per week
+                  {{ getTeachingPeriodsCount(selectedTeacher.$id) }} periods per week
                 </div>
               </div>
             </div>
@@ -147,71 +153,28 @@
             <q-separator class="q-my-md" />
 
             <!-- Master teaching timetable -->
-            <div class="text-subtitle1 text-weight-bold q-mb-xs">Master Teaching Schedule</div>
+            <div class="row items-center justify-between q-mb-xs">
+              <div class="text-subtitle1 text-weight-bold">Master Teaching Schedule</div>
+              <q-input
+                v-model.number="selectedScheduleYear"
+                type="number"
+                outlined
+                dense
+                label="Academic Year"
+                style="width: 120px"
+                :rules="[(v) => (v >= 2000 && v <= 2100) || 'Enter a year between 2000–2100']"
+                hide-bottom-space
+              />
+            </div>
             <div class="text-caption text-grey-6 q-mb-md">
               Unified schedule aggregating all periods where this teacher is assigned as the subject
               instructor.
             </div>
 
-            <q-markup-table flat bordered dense class="teacher-schedule-table">
-              <thead>
-                <tr>
-                  <th class="time-col bg-grey-2">Period & Time</th>
-                  <th
-                    v-for="day in DAYS"
-                    :key="day"
-                    class="day-header bg-grey-2 text-primary text-weight-bold"
-                  >
-                    {{ day }}
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr v-for="period in PERIODS" :key="period.num">
-                  <td class="period-info text-center bg-grey-1 q-py-xs">
-                    <div class="text-weight-bold" style="font-size: 11px">P{{ period.num }}</div>
-                    <div class="text-caption text-grey-7" style="font-size: 9px">
-                      {{ period.start }} - {{ period.end }}
-                    </div>
-                  </td>
-
-                  <td v-for="day in DAYS" :key="day" class="schedule-cell">
-                    <div
-                      v-if="
-                        hasTeacherPeriod(selectedTeacher.$id, selectedTeacher.name, day, period.num)
-                      "
-                      class="cell-block q-pa-xs"
-                    >
-                      <div class="text-caption text-weight-bold text-primary">
-                        {{
-                          getTeacherPeriodSubject(
-                            selectedTeacher.$id,
-                            selectedTeacher.name,
-                            day,
-                            period.num,
-                          )
-                        }}
-                      </div>
-                      <div
-                        class="text-caption text-weight-medium text-grey-8"
-                        style="font-size: 10px"
-                      >
-                        Class:
-                        {{
-                          getTeacherPeriodClass(
-                            selectedTeacher.$id,
-                            selectedTeacher.name,
-                            day,
-                            period.num,
-                          )
-                        }}
-                      </div>
-                    </div>
-                    <div v-else class="text-center text-grey-4 text-caption q-py-sm">—</div>
-                  </td>
-                </tr>
-              </tbody>
-            </q-markup-table>
+            <TeacherScheduleGrid
+              :teacher-id="selectedTeacher.$id"
+              :academic-year="selectedScheduleYear"
+            />
           </q-card-section>
         </q-card>
 
@@ -340,16 +303,27 @@ import { ref, reactive, computed, onMounted } from 'vue';
 import { useQuasar } from 'quasar';
 import { useClassStore } from '../stores/class-store';
 import { useTeacherStore } from '../stores/teacher-store';
+import { useTimetableStore } from '../stores/timetable-store';
+import { usePeriodSlotsStore } from '../stores/period-slots-store';
+import { usePermissions } from 'src/composables/usePermissions';
+import { useAuthStore } from 'src/stores/auth-store';
 import ResidentSearchInput from 'src/components/inputs/ResidentSearchInput.vue';
+import TeacherScheduleGrid from '../components/TeacherScheduleGrid.vue';
 import { GRADE_LEVELS, SUBJECTS } from '../utils/school-constants';
 
 const $q = useQuasar();
 const classStore = useClassStore();
 const teacherStore = useTeacherStore();
+const timetableStore = useTimetableStore();
+const periodSlotsStore = usePeriodSlotsStore();
+const authStore = useAuthStore();
+const { hasPermission } = usePermissions();
 const loading = ref(false);
 const teachers = ref([]);
 const selectedTeacher = ref(null);
+const selectedScheduleYear = ref(new Date().getFullYear());
 const showAssignDialog = ref(false);
+const canAdmin = computed(() => hasPermission('school:admin'));
 
 const assignForm = reactive({
   residentId: null,
@@ -360,39 +334,21 @@ const assignForm = reactive({
   submitting: false,
 });
 
-const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
-const PERIODS = [
-  { num: 1, start: '08:00', end: '08:45' },
-  { num: 2, start: '08:45', end: '09:30' },
-  { num: 3, start: '10:00', end: '10:45' },
-  { num: 4, start: '10:45', end: '11:30' },
-  { num: 5, start: '12:00', end: '12:45' },
-  { num: 6, start: '12:45', end: '13:30' },
-];
-
-// Map of classId -> timetable array to aggregate master schedule
-const masterTimetablesMap = ref({});
-
 onMounted(async () => {
   loading.value = true;
   try {
-    await classStore.fetchClasses();
+    await Promise.all([
+      classStore.fetchClasses(),
+      timetableStore.fetchTimetableEntries(),
+      periodSlotsStore.fetchPeriodSlots(),
+    ]);
     await loadFaculty();
 
-    // Fetch and aggregate schedules for all active classes to generate master timetable
-    const promises = classStore.classes.map(async (cls) => {
-      try {
-        const res = await classStore.fetchTimetable(cls.$id);
-        if (res.success) {
-          masterTimetablesMap.value[cls.$id] = res.data;
-        }
-      } catch (e) {
-        console.error('TeachersListPage: failed to load timetable for class', cls.$id, e);
-      }
-    });
-    await Promise.all(promises);
-
-    if (teachers.value.length > 0) {
+    // If the current user is a teacher, default to their schedule; otherwise select the first teacher.
+    const currentTeacher = teachers.value.find((t) => t.$id === authStore.user?.resident_id);
+    if (currentTeacher) {
+      selectedTeacher.value = currentTeacher;
+    } else if (teachers.value.length > 0) {
       selectedTeacher.value = teachers.value[0];
     }
   } finally {
@@ -592,54 +548,17 @@ function getPrimaryClassLabel(teacherId) {
   return matchClass ? `Class Teacher: ${matchClass.name}` : 'Subject Instructor';
 }
 
-function getTeachingPeriodsCount(teacherId, teacherName) {
-  let count = 0;
-  Object.values(masterTimetablesMap.value).forEach((classSchedule) => {
-    classSchedule.forEach((entry) => {
-      const entryId =
-        typeof entry.teacher_id === 'object' ? entry.teacher_id?.$id : entry.teacher_id;
-      if (entryId === teacherId || entry.teacher_name === teacherName) {
-        count++;
-      }
-    });
+const teachingPeriodsCountByTeacher = computed(() => {
+  const map = new Map();
+  teachers.value.forEach((teacher) => {
+    const count = timetableStore.teacherSchedule(teacher.$id, selectedScheduleYear.value).length;
+    map.set(teacher.$id, count);
   });
-  return count;
-}
+  return map;
+});
 
-// Master timetable verification cells
-function getMatchingPeriod(teacherId, teacherName, day, periodNumber) {
-  let matchedEntry = null;
-  let matchedClassName = '';
-
-  Object.entries(masterTimetablesMap.value).forEach(([classId, classSchedule]) => {
-    classSchedule.forEach((entry) => {
-      if (entry.day_of_week === day && entry.period_number === periodNumber) {
-        const entryId =
-          typeof entry.teacher_id === 'object' ? entry.teacher_id?.$id : entry.teacher_id;
-        if (entryId === teacherId || entry.teacher_name === teacherName) {
-          matchedEntry = entry;
-          const cls = classStore.classes.find((c) => c.$id === classId);
-          matchedClassName = cls ? cls.name : 'Unknown Class';
-        }
-      }
-    });
-  });
-
-  return matchedEntry ? { entry: matchedEntry, className: matchedClassName } : null;
-}
-
-function hasTeacherPeriod(teacherId, teacherName, day, periodNumber) {
-  return getMatchingPeriod(teacherId, teacherName, day, periodNumber) !== null;
-}
-
-function getTeacherPeriodSubject(teacherId, teacherName, day, periodNumber) {
-  const match = getMatchingPeriod(teacherId, teacherName, day, periodNumber);
-  return match ? match.entry.subject : '';
-}
-
-function getTeacherPeriodClass(teacherId, teacherName, day, periodNumber) {
-  const match = getMatchingPeriod(teacherId, teacherName, day, periodNumber);
-  return match ? match.className : '';
+function getTeachingPeriodsCount(teacherId) {
+  return teachingPeriodsCountByTeacher.value.get(teacherId) || 0;
 }
 </script>
 

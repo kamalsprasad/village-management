@@ -1,8 +1,8 @@
 /**
- * Class Store (Story 4.2 Reorganization)
+ * Class Store (Story 4.2 Reorganization, updated Story 4.5)
  *
- * Pinia store for school classes, schedules/timetables, and learner attendance.
- * Handles the school_classes, school_timetable, and learner_attendance tables.
+ * Pinia store for school classes and learner attendance.
+ * Handles the school_classes and learner_attendance tables.
  * Implements Appwrite storage with robust local fallback and seed data for immediate runnability.
  */
 
@@ -15,7 +15,6 @@ import { computeScorePercent } from '../utils/school-utils';
 // Seed data helper for local fallback mode
 const LOCAL_STORAGE_KEYS = {
   CLASSES: 'school_classes_fallback',
-  TIMETABLE: 'school_timetable_fallback',
   ATTENDANCE: 'school_attendance_fallback',
 };
 
@@ -28,10 +27,8 @@ export const useClassStore = defineStore('class', {
   state: () => ({
     classes: [],
     allClassRows: [],
-    timetable: [],
     attendance: [],
     classesLoaded: false,
-    timetableLoaded: false,
     attendanceLoaded: false,
     isLoading: false,
   }),
@@ -395,114 +392,6 @@ export const useClassStore = defineStore('class', {
         this.classes = this.classes.filter((c) => c.$id !== classId);
         this.saveToLocalCache(LOCAL_STORAGE_KEYS.CLASSES, this.classes);
         return { success: true };
-      } finally {
-        this.isLoading = false;
-      }
-    },
-
-    /**
-     * Fetch timetable for a class with robust generator fallback
-     */
-    async fetchTimetable(classId) {
-      this.isLoading = true;
-      try {
-        const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
-        const response = await tables.listRows({
-          databaseId: dbId,
-          tableId: 'school_timetable',
-          queries: [Query.equal('class_id', classId), Query.limit(100)],
-        });
-
-        this.timetable = response.rows;
-        this.timetableLoaded = true;
-        this.saveToLocalCache(LOCAL_STORAGE_KEYS.TIMETABLE, this.timetable);
-        return { success: true, data: this.timetable };
-      } catch (error) {
-        console.warn('Appwrite school_timetable query failed, using seeded schedule:', error);
-        // Load from local storage cache or generate a brilliant fallback schedule
-        const cached = localStorage.getItem(`${LOCAL_STORAGE_KEYS.TIMETABLE}_${classId}`);
-        if (cached) {
-          this.timetable = JSON.parse(cached);
-        } else {
-          this.timetable = [];
-          localStorage.setItem(
-            `${LOCAL_STORAGE_KEYS.TIMETABLE}_${classId}`,
-            JSON.stringify(this.timetable),
-          );
-        }
-        this.timetableLoaded = true;
-        return { success: true, data: this.timetable };
-      } finally {
-        this.isLoading = false;
-      }
-    },
-
-    /**
-     * Save/Create/Update a timetable slot
-     */
-    async saveTimetableEntry(classId, entryData) {
-      this.isLoading = true;
-      try {
-        const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
-        let response;
-
-        if (entryData.$id && !entryData.$id.startsWith('local_')) {
-          const { $id, ...writeFields } = entryData;
-          response = await tables.updateRow({
-            databaseId: dbId,
-            tableId: 'school_timetable',
-            rowId: $id,
-            data: writeFields,
-          });
-        } else {
-          response = await tables.createRow({
-            databaseId: dbId,
-            tableId: 'school_timetable',
-            rowId: ID.unique(),
-            data: {
-              class_id: classId,
-              day_of_week: entryData.day_of_week,
-              period_number: Number(entryData.period_number),
-              start_time: entryData.start_time,
-              end_time: entryData.end_time,
-              subject: entryData.subject,
-              teacher_id: entryData.teacher_id || null,
-              notes: entryData.notes || '',
-            },
-          });
-        }
-
-        const index = this.timetable.findIndex((t) => t.$id === entryData.$id);
-        if (index !== -1) {
-          this.timetable.splice(index, 1, response);
-        } else {
-          this.timetable.push(response);
-        }
-        localStorage.setItem(
-          `${LOCAL_STORAGE_KEYS.TIMETABLE}_${classId}`,
-          JSON.stringify(this.timetable),
-        );
-        return { success: true, data: response };
-      } catch (error) {
-        console.warn('Appwrite school_timetable save failed, writing locally:', error);
-        // Fallback local update
-        const updatedEntry = {
-          ...entryData,
-          $id: entryData.$id || `local_period_${classId}_` + Date.now(),
-          class_id: classId,
-        };
-
-        const index = this.timetable.findIndex((t) => t.$id === entryData.$id);
-        if (index !== -1) {
-          this.timetable.splice(index, 1, updatedEntry);
-        } else {
-          this.timetable.push(updatedEntry);
-        }
-        localStorage.setItem(
-          `${LOCAL_STORAGE_KEYS.TIMETABLE}_${classId}`,
-          JSON.stringify(this.timetable),
-        );
-        return { success: true, data: updatedEntry };
       } finally {
         this.isLoading = false;
       }

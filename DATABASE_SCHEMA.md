@@ -523,7 +523,7 @@ Weekly class timetable entries per day and period slot (Story 4.5). Replaces the
 | `valid_to`      | datetime | Optional                                                         | End of date range; null = currently active                                    |
 | `notes`         | string   | Optional, max 255                                                | Additional notes                                                              |
 
-**Indexes:** `idx_timetable_class_year` on `(class_id ASC, academic_year ASC)`, `idx_timetable_grade_template` on `(grade_level ASC, is_template ASC, academic_year ASC)`, `idx_timetable_teacher_year` on `(teacher_id ASC, academic_year ASC)`
+**Indexes:** `idx_timetable_grade_template` on `(grade_level ASC, is_template ASC, academic_year ASC)`
 
 ### teacher_assignments
 

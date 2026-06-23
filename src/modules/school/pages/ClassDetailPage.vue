@@ -352,71 +352,9 @@
           </q-table>
         </q-tab-panel>
 
-        <!-- Tab 4: Class Timetable Grid -->
+        <!-- Tab 4: Class Timetable -->
         <q-tab-panel name="timetable" class="q-pa-md">
-          <div class="row items-center q-mb-md">
-            <div>
-              <div class="text-subtitle1 text-weight-bold">Weekly Schedule & Periods</div>
-              <div class="text-caption text-grey-6">
-                Click on any period slot to assign subjects and subject teachers.
-              </div>
-            </div>
-            <q-space />
-            <q-btn
-              v-if="canAdmin"
-              outline
-              color="secondary"
-              icon="school"
-              label="Set All Periods to Class Teacher"
-              @click="setAllToClassTeacher"
-            />
-          </div>
-
-          <div class="timetable-grid bg-white">
-            <q-markup-table flat bordered class="timetable-table">
-              <thead>
-                <tr>
-                  <th class="time-col bg-grey-2">Period & Time</th>
-                  <th
-                    v-for="day in DAYS"
-                    :key="day"
-                    class="day-header bg-grey-2 text-primary text-weight-bold"
-                  >
-                    {{ day }}
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr v-for="period in PERIODS" :key="period.num">
-                  <!-- Period Indicator column -->
-                  <td class="period-info text-center bg-grey-1">
-                    <div class="text-weight-bold">P{{ period.num }}</div>
-                    <div class="text-caption text-grey-7" style="font-size: 10px">
-                      {{ period.start }} - {{ period.end }}
-                    </div>
-                  </td>
-
-                  <!-- Day Columns -->
-                  <td
-                    v-for="day in DAYS"
-                    :key="day"
-                    class="period-cell cursor-pointer"
-                    @click="canAdmin && editPeriod(day, period)"
-                  >
-                    <div class="cell-content q-pa-xs">
-                      <div class="text-subtitle2 text-weight-bold text-primary">
-                        {{ getPeriodSubject(day, period.num) }}
-                      </div>
-                      <div class="text-caption text-grey-8 text-weight-medium">
-                        <q-icon name="person" size="xs" class="q-mr-xs" />
-                        {{ getPeriodTeacher(day, period.num) }}
-                      </div>
-                    </div>
-                  </td>
-                </tr>
-              </tbody>
-            </q-markup-table>
-          </div>
+          <ClassTimetablePanel :class-id="route.params.id" :class-data="cls" />
         </q-tab-panel>
       </q-tab-panels>
     </q-card>
@@ -465,53 +403,6 @@
         </q-card-actions>
       </q-card>
     </q-dialog>
-
-    <!-- Dialog: Edit Timetable Cell -->
-    <q-dialog v-model="showTimetableDialog" persistent>
-      <q-card style="min-width: 400px">
-        <q-card-section class="bg-primary text-white">
-          <div class="text-h6">Edit Timetable Period</div>
-          <div class="text-caption text-white-5">
-            {{ activeCell.day }} - Period {{ activeCell.period_number }} ({{
-              activeCell.start_time
-            }}
-            - {{ activeCell.end_time }})
-          </div>
-        </q-card-section>
-
-        <q-card-section>
-          <q-form ref="timetableForm" class="q-gutter-md">
-            <q-select
-              v-model="activeCell.subject"
-              :options="SUBJECTS"
-              label="Select Subject *"
-              outlined
-              dense
-              :rules="[(val) => !!val || 'Required']"
-            />
-
-            <q-select
-              v-model="selectedPeriodTeacher"
-              :options="allTeachers"
-              label="Assigned Subject Teacher"
-              outlined
-              dense
-              clearable
-            />
-          </q-form>
-        </q-card-section>
-
-        <q-card-actions align="right" class="q-pa-md">
-          <q-btn flat color="grey-7" label="Cancel" v-close-popup />
-          <q-btn
-            color="primary"
-            label="Save Period"
-            :loading="isSavingPeriod"
-            @click="savePeriod"
-          />
-        </q-card-actions>
-      </q-card>
-    </q-dialog>
   </q-page>
 </template>
 
@@ -523,9 +414,7 @@ import { normalizeClassId, useClassStore } from '../stores/class-store';
 import { useLearnerStore } from '../stores/learner-store';
 import { useSchoolStore } from '../stores/school-store';
 import { usePermissions } from 'src/composables/usePermissions';
-import { SUBJECTS } from '../utils/school-constants';
-import { tables } from 'src/boot/appwrite';
-import { Query } from 'appwrite';
+import ClassTimetablePanel from '../components/ClassTimetablePanel.vue';
 
 const route = useRoute();
 const router = useRouter();
@@ -557,32 +446,6 @@ const loadingAttendance = ref(false);
 const savingAttendance = ref(false);
 const attendanceRows = ref([]);
 
-// Timetable
-const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
-const PERIODS = [
-  { num: 1, start: '08:00', end: '08:45' },
-  { num: 2, start: '08:45', end: '09:30' },
-  { num: 3, start: '10:00', end: '10:45' },
-  { num: 4, start: '10:45', end: '11:30' },
-  { num: 5, start: '12:00', end: '12:45' },
-  { num: 6, start: '12:45', end: '13:30' },
-];
-const showTimetableDialog = ref(false);
-const isSavingPeriod = ref(false);
-const timetableForm = ref(null);
-const activeCell = ref({
-  $id: null,
-  day: '',
-  period_number: null,
-  start_time: '',
-  end_time: '',
-  subject: '',
-  teacher_id: null,
-  notes: '',
-});
-const selectedPeriodTeacher = ref(null);
-const allTeachers = ref([]);
-
 onMounted(async () => {
   await classStore.fetchClasses();
   await learnerStore.fetchLearners();
@@ -599,33 +462,8 @@ onMounted(async () => {
 
   // Load contextual sections
   loadAttendance();
-  classStore.fetchTimetable(route.params.id);
-  loadAllTeachers();
   loadAllActiveStudents();
 });
-
-// Load Teachers list for selection
-async function loadAllTeachers() {
-  try {
-    const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
-    const tableId = import.meta.env.VITE_APPWRITE_TABLE_RESIDENTS;
-    const response = await tables.listRows({
-      databaseId: dbId,
-      tableId: tableId,
-      queries: [Query.limit(500), Query.orderAsc('last_name')],
-    });
-
-    allTeachers.value = response.rows.map((r) => {
-      const parts = [r.first_name, r.middle_names, r.last_name].filter(Boolean);
-      return {
-        label: parts.join(' '),
-        value: r.$id,
-      };
-    });
-  } catch (e) {
-    console.error('ClassDetailPage: Failed to load teachers list', e);
-  }
-}
 
 // Load Learners who aren't currently enrolled in any class
 async function loadAllActiveStudents() {
@@ -791,112 +629,6 @@ const atRiskStudents = computed(() => {
   return flagged;
 });
 
-// Timetable queries
-function getPeriodSubject(day, periodNumber) {
-  const match = classStore.timetable.find(
-    (t) => t.day_of_week === day && t.period_number === periodNumber,
-  );
-  return match ? match.subject : 'No Subject';
-}
-
-function getPeriodTeacher(day, periodNumber) {
-  const match = classStore.timetable.find(
-    (t) => t.day_of_week === day && t.period_number === periodNumber,
-  );
-  if (!match) return 'No Teacher';
-  if (match.teacher_name) return match.teacher_name;
-
-  const teacher = allTeachers.value.find((t) => t.value === match.teacher_id);
-  return teacher ? teacher.label : 'No Teacher';
-}
-
-function editPeriod(day, period) {
-  const match = classStore.timetable.find(
-    (t) => t.day_of_week === day && t.period_number === period.num,
-  );
-
-  activeCell.value = {
-    $id: match ? match.$id : null,
-    day: day,
-    period_number: period.num,
-    start_time: period.start,
-    end_time: period.end,
-    subject: match ? match.subject : '',
-    notes: match ? match.notes || '' : '',
-  };
-
-  if (match && match.teacher_id) {
-    const teach = allTeachers.value.find((t) => t.value === match.teacher_id);
-    selectedPeriodTeacher.value = teach || null;
-  } else if (match && match.teacher_name) {
-    selectedPeriodTeacher.value = { label: match.teacher_name, value: null };
-  } else {
-    selectedPeriodTeacher.value = null;
-  }
-
-  showTimetableDialog.value = true;
-}
-
-async function savePeriod() {
-  isSavingPeriod.value = true;
-  try {
-    const payload = {
-      $id: activeCell.value.$id,
-      day_of_week: activeCell.value.day,
-      period_number: activeCell.value.period_number,
-      start_time: activeCell.value.start_time,
-      end_time: activeCell.value.end_time,
-      subject: activeCell.value.subject,
-      teacher_id: selectedPeriodTeacher.value ? selectedPeriodTeacher.value.value : null,
-      teacher_name: selectedPeriodTeacher.value ? selectedPeriodTeacher.value.label : '',
-      notes: activeCell.value.notes,
-    };
-
-    const res = await classStore.saveTimetableEntry(route.params.id, payload);
-    if (res.success) {
-      $q.notify({
-        type: 'positive',
-        message: 'Schedule period updated.',
-      });
-      showTimetableDialog.value = false;
-      classStore.fetchTimetable(route.params.id);
-    }
-  } finally {
-    isSavingPeriod.value = false;
-  }
-}
-
-async function setAllToClassTeacher() {
-  if (!cls.value.class_teacher_id_normalized && !cls.value.class_teacher_id) {
-    $q.notify({
-      type: 'warning',
-      message: 'Please assign a primary Class Teacher before using this shortcut.',
-    });
-    return;
-  }
-
-  $q.dialog({
-    title: 'Set All to Class Teacher',
-    message: `Are you sure you want to assign the Class Teacher (${cls.value.teacher_name}) to ALL schedule periods in this class?`,
-    cancel: true,
-  }).onOk(async () => {
-    // Mass update timetable entries
-    const promises = classStore.timetable.map((t) => {
-      return classStore.saveTimetableEntry(route.params.id, {
-        ...t,
-        teacher_id: cls.value.class_teacher_id_normalized || cls.value.class_teacher_id,
-        teacher_name: cls.value.teacher_name,
-      });
-    });
-    await Promise.all(promises);
-    classStore.fetchTimetable(route.params.id);
-    $q.notify({
-      type: 'positive',
-      message: 'All schedule periods assigned to Class Teacher.',
-    });
-  });
-}
-
 // Academics tab calculations
 const classAssessments = computed(() => classStore.getClassAssessments(route.params.id));
 
@@ -1018,22 +750,5 @@ function viewLearnerDetail(id) {
 <style scoped>
 .stats-card {
   border-radius: 8px;
-}
-.period-cell {
-  height: 70px;
-  vertical-align: middle;
-  transition: background-color 0.15s;
-}
-.period-cell:hover {
-  background-color: #f5f5f5;
-}
-.time-col {
-  width: 100px;
-}
-.day-header {
-  width: calc(100% / 5);
-}
-.cell-content {
-  line-height: 1.3;
 }
 </style>

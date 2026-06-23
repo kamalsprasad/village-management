@@ -1431,22 +1431,36 @@ async function seedSchool(tablesDB, dbId, residentIds, log) {
   ];
   const classes = {};
   for (const gl of gradeLevels) {
-    const r = await createRow(tablesDB, dbId, 'school_classes', {
-      name: gl,
-      grade_level: gl,
-      academic_year: 2026,
-      notes: '',
-    });
-    classes[gl] = r;
+    // Story 4.5: create two classes for Grade 3 to test template / class split.
+    const classNames = gl === 'Grade 3' ? ['Grade 3A', 'Grade 3B'] : [gl];
+    for (const className of classNames) {
+      const r = await createRow(tablesDB, dbId, 'school_classes', {
+        name: className,
+        grade_level: gl,
+        academic_year: 2026,
+        notes: '',
+      });
+      // Use the grade as the key for the primary class; Grade 3A / 3B stored separately.
+      if (className === 'Grade 3B') {
+        classes['Grade 3B'] = r;
+      } else {
+        classes[gl] = r;
+      }
+    }
   }
-  const clsId = (g) => classes[g]?.$id;
+  const clsId = (g) => {
+    if (classes[g]) return classes[g].$id;
+    const match = Object.values(classes).find((c) => c.name === g);
+    return match?.$id;
+  };
 
   log('Phase 4: Class teachers...');
   const clsTeachers = [
     ['Early Childhood', 'Grace', 'Banda'],
     ['Grade 1', 'Rebecca', 'Tembo'],
     ['Grade 2', 'Esther', 'Zulu'],
-    ['Grade 3', 'Ruth', 'Phiri'],
+    ['Grade 3A', 'Ruth', 'Phiri'],
+    ['Grade 3B', 'Ruth', 'Phiri'],
     ['Grade 4', 'Mary', 'Banda'],
     ['Grade 5', 'Elizabeth', 'Mwale'],
     ['Grade 6', 'Nkosi', 'Mumba'],
@@ -1457,8 +1471,8 @@ async function seedSchool(tablesDB, dbId, residentIds, log) {
     ['Grade 11', 'Andrew', 'Mulenga'],
     ['Grade 12', 'Priscilla', 'Mulenga'],
   ];
-  for (const [grade, f, l] of clsTeachers) {
-    const cls = classes[grade];
+  for (const [className, f, l] of clsTeachers) {
+    const cls = Object.values(classes).find((c) => c.name === className);
     const tid = findResId(f, l);
     if (cls && tid)
       try {
@@ -1505,10 +1519,10 @@ async function seedSchool(tablesDB, dbId, residentIds, log) {
     en('Naomi', 'Tembo', 'Grade 2', '2024-01-15', 'Michael Tembo', ''),
     en('Moses', 'Kapata', 'Grade 2', '2024-01-15', 'Bernard Kapata', '+260977002002'),
     en('Priscah', 'Zulu', 'Grade 2', '2024-01-15', 'Esther Zulu', '+260976789012'),
-    en('Blessing', 'Zulu', 'Grade 3', '2023-01-16', 'Daniel Zulu', ''),
-    en('Elijah', 'Banda', 'Grade 3', '2023-01-16', 'Joseph Banda', '+260971234567'),
-    en('Rachel', 'Phiri', 'Grade 3', '2023-01-16', 'Emmanuel Phiri', '+260972345678'),
-    en('Caleb', 'Mwale', 'Grade 3', '2023-01-16', 'James Mwale', '+260973456789'),
+    en('Blessing', 'Zulu', 'Grade 3A', '2023-01-16', 'Daniel Zulu', ''),
+    en('Elijah', 'Banda', 'Grade 3A', '2023-01-16', 'Joseph Banda', '+260971234567'),
+    en('Rachel', 'Phiri', 'Grade 3B', '2023-01-16', 'Emmanuel Phiri', '+260972345678'),
+    en('Caleb', 'Mwale', 'Grade 3B', '2023-01-16', 'James Mwale', '+260973456789'),
     en('Esther', 'Phiri', 'Grade 4', '2022-01-17', 'Emmanuel Phiri', '+260972345678'),
     en('Hannah', 'Mwale', 'Grade 4', '2022-01-17', 'James Mwale', '+260973456789'),
     en('Levi', 'Banda', 'Grade 4', '2022-01-17', 'Joseph Banda', '+260971234567'),
@@ -1715,7 +1729,7 @@ async function seedSchool(tablesDB, dbId, residentIds, log) {
     53, 77, 63, 85, 48, 90, 64, 52, 71, 79, 56, 68, 74, 60, 82, 69, 54, 76, 62, 86, 49, 91, 65, 51,
   ];
   const gradeByClsId = {};
-  for (const [g, cls] of Object.entries(classes)) gradeByClsId[cls.$id] = g;
+  for (const cls of Object.values(classes)) gradeByClsId[cls.$id] = cls.grade_level;
   const scoreTasks = [];
   for (let li = 0; li < createdLearners.length; li++) {
     const learner = createdLearners[li];
@@ -1814,15 +1828,82 @@ async function seedSchool(tablesDB, dbId, residentIds, log) {
   await batchRun(slotTasks, 25);
   log(`  ${slotTasks.length} period slots`);
 
-  // Create class timetable entries referencing the grade-specific slots.
+  // Story 4.5: Create class_timetable_entries using grade templates + class overrides.
   const ttTasks = [];
+
+  const grade3TemplateTeacher = (subject) => {
+    if (subject === 'Local Language' || subject === 'Creative and Technology Studies') {
+      return findResId('Priscilla', 'Mulenga');
+    }
+    return findResId('Ruth', 'Phiri');
+  };
+
+  // 1. Grade 3 template (class_id = null, is_template = true)
+  const grade3Week = TIMETABLE_SCHEDULE['Grade 3'];
+  const grade3SlotIds = slotIdsByGrade['Grade 3'];
+  for (let dIdx = 0; dIdx < DAYS.length; dIdx++) {
+    for (let pIdx = 0; pIdx < grade3Week[dIdx].length; pIdx++) {
+      const subject = grade3Week[dIdx][pIdx];
+      const periodNum = PERIODS[pIdx].num;
+      ttTasks.push(() =>
+        createRow(tablesDB, dbId, 'class_timetable_entries', {
+          class_id: null,
+          is_template: true,
+          grade_level: 'Grade 3',
+          slot_id: grade3SlotIds[periodNum],
+          day_of_week: DAYS[dIdx],
+          subject,
+          teacher_id: grade3TemplateTeacher(subject),
+          academic_year: TIMETABLE_ACADEMIC_YEAR,
+          valid_from: null,
+          valid_to: null,
+          notes: '',
+        }),
+      );
+    }
+  }
+
+  // 2. Grade 3A class timetable: apply template with one override (Monday Period 1 -> Mary Banda)
+  const classId3A = clsId('Grade 3');
+  const override3A = { day: 'Monday', periodNum: 1, teacherId: findResId('Mary', 'Banda') };
+  for (let dIdx = 0; dIdx < DAYS.length; dIdx++) {
+    for (let pIdx = 0; pIdx < grade3Week[dIdx].length; pIdx++) {
+      const subject = grade3Week[dIdx][pIdx];
+      const periodNum = PERIODS[pIdx].num;
+      const day = DAYS[dIdx];
+      let teacherId = grade3TemplateTeacher(subject);
+      if (day === override3A.day && periodNum === override3A.periodNum) {
+        teacherId = override3A.teacherId;
+      }
+      ttTasks.push(() =>
+        createRow(tablesDB, dbId, 'class_timetable_entries', {
+          class_id: classId3A,
+          is_template: false,
+          grade_level: 'Grade 3',
+          slot_id: grade3SlotIds[periodNum],
+          day_of_week: day,
+          subject,
+          teacher_id: teacherId,
+          academic_year: TIMETABLE_ACADEMIC_YEAR,
+          valid_from: null,
+          valid_to: null,
+          notes: '',
+        }),
+      );
+    }
+  }
+
+  // 3. Grade 3B deliberately has no class entries (tests template preview empty state).
+
+  // 4. Other grades: class-specific entries as before.
   for (const [grade, weekSchedule] of Object.entries(TIMETABLE_SCHEDULE)) {
+    if (grade === 'Grade 3') continue;
     const cId2 = clsId(grade);
     if (!cId2 || !slotIdsByGrade[grade]) continue;
     const isPrimary = grade in primaryTeacher;
     const gNum = grade === 'Early Childhood' ? 0 : parseInt(grade.replace('Grade ', '')) || 0;
     const ctId = isPrimary ? primaryTeacher[grade] : null;
-    for (let dIdx = 0; dIdx < DAYS.length; dIdx++)
+    for (let dIdx = 0; dIdx < DAYS.length; dIdx++) {
       for (let pIdx = 0; pIdx < weekSchedule[dIdx].length; pIdx++) {
         const subject = weekSchedule[dIdx][pIdx];
         const periodNum = PERIODS[pIdx].num;
@@ -1843,6 +1924,7 @@ async function seedSchool(tablesDB, dbId, residentIds, log) {
           }),
         );
       }
+    }
   }
   await batchRun(ttTasks, 25);
   log(`  ${ttTasks.length} timetable entries`);

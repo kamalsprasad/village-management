@@ -12,6 +12,9 @@
  *   /school/settings              — SchoolSettingsPage hub (school:admin)
  *   /school/settings/terms        — AcademicTermsSettingsPage (school:admin)
  *   /school/settings/calendar-events — CalendarEventsSettingsPage (school:admin)
+ *
+ * Story 4.5 addition:
+ *   /school/settings/timetable-templates — TimetableTemplatesPage (school:admin)
  */
 
 const schoolRoutes = [
@@ -154,6 +157,15 @@ const schoolRoutes = [
     meta: {
       requiresAuth: true,
       requiresPermission: 'school:read',
+    },
+  },
+  {
+    path: 'school/settings/timetable-templates',
+    name: 'school-settings-timetable-templates',
+    component: () => import('./pages/TimetableTemplatesPage.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresPermission: 'school:admin',
     },
   },
 ];

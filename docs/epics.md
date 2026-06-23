@@ -737,7 +737,7 @@ As a **School Administrator**, I want to define the daily bell schedule per grad
 
 As a **School Administrator** or **Head Teacher**, I want to build a weekly subject schedule for each class, assigning subjects and teachers to period slots, with conflict detection and a grade-level template system.
 
-**Status:** Ready for Dev
+**Status:** Done
 
 **Acceptance Criteria:** 1. `class_timetable_entries` table: per-class or grade-template entries with class_id, grade_level, slot_id, day_of_week, subject (free string), teacher_id, academic_year, valid_from/valid_to, is_template flag 2. Grade timetable template builder in School Settings: weekly grid (class slots × Mon–Fri), edit mode with subject and teacher dropdowns 3. Class Timetable tab in ClassDetailPage now fully functional: shows grade template preview when no class-specific timetable exists; "Apply Template" button copies template to class 4. Per-class edit mode: subject/teacher per cell, teacher conflict detection (warning not hard block), save/discard 5. vue-cal weekly display for read-only view 6. Teacher schedule view: weekly grid of all classes/subjects a teacher is assigned 7. `timetable-store.js` with conflict detection, bulk save, apply-template, reset-to-template actions 8. Sample data: Grade 3 template + Grade 3A customized timetable
 
