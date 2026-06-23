@@ -248,17 +248,25 @@ class_timetable_entries: {
 
 ---
 
+## Pre-Implementation Notes / Blockers (2026-06-23)
+
+- **Old timetable code regression:** Story 4.4 removed the `school_timetable` table from the schema. However, `src/modules/school/stores/class-store.js` still has `fetchTimetable`, `saveTimetableEntry`, `deleteTimetableEntry`, and `LOCAL_STORAGE_KEYS.TIMETABLE` targeting the old table. `ClassDetailPage.vue` still renders the Weekly Timetable tab using `classStore.timetable` keyed by `period_number` and `day_of_week`. On a fresh database this tab will fail to load; on a seeded database the new `class_timetable_entries` rows will not be displayed.
+  - **Recommendation:** The first task in Story 4.5 should be to delete the old timetable actions from `class-store.js`, remove the old timetable tab markup from `ClassDetailPage.vue`, and build the new implementation on `class_timetable_entries` + `school_period_slots`. Alternatively, hide the old tab behind a placeholder until the new builder is ready.
+- **Sample data location mismatch:** Same as Stories 4.3 and 4.4 — the timetable sample data is in `server/functions/seedAllData/src/main.js`, not in `server/scripts/seed-sample-data.js`.
+
+---
+
 ## Files to Create / Modify
 
-| Action | File |
-|--------|------|
-| Create | `src/modules/school/pages/TimetableTemplatesPage.vue` |
-| Create | `src/modules/school/stores/timetable-store.js` |
-| Create | `src/modules/school/components/TimetableGrid.vue` |
-| Modify | `src/modules/school/pages/ClassDetailPage.vue` (implement Timetable tab) |
-| Modify | `src/modules/school/pages/TeachersListPage.vue` (add teacher schedule view) |
+| Action | File                                                                             |
+| ------ | -------------------------------------------------------------------------------- |
+| Create | `src/modules/school/pages/TimetableTemplatesPage.vue`                            |
+| Create | `src/modules/school/stores/timetable-store.js`                                   |
+| Create | `src/modules/school/components/TimetableGrid.vue`                                |
+| Modify | `src/modules/school/pages/ClassDetailPage.vue` (implement Timetable tab)         |
+| Modify | `src/modules/school/pages/TeachersListPage.vue` (add teacher schedule view)      |
 | Modify | `src/modules/school/pages/SchoolSettingsPage.vue` (add Timetable Templates link) |
-| Modify | `src/modules/school/router.js` (add timetable-templates route) |
-| Modify | `server/scripts/setup-appwrite.js` (add class_timetable_entries table) |
-| Modify | `server/scripts/seed-sample-data.js` (seed timetable data) |
-| Modify | `DATABASE_SCHEMA.md` |
+| Modify | `src/modules/school/router.js` (add timetable-templates route)                   |
+| Modify | `server/scripts/setup-appwrite.js` (add class_timetable_entries table)           |
+| Modify | `server/scripts/seed-sample-data.js` (seed timetable data)                       |
+| Modify | `DATABASE_SCHEMA.md`                                                             |

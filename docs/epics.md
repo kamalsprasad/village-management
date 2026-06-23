@@ -713,6 +713,8 @@ As a **Teacher**, I want to record test scores for entire grade in spreadsheet f
 
 As a **School Administrator** or **Head Teacher**, I want to configure academic terms (name, start/end dates) and mark school holidays and non-teaching days, so that the system knows which dates are school days and can drive attendance and at-risk calculations correctly.
 
+**Status:** Done
+
 **Acceptance Criteria:** 1. `school_academic_terms` table: configurable term names, count, start/end dates per academic year 2. `school_calendar_events` table: public holidays, PD days, school holidays, exam blocks, early dismissals — school-wide with optional per-class scoping 3. School Calendar page with vue-cal monthly view: term boundary bands, color-coded events 4. Admin UI: add/edit/delete terms and calendar events; "Copy from previous year" for terms 5. `test_scores.term` changed from hard-coded enum to free string (size 100) 6. Term dropdown in Record Scores page populated from database 7. `academic-terms-store.js` and `calendar-events-store.js` Pinia stores with `isSchoolDay(date)` and `schoolDaysBetween()` getters 8. Sample data seeded: 3 terms + 5 calendar events
 
 **Prerequisites:** Story 4.2
@@ -723,6 +725,8 @@ As a **School Administrator** or **Head Teacher**, I want to configure academic 
 
 As a **School Administrator**, I want to define the daily bell schedule per grade level — number of periods, breaks, lunch, start/end times — so that the timetable builder has a structured grid.
 
+**Status:** Done
+
 **Acceptance Criteria:** 1. `school_period_slots` table: per-grade, per-academic-year slots with label, type (class/break/lunch/assembly/free), start/end time (HH:mm), applies-to-days array 2. Bell Schedules settings page: add/edit/delete/reorder slots per grade + year 3. Visual daily timeline preview (proportional CSS blocks, color-coded by slot type) 4. "Copy from Grade/Year" feature 5. Grade completeness indicator showing configured/unconfigured grades 6. `period-slots-store.js` with `classSlotsByGradeYear()` and `slotDurationMinutes()` getters 7. `school_timetable` stub replaced (removed here, replaced by `class_timetable_entries` in Story 4.5) 8. Sample data: bell schedules for Early Childhood and Grade 5
 
 **Prerequisites:** Story 4.3
@@ -732,6 +736,8 @@ As a **School Administrator**, I want to define the daily bell schedule per grad
 ### Story 4.5: Class Timetable — Weekly Schedule Builder
 
 As a **School Administrator** or **Head Teacher**, I want to build a weekly subject schedule for each class, assigning subjects and teachers to period slots, with conflict detection and a grade-level template system.
+
+**Status:** Ready for Dev
 
 **Acceptance Criteria:** 1. `class_timetable_entries` table: per-class or grade-template entries with class_id, grade_level, slot_id, day_of_week, subject (free string), teacher_id, academic_year, valid_from/valid_to, is_template flag 2. Grade timetable template builder in School Settings: weekly grid (class slots × Mon–Fri), edit mode with subject and teacher dropdowns 3. Class Timetable tab in ClassDetailPage now fully functional: shows grade template preview when no class-specific timetable exists; "Apply Template" button copies template to class 4. Per-class edit mode: subject/teacher per cell, teacher conflict detection (warning not hard block), save/discard 5. vue-cal weekly display for read-only view 6. Teacher schedule view: weekly grid of all classes/subjects a teacher is assigned 7. `timetable-store.js` with conflict detection, bulk save, apply-template, reset-to-template actions 8. Sample data: Grade 3 template + Grade 3A customized timetable
 

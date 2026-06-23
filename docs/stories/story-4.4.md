@@ -118,11 +118,11 @@ school_period_slots: {
 
 ### AC1: School Settings — Bell Schedules (`/school/settings/bell-schedules`)
 
-- [ ] Page is accessible from the School Calendar page (or School Settings hub) via a "Bell Schedules" link, gated on `school:admin`.
-- [ ] **Grade level selector** (dropdown, required) and **Academic Year selector** (integer input, default current year) at top of page.
-- [ ] Page displays the period slot list for the selected grade + year, ordered by `slot_number`.
-- [ ] Each row in the list shows: slot number, label, slot type (badge), start time, end time, applies-to days (chips or "All Days"), and edit/delete actions.
-- [ ] **"Add Slot" button** opens an inline form or dialog:
+- [x] Page is accessible from the School Calendar page (or School Settings hub) via a "Bell Schedules" link, gated on `school:admin`.
+- [x] **Grade level selector** (dropdown, required) and **Academic Year selector** (integer input, default current year) at top of page.
+- [x] Page displays the period slot list for the selected grade + year, ordered by `slot_number`.
+- [x] Each row in the list shows: slot number, label, slot type (badge), start time, end time, applies-to days (chips or "All Days"), and edit/delete actions.
+- [x] **"Add Slot" button** opens an inline form or dialog:
   - Label (required, string)
   - Slot Type (required, dropdown: Class Period / Break / Lunch / Assembly / Free Period)
   - Start Time (required, time picker — HH:mm 24-hour format)
@@ -130,43 +130,43 @@ school_period_slots: {
   - Applies to Days (optional, multi-select checkboxes: Monday / Tuesday / Wednesday / Thursday / Friday — leave empty for all days)
   - Notes (optional)
   - Slot Number is auto-assigned as the next available integer; user can reorder using up/down arrows.
-- [ ] **Edit** opens a pre-filled dialog for the selected slot.
-- [ ] **Delete** shows a confirmation dialog. If the slot is already referenced by timetable entries (Story 4.5), show a warning: "This slot is used in [N] timetable entries. Deleting it will also delete those entries. Continue?"
-- [ ] **Reorder** — drag handle or up/down arrow buttons to reorder slots; `slot_number` values are renumbered on save.
-- [ ] **Validation:**
+- [x] **Edit** opens a pre-filled dialog for the selected slot.
+- [x] **Delete** shows a confirmation dialog. If the slot is already referenced by timetable entries (Story 4.5), show a warning: "This slot is used in [N] timetable entries. Deleting it will also delete those entries. Continue?"
+- [x] **Reorder** — drag handle or up/down arrow buttons to reorder slots; `slot_number` values are renumbered on save.
+- [x] **Validation:**
   - End time must be after start time.
   - No two slots may have the same start time for the same grade/year/day combination (warn but do not hard block — unusual schedules exist).
   - A grade schedule must have at least one `class`-type slot to be usable in the timetable builder.
 
 ### AC2: Daily Schedule Preview
 
-- [ ] Below the slot list, render a **read-only visual timeline** of the school day for the selected grade.
-- [ ] Timeline displays each slot as a proportionally-sized block (based on duration in minutes), color-coded by slot type:
+- [x] Below the slot list, render a **read-only visual timeline** of the school day for the selected grade.
+- [x] Timeline displays each slot as a proportionally-sized block (based on duration in minutes), color-coded by slot type:
   - `class` → blue
   - `break` → green
   - `lunch` → orange
   - `assembly` → teal
   - `free` → grey
-- [ ] Each block shows the slot label and time range.
-- [ ] Mobile-responsive (scrolls horizontally on small screens).
+- [x] Each block shows the slot label and time range.
+- [x] Mobile-responsive (scrolls horizontally on small screens).
 
 ### AC3: Copy Schedule
 
-- [ ] **"Copy from Grade/Year"** button:
+- [x] **"Copy from Grade/Year"** button:
   - Dialog: select a source grade level and source academic year.
   - Copies all period slots from the source to the current grade + year selection.
   - If slots already exist for the target grade/year, show warning: "Existing slots for [Grade] [Year] will be replaced. Continue?"
-- [ ] This enables quick setup: define Early Childhood schedule, then copy-and-adjust for Grade 1, and so on.
+- [x] This enables quick setup: define Early Childhood schedule, then copy-and-adjust for Grade 1, and so on.
 
 ### AC4: `period-slots-store.js` (New Pinia Store)
 
-- [ ] Store file: `src/modules/school/stores/period-slots-store.js`
-- [ ] **State:** `periodSlots[]`, `periodSlotsLoaded`, `isLoading`
-- [ ] **Getters:**
+- [x] Store file: `src/modules/school/stores/period-slots-store.js`
+- [x] **State:** `periodSlots[]`, `periodSlotsLoaded`, `isLoading`
+- [x] **Getters:**
   - `slotsByGradeYear(gradeLevel, academicYear)` — Returns slots sorted by `slot_number`
   - `classSlotsByGradeYear(gradeLevel, academicYear)` — Returns only `slot_type === 'class'` slots (used by timetable builder in Story 4.5)
   - `slotDurationMinutes(slot)` — Computed duration from start/end time strings
-- [ ] **Actions:**
+- [x] **Actions:**
   - `fetchPeriodSlots(force)` — Load all slots (follows existing store patterns)
   - `savePeriodSlot(slotData)` — Create or update a slot
   - `deletePeriodSlot(id)` — Delete a slot
@@ -175,22 +175,22 @@ school_period_slots: {
 
 ### AC5: Grade Schedule Completeness Indicator on Bell Schedules Page
 
-- [ ] For each grade level in the current academic year, show a completeness status badge in a summary table at the top of the Bell Schedules settings page:
+- [x] For each grade level in the current academic year, show a completeness status badge in a summary table at the top of the Bell Schedules settings page:
   - Green badge: "Configured" — at least one `class`-type slot exists.
   - Yellow badge: "No class periods" — slots exist but none are type `class`.
   - Red badge: "Not configured" — no slots at all.
-- [ ] This gives admins a quick overview of which grades still need their schedules set up.
+- [x] This gives admins a quick overview of which grades still need their schedules set up.
 
 ### AC6: Sample Data
 
-- [ ] `server/scripts/seed-sample-data.js` updated to seed:
+- [x] `server/scripts/seed-sample-data.js` updated to seed:
   - A representative bell schedule for **Early Childhood** (fewer, shorter periods) and **Grade 5** (standard day) for the sample academic year.
   - Minimum slots per grade: morning assembly (optional), 3–5 class periods, 1–2 breaks, 1 lunch.
 
 ### AC7: Permissions
 
-- [ ] `school:read` — can view bell schedules (read-only).
-- [ ] `school:admin` — can add/edit/delete/copy period slots (School Administrator, Head Teacher).
+- [x] `school:read` — can view bell schedules (read-only).
+- [x] `school:admin` — can add/edit/delete/copy period slots (School Administrator, Head Teacher).
 
 ---
 
@@ -246,3 +246,25 @@ school_period_slots: {
 - [x] [Review][Defer] Timeline legend has no `aria-label` on colour swatches — accessibility improvement [`DailyScheduleTimeline.vue:101-113`] — deferred, polish item
 - [x] [Review][Defer] "All Days" label is hardcoded — cosmetic, no functional impact [`DailyScheduleTimeline.vue:165`] — deferred, polish item
 - [x] [Review][Defer] AC1 delete confirmation does not warn on timetable references — intentionally deferred to Story 4.5 per in-code comment, noted in spec [`BellSchedulesSettingsPage.vue:14`] — deferred, Story 4.5
+
+### Post-Implementation / Cross-Story Notes (2026-06-23)
+
+- **Route guard decision recorded:** The bell-schedules route is guarded with `school:read` and edit actions are gated in the UI with `v-if="canAdmin"`. This is documented as the accepted resolution in the Decision-needed section above.
+- **Sample data location mismatch:** The story specifies `server/scripts/seed-sample-data.js`, but the bell-schedule sample data was added to `server/functions/seedAllData/src/main.js`. The standalone `seed-sample-data.js` script does not seed period slots. Same recommendation as Story 4.3: align the canonical seed script or update the story file.
+- **Regression risk for Story 4.5:** Story 4.4 dropped the `school_timetable` table, but `src/modules/school/stores/class-store.js` and `ClassDetailPage.vue` still reference the old `school_timetable` schema (using `period_number` and `day_of_week`). This leaves the existing Class Timetable tab in a broken state on fresh databases until Story 4.5 is implemented. **Recommendation:** treat Story 4.5 as urgent, or apply a small patch to remove/hide the old timetable tab until 4.5 is ready.
+
+---
+
+## Files to Create / Modify
+
+| Action | File                                                                                      |
+| ------ | ----------------------------------------------------------------------------------------- |
+| Create | `src/modules/school/pages/BellSchedulesSettingsPage.vue`                                  |
+| Create | `src/modules/school/stores/period-slots-store.js`                                         |
+| Create | `src/modules/school/components/DailyScheduleTimeline.vue`                                 |
+| Modify | `src/modules/school/router.js` (add `/school/settings/bell-schedules`)                    |
+| Modify | `src/modules/school/pages/SchoolSettingsPage.vue` (add Bell Schedules card)               |
+| Modify | `src/layouts/MainLayout.vue` (School Settings nav item, if not already present)           |
+| Modify | `server/scripts/setup-appwrite.js` (remove `school_timetable`, add `school_period_slots`) |
+| Modify | `server/scripts/seed-sample-data.js` (seed bell schedule data) — _see note above_         |
+| Modify | `DATABASE_SCHEMA.md`                                                                      |
