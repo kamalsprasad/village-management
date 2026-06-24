@@ -1407,7 +1407,7 @@ function buildHarvestPlans(dAgo, pByK, cropId) {
 // PHASE 4 — SCHOOL
 // =============================================================================
 
-async function seedSchool(tablesDB, dbId, residentIds, log) {
+async function seedSchool(tablesDB, dbId, residentIds, slotIdsByGrade, log) {
   const findResId = (f, l) => {
     const i = findResIdx(f, l);
     return i >= 0 ? residentIds[i] : null;
@@ -1762,16 +1762,10 @@ async function seedSchool(tablesDB, dbId, residentIds, log) {
   log(`  ${scoreTasks.length} test scores`);
 
   log('Phase 4: Timetable...');
-  // Story 4.5: school_timetable was replaced by school_period_slots + class_timetable_entries.
+  // Story 4.5: class_timetable_entries use slot IDs from seedBellSchedules (run before seedSchool).
+  // slotIdsByGrade[grade][periodNum] → slot.$id for 2026 class-type slots.
+  // periodNum is 1-based among class-type slots (Period 1 = 1, Period 2 = 2, …).
   const TIMETABLE_ACADEMIC_YEAR = 2026;
-  const PERIODS = [
-    { num: 1, start: '08:00', end: '08:45', label: 'Period 1' },
-    { num: 2, start: '08:45', end: '09:30', label: 'Period 2' },
-    { num: 3, start: '10:00', end: '10:45', label: 'Period 3' },
-    { num: 4, start: '10:45', end: '11:30', label: 'Period 4' },
-    { num: 5, start: '12:00', end: '12:45', label: 'Period 5' },
-    { num: 6, start: '12:45', end: '13:30', label: 'Period 6' },
-  ];
   const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
   const primaryTeacher = {
     'Early Childhood': findResId('Grace', 'Banda'),
@@ -1802,33 +1796,8 @@ async function seedSchool(tablesDB, dbId, residentIds, log) {
     return subjectTeacher[subject] || null;
   };
 
-  // Create period slots per grade (bell schedule). Empty applies_to_days means every school day.
-  const slotIdsByGrade = {}; // grade -> slot_number -> slot_id
-  const slotTasks = [];
-  for (const grade of Object.keys(TIMETABLE_SCHEDULE)) {
-    if (!classes[grade]) continue;
-    slotIdsByGrade[grade] = {};
-    for (const p of PERIODS) {
-      slotTasks.push(async () => {
-        const slot = await createRow(tablesDB, dbId, 'school_period_slots', {
-          grade_level: grade,
-          academic_year: TIMETABLE_ACADEMIC_YEAR,
-          slot_number: p.num,
-          label: p.label,
-          slot_type: 'class',
-          start_time: p.start,
-          end_time: p.end,
-          applies_to_days: [],
-          notes: '',
-        });
-        slotIdsByGrade[grade][p.num] = slot.$id;
-      });
-    }
-  }
-  await batchRun(slotTasks, 25);
-  log(`  ${slotTasks.length} period slots`);
-
   // Story 4.5: Create class_timetable_entries using grade templates + class overrides.
+  // slotIdsByGrade is populated by seedBellSchedules and passed in as a parameter.
   const ttTasks = [];
 
   const grade3TemplateTeacher = (subject) => {
@@ -1838,19 +1807,21 @@ async function seedSchool(tablesDB, dbId, residentIds, log) {
     return findResId('Ruth', 'Phiri');
   };
 
+  // Helper: look up the slot ID for a given grade + 1-based period number.
+  const slotId = (grade, periodNum) => slotIdsByGrade[grade]?.[periodNum] ?? null;
+
   // 1. Grade 3 template (class_id = null, is_template = true)
   const grade3Week = TIMETABLE_SCHEDULE['Grade 3'];
-  const grade3SlotIds = slotIdsByGrade['Grade 3'];
   for (let dIdx = 0; dIdx < DAYS.length; dIdx++) {
     for (let pIdx = 0; pIdx < grade3Week[dIdx].length; pIdx++) {
       const subject = grade3Week[dIdx][pIdx];
-      const periodNum = PERIODS[pIdx].num;
+      const periodNum = pIdx + 1; // 1-based period number
       ttTasks.push(() =>
         createRow(tablesDB, dbId, 'class_timetable_entries', {
           class_id: null,
           is_template: true,
           grade_level: 'Grade 3',
-          slot_id: grade3SlotIds[periodNum],
+          slot_id: slotId('Grade 3', periodNum),
           day_of_week: DAYS[dIdx],
           subject,
           teacher_id: grade3TemplateTeacher(subject),
@@ -1869,7 +1840,7 @@ async function seedSchool(tablesDB, dbId, residentIds, log) {
   for (let dIdx = 0; dIdx < DAYS.length; dIdx++) {
     for (let pIdx = 0; pIdx < grade3Week[dIdx].length; pIdx++) {
       const subject = grade3Week[dIdx][pIdx];
-      const periodNum = PERIODS[pIdx].num;
+      const periodNum = pIdx + 1;
       const day = DAYS[dIdx];
       let teacherId = grade3TemplateTeacher(subject);
       if (day === override3A.day && periodNum === override3A.periodNum) {
@@ -1880,7 +1851,7 @@ async function seedSchool(tablesDB, dbId, residentIds, log) {
           class_id: classId3A,
           is_template: false,
           grade_level: 'Grade 3',
-          slot_id: grade3SlotIds[periodNum],
+          slot_id: slotId('Grade 3', periodNum),
           day_of_week: day,
           subject,
           teacher_id: teacherId,
@@ -1895,7 +1866,7 @@ async function seedSchool(tablesDB, dbId, residentIds, log) {
 
   // 3. Grade 3B deliberately has no class entries (tests template preview empty state).
 
-  // 4. Other grades: class-specific entries as before.
+  // 4. Other grades: class-specific entries.
   for (const [grade, weekSchedule] of Object.entries(TIMETABLE_SCHEDULE)) {
     if (grade === 'Grade 3') continue;
     const cId2 = clsId(grade);
@@ -1906,14 +1877,14 @@ async function seedSchool(tablesDB, dbId, residentIds, log) {
     for (let dIdx = 0; dIdx < DAYS.length; dIdx++) {
       for (let pIdx = 0; pIdx < weekSchedule[dIdx].length; pIdx++) {
         const subject = weekSchedule[dIdx][pIdx];
-        const periodNum = PERIODS[pIdx].num;
+        const periodNum = pIdx + 1;
         const teacherId = isPrimary ? ctId : resolveSecTeacher(subject, gNum);
         ttTasks.push(() =>
           createRow(tablesDB, dbId, 'class_timetable_entries', {
             class_id: cId2,
             is_template: false,
             grade_level: grade,
-            slot_id: slotIdsByGrade[grade][periodNum],
+            slot_id: slotId(grade, periodNum),
             day_of_week: DAYS[dIdx],
             subject,
             teacher_id: teacherId || null,
@@ -2667,41 +2638,35 @@ async function seedCalendar(tablesDB, dbId, log) {
 
 // =============================================================================
 // seedBellSchedules — Story 4.4
-// Seeds representative bell schedules for Early Childhood and Grade 5.
+// Seeds realistic bell schedules for all 13 grade levels × 2025 & 2026.
+//
+// Three tiers:
+//   Early Childhood — 5 class periods, shorter day (07:30–12:30)
+//   Primary (Grades 1–7) — 6 class periods, full day (07:30–14:15)
+//   Secondary (Grades 8–12) — 6 class periods + 1 study period, full day (07:30–15:00)
+//
+// Every grade gets: Monday assembly + morning break + lunch + afternoon break.
+// The function returns slotIdsByGrade: { grade → { periodNum → slot.$id } }
+// for the 2026 class-type slots only — used by seedSchool for timetable entries.
 // =============================================================================
 
 async function seedBellSchedules(tablesDB, dbId, log) {
-  log('  Seeding bell schedules…');
+  log('  Seeding bell schedules — all grades, 2025 & 2026…');
 
-  const toSlot = (
-    grade,
-    year,
-    slotNumber,
-    label,
-    slotType,
-    startTime,
-    endTime,
-    appliesToDays,
-    notes,
-  ) => ({
-    grade_level: grade,
-    academic_year: year,
-    slot_number: slotNumber,
-    label,
-    slot_type: slotType,
-    start_time: startTime,
-    end_time: endTime,
-    ...(appliesToDays && appliesToDays.length > 0 ? { applies_to_days: appliesToDays } : {}),
-    ...(notes ? { notes } : {}),
-  });
+  // [slotNumber, label, slotType, startTime, endTime, appliesToDays, notes?]
+  // appliesToDays: [] = every school day; ['Monday'] = Monday only, etc.
 
-  const YEARS = [2025, 2026];
-
-  // ─── Early Childhood ──────────────────────────────────────────────────────
-  // Shorter day, 3 class periods, 2 breaks, no separate lunch (early finish)
-  const earlyChildhoodSlots = [
-    // slot  label                  type        start   end
-    [1, 'Morning Assembly', 'assembly', '07:30', '07:50', ['Monday'], 'Weekly Monday assembly'],
+  // ─── Early Childhood (07:30–12:30, 5 class periods) ──────────────────────
+  const EC_SLOTS = [
+    [
+      1,
+      'Morning Assembly',
+      'assembly',
+      '07:30',
+      '07:50',
+      ['Monday'],
+      'Weekly whole-school assembly',
+    ],
     [2, 'Period 1', 'class', '07:50', '08:35', []],
     [3, 'Period 2', 'class', '08:35', '09:20', []],
     [4, 'Morning Break', 'break', '09:20', '09:45', []],
@@ -2712,10 +2677,17 @@ async function seedBellSchedules(tablesDB, dbId, log) {
     [9, 'Period 5', 'class', '12:00', '12:30', []],
   ];
 
-  // ─── Grade 5 ──────────────────────────────────────────────────────────────
-  // Standard full day, 6 class periods, 2 breaks, 1 lunch
-  const grade5Slots = [
-    [1, 'Morning Assembly', 'assembly', '07:30', '07:45', ['Monday'], 'Weekly Monday assembly'],
+  // ─── Primary Grades 1–7 (07:30–14:15, 6 class periods) ──────────────────
+  const PRIMARY_SLOTS = [
+    [
+      1,
+      'Morning Assembly',
+      'assembly',
+      '07:30',
+      '07:45',
+      ['Monday'],
+      'Weekly whole-school assembly',
+    ],
     [2, 'Period 1', 'class', '07:45', '08:35', []],
     [3, 'Period 2', 'class', '08:35', '09:25', []],
     [4, 'Period 3', 'class', '09:25', '10:15', []],
@@ -2725,29 +2697,98 @@ async function seedBellSchedules(tablesDB, dbId, log) {
     [8, 'Lunch Break', 'lunch', '12:15', '13:00', []],
     [9, 'Period 6', 'class', '13:00', '13:50', []],
     [10, 'Afternoon Break', 'break', '13:50', '14:05', []],
-    [11, 'Period 7', 'class', '14:05', '14:55', []],
+    [11, 'Study Period', 'free', '14:05', '14:15', [], 'Independent reading / homework'],
   ];
 
-  const allSlots = [];
+  // ─── Secondary Grades 8–12 (07:30–15:00, 6 class periods + study) ────────
+  const SECONDARY_SLOTS = [
+    [
+      1,
+      'Morning Assembly',
+      'assembly',
+      '07:30',
+      '07:45',
+      ['Monday'],
+      'Weekly whole-school assembly',
+    ],
+    [2, 'Period 1', 'class', '07:45', '08:35', []],
+    [3, 'Period 2', 'class', '08:35', '09:25', []],
+    [4, 'Period 3', 'class', '09:25', '10:15', []],
+    [5, 'Morning Break', 'break', '10:15', '10:35', []],
+    [6, 'Period 4', 'class', '10:35', '11:25', []],
+    [7, 'Period 5', 'class', '11:25', '12:15', []],
+    [8, 'Lunch Break', 'lunch', '12:15', '13:00', []],
+    [9, 'Period 6', 'class', '13:00', '13:50', []],
+    [10, 'Afternoon Break', 'break', '13:50', '14:05', []],
+    [11, 'Study Period', 'free', '14:05', '15:00', [], 'Supervised self-study / exam prep'],
+  ];
 
-  for (const year of YEARS) {
-    for (const [slotNum, label, slotType, startTime, endTime, days, notes] of earlyChildhoodSlots) {
-      allSlots.push(
-        toSlot('Early Childhood', year, slotNum, label, slotType, startTime, endTime, days, notes),
-      );
-    }
-    for (const [slotNum, label, slotType, startTime, endTime, days, notes] of grade5Slots) {
-      allSlots.push(
-        toSlot('Grade 5', year, slotNum, label, slotType, startTime, endTime, days, notes),
-      );
+  // Map grade → slot definition array
+  const GRADE_SLOT_MAP = {
+    'Early Childhood': EC_SLOTS,
+    'Grade 1': PRIMARY_SLOTS,
+    'Grade 2': PRIMARY_SLOTS,
+    'Grade 3': PRIMARY_SLOTS,
+    'Grade 4': PRIMARY_SLOTS,
+    'Grade 5': PRIMARY_SLOTS,
+    'Grade 6': PRIMARY_SLOTS,
+    'Grade 7': PRIMARY_SLOTS,
+    'Grade 8': SECONDARY_SLOTS,
+    'Grade 9': SECONDARY_SLOTS,
+    'Grade 10': SECONDARY_SLOTS,
+    'Grade 11': SECONDARY_SLOTS,
+    'Grade 12': SECONDARY_SLOTS,
+  };
+
+  const YEARS = [2025, 2026];
+
+  // We track class-slot IDs for 2026 so seedSchool can reference them for timetable entries.
+  // Shape: { grade → { periodNumber → slot.$id } }
+  // "periodNumber" = 1-based index of class-type slots within that grade's schedule (Period 1 = 1, etc.)
+  const slotIdsByGrade = {};
+
+  const allTasks = [];
+
+  for (const [grade, slotDefs] of Object.entries(GRADE_SLOT_MAP)) {
+    // Pre-compute which slot_numbers are class-type, in order, so we can map
+    // them to 1-based period numbers (Period 1 = 1, Period 2 = 2, …) for the timetable lookup.
+    const classSlotNums = slotDefs.filter(([, , t]) => t === 'class').map(([n]) => n);
+
+    for (const year of YEARS) {
+      for (const [slotNum, label, slotType, startTime, endTime, appliesToDays, notes] of slotDefs) {
+        allTasks.push(async () => {
+          const slot = await createRow(tablesDB, dbId, 'school_period_slots', {
+            grade_level: grade,
+            academic_year: year,
+            slot_number: slotNum,
+            label,
+            slot_type: slotType,
+            start_time: startTime,
+            end_time: endTime,
+            ...(appliesToDays.length > 0 ? { applies_to_days: appliesToDays } : {}),
+            ...(notes ? { notes } : {}),
+          });
+          // Record the slot ID for 2026 class-type slots only
+          if (year === 2026 && slotType === 'class') {
+            if (!slotIdsByGrade[grade]) slotIdsByGrade[grade] = {};
+            // Map by 1-based period number (position among class slots)
+            const periodNum = classSlotNums.indexOf(slotNum) + 1;
+            slotIdsByGrade[grade][periodNum] = slot.$id;
+          }
+        });
+      }
     }
   }
 
-  const slotTasks = allSlots.map(
-    (slot) => async () => createRow(tablesDB, dbId, 'school_period_slots', slot),
-  );
-  await batchRun(slotTasks, 20);
-  log(`  ${allSlots.length} period slots created (Early Childhood + Grade 5, 2025 & 2026)`);
+  // Must run sequentially per-slot within batchRun to avoid race conditions on slotIdsByGrade writes.
+  // batchRun already serialises in chunks so this is safe.
+  await batchRun(allTasks, 20);
+
+  const totalSlots =
+    Object.values(GRADE_SLOT_MAP).reduce((s, defs) => s + defs.length, 0) * YEARS.length;
+  log(`  ${totalSlots} period slots created (13 grades × 2 years)`);
+
+  return { slotIdsByGrade };
 }
 
 // =============================================================================
@@ -2776,9 +2817,10 @@ export default async ({ req, res, log, error }) => {
     const { residentIds, councilMemberIds } = await seedHouseholdsAndResidents(tablesDB, dbId, log);
     const { categories, fundingSources } = await seedFinance(tablesDB, dbId, residentIds, log);
     await seedFarm(tablesDB, dbId, residentIds, categories, fundingSources, log);
-    await seedSchool(tablesDB, dbId, residentIds, log);
+    // Bell schedules must run before seedSchool so timetable entries can reference the slot IDs.
+    const { slotIdsByGrade } = await seedBellSchedules(tablesDB, dbId, log);
+    await seedSchool(tablesDB, dbId, residentIds, slotIdsByGrade, log);
     await seedCalendar(tablesDB, dbId, log);
-    await seedBellSchedules(tablesDB, dbId, log);
     await seedVillageSettings(tablesDB, dbId, councilMemberIds, log);
 
     log('=== seedAllData: complete ===');
