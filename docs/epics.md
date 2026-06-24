@@ -781,6 +781,10 @@ As a **Teacher**, I want to conduct peer evaluations with comprehensive rating c
 
 **Acceptance Criteria:** 1. Peer Review form: 10 rating categories (1-5 scale): Teaching Effectiveness, Classroom Management, Collaboration, Innovation, Professionalism, Gender-Equitable Teaching, Student-Centered Teaching, Movement Around Classroom, Checking for Understanding, Monitoring Student Work 2. Overall rating (auto-calculated average of 10 categories) 3. Peer review process: Teacher submits (status: Submitted), Head Teacher dashboard shows "New Peer Reviews" widget, Head Teacher marks as "Checked", status flow: Draft → Submitted → Checked 4. Teacher can view peer review after Head Teacher marks as "Checked"
 
+**Status:** Deferred to post-MVP
+
+**Post-MVP note:** Teacher peer-review forms with 10 rating categories and Head Teacher "checked" status will be built after the core school module is stable.
+
 **Prerequisites:** Epic 1 Story 1.7
 
 ---
@@ -791,6 +795,10 @@ As a **Teacher**, I want to complete self-evaluations. As a **Head Teacher**, I 
 
 **Acceptance Criteria:** 1. Self-Evaluation: same 10 rating categories, goals, challenges, support needed 2. Head Teacher Evaluation: same categories + Impact on Learner Outcomes, recommendation (Exceeds Expectations/Meets Expectations/Needs Improvement/Unsatisfactory) 3. Teacher profile shows combined evaluation summary: weighted (Peer 30%, Self 20%, Head Teacher 50%) 4. School dashboard widget: "Teacher Performance Overview"
 
+**Status:** Deferred to post-MVP
+
+**Post-MVP note:** Multi-angle evaluation (self + head teacher) and the combined teacher-performance summary will be implemented after peer review (4.9) is available.
+
 **Prerequisites:** Story 4.9
 
 ---
@@ -800,6 +808,10 @@ As a **Teacher**, I want to complete self-evaluations. As a **Head Teacher**, I 
 As a **Teacher**, I want to document collaborative teaching practices.
 
 **Acceptance Criteria:** 1. Teaching practice entry form: title, subject, grade, practice type, description, materials, implementation steps, outcomes, effectiveness rating 2. Teaching practices library: list view, filters, search 3. Practice detail page: comments, "I've tried this" button, adoption tracking 4. Export to PDF
+
+**Status:** Deferred to post-MVP
+
+**Post-MVP note:** Collaborative teaching practice library, comments, and "I've tried this" adoption tracking will be implemented after peer review (4.9) is available.
 
 **Prerequisites:** Story 4.9
 
@@ -825,7 +837,7 @@ As a **Head Teacher**, I want to generate comprehensive learner progress reports
 
 ---
 
-**Epic 4 Summary:** 13 stories. Deliverables: School management (learners from residents, bulk test scores/attendance), configurable school calendar (academic terms, grade bell schedules, class timetables), at-risk identification (90% attendance, calendar-aware 5-day delay), interventions, teacher evaluations (10 categories, checked status), teaching practices, progress tracking, learner reports.
+**Epic 4 Summary:** 13 stories, 10 MVP stories. Deliverables: School management (learners from residents, bulk test scores/attendance), configurable school calendar (academic terms, grade bell schedules, class timetables), at-risk identification (90% attendance, calendar-aware 5-day delay), interventions, progress tracking, learner reports. Teacher evaluations and collaborative teaching practices are deferred to post-MVP.
 
 ---
 

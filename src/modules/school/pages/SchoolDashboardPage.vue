@@ -1,8 +1,8 @@
 <!--
   SchoolDashboardPage.vue (Story 4.1)
   School module dashboard: learner overview stats and navigation cards.
-  Future stories add: at-risk learners (4.4), teacher performance (4.7),
-  progress to goal (4.9) widgets.
+  Future MVP stories add: at-risk learners (4.7), progress to goal (4.12) widgets.
+  Teacher performance widgets (peer/self/HT evaluations) are deferred to post-MVP.
 -->
 <template>
   <q-page padding>

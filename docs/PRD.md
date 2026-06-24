@@ -199,10 +199,10 @@ Enable knowledge transfer from external facilitators → local power users → p
 - Enroll learners with grade level assignment, personal information, and household linkage
 - Record test scores by subject, term, and assessment type
 - Track learner attendance (daily, by class) with absence reasons
-- Implement teacher evaluations with three types: peer review, self-evaluation, head teacher evaluation
-- Support collaborative teaching practices documentation
+- _(Post-MVP)_ Implement teacher evaluations with three types: peer review, self-evaluation, head teacher evaluation
+- _(Post-MVP)_ Support collaborative teaching practices documentation
 - Generate school dashboard showing learner performance trends, class averages, and at-risk student identification
-- Track teacher performance over time with evaluation history
+- _(Post-MVP)_ Track teacher performance over time with evaluation history
 - Calculate progress toward goal: 90% of learners in 90th percentile by year 10
 - Identify struggling learners automatically based on configurable thresholds for early intervention
 
@@ -469,7 +469,7 @@ The modular architecture must support future plugin development for custom modul
      - Documents intervention efforts
      - Recommends continued support at home
 
-7. **Peer Review and Reflection (Week 13 - Term Break)**
+7. **Peer Review and Reflection (Week 13 - Term Break)** _(Post-MVP step)_
    - Grace initiates peer review process for Teacher Mwape
    - Other teacher completes peer evaluation form:
      - Rates Mwape's intervention effectiveness: 5/5
@@ -492,7 +492,7 @@ The modular architecture must support future plugin development for custom modul
    - Exports quarterly report for Village Head and donors showing:
      - Learner performance trends
      - Intervention success rates
-     - Teacher evaluation summaries
+     - _(Post-MVP)_ Teacher evaluation summaries
      - Progress toward 10-year goal
 
 **Success Outcome:** Banda's scores improve by 21% through early identification and systematic intervention. Teacher Mwape receives recognition for effective teaching. Grace demonstrates measurable progress toward ambitious educational goals to donors and Village Head.
@@ -559,7 +559,7 @@ The modular architecture must support future plugin development for custom modul
    - **School Module:**
      - Clicks "School Performance Summary"
      - Views: 10 learners, average score 77.6%, 1 at-risk learner (intervention in progress)
-     - Teacher evaluations: Both teachers rated "Good" or "Excellent"
+     - _(Post-MVP)_ Teacher evaluations: Both teachers rated "Good" or "Excellent"
      - Progress toward goal: 20% of learners in 90th percentile (target: 90% by year 10)
      - Decision point: Approve budget for additional learning materials
 
@@ -597,7 +597,7 @@ The modular architecture must support future plugin development for custom modul
        - 10 learners enrolled, 95% attendance rate
        - Average scores improved 5% from baseline
        - 1 at-risk learner successfully intervened (21% improvement)
-       - 100% teacher evaluations completed (peer/self/head teacher)
+       - _(Post-MVP)_ 100% teacher evaluations completed (peer/self/head teacher)
      - **Community Impact:**
        - 50 residents actively using system
        - 2 local power users trained
@@ -657,7 +657,7 @@ Design for mobile screens first, then scale up to tablets and desktops. Touch ta
 Design assuming connectivity is intermittent, not constant. All data entry forms work offline with visual indicators showing sync status. Users should never lose work due to connectivity issues. Show clear "Offline Mode" indicator with last sync time. Queue actions for automatic sync when connection restored. Critical read-only data cached locally.
 
 **8. Role-Based Contextual Dashboards**
-Each role sees a personalized dashboard showing only relevant information and actions. Farm Manager sees plots, harvests, and profitability; Head Teacher sees learner performance and teacher evaluations; Village Head sees high-level summaries across all modules. Avoid "one-size-fits-all" dashboards that overwhelm users with irrelevant information.
+Each role sees a personalized dashboard showing only relevant information and actions. Farm Manager sees plots, harvests, and profitability; Head Teacher sees learner performance and (post-MVP) teacher evaluations; Village Head sees high-level summaries across all modules. Avoid "one-size-fits-all" dashboards that overwhelm users with irrelevant information.
 
 **9. Data Visualization Over Tables**
 Prefer charts, graphs, and visual indicators over dense data tables where appropriate. Show trends visually (line charts for yield over time, bar charts for crop profitability comparison). Use progress bars for goals (90% of learners in 90th percentile). Reserve tables for detailed data exploration, not primary views. Export detailed tables to CSV/Excel for power users who need them.
@@ -773,7 +773,7 @@ Break complex multi-step processes into guided workflows with clear progress ind
 
 ### Epic 4: School Management and Educational Accountability (13 stories)
 
-**Goal:** Enable systematic tracking of learner performance and teacher effectiveness. Support early intervention for struggling learners and meaningful teacher accountability through peer reviews. Includes a fully configurable school calendar that drives accurate attendance tracking and at-risk identification.
+**Goal:** Enable systematic tracking of learner performance and teacher effectiveness. Support early intervention for struggling learners and meaningful teacher accountability (peer reviews deferred to post-MVP). Includes a fully configurable school calendar that drives accurate attendance tracking and at-risk identification.
 
 **Value Delivered:** Head Teacher can configure the school's academic calendar, define bell schedules per grade, build class timetables, identify at-risk learners early, implement interventions, track progress toward ambitious educational goals (90% in 90th percentile), and demonstrate measurable outcomes to donors.
 
@@ -789,8 +789,8 @@ Break complex multi-step processes into guided workflows with clear progress ind
 - Attendance tracking (daily, by class) — calendar-aware, correctly excludes non-school days
 - At-risk learner identification with configurable thresholds; calendar-aware 5-day grace period
 - Intervention planning and progress tracking
-- Teacher evaluations: peer review, self-evaluation, head teacher evaluation
-- Collaborative teaching practices documentation
+- _(Post-MVP)_ Teacher evaluations: peer review, self-evaluation, head teacher evaluation
+- _(Post-MVP)_ Collaborative teaching practices documentation
 - School dashboard with learner performance trends, class averages, at-risk alerts
 - Progress tracking toward long-term goal (90% in 90th percentile by year 10)
 - Learner progress reports for parents
@@ -800,7 +800,7 @@ Break complex multi-step processes into guided workflows with clear progress ind
 
 - Head Teacher can identify struggling learners within first month of term
 - Intervention workflow tracks progress with measurable improvement
-- Teacher evaluations completed systematically each term (not checkbox exercise)
+- Teacher evaluations completed systematically each term after the post-MVP teacher-accountability phase is implemented
 - School dashboard shows clear trends in learner performance over time
 - System tracks progress toward 10-year educational goal with quarterly updates
 - Reports demonstrate intervention effectiveness to donors
