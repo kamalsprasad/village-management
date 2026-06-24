@@ -36,72 +36,74 @@
         <div class="text-caption">Set up the bell schedule before building the timetable.</div>
       </div>
 
-      <q-markup-table v-else flat bordered class="timetable-table">
-        <thead>
-          <tr>
-            <th class="time-col bg-grey-2 text-grey-8">Period & Time</th>
-            <th
-              v-for="day in DAYS"
-              :key="day"
-              class="day-header bg-grey-2 text-primary text-weight-bold"
-            >
-              {{ day }}
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="slot in sortedSlots" :key="slot.$id">
-            <!-- Period info column -->
-            <td class="period-info text-center bg-grey-1">
-              <div class="text-weight-bold">{{ slot.label }}</div>
-              <div class="text-caption text-grey-7">
-                {{ slot.start_time }} – {{ slot.end_time }}
-              </div>
-              <q-btn
-                v-if="canEdit && slot.slot_type === 'class'"
-                flat
-                dense
-                size="xs"
-                color="primary"
-                label="Apply to All Days"
-                class="q-mt-xs"
-                @click="onApplyAllDays(slot)"
-              />
-            </td>
-
-            <!-- Non-class slot: shaded row spanning all days -->
-            <td
-              v-if="slot.slot_type !== 'class'"
-              :colspan="DAYS.length"
-              class="non-class-row text-center"
-              :class="`bg-${getSlotTypeColor(slot.slot_type)}-1 text-${getSlotTypeColor(slot.slot_type)}-9`"
-            >
-              <q-icon :name="getSlotTypeIcon(slot.slot_type)" size="sm" class="q-mr-xs" />
-              {{ slot.label }}
-            </td>
-
-            <!-- Class slot: one cell per day -->
-            <template v-else>
-              <td v-for="day in DAYS" :key="day" class="cell" :class="cellClasses(slot, day)">
-                <CellDisplay
-                  v-if="!editMode"
-                  :entry="getCellEntry(slot.$id, day)"
-                  :teacher-options="teacherOptions"
-                />
-                <CellEditor
-                  v-else
-                  :entry="getCellEntry(slot.$id, day)"
-                  :teacher-options="teacherOptions"
-                  :class-options="classOptions"
-                  :conflict="showConflicts ? getConflict(slot, day) : null"
-                  @update="onCellUpdate(slot.$id, day, $event)"
-                  @clear="onClearCell(slot.$id, day)"
+      <div v-else class="timetable-scroll-container">
+        <q-markup-table flat bordered class="timetable-table">
+          <thead>
+            <tr>
+              <th class="time-col bg-grey-2 text-grey-8 sticky-col sticky-header">Period & Time</th>
+              <th
+                v-for="day in DAYS"
+                :key="day"
+                class="day-header bg-grey-2 text-primary text-weight-bold sticky-header"
+              >
+                {{ day }}
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="slot in sortedSlots" :key="slot.$id">
+              <!-- Period info column -->
+              <td class="period-info text-center bg-grey-1 sticky-col">
+                <div class="text-weight-bold">{{ slot.label }}</div>
+                <div class="text-caption text-grey-7">
+                  {{ slot.start_time }} – {{ slot.end_time }}
+                </div>
+                <q-btn
+                  v-if="canEdit && slot.slot_type === 'class'"
+                  flat
+                  dense
+                  size="xs"
+                  color="primary"
+                  label="Apply to All Days"
+                  class="q-mt-xs"
+                  @click="onApplyAllDays(slot)"
                 />
               </td>
-            </template>
-          </tr>
-        </tbody>
-      </q-markup-table>
+
+              <!-- Non-class slot: shaded row spanning all days -->
+              <td
+                v-if="slot.slot_type !== 'class'"
+                :colspan="DAYS.length"
+                class="non-class-row text-center"
+                :class="`bg-${getSlotTypeColor(slot.slot_type)}-1 text-${getSlotTypeColor(slot.slot_type)}-9`"
+              >
+                <q-icon :name="getSlotTypeIcon(slot.slot_type)" size="sm" class="q-mr-xs" />
+                {{ slot.label }}
+              </td>
+
+              <!-- Class slot: one cell per day -->
+              <template v-else>
+                <td v-for="day in DAYS" :key="day" class="cell" :class="cellClasses(slot, day)">
+                  <CellDisplay
+                    v-if="!editMode"
+                    :entry="getCellEntry(slot.$id, day)"
+                    :teacher-options="teacherOptions"
+                  />
+                  <CellEditor
+                    v-else
+                    :entry="getCellEntry(slot.$id, day)"
+                    :teacher-options="teacherOptions"
+                    :class-options="classOptions"
+                    :conflict="showConflicts ? getConflict(slot, day) : null"
+                    @update="onCellUpdate(slot.$id, day, $event)"
+                    @clear="onClearCell(slot.$id, day)"
+                  />
+                </td>
+              </template>
+            </tr>
+          </tbody>
+        </q-markup-table>
+      </div>
 
       <!-- Edit-mode row actions (desktop) -->
       <div v-if="canEdit" class="row q-mt-sm q-gutter-sm">
@@ -303,24 +305,39 @@ export default {
 </script>
 
 <style scoped>
+/* Scrollable wrapper — fits the timetable within the viewport */
+.timetable-scroll-container {
+  overflow-x: auto;
+  overflow-y: auto;
+  max-height: calc(100vh - 340px);
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+}
+
 .timetable-table {
   table-layout: fixed;
   width: 100%;
+  /* Remove default border so the container border shows */
+  border: none !important;
 }
+
 .time-col {
-  width: 130px;
+  width: 120px;
+  min-width: 120px;
 }
 .day-header {
-  width: calc((100% - 130px) / v-bind('dayCount'));
+  width: calc((100% - 120px) / v-bind('dayCount'));
+  min-width: 140px;
 }
 .period-info {
-  width: 130px;
+  width: 120px;
+  min-width: 120px;
   vertical-align: middle;
-  padding: 8px;
+  padding: 6px 8px;
 }
 .cell {
   vertical-align: top;
-  height: 90px;
+  height: 70px;
   padding: 4px;
   transition: background-color 0.15s;
 }
@@ -334,6 +351,26 @@ export default {
 .non-class-row {
   vertical-align: middle;
   font-weight: 500;
-  padding: 12px;
+  padding: 8px 12px;
+}
+
+/* Sticky column headers */
+.sticky-header {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+}
+
+/* Sticky period/time column */
+.sticky-col {
+  position: sticky;
+  left: 0;
+  z-index: 2;
+  background-color: #f5f5f5;
+}
+
+/* Corner cell gets highest z-index so it sits above both sticky axes */
+.sticky-col.sticky-header {
+  z-index: 4;
 }
 </style>
