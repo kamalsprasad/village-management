@@ -173,9 +173,24 @@
           :disable-views="['years', 'year', 'month', 'day']"
           :events-on-month-view="false"
           :editable-events="false"
-          :time-cell-height="40"
+          :time-cell-height="96"
           @event-click="onEventClick"
-        />
+        >
+          <template #event="{ event }">
+            <!-- Break / assembly / lunch row -->
+            <div v-if="event.slotType" class="cal-break-inner">
+              <span class="cal-break-label">{{ event.title }}</span>
+            </div>
+            <!-- Regular class event -->
+            <div v-else class="cal-event-inner">
+              <div class="cal-event-title">{{ event.title }}</div>
+              <div v-if="event.teacherName" class="cal-event-teacher">
+                <q-icon name="person" size="10px" />
+                {{ event.teacherName }}
+              </div>
+            </div>
+          </template>
+        </VueCal>
       </div>
     </template>
 
@@ -211,7 +226,7 @@ import { useQuasar } from 'quasar';
 import { VueCal } from 'vue-cal';
 import 'vue-cal/style.css';
 import { useTimetableStore } from '../stores/timetable-store';
-import { usePeriodSlotsStore, getSlotTypeColor } from '../stores/period-slots-store';
+import { usePeriodSlotsStore } from '../stores/period-slots-store';
 import { useTeacherStore } from '../stores/teacher-store';
 import { useClassStore } from '../stores/class-store';
 import { usePermissions } from 'src/composables/usePermissions';
@@ -456,11 +471,13 @@ const calendarEvents = computed(() => {
         const teacherId = entry?.teacher_id_normalized;
         const teacherName = teacherOptions.value.find((t) => t.value === teacherId)?.label || '';
 
+        // Extract only the bg-* class for vue-cal coloring (strip Quasar text-* class)
+        const colorClass = entry?.subject ? subjectColorClass(title).split(' ')[0] : 'bg-grey-1';
         events.push({
           start: `${date} ${slot.start_time}`,
           end: `${date} ${slot.end_time}`,
           title,
-          class: entry?.subject ? `class-event ${subjectColorClass(title)}` : 'empty-event',
+          class: entry?.subject ? colorClass : 'empty-event',
           background: false,
           dayOfWeek: day,
           slotLabel: slot.label,
@@ -469,16 +486,18 @@ const calendarEvents = computed(() => {
           className,
         });
       } else {
-        // Non-class slot as background event
+        // Non-class slot (break, lunch, assembly) — rendered as a regular event
+        // so it gets its own height and a legible label
         events.push({
           start: `${date} ${slot.start_time}`,
           end: `${date} ${slot.end_time}`,
           title: slot.label,
-          class: `bg-${getSlotTypeColor(slot.slot_type)}-1`,
-          background: true,
+          class: `cal-break cal-break-${slot.slot_type}`,
+          background: false,
           dayOfWeek: day,
           slotLabel: slot.label,
           slotTime: `${slot.start_time} – ${slot.end_time}`,
+          slotType: slot.slot_type,
         });
       }
     });
@@ -499,7 +518,7 @@ const calendarTimeRange = computed(() => {
     const [h, m] = s.end_time.split(':').map(Number);
     return h * 60 + m;
   });
-  const start = Math.min(...minutes);
+  const start = Math.max(0, Math.min(...minutes) - 15);
   const end = Math.min(Math.max(...ends) + 30, 24 * 60);
   return { start, end };
 });
@@ -554,24 +573,161 @@ export default {
 </script>
 
 <style scoped>
+/* ── Calendar wrapper ──────────────────────────────────────── */
 .calendar-wrapper {
-  height: 600px;
+  height: calc(100vh - 340px);
+  min-height: 400px;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  /* overflow:clip keeps the border-radius clipping without blocking
+     vue-cal's internal scroll container for the time axis */
+  overflow: clip;
 }
 
+/* Hide the "WEEK" view-selector tab bar — only one view available */
+:deep(.vuecal__menu),
+:deep(.vuecal__view-btn) {
+  display: none !important;
+}
+
+/* ── Strip vue-cal's default event chrome so our template owns the box ── */
+:deep(.vuecal__event) {
+  padding: 0 !important;
+  border: none !important;
+  border-radius: 3px !important;
+  overflow: hidden !important;
+  cursor: pointer;
+}
+
+/* ── Class period events ─────────────────────────────────────── */
+.cal-event-inner {
+  width: 100%;
+  height: 100%;
+  padding: 3px 5px;
+  border-left: 3px solid #1565c0;
+  border-radius: 0 3px 3px 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 2px;
+  box-sizing: border-box;
+}
+
+.cal-event-title {
+  font-size: 11.5px;
+  font-weight: 700;
+  line-height: 1.3;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cal-event-teacher {
+  font-size: 10.5px;
+  font-weight: 400;
+  line-height: 1.2;
+  opacity: 0.85;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ── Subject colour rules ────────────────────────────────────── */
+:deep(.vuecal__event.bg-blue-1) {
+  background: #e3f2fd !important;
+  color: #0d47a1 !important;
+}
+:deep(.vuecal__event.bg-red-1) {
+  background: #ffebee !important;
+  color: #b71c1c !important;
+}
+:deep(.vuecal__event.bg-green-1) {
+  background: #e8f5e9 !important;
+  color: #1b5e20 !important;
+}
+:deep(.vuecal__event.bg-orange-1) {
+  background: #fff3e0 !important;
+  color: #e65100 !important;
+}
+:deep(.vuecal__event.bg-purple-1) {
+  background: #f3e5f5 !important;
+  color: #4a148c !important;
+}
+:deep(.vuecal__event.bg-cyan-1) {
+  background: #e0f7fa !important;
+  color: #006064 !important;
+}
+:deep(.vuecal__event.bg-pink-1) {
+  background: #fce4ec !important;
+  color: #880e4f !important;
+}
+:deep(.vuecal__event.bg-grey-1) {
+  background: #f5f5f5 !important;
+  color: #424242 !important;
+}
+
+/* Empty / unassigned class periods */
+:deep(.vuecal__event.empty-event) {
+  background: #fafafa !important;
+  color: #9e9e9e !important;
+  font-style: italic;
+}
+
+/* ── Break / lunch / assembly rows ──────────────────────────── */
+:deep(.vuecal__event.cal-break) {
+  border-radius: 0 !important;
+  opacity: 1 !important;
+}
+
+/* Inner layout for break rows — horizontally centred label */
+.cal-break-inner {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2px 6px;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+.cal-break-label {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Break type colours — solid fill with dark contrasting text */
+:deep(.vuecal__event.cal-break-break) {
+  background: #c8e6c9 !important; /* green-100 */
+  color: #1b5e20 !important; /* green-900 */
+}
+:deep(.vuecal__event.cal-break-lunch) {
+  background: #ffe0b2 !important; /* orange-100 */
+  color: #bf360c !important; /* deep-orange-900 */
+}
+:deep(.vuecal__event.cal-break-assembly) {
+  background: #b2dfdb !important; /* teal-100 */
+  color: #004d40 !important; /* teal-900 */
+}
+:deep(.vuecal__event.cal-break-free) {
+  background: #f5f5f5 !important; /* grey-100 */
+  color: #424242 !important; /* grey-800 */
+}
+
+/* ── Grid view template preview ─────────────────────────────── */
 .timetable-grid-wrapper.template-preview {
   opacity: 0.75;
 }
 
 .timetable-grid-wrapper.template-preview :deep(.cell) {
   background-color: #f5f5f5;
-}
-
-:deep(.class-event) {
-  border-left: 3px solid #1976d2 !important;
-}
-
-:deep(.empty-event) {
-  opacity: 0.6;
-  font-style: italic;
 }
 </style>
