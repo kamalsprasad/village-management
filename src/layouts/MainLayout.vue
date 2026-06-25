@@ -451,6 +451,20 @@
           </q-item>
 
           <q-item
+            clickable
+            to="/school/at-risk-learners"
+            class="nav-sub-item"
+            active-class="nav-sub-item--active"
+          >
+            <q-item-section avatar class="nav-sub-icon">
+              <q-icon name="warning" size="16px" />
+            </q-item-section>
+            <q-item-section>
+              <q-item-label class="nav-sub-label">At-Risk Learners</q-item-label>
+            </q-item-section>
+          </q-item>
+
+          <q-item
             v-if="hasPermission('school:admin')"
             clickable
             to="/school/settings"

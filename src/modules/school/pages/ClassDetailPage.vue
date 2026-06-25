@@ -63,30 +63,59 @@
       </div>
     </div>
 
-    <!-- At-Risk Attendance Alert banner -->
-    <q-alert
-      v-if="atRiskStudents.length > 0"
-      type="warning"
-      color="warning"
-      text-color="dark"
-      icon="warning"
-      flat
-      bordered
-      class="q-mb-md"
+    <!-- At-Risk Attendance Alert banner (Story 4.7 — real data via atRiskStore) -->
+    <q-banner
+      v-if="classAtRiskLearners.length > 0 && !atRiskStore.gracePeriodActive"
+      class="bg-warning text-dark q-mb-md rounded-borders"
+      rounded
+      dense
     >
-      <div class="text-weight-bold">At-Risk Attendance Alert!</div>
+      <template #avatar>
+        <q-icon name="warning" color="warning" />
+      </template>
+      <div class="text-weight-bold">At-Risk Learners in this class</div>
       <div class="text-caption">
-        The following students have fallen below the 90% attendance threshold and require
-        intervention:
+        The following learners have fallen below the 90% attendance or academic thresholds and
+        require intervention:
         <span
-          v-for="(std, idx) in atRiskStudents"
-          :key="std.$id"
-          class="text-weight-medium text-primary"
+          v-for="(std, idx) in classAtRiskLearners"
+          :key="std.learnerId"
+          class="text-weight-medium text-primary cursor-pointer"
+          @click="viewLearnerDetail(std.learnerId)"
         >
-          {{ std.name }} ({{ std.rate }}%){{ idx < atRiskStudents.length - 1 ? ', ' : '' }}
+          {{ std.learnerName }} ({{ formatRiskSummary(std) }}){{
+            idx < classAtRiskLearners.length - 1 ? ', ' : ''
+          }}
         </span>
       </div>
-    </q-alert>
+      <template #action>
+        <q-btn
+          flat
+          dense
+          color="primary"
+          label="View all at-risk learners"
+          :to="'/school/at-risk-learners'"
+        />
+      </template>
+    </q-banner>
+
+    <!-- Grace period notice (Story 4.7) -->
+    <q-banner
+      v-if="atRiskStore.gracePeriodActive && atRiskStore.termsConfigured"
+      class="bg-orange-2 text-dark q-mb-md rounded-borders"
+      rounded
+      dense
+    >
+      <template #avatar>
+        <q-icon name="schedule" color="orange-8" />
+      </template>
+      <div class="text-caption">
+        At-risk identification is in a 5-school-day grace period.
+        {{ atRiskStore.elapsedSchoolDays }}/{{ 5 }} school days elapsed since
+        {{ atRiskStore.currentTerm?.term_name || 'the current term' }} started on
+        {{ formatDate(atRiskStore.currentTerm?.start_date) }}. Flagging begins after 5 school days.
+      </div>
+    </q-banner>
 
     <!-- Main Tabs Card -->
     <q-card v-if="cls" flat bordered>
@@ -197,6 +226,24 @@
             </div>
           </div>
 
+          <!-- Calendar-aware date validation warning (Story 4.7 AC2) -->
+          <q-banner
+            v-if="!isAttendanceDateSchoolDay && attendanceDate"
+            class="bg-orange-2 text-dark q-mb-md rounded-borders"
+            rounded
+            dense
+          >
+            <template #avatar>
+              <q-icon name="event_busy" color="orange-8" />
+            </template>
+            <div class="text-caption">
+              {{ formatDate(attendanceDate) }} is not a school day
+              <span v-if="attendanceDateReason">({{ attendanceDateReason }})</span>. Attendance
+              recorded on this date will still be saved but will not count toward at-risk
+              calculations.
+            </div>
+          </q-banner>
+
           <div v-if="loadingAttendance" class="text-center q-pa-lg">
             <q-spinner color="primary" size="md" />
             <div class="text-caption q-mt-sm">Loading attendance...</div>
@@ -257,6 +304,65 @@
               />
             </div>
           </template>
+
+          <!-- Attendance History (Story 4.7 AC3 — closes 4.6 AC4) -->
+          <q-separator class="q-my-lg" />
+          <div class="row items-center q-mb-md">
+            <div class="text-subtitle1 text-weight-bold">Attendance History</div>
+            <q-space />
+            <div class="row items-center q-gutter-sm">
+              <q-btn flat dense round icon="chevron_left" @click="shiftHistoryMonth(-1)">
+                <q-tooltip>Previous month</q-tooltip>
+              </q-btn>
+              <div
+                class="text-subtitle2 text-weight-medium"
+                style="min-width: 140px; text-align: center"
+              >
+                {{ historyMonthLabel }}
+              </div>
+              <q-btn flat dense round icon="chevron_right" @click="shiftHistoryMonth(1)">
+                <q-tooltip>Next month</q-tooltip>
+              </q-btn>
+              <q-btn flat dense color="primary" icon="refresh" @click="loadAttendanceHistory">
+                <q-tooltip>Refresh history</q-tooltip>
+              </q-btn>
+            </div>
+          </div>
+
+          <div v-if="loadingHistory" class="text-center q-pa-md">
+            <q-spinner color="primary" size="md" />
+            <div class="text-caption q-mt-sm">Loading attendance history...</div>
+          </div>
+
+          <q-table
+            v-else
+            :rows="attendanceHistoryRows"
+            :columns="historyColumns"
+            row-key="date"
+            flat
+            dense
+            :pagination="{ rowsPerPage: 25 }"
+            :no-data-label="
+              attendanceHistoryRows.length === 0
+                ? `No attendance recorded for ${historyMonthLabel}.`
+                : 'No data'
+            "
+          >
+            <template #body-cell-rate="props">
+              <q-td :props="props">
+                <span v-if="props.value === null" class="text-grey-6">—</span>
+                <q-chip
+                  v-else
+                  :color="getAttendanceRateColor(props.value)"
+                  text-color="white"
+                  dense
+                  square
+                >
+                  {{ props.value }}%
+                </q-chip>
+              </q-td>
+            </template>
+          </q-table>
         </q-tab-panel>
 
         <!-- Tab 3: Academic Performance Assessments -->
@@ -407,13 +513,17 @@
 </template>
 
 <script setup>
-import { ref, onMounted, computed } from 'vue';
+import { ref, onMounted, computed, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useQuasar, date } from 'quasar';
 import { normalizeClassId, useClassStore } from '../stores/class-store';
 import { useLearnerStore } from '../stores/learner-store';
 import { useSchoolStore } from '../stores/school-store';
+import { useCalendarEventsStore } from '../stores/calendar-events-store';
+import { useAtRiskStore } from '../stores/at-risk-store';
+import { useSettingsStore } from 'src/stores/settings-store';
 import { usePermissions } from 'src/composables/usePermissions';
+import { toDateStrInTimezone, addDaysToDateStr } from 'src/utils/dateUtils';
 import ClassTimetablePanel from '../components/ClassTimetablePanel.vue';
 
 const route = useRoute();
@@ -422,6 +532,9 @@ const $q = useQuasar();
 const classStore = useClassStore();
 const learnerStore = useLearnerStore();
 const schoolStore = useSchoolStore();
+const calendarEventsStore = useCalendarEventsStore();
+const atRiskStore = useAtRiskStore();
+const settingsStore = useSettingsStore();
 const { hasPermission } = usePermissions();
 
 const canWrite = computed(() => hasPermission('school:write'));
@@ -441,15 +554,22 @@ const allActiveStudents = ref([]);
 const filteredStudentsList = ref([]);
 
 // Attendance
-const attendanceDate = ref(new Date().toISOString().slice(0, 10));
+const attendanceDate = ref('');
 const loadingAttendance = ref(false);
 const savingAttendance = ref(false);
 const attendanceRows = ref([]);
+
+// Attendance history (Story 4.7 AC3)
+const historyMonthOffset = ref(0); // 0 = current month, -1 = last month, etc.
+const loadingHistory = ref(false);
+const attendanceHistoryRows = ref([]);
 
 onMounted(async () => {
   await classStore.fetchClasses();
   await learnerStore.fetchLearners();
   await schoolStore.fetchTestScores();
+  await calendarEventsStore.fetchCalendarEvents();
+  await atRiskStore.computeAtRisk();
 
   if (!cls.value) {
     $q.notify({
@@ -460,9 +580,22 @@ onMounted(async () => {
     return;
   }
 
+  // Default attendance date to today if it's a school day, otherwise walk back
+  // to the most recent school day on or before today (Story 4.7 AC2).
+  const tz = settingsStore.timezone;
+  let candidate = toDateStrInTimezone(new Date().toISOString(), tz);
+  // Walk back day-by-day until a school day is found (use a generous safety cap)
+  let safety = 0;
+  while (!calendarEventsStore.isSchoolDay(candidate, route.params.id) && safety < 60) {
+    candidate = addDaysToDateStr(candidate, -1);
+    safety++;
+  }
+  attendanceDate.value = candidate;
+
   // Load contextual sections
   loadAttendance();
   loadAllActiveStudents();
+  loadAttendanceHistory();
 });
 
 // Load Learners who aren't currently enrolled in any class
@@ -597,36 +730,138 @@ async function saveAttendance() {
         message: 'Daily attendance saved successfully.',
       });
       loadAttendance();
+      await atRiskStore.refresh();
     }
   } finally {
     savingAttendance.value = false;
   }
 }
 
-// Attendance rate calculations
-const classAttendanceRate = computed(() => {
-  // Static average for visual purposes, normally computed across historical attendance records.
-  // Generate random stable rate per class
-  const seed =
-    route.params.id.charCodeAt(0) + route.params.id.charCodeAt(route.params.id.length - 1);
-  return 85 + (seed % 14); // yields 85% to 98%
+// At-risk learners in this class (Story 4.7 AC7 — real data via atRiskStore)
+const classAtRiskLearners = computed(() => {
+  if (atRiskStore.gracePeriodActive) return [];
+  const classId = route.params.id;
+  return atRiskStore.atRiskLearners.filter(
+    (l) => l.classId === classId || l.classId === normalizeClassId(classId),
+  );
 });
 
-const atRiskStudents = computed(() => {
-  if (classLearners.value.length === 0) return [];
-  // For visual alerts, flag students with <90% simulated attendance
-  const flagged = [];
-  classLearners.value.forEach((l, idx) => {
-    const rate = 82 + ((idx * 7) % 17);
-    if (rate < 90) {
-      flagged.push({
-        $id: l.$id,
-        name: learnerStore.getLearnerName(l),
-        rate: rate,
-      });
-    }
+function formatRiskSummary(learner) {
+  const parts = [];
+  if (learner.attendanceRate !== null && learner.attendanceRate !== undefined) {
+    parts.push(`Attendance ${learner.attendanceRate}%`);
+  }
+  if (learner.lowestSubject) {
+    parts.push(`${learner.lowestSubject.subject} ${learner.lowestSubject.average}%`);
+  }
+  return parts.join(' · ') || 'At-risk';
+}
+
+// Calendar-aware date validation (Story 4.7 AC2)
+const isAttendanceDateSchoolDay = computed(() => {
+  if (!attendanceDate.value) return true;
+  return calendarEventsStore.isSchoolDay(attendanceDate.value, route.params.id);
+});
+
+const attendanceDateReason = computed(() => {
+  if (!attendanceDate.value) return '';
+  // Find the covering closed event to provide a reason
+  const tz = settingsStore.timezone;
+  const datePart = toDateStrInTimezone(attendanceDate.value, tz);
+  const dayOfWeek = new Date(datePart + 'T12:00:00Z').getUTCDay();
+  if (dayOfWeek === 0 || dayOfWeek === 6) return 'weekend';
+  const covering = calendarEventsStore.calendarEvents.find((e) => {
+    if (e.is_school_day) return false;
+    const eStart = toDateStrInTimezone(e.start_date, tz);
+    const eEnd = toDateStrInTimezone(e.end_date, tz);
+    return datePart >= eStart && datePart <= eEnd;
   });
-  return flagged;
+  return covering ? covering.title : '';
+});
+
+// Attendance history (Story 4.7 AC3)
+const historyMonthLabel = computed(() => {
+  const now = new Date();
+  const d = new Date(now.getFullYear(), now.getMonth() + historyMonthOffset.value, 1);
+  return date.formatDate(d, 'MMMM YYYY');
+});
+
+function shiftHistoryMonth(delta) {
+  historyMonthOffset.value += delta;
+  loadAttendanceHistory();
+}
+
+async function loadAttendanceHistory() {
+  loadingHistory.value = true;
+  try {
+    const now = new Date();
+    const monthDate = new Date(now.getFullYear(), now.getMonth() + historyMonthOffset.value, 1);
+    const startDate = date.formatDate(monthDate, 'YYYY-MM-01');
+    const endDate = date.formatDate(
+      new Date(monthDate.getFullYear(), monthDate.getMonth() + 1, 0),
+      'YYYY-MM-DD',
+    );
+    const res = await classStore.fetchAttendanceForClassRange(route.params.id, startDate, endDate);
+    if (res.success) {
+      // Group by attendance_date
+      const byDate = {};
+      for (const rec of res.data) {
+        const dateKey = toDateStrInTimezone(rec.attendance_date, settingsStore.timezone);
+        if (!byDate[dateKey]) {
+          byDate[dateKey] = { date: dateKey, present: 0, late: 0, absent: 0, excused: 0, total: 0 };
+        }
+        byDate[dateKey].total++;
+        switch (rec.status) {
+          case 'Present':
+            byDate[dateKey].present++;
+            break;
+          case 'Late':
+            byDate[dateKey].late++;
+            break;
+          case 'Absent':
+            byDate[dateKey].absent++;
+            break;
+          case 'Excused':
+            byDate[dateKey].excused++;
+            break;
+        }
+      }
+      attendanceHistoryRows.value = Object.values(byDate)
+        .map((d) => {
+          const rate = d.total > 0 ? Math.round(((d.present + d.late) / d.total) * 100) : null;
+          return {
+            date: d.date,
+            present: d.present,
+            late: d.late,
+            absent: d.absent,
+            excused: d.excused,
+            rate,
+          };
+        })
+        .sort((a, b) => (a.date < b.date ? -1 : 1));
+    } else {
+      attendanceHistoryRows.value = [];
+    }
+  } finally {
+    loadingHistory.value = false;
+  }
+}
+
+function getAttendanceRateColor(rate) {
+  if (rate >= 90) return 'positive';
+  if (rate >= 75) return 'warning';
+  return 'negative';
+}
+
+// Reload history when switching to the attendance tab (lazy load)
+watch(tab, (newTab) => {
+  if (
+    newTab === 'attendance' &&
+    attendanceHistoryRows.value.length === 0 &&
+    !loadingHistory.value
+  ) {
+    loadAttendanceHistory();
+  }
 });
 
 // Academics tab calculations
@@ -713,6 +948,15 @@ const attendanceColumns = [
   { name: 'name', label: 'Learner Name', field: 'learner_name', align: 'left', sortable: true },
   { name: 'status', label: 'Attendance Status', align: 'center' },
   { name: 'absence_reason', label: 'Absence Reason', field: 'absence_reason', align: 'left' },
+];
+
+const historyColumns = [
+  { name: 'date', label: 'Date', field: 'date', align: 'left', sortable: true },
+  { name: 'present', label: 'Present', field: 'present', align: 'center' },
+  { name: 'late', label: 'Late', field: 'late', align: 'center' },
+  { name: 'absent', label: 'Absent', field: 'absent', align: 'center' },
+  { name: 'excused', label: 'Excused', field: 'excused', align: 'center' },
+  { name: 'rate', label: 'Class Rate', field: 'rate', align: 'center', sortable: true },
 ];
 
 const assessmentColumns = [

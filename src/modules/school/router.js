@@ -124,6 +124,15 @@ const schoolRoutes = [
     },
   },
   {
+    path: 'school/at-risk-learners',
+    name: 'school-at-risk-learners',
+    component: () => import('./pages/AtRiskLearnersPage.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresPermission: 'school:read',
+    },
+  },
+  {
     path: 'school/settings',
     name: 'school-settings',
     component: () => import('./pages/SchoolSettingsPage.vue'),

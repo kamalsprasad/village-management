@@ -525,6 +525,21 @@ Weekly class timetable entries per day and period slot (Story 4.5). Replaces the
 
 **Indexes:** `idx_timetable_grade_template` on `(grade_level ASC, is_template ASC, academic_year ASC)`
 
+### learner_attendance
+
+Daily attendance records for each learner (Story 4.6). One row per learner per school day. Used by the at-risk identification engine (Story 4.7) to compute attendance rates — `(Present + Late) / total records`. The attendance date is stored at UTC 00:00:00 to avoid timezone drift; display logic converts to the village timezone.
+
+| Column            | Type     | Constraints                                             | Description                                                  |
+| ----------------- | -------- | ------------------------------------------------------- | ------------------------------------------------------------ |
+| `learner_id`      | rel      | Required, manyToOne → learners, onDelete: cascade       | Linked learner record                                        |
+| `class_id`        | rel      | Required, manyToOne → school_classes, onDelete: cascade | Class context at attendance recording time                   |
+| `attendance_date` | datetime | Required                                                | The school day this roll applies to (stored at UTC 00:00:00) |
+| `status`          | enum     | Required: 'Present', 'Absent', 'Late', 'Excused'        | Attendance status                                            |
+| `absence_reason`  | string   | Optional, max 255                                       | Reason for absence/late (free text)                          |
+| `notes`           | string   | Optional, max 500                                       | Teacher notes                                                |
+
+**Indexes:** none (the table is small and queried by `class_id` + `attendance_date` or `learner_id` + date range client-side)
+
 ### teacher_assignments
 
 Stores grade-level teacher assignments with optional subject specialization (Story 4.2). Grade teachers (EC–5) teach all subjects; subject teachers (Grade 6+) have specific subject assignments.
@@ -574,6 +589,7 @@ All relationships use Appwrite's native relationship columns (type `rel`). Key r
 - **class_timetable_entries → school_classes**: manyToOne via `class_timetable_entries.class_id` (onDelete: cascade; null when `is_template = true`)
 - **class_timetable_entries → residents**: manyToOne via `class_timetable_entries.teacher_id` (onDelete: setNull)
 - **learner_attendance → school_classes**: manyToOne via `learner_attendance.class_id` (onDelete: cascade)
+- **learner_attendance → learners**: manyToOne via `learner_attendance.learner_id` (onDelete: cascade)
 - **`school_academic_terms`**: standalone (no relationships — self-contained calendar data)
 - **`school_calendar_events`**: standalone (no relationships — `affected_class_ids` stored as string array, not relationship column, to support optional scoping without cascade complexity)
 - **`school_period_slots`**: standalone (no relationships — `slot_id` on `class_timetable_entries` references `school_period_slots.$id` as a string, intentionally avoiding cascade to allow slot reuse across grades)

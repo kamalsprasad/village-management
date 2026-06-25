@@ -1,7 +1,8 @@
 <!--
   SchoolDashboardPage.vue (Story 4.1)
-  School module dashboard: learner overview stats and navigation cards.
-  Future MVP stories add: at-risk learners (4.7), progress to goal (4.12) widgets.
+  School module dashboard: learner overview stats, at-risk learners widget,
+  class attendance widget, and navigation cards.
+  Future MVP stories add: progress to goal (4.12) widgets.
   Teacher performance widgets (peer/self/HT evaluations) are deferred to post-MVP.
 -->
 <template>
@@ -57,6 +58,16 @@
         </q-card>
       </div>
 
+      <!-- At-Risk Learners Widget (Story 4.7 AC5) -->
+      <div class="col-12 col-md-8">
+        <AtRiskLearnersWidget />
+      </div>
+
+      <!-- Class Attendance Widget (Story 4.7 AC4 — closes 4.6 AC5) -->
+      <div class="col-12 col-md-4">
+        <ClassAttendanceWidget />
+      </div>
+
       <!-- Learners Overview Widget -->
       <div class="col-12 col-md-8">
         <LearnersOverviewWidget />
@@ -108,6 +119,17 @@
                   <q-item-label caption>Academic terms, holidays, and school events</q-item-label>
                 </q-item-section>
               </q-item>
+              <q-item clickable to="/school/at-risk-learners">
+                <q-item-section avatar>
+                  <q-icon name="warning" color="warning" />
+                </q-item-section>
+                <q-item-section>
+                  <q-item-label>At-Risk Learners</q-item-label>
+                  <q-item-label caption
+                    >Learners below attendance or academic thresholds</q-item-label
+                  >
+                </q-item-section>
+              </q-item>
               <q-item v-if="canAdmin" clickable to="/school/settings">
                 <q-item-section avatar>
                   <q-icon name="tune" color="grey-6" />
@@ -130,6 +152,8 @@ import { computed, onMounted } from 'vue';
 import { useLearnerStore } from '../stores/learner-store';
 import { usePermissions } from 'src/composables/usePermissions';
 import LearnersOverviewWidget from '../components/LearnersOverviewWidget.vue';
+import AtRiskLearnersWidget from '../components/AtRiskLearnersWidget.vue';
+import ClassAttendanceWidget from '../components/ClassAttendanceWidget.vue';
 
 const learnerStore = useLearnerStore();
 const { hasPermission } = usePermissions();

@@ -28,6 +28,7 @@ export const useClassStore = defineStore('class', {
     classes: [],
     allClassRows: [],
     attendance: [],
+    attendanceHistory: [],
     classesLoaded: false,
     attendanceLoaded: false,
     isLoading: false,
@@ -512,6 +513,77 @@ export const useClassStore = defineStore('class', {
         localStorage.setItem(key, JSON.stringify(data));
       } catch (e) {
         console.error('Failed to save to local cache', e);
+      }
+    },
+
+    /**
+     * Fetch all attendance records for a single learner within a date range.
+     * (Story 4.7 — used by the at-risk engine to compute per-learner attendance rates.)
+     *
+     * Does NOT mutate this.attendance (the shared single-class-single-date state used
+     * by ClassDetailPage and LearnerDetailPage). Returns records directly to the caller.
+     *
+     * @param {string} learnerId - learner row $id
+     * @param {string} startDate - ISO date string (term start)
+     * @param {string} endDate - ISO date string (today)
+     * @returns {{success: boolean, data: Array}}
+     */
+    async fetchAttendanceForLearner(learnerId, startDate, endDate) {
+      try {
+        const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
+        const response = await tables.listRows({
+          databaseId: dbId,
+          tableId: 'learner_attendance',
+          queries: [
+            Query.equal('learner_id', learnerId),
+            Query.greaterThanEqual('attendance_date', startDate),
+            Query.lessThanEqual('attendance_date', endDate),
+            Query.limit(400),
+            Query.orderAsc('attendance_date'),
+          ],
+        });
+        return { success: true, data: response.rows };
+      } catch (error) {
+        console.warn('fetchAttendanceForLearner failed:', error);
+        return { success: false, data: [], error: error.message };
+      }
+    },
+
+    /**
+     * Fetch all attendance records for a class within a date range.
+     * (Story 4.7 — used by the attendance history view in ClassDetailPage.)
+     *
+     * Stores results in this.attendanceHistory for the history view to consume.
+     * Does NOT overwrite this.attendance (the current-day state).
+     *
+     * @param {string} classId - school_classes row $id
+     * @param {string} startDate - ISO date string
+     * @param {string} endDate - ISO date string
+     * @returns {{success: boolean, data: Array}}
+     */
+    async fetchAttendanceForClassRange(classId, startDate, endDate) {
+      this.isLoading = true;
+      try {
+        const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
+        const response = await tables.listRows({
+          databaseId: dbId,
+          tableId: 'learner_attendance',
+          queries: [
+            Query.equal('class_id', classId),
+            Query.greaterThanEqual('attendance_date', startDate),
+            Query.lessThanEqual('attendance_date', endDate),
+            Query.limit(2000),
+            Query.orderAsc('attendance_date'),
+          ],
+        });
+        this.attendanceHistory = response.rows;
+        return { success: true, data: response.rows };
+      } catch (error) {
+        console.warn('fetchAttendanceForClassRange failed:', error);
+        this.attendanceHistory = [];
+        return { success: false, data: [], error: error.message };
+      } finally {
+        this.isLoading = false;
       }
     },
   },

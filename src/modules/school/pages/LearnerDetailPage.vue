@@ -68,6 +68,34 @@
         <!-- Overview Tab -->
         <q-tab-panel name="overview" class="q-pa-none q-pt-md">
           <div class="row q-col-gutter-md">
+            <!-- At-Risk Status Card (Story 4.7 AC8) -->
+            <div class="col-12">
+              <q-card flat bordered :class="`bg-${statusBgColor}`">
+                <q-card-section class="row items-center">
+                  <q-icon :name="statusIcon" size="32px" :color="statusColor" class="q-mr-md" />
+                  <div class="col">
+                    <div class="text-caption text-grey-7">At-Risk Status</div>
+                    <div class="text-subtitle1 text-weight-bold" :class="`text-${statusColor}`">
+                      {{ statusLabel }}
+                    </div>
+                    <div v-if="learnerRisk" class="text-caption text-grey-7 q-mt-xs">
+                      <span v-for="(r, idx) in learnerRisk.reasons" :key="idx">
+                        {{ r.detail }}{{ idx < learnerRisk.reasons.length - 1 ? ' · ' : '' }}
+                      </span>
+                    </div>
+                  </div>
+                  <q-btn
+                    v-if="learnerRisk"
+                    flat
+                    dense
+                    color="primary"
+                    label="View all at-risk"
+                    to="/school/at-risk-learners"
+                  />
+                </q-card-section>
+              </q-card>
+            </div>
+
             <!-- Personal Info (read-only, from resident) -->
             <div class="col-12 col-md-6">
               <q-card flat bordered>
@@ -377,11 +405,13 @@
                   <div class="col">
                     <div class="text-caption text-grey-7">Attendance Rate</div>
                     <div
+                      v-if="termAttendanceRate !== null"
                       class="text-h4 text-weight-bold"
-                      :class="learnerAttendanceRate >= 90 ? 'text-positive' : 'text-negative'"
+                      :class="termAttendanceRate >= 90 ? 'text-positive' : 'text-negative'"
                     >
-                      {{ learnerAttendanceRate }}%
+                      {{ termAttendanceRate }}%
                     </div>
+                    <div v-else class="text-subtitle1 text-grey-7">No attendance recorded yet</div>
                   </div>
                   <q-icon name="event_available" size="36px" color="primary" class="opacity-5" />
                 </q-card-section>
@@ -392,19 +422,11 @@
                 <q-card-section class="row items-center">
                   <div class="col">
                     <div class="text-caption text-grey-7">Status Alert</div>
-                    <div
-                      class="text-subtitle1 text-weight-bold"
-                      :class="learnerAttendanceRate >= 90 ? 'text-positive' : 'text-warning'"
-                    >
-                      {{ learnerAttendanceRate >= 90 ? 'Good Standing' : 'At Risk (< 90%)' }}
+                    <div class="text-subtitle1 text-weight-bold" :class="`text-${statusColor}`">
+                      {{ statusLabel }}
                     </div>
                   </div>
-                  <q-icon
-                    :name="learnerAttendanceRate >= 90 ? 'check_circle' : 'warning'"
-                    size="36px"
-                    :color="learnerAttendanceRate >= 90 ? 'positive' : 'warning'"
-                    class="opacity-5"
-                  />
+                  <q-icon :name="statusIcon" size="36px" :color="statusColor" class="opacity-5" />
                 </q-card-section>
               </q-card>
             </div>
@@ -487,6 +509,7 @@ import { useQuasar, date } from 'quasar';
 import { tables } from 'src/boot/appwrite';
 import { useLearnerStore } from '../stores/learner-store';
 import { useSchoolStore } from '../stores/school-store';
+import { useAtRiskStore } from '../stores/at-risk-store';
 import { usePermissions } from 'src/composables/usePermissions';
 import EnrollmentStatusBadge from '../components/EnrollmentStatusBadge.vue';
 
@@ -495,6 +518,7 @@ const router = useRouter();
 const $q = useQuasar();
 const learnerStore = useLearnerStore();
 const schoolStore = useSchoolStore();
+const atRiskStore = useAtRiskStore();
 const { hasPermission } = usePermissions();
 
 const canAdmin = computed(() => hasPermission('school:admin'));
@@ -577,17 +601,49 @@ const learnerAttendance = computed(() => {
   });
 });
 
-const learnerAttendanceRate = computed(() => {
-  if (learnerAttendance.value.length === 0) {
-    // Return a beautiful, realistic fallback rate if no logs exist yet
-    if (!learner.value) return 100;
-    const seed = learner.value.$id.charCodeAt(learner.value.$id.length - 1);
-    return 88 + (seed % 12); // stable 88% to 99%
+// At-risk status from the at-risk store (Story 4.7 AC8)
+const learnerRisk = computed(() => {
+  if (!learner.value) return null;
+  return atRiskStore.getLearnerRisk(learner.value.$id);
+});
+
+const statusLabel = computed(() => {
+  if (atRiskStore.gracePeriodActive && atRiskStore.termsConfigured) {
+    return 'Grace period active';
   }
-  const presents = learnerAttendance.value.filter(
-    (a) => a.status === 'Present' || a.status === 'Late',
-  ).length;
-  return Math.round((presents / learnerAttendance.value.length) * 100);
+  if (learnerRisk.value) {
+    return `At Risk — ${learnerRisk.value.reasons.map((r) => r.detail).join(', ')}`;
+  }
+  return 'Good Standing';
+});
+
+const statusColor = computed(() => {
+  if (atRiskStore.gracePeriodActive && atRiskStore.termsConfigured) return 'orange-8';
+  if (learnerRisk.value) {
+    return learnerRisk.value.severity === 'high' ? 'negative' : 'warning';
+  }
+  return 'positive';
+});
+
+const statusBgColor = computed(() => {
+  // Map semantic Quasar colors to palette tints (bg-positive-1 is not a valid Quasar class)
+  if (atRiskStore.gracePeriodActive && atRiskStore.termsConfigured) return 'orange-1';
+  if (learnerRisk.value) {
+    return learnerRisk.value.severity === 'high' ? 'red-1' : 'orange-1';
+  }
+  return 'green-1';
+});
+
+const statusIcon = computed(() => {
+  if (atRiskStore.gracePeriodActive && atRiskStore.termsConfigured) return 'schedule';
+  if (learnerRisk.value) return 'warning';
+  return 'check_circle';
+});
+
+// Term-bounded attendance rate from the at-risk store (more accurate than the current-day-only rate)
+const termAttendanceRate = computed(() => {
+  if (!learnerRisk.value || learnerRisk.value.attendanceRate === null) return null;
+  return learnerRisk.value.attendanceRate;
 });
 
 const subjectAverages = computed(() => {
@@ -728,5 +784,6 @@ onMounted(async () => {
     await classStore.fetchAttendance(learner.value.class_id, new Date().toISOString().slice(0, 10));
   }
   await schoolStore.fetchTestScores();
+  await atRiskStore.computeAtRisk();
 });
 </script>

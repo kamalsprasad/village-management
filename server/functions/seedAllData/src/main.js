@@ -1731,6 +1731,9 @@ async function seedSchool(tablesDB, dbId, residentIds, slotIdsByGrade, log) {
   const gradeByClsId = {};
   for (const cls of Object.values(classes)) gradeByClsId[cls.$id] = cls.grade_level;
   const scoreTasks = [];
+  // Story 4.7: Learner 2 (index 2) is the academic-only at-risk case —
+  // inject low Math scores (< 50%) while keeping other subjects normal.
+  const ACADEMIC_AT_RISK_INDEX = 2;
   for (let li = 0; li < createdLearners.length; li++) {
     const learner = createdLearners[li];
     const cId2 = typeof learner.class_id === 'object' ? learner.class_id?.$id : learner.class_id;
@@ -1741,7 +1744,11 @@ async function seedSchool(tablesDB, dbId, residentIds, slotIdsByGrade, log) {
       for (let ai = 0; ai < assessments.length; ai++) {
         const a = assessments[ai];
         const variation = ((li * 31 + si * 7 + ai * 13) % 25) - 12;
-        const score = Math.max(20, Math.min(100, base + variation));
+        let score = Math.max(20, Math.min(100, base + variation));
+        // Story 4.7: For the academic-only at-risk learner, cap Math scores at 45%
+        if (li === ACADEMIC_AT_RISK_INDEX && subjects[si] === 'Mathematics') {
+          score = 35 + ai * 5; // 35, 40, 45, 50, 55 — most below 50%
+        }
         scoreTasks.push(() =>
           createRow(tablesDB, dbId, 'test_scores', {
             learner_id: learner.$id,
@@ -1909,7 +1916,13 @@ async function seedSchool(tablesDB, dbId, residentIds, slotIdsByGrade, log) {
     const wd = d.getDay();
     if (wd >= 1 && wd <= 5) attendanceDates.push(d.toISOString().split('T')[0]);
   }
+  // Story 4.7: Attendance seed designed to produce deterministic at-risk scenarios.
+  // Most learners get ~94% attendance (above the 90% threshold).
+  // Learners 0 and 1 get heavy absence (~60% rate) → at-risk on attendance.
+  // Learner 2 gets perfect attendance → not at-risk on attendance, but is at-risk
+  //   on academics (low Math scores injected below).
   const STATUSES = [
+    'Present',
     'Present',
     'Present',
     'Present',
@@ -1920,13 +1933,22 @@ async function seedSchool(tablesDB, dbId, residentIds, slotIdsByGrade, log) {
     'Late',
     'Absent',
   ];
+  // Indices of learners who should be at-risk on attendance (heavy absence pattern)
+  const ATTENDANCE_AT_RISK_INDICES = new Set([0, 1]);
   const attTasks = [];
   for (let li = 0; li < createdLearners.length; li++) {
     const learner = createdLearners[li];
     const cId2 = typeof learner.class_id === 'object' ? learner.class_id?.$id : learner.class_id;
+    const isAttendanceAtRisk = ATTENDANCE_AT_RISK_INDICES.has(li);
     for (let di = 0; di < attendanceDates.length; di++) {
-      const statusIdx = (li * 7 + di * 3) % STATUSES.length;
-      const status = STATUSES[statusIdx];
+      let status;
+      if (isAttendanceAtRisk) {
+        // ~40% absent for at-risk learners → rate ~60%
+        status = di % 5 === 0 || di % 5 === 2 ? 'Absent' : 'Present';
+      } else {
+        const statusIdx = (li * 7 + di * 3) % STATUSES.length;
+        status = STATUSES[statusIdx];
+      }
       attTasks.push(() =>
         createRow(tablesDB, dbId, 'learner_attendance', {
           learner_id: learner.$id,
@@ -1940,6 +1962,11 @@ async function seedSchool(tablesDB, dbId, residentIds, slotIdsByGrade, log) {
   }
   await batchRun(attTasks, 25);
   log(`  ${attTasks.length} attendance records`);
+  // Story 4.7: Expected at-risk learners after seeding:
+  //   - Learners 0 and 1: at-risk on attendance (~60% rate, high severity)
+  //   - Learner 2: at-risk on academics (Math < 50%, high severity) with good attendance
+  //   - Most other learners: above 90% attendance, above 50% per subject → not at-risk
+  //   - Grace period is NOT active (Term 2 started 2026-04-27, well over 5 school days ago)
 }
 
 // =============================================================================
