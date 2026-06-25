@@ -31,7 +31,7 @@
         >
           <q-card-section class="row items-center q-gutter-md">
             <q-icon name="date_range" size="48px" color="primary" />
-            <div>
+            <div class="col">
               <div class="text-h6">Academic Terms</div>
               <div class="text-caption text-grey-7">
                 Configure term names, count, and start/end dates per academic year
@@ -58,7 +58,7 @@
         >
           <q-card-section class="row items-center q-gutter-md">
             <q-icon name="event_busy" size="48px" color="orange-7" />
-            <div>
+            <div class="col">
               <div class="text-h6">Holidays & Events</div>
               <div class="text-caption text-grey-7">
                 Mark public holidays, school closures, PD days, and exam blocks
@@ -85,7 +85,7 @@
         >
           <q-card-section class="row items-center q-gutter-md">
             <q-icon name="schedule" size="48px" color="teal-6" />
-            <div>
+            <div class="col">
               <div class="text-h6">Bell Schedules</div>
               <div class="text-caption text-grey-7">Define daily period slots per grade level</div>
             </div>
@@ -110,7 +110,7 @@
         >
           <q-card-section class="row items-center q-gutter-md">
             <q-icon name="table_chart" size="48px" color="indigo-6" />
-            <div>
+            <div class="col">
               <div class="text-h6">Timetable Templates</div>
               <div class="text-caption text-grey-7">Build grade-level weekly subject templates</div>
             </div>
