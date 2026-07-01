@@ -1,8 +1,8 @@
 <!--
-  AtRiskLearnersPage.vue (Story 4.7 AC6)
+  AtRiskLearnersPage.vue (Story 4.7 AC6, intervention actions added Story 4.8)
   Dedicated page listing all at-risk learners with filters, sortable table,
-  and grace-period/no-terms warnings. The "Create Intervention" button is a
-  disabled placeholder pending Story 4.8.
+  and grace-period/no-terms warnings. Each row offers a "Create Intervention
+  Plan" shortcut, or "View Active Intervention" if one already exists.
 -->
 <template>
   <q-page padding>
@@ -178,8 +178,29 @@
             >
               <q-tooltip>View Learner Profile</q-tooltip>
             </q-btn>
-            <q-btn flat dense round icon="add_task" color="grey-6" size="sm" disable>
-              <q-tooltip>Create Intervention (available after Story 4.8)</q-tooltip>
+            <q-btn
+              v-if="canWrite && !getActiveIntervention(props.row.learnerId)"
+              flat
+              dense
+              round
+              icon="add_task"
+              color="primary"
+              size="sm"
+              @click="createIntervention(props.row.learnerId)"
+            >
+              <q-tooltip>Create Intervention Plan</q-tooltip>
+            </q-btn>
+            <q-btn
+              v-else-if="canWrite && getActiveIntervention(props.row.learnerId)"
+              flat
+              dense
+              round
+              icon="open_in_new"
+              color="positive"
+              size="sm"
+              @click="viewIntervention(getActiveIntervention(props.row.learnerId).$id)"
+            >
+              <q-tooltip>View Active Intervention</q-tooltip>
             </q-btn>
           </q-td>
         </template>
@@ -193,9 +214,30 @@ import { ref, computed, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { date } from 'quasar';
 import { useAtRiskStore } from '../stores/at-risk-store';
+import { useInterventionStore } from '../stores/intervention-store';
+import { usePermissions } from 'src/composables/usePermissions';
 
 const router = useRouter();
 const atRiskStore = useAtRiskStore();
+const interventionStore = useInterventionStore();
+const { hasPermission } = usePermissions();
+
+const canWrite = computed(() => hasPermission('school:write'));
+
+function getActiveIntervention(learnerId) {
+  return (
+    interventionStore.getInterventionsForLearner(learnerId).find((i) => i.status === 'Active') ||
+    null
+  );
+}
+
+function createIntervention(learnerId) {
+  router.push(`/school/interventions/create?learnerId=${learnerId}`);
+}
+
+function viewIntervention(interventionId) {
+  router.push(`/school/interventions/${interventionId}`);
+}
 
 const filterGrade = ref(null);
 const filterSeverity = ref(null);
@@ -276,5 +318,6 @@ function goToLearner(id) {
 
 onMounted(() => {
   atRiskStore.computeAtRisk();
+  interventionStore.fetchInterventions();
 });
 </script>

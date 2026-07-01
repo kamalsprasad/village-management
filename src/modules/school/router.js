@@ -132,6 +132,45 @@ const schoolRoutes = [
       requiresPermission: 'school:read',
     },
   },
+  // Story 4.8: Interventions
+  // IMPORTANT: 'school/interventions/create' must be defined BEFORE
+  // 'school/interventions/:id' to prevent :id from capturing 'create'.
+  {
+    path: 'school/interventions',
+    name: 'school-interventions',
+    component: () => import('./pages/InterventionsListPage.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresPermission: 'school:read',
+    },
+  },
+  {
+    path: 'school/interventions/create',
+    name: 'school-intervention-create',
+    component: () => import('./pages/CreateInterventionPage.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresPermission: 'school:write',
+    },
+  },
+  {
+    path: 'school/interventions/:id',
+    name: 'school-intervention-detail',
+    component: () => import('./pages/InterventionDetailPage.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresPermission: 'school:read',
+    },
+  },
+  {
+    path: 'school/interventions/:id/edit',
+    name: 'school-intervention-edit',
+    component: () => import('./pages/CreateInterventionPage.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresPermission: 'school:write',
+    },
+  },
   {
     path: 'school/settings',
     name: 'school-settings',

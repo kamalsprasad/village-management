@@ -73,6 +73,11 @@
         <LearnersOverviewWidget />
       </div>
 
+      <!-- My Interventions Widget (Story 4.8) — visible only to teachers -->
+      <div class="col-12">
+        <MyInterventionsWidget />
+      </div>
+
       <!-- Navigation Cards -->
       <div class="col-12 col-md-4">
         <q-card flat bordered>
@@ -130,6 +135,15 @@
                   >
                 </q-item-section>
               </q-item>
+              <q-item clickable to="/school/interventions">
+                <q-item-section avatar>
+                  <q-icon name="support" color="primary" />
+                </q-item-section>
+                <q-item-section>
+                  <q-item-label>Interventions</q-item-label>
+                  <q-item-label caption>Track support plans for at-risk learners</q-item-label>
+                </q-item-section>
+              </q-item>
               <q-item v-if="canAdmin" clickable to="/school/settings">
                 <q-item-section avatar>
                   <q-icon name="tune" color="grey-6" />
@@ -154,6 +168,7 @@ import { usePermissions } from 'src/composables/usePermissions';
 import LearnersOverviewWidget from '../components/LearnersOverviewWidget.vue';
 import AtRiskLearnersWidget from '../components/AtRiskLearnersWidget.vue';
 import ClassAttendanceWidget from '../components/ClassAttendanceWidget.vue';
+import MyInterventionsWidget from '../components/MyInterventionsWidget.vue';
 
 const learnerStore = useLearnerStore();
 const { hasPermission } = usePermissions();

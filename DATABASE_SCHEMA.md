@@ -540,6 +540,43 @@ Daily attendance records for each learner (Story 4.6). One row per learner per s
 
 **Indexes:** none (the table is small and queried by `class_id` + `attendance_date` or `learner_id` + date range client-side)
 
+### interventions
+
+Structured intervention plans for at-risk learners (Story 4.8). Persists the plan created by a Head Teacher or Teacher; closes the feedback loop from at-risk identification (Story 4.7). At-risk status is derived and NOT linked here — an intervention's `status` and a learner's live at-risk flag are independent.
+
+| Column                | Type     | Constraints                                                           | Description                                                              |
+| --------------------- | -------- | --------------------------------------------------------------------- | ------------------------------------------------------------------------ |
+| `learner_id`          | rel      | Required, manyToOne → learners, onDelete: cascade                     | The learner this plan is for                                             |
+| `assigned_teacher_id` | rel      | Optional, manyToOne → residents, onDelete: setNull                    | Teacher responsible for delivering the intervention                      |
+| `intervention_type`   | string   | Required, max 100                                                     | Controlled vocabulary (see `INTERVENTION_TYPES`), e.g. "Reading Support" |
+| `focus_areas`         | string[] | Optional                                                              | Free-text focus areas, e.g. ["Reading comprehension", "Mathematics"]     |
+| `frequency`           | string   | Optional, max 255                                                     | Free text, e.g. "3x per week - Mon/Wed/Fri"                              |
+| `success_criteria`    | string   | Optional, max 500                                                     | Free text, e.g. "Score above 60% in all subjects by end of term"         |
+| `start_date`          | datetime | Required                                                              | When the intervention begins                                             |
+| `end_date`            | datetime | Optional                                                              | When the intervention is expected to end (may be open-ended)             |
+| `term`                | string   | Optional, max 100                                                     | Academic term name the plan was created in                               |
+| `academic_year`       | integer  | Optional                                                              | Numeric year (e.g. 2026)                                                 |
+| `status`              | enum     | Required: 'Active', 'Paused', 'Resolved', 'Closed Without Resolution' | Current lifecycle state                                                  |
+| `outcome`             | string   | Optional, max 1000                                                    | Summary filled in when status is Resolved or Closed Without Resolution   |
+| `created_by`          | string   | Optional, max 255                                                     | Resident ID of the user who created the plan                             |
+| `notes`               | string   | Optional, max 500                                                     | General notes                                                            |
+
+**Indexes:** none — `learner_id` and `assigned_teacher_id` are relationship columns, and Appwrite does not support indexing relationship attributes (same constraint as `learner_attendance`). Filtering uses `Query.equal()` unindexed.
+
+### intervention_notes
+
+Append-only progress notes logged against an intervention (Story 4.8). Notes cannot be edited or deleted once saved, preserving an auditable timeline.
+
+| Column             | Type     | Constraints                                                 | Description                                                                                                             |
+| ------------------ | -------- | ----------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| `intervention_id`  | rel      | Required, manyToOne → interventions, onDelete: cascade      | The intervention this note belongs to                                                                                   |
+| `note_date`        | datetime | Required                                                    | When the note was logged                                                                                                |
+| `content`          | string   | Required, max 2000                                          | The note text                                                                                                           |
+| `author_id`        | string   | Optional, max 255                                           | Resident ID of who wrote the note (plain string, not a relationship, to avoid cascade issues when residents are edited) |
+| `learner_response` | enum     | Optional: 'Positive', 'Neutral', 'Negative', 'Not Observed' | Qualitative indicator of how the learner responded                                                                      |
+
+**Indexes:** none — `intervention_id` is a relationship column (same constraint as above).
+
 ### teacher_assignments
 
 Stores grade-level teacher assignments with optional subject specialization (Story 4.2). Grade teachers (EC–5) teach all subjects; subject teachers (Grade 6+) have specific subject assignments.
@@ -590,6 +627,9 @@ All relationships use Appwrite's native relationship columns (type `rel`). Key r
 - **class_timetable_entries → residents**: manyToOne via `class_timetable_entries.teacher_id` (onDelete: setNull)
 - **learner_attendance → school_classes**: manyToOne via `learner_attendance.class_id` (onDelete: cascade)
 - **learner_attendance → learners**: manyToOne via `learner_attendance.learner_id` (onDelete: cascade)
+- **interventions → learners**: manyToOne via `interventions.learner_id` (onDelete: cascade)
+- **interventions → residents**: manyToOne via `interventions.assigned_teacher_id` (onDelete: setNull)
+- **intervention_notes → interventions**: manyToOne via `intervention_notes.intervention_id` (onDelete: cascade)
 - **`school_academic_terms`**: standalone (no relationships — self-contained calendar data)
 - **`school_calendar_events`**: standalone (no relationships — `affected_class_ids` stored as string array, not relationship column, to support optional scoping without cascade complexity)
 - **`school_period_slots`**: standalone (no relationships — `slot_id` on `class_timetable_entries` references `school_period_slots.$id` as a string, intentionally avoiding cascade to allow slot reuse across grades)

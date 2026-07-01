@@ -36,6 +36,8 @@ const TABLES_TO_WIPE = [
   'school_academic_terms',
   'class_timetable_entries',
   'school_period_slots',
+  'intervention_notes',
+  'interventions',
   'test_scores',
   'learner_attendance',
   'teacher_assignments',

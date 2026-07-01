@@ -40,6 +40,22 @@ export const useTeacherStore = defineStore('teacher', {
       });
       return Object.values(groups);
     },
+
+    /**
+     * The resident_id of the currently logged-in user, but only if they
+     * have a teacher assignment in teacher_assignments.
+     * Returns null if the current user is not a teacher.
+     * Used by MyInterventionsWidget (Story 4.8).
+     */
+    currentTeacherResidentId: (state) => {
+      const authStore = useAuthStore();
+      const residentId = authStore.user?.resident_id;
+      if (!residentId) return null;
+      const hasAssignment = state.teacherAssignments.some(
+        (a) => a.teacher_id_normalized === residentId,
+      );
+      return hasAssignment ? residentId : null;
+    },
   },
 
   actions: {

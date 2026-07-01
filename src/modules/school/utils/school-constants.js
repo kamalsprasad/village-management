@@ -112,3 +112,69 @@ export function getStatusColor(status) {
   const match = ENROLLMENT_STATUSES.find((s) => s.value === status);
   return match ? match.color : 'grey';
 }
+
+/**
+ * Intervention types — controlled vocabulary (Story 4.8).
+ * Stored as plain strings in the `interventions.intervention_type` column.
+ */
+export const INTERVENTION_TYPES = [
+  'One-on-One Tutoring',
+  'Small Group Support',
+  'Peer Tutoring',
+  'Reading Support',
+  'Mathematics Support',
+  'Attendance Counselling',
+  'Parent/Guardian Meeting',
+  'Mentoring',
+  'Additional Homework',
+  'Remedial Classes',
+  'Other',
+];
+
+/**
+ * Intervention statuses with display metadata (Story 4.8).
+ * Must stay in sync with the `interventions.status` enum in setup-appwrite.js.
+ */
+export const INTERVENTION_STATUSES = [
+  { value: 'Active', label: 'Active', color: 'positive', textColor: 'white', icon: 'play_circle' },
+  { value: 'Paused', label: 'Paused', color: 'warning', textColor: 'black', icon: 'pause_circle' },
+  { value: 'Resolved', label: 'Resolved', color: 'info', textColor: 'white', icon: 'check_circle' },
+  {
+    value: 'Closed Without Resolution',
+    label: 'Closed (No Resolution)',
+    color: 'grey',
+    textColor: 'white',
+    icon: 'cancel',
+  },
+];
+
+/**
+ * Learner response indicators for intervention progress notes (Story 4.8).
+ * Must stay in sync with the `intervention_notes.learner_response` enum in setup-appwrite.js.
+ */
+export const LEARNER_RESPONSE_OPTIONS = [
+  { value: 'Positive', label: 'Positive', color: 'positive', icon: 'sentiment_satisfied' },
+  { value: 'Neutral', label: 'Neutral', color: 'grey', icon: 'sentiment_neutral' },
+  { value: 'Negative', label: 'Negative', color: 'negative', icon: 'sentiment_dissatisfied' },
+  { value: 'Not Observed', label: 'Not Observed', color: 'grey-5', icon: 'visibility_off' },
+];
+
+/**
+ * Get the badge color for an intervention status.
+ * @param {string} status - Intervention status value
+ * @returns {string} Quasar color name
+ */
+export function getInterventionStatusColor(status) {
+  const match = INTERVENTION_STATUSES.find((s) => s.value === status);
+  return match ? match.color : 'grey';
+}
+
+/**
+ * Get the badge text color for an intervention status.
+ * @param {string} status - Intervention status value
+ * @returns {string} Quasar color name
+ */
+export function getInterventionStatusTextColor(status) {
+  const match = INTERVENTION_STATUSES.find((s) => s.value === status);
+  return match ? match.textColor : 'white';
+}

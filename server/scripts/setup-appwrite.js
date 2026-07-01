@@ -1451,6 +1451,85 @@ const tableSchemas = {
     ],
     indexes: [],
   },
+  interventions: {
+    name: 'Interventions',
+    permissions: permissions,
+    columns: [
+      {
+        key: 'learner_id',
+        type: 'relationship',
+        relatedTable: 'learners',
+        relationType: 'manyToOne',
+        twoWay: false,
+        onDelete: 'cascade',
+        required: true,
+      },
+      {
+        key: 'assigned_teacher_id',
+        type: 'relationship',
+        relatedTable: 'residents',
+        relationType: 'manyToOne',
+        twoWay: false,
+        onDelete: 'setNull',
+        required: false,
+      },
+      // Intervention type: controlled vocabulary (see INTERVENTION_TYPES constant)
+      { key: 'intervention_type', type: 'string', size: 100, required: true },
+      // Focus areas: free-text array (e.g. ["Reading comprehension", "Mathematics"])
+      { key: 'focus_areas', type: 'string', size: 255, array: true, required: false },
+      // Frequency description: free text (e.g. "3x per week - Mon/Wed/Fri")
+      { key: 'frequency', type: 'string', size: 255, required: false },
+      // Success criteria: free text (e.g. "Score above 60% in all subjects by end of term")
+      { key: 'success_criteria', type: 'string', size: 500, required: false },
+      { key: 'start_date', type: 'datetime', required: true },
+      { key: 'end_date', type: 'datetime', required: false },
+      // Academic term when intervention was created (free string, from academic-terms-store)
+      { key: 'term', type: 'string', size: 100, required: false },
+      { key: 'academic_year', type: 'integer', required: false },
+      {
+        key: 'status',
+        type: 'enum',
+        elements: ['Active', 'Paused', 'Resolved', 'Closed Without Resolution'],
+        required: true,
+      },
+      // Outcome (filled when status is Resolved or Closed): free text summary
+      { key: 'outcome', type: 'string', size: 1000, required: false },
+      // Created by (resident ID of the user who created the plan)
+      { key: 'created_by', type: 'string', size: 255, required: false },
+      { key: 'notes', type: 'string', size: 500, required: false },
+    ],
+    // No indexes: learner_id and assigned_teacher_id are relationship columns,
+    // and Appwrite does not support indexing relationship attributes.
+    // Matches learner_attendance (relationship columns, indexes: []).
+    indexes: [],
+  },
+  intervention_notes: {
+    name: 'Intervention Notes',
+    permissions: permissions,
+    columns: [
+      {
+        key: 'intervention_id',
+        type: 'relationship',
+        relatedTable: 'interventions',
+        relationType: 'manyToOne',
+        twoWay: false,
+        onDelete: 'cascade',
+        required: true,
+      },
+      { key: 'note_date', type: 'datetime', required: true },
+      { key: 'content', type: 'string', size: 2000, required: true },
+      // Who wrote the note (resident ID, stored as string for resilience)
+      { key: 'author_id', type: 'string', size: 255, required: false },
+      {
+        key: 'learner_response',
+        type: 'enum',
+        elements: ['Positive', 'Neutral', 'Negative', 'Not Observed'],
+        required: false,
+      },
+    ],
+    // No index: intervention_id is a relationship column (see interventions table note above).
+    indexes: [],
+  },
 };
 
 // Helper functions
@@ -1750,6 +1829,7 @@ async function setupDatabase() {
     console.log(
       '   School: school_classes, learners, test_scores, teacher_assignments, learner_attendance,',
     );
+    console.log('           interventions, intervention_notes,');
     console.log(
       '           school_academic_terms, school_calendar_events, school_period_slots, class_timetable_entries',
     );

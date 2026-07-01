@@ -1967,6 +1967,90 @@ async function seedSchool(tablesDB, dbId, residentIds, slotIdsByGrade, log) {
   //   - Learner 2: at-risk on academics (Math < 50%, high severity) with good attendance
   //   - Most other learners: above 90% attendance, above 50% per subject → not at-risk
   //   - Grace period is NOT active (Term 2 started 2026-04-27, well over 5 school days ago)
+
+  // Story 4.8: Intervention plans for the at-risk learners seeded above.
+  // Uses asgns[0].teacher_id (Grace Banda, Early Childhood) as the assigned
+  // teacher for both demo plans — already a resolved resident ID string.
+  log('  Interventions...');
+  const demoTeacherId = asgns[0]?.teacher_id || null;
+
+  const intervention1 = await createRow(tablesDB, dbId, 'interventions', {
+    learner_id: createdLearners[0].$id,
+    assigned_teacher_id: demoTeacherId,
+    intervention_type: 'Attendance Counselling',
+    focus_areas: ['Attendance improvement', 'Punctuality'],
+    frequency: 'Weekly check-in with Head Teacher, Mon 8am',
+    success_criteria: 'Attendance above 90% for 3 consecutive weeks',
+    start_date: new Date(Date.now() - 14 * 86400000).toISOString(),
+    status: 'Active',
+    term: 'Term 2',
+    academic_year: 2026,
+  });
+
+  const intervention2 = await createRow(tablesDB, dbId, 'interventions', {
+    learner_id: createdLearners[2].$id,
+    assigned_teacher_id: demoTeacherId,
+    intervention_type: 'Mathematics Support',
+    focus_areas: ['Mathematics foundations', 'Problem solving'],
+    success_criteria: 'Score above 60% in Mathematics',
+    start_date: new Date(Date.now() - 45 * 86400000).toISOString(),
+    end_date: new Date(Date.now() - 15 * 86400000).toISOString(),
+    status: 'Resolved',
+    outcome:
+      'Learner improved from 35% to 68% in Mathematics through focused tutoring. No longer flagged at-risk.',
+    term: 'Term 2',
+    academic_year: 2026,
+  });
+
+  const noteTasks = [
+    () =>
+      createRow(tablesDB, dbId, 'intervention_notes', {
+        intervention_id: intervention1.$id,
+        note_date: new Date(Date.now() - 14 * 86400000).toISOString(),
+        content:
+          'Initial meeting with learner and guardian. Discussed attendance barriers. Guardian committed to morning drop-off routine.',
+        learner_response: 'Positive',
+        author_id: demoTeacherId,
+      }),
+    () =>
+      createRow(tablesDB, dbId, 'intervention_notes', {
+        intervention_id: intervention1.$id,
+        note_date: new Date(Date.now() - 7 * 86400000).toISOString(),
+        content:
+          'Week 1 check-in: Attendance improved to 80% this week (4/5 days). Still below threshold but trending up.',
+        learner_response: 'Positive',
+        author_id: demoTeacherId,
+      }),
+    () =>
+      createRow(tablesDB, dbId, 'intervention_notes', {
+        intervention_id: intervention1.$id,
+        note_date: new Date().toISOString(),
+        content:
+          'Week 2 check-in: 3/5 days this week. Learner reported illness on 2 days. Will continue monitoring.',
+        learner_response: 'Neutral',
+        author_id: demoTeacherId,
+      }),
+    () =>
+      createRow(tablesDB, dbId, 'intervention_notes', {
+        intervention_id: intervention2.$id,
+        note_date: new Date(Date.now() - 30 * 86400000).toISOString(),
+        content:
+          'Started small-group Math sessions. Learner engaged but struggles with multiplication tables.',
+        learner_response: 'Neutral',
+        author_id: demoTeacherId,
+      }),
+    () =>
+      createRow(tablesDB, dbId, 'intervention_notes', {
+        intervention_id: intervention2.$id,
+        note_date: new Date(Date.now() - 15 * 86400000).toISOString(),
+        content:
+          'Final session. Math score improved from 35% to 68% on latest class test. Recommending no further intervention unless scores drop.',
+        learner_response: 'Positive',
+        author_id: demoTeacherId,
+      }),
+  ];
+  await batchRun(noteTasks, 10);
+  log(`  2 intervention plans + ${noteTasks.length} progress notes`);
 }
 
 // =============================================================================

@@ -475,13 +475,38 @@
           </q-table>
         </q-tab-panel>
 
-        <!-- Interventions Tab -->
-        <q-tab-panel name="interventions">
-          <div class="text-center q-pa-xl text-grey-7">
-            <q-icon name="support" size="48px" class="q-mb-sm" />
-            <div>No interventions recorded yet.</div>
-            <div class="text-caption">Intervention tracking will be available here.</div>
+        <!-- Interventions Tab (Story 4.8) -->
+        <q-tab-panel name="interventions" class="q-pa-md">
+          <div class="row items-center q-mb-md">
+            <div class="text-subtitle1">Intervention Plans</div>
+            <q-space />
+            <q-btn
+              v-if="hasPermission('school:write')"
+              color="primary"
+              icon="add"
+              label="Create Intervention Plan"
+              :to="`/school/interventions/create?learnerId=${learner.$id}`"
+            />
           </div>
+
+          <div v-if="learnerInterventions.length === 0" class="text-center q-pa-xl text-grey-7">
+            <q-icon name="support" size="48px" class="q-mb-sm" />
+            <div>No interventions recorded for {{ learnerName }}.</div>
+            <q-btn
+              v-if="hasPermission('school:write')"
+              flat
+              color="primary"
+              label="Create Intervention Plan"
+              class="q-mt-sm"
+              :to="`/school/interventions/create?learnerId=${learner.$id}`"
+            />
+          </div>
+
+          <InterventionSummaryCard
+            v-for="intervention in learnerInterventions"
+            :key="intervention.$id"
+            :intervention="intervention"
+          />
         </q-tab-panel>
       </q-tab-panels>
     </template>
@@ -510,8 +535,10 @@ import { tables } from 'src/boot/appwrite';
 import { useLearnerStore } from '../stores/learner-store';
 import { useSchoolStore } from '../stores/school-store';
 import { useAtRiskStore } from '../stores/at-risk-store';
+import { useInterventionStore } from '../stores/intervention-store';
 import { usePermissions } from 'src/composables/usePermissions';
 import EnrollmentStatusBadge from '../components/EnrollmentStatusBadge.vue';
+import InterventionSummaryCard from '../components/InterventionSummaryCard.vue';
 
 const route = useRoute();
 const router = useRouter();
@@ -519,6 +546,7 @@ const $q = useQuasar();
 const learnerStore = useLearnerStore();
 const schoolStore = useSchoolStore();
 const atRiskStore = useAtRiskStore();
+const interventionStore = useInterventionStore();
 const { hasPermission } = usePermissions();
 
 const canAdmin = computed(() => hasPermission('school:admin'));
@@ -539,6 +567,12 @@ const learnerClassName = computed(() => {
   const classId = learner.value.class_id_normalized || normalizeClassId(learner.value.class_id);
   const cls = classStore.classes.find((c) => c.$id === classId);
   return cls ? cls.name : '';
+});
+
+// Interventions Tab (Story 4.8)
+const learnerInterventions = computed(() => {
+  if (!learner.value) return [];
+  return interventionStore.getInterventionsForLearner(learner.value.$id);
 });
 
 function formatDate(isoString) {
@@ -785,5 +819,11 @@ onMounted(async () => {
   }
   await schoolStore.fetchTestScores();
   await atRiskStore.computeAtRisk();
+  await interventionStore.fetchInterventions();
+  // Load notes for this learner's interventions so InterventionSummaryCard
+  // can display an accurate progress notes count.
+  await Promise.all(
+    learnerInterventions.value.map((i) => interventionStore.fetchNotesForIntervention(i.$id)),
+  );
 });
 </script>
