@@ -21,3 +21,10 @@ Items deferred during code reviews. Revisit before closing their parent story or
 - `toDateStrInTimezone` returns `isoString.slice(0, 10)` on parse failure, which may return garbage — pre-existing utility behavior. [`dateUtils.js:115-124`]
 - `eventsBetween` was specified for finding the covering closed event in `ClassDetailPage.vue`, but the manual `find()` achieves the same result. Consider switching to `eventsBetween` for consistency. [`ClassDetailPage.vue:768-774`]
 - No term name/start date in the grace period banner on `ClassDetailPage.vue` — fix together with the corresponding patch finding if desired. [`ClassDetailPage.vue:582-589`]
+
+## Deferred from: code review of story-4.8 (2026-07-01)
+
+- No empty state when `learnerStore.activeLearners` is empty in CreateInterventionPage — pre-existing pattern across all school pages that use `activeLearners`. [`CreateInterventionPage.vue:264-269`]
+- Seed log message wording differs from spec — cosmetic, data is correct (2 plans + 5 notes), only the log format differs from AC15's suggested wording. [`seedAllData/src/main.js:2053`]
+- InterventionSummaryCard "Duration" shows end date, not "days since start or days until end" — minor UX deviation from AC7. Information is present, just formatted differently. [`InterventionSummaryCard.vue:108-111`]
+- MyInterventionsWidget not immediately below At-Risk widget — minor layout deviation from AC13. Widget is still below the At-Risk widget, just not immediately after it. [`SchoolDashboardPage.vue:76-79`]

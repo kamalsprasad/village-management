@@ -88,7 +88,12 @@
           <!-- Start / End Date -->
           <div class="row q-col-gutter-md">
             <div class="col-12 col-sm-6">
-              <q-input v-model="form.start_date" label="Start Date *" outlined>
+              <q-input
+                v-model="form.start_date"
+                label="Start Date *"
+                outlined
+                :rules="[(val) => !!val || 'Start date is required']"
+              >
                 <template #append>
                   <q-icon name="event" class="cursor-pointer">
                     <q-popup-proxy cover transition-show="scale" transition-hide="scale">
@@ -210,6 +215,7 @@ import { useTeacherStore } from '../stores/teacher-store';
 import { useAcademicTermsStore } from '../stores/academic-terms-store';
 import { useAtRiskStore } from '../stores/at-risk-store';
 import { useInterventionStore } from '../stores/intervention-store';
+import { useAuthStore } from 'src/stores/auth-store';
 import { INTERVENTION_TYPES, INTERVENTION_STATUSES } from '../utils/school-constants';
 
 const route = useRoute();
@@ -221,6 +227,7 @@ const teacherStore = useTeacherStore();
 const academicTermsStore = useAcademicTermsStore();
 const atRiskStore = useAtRiskStore();
 const interventionStore = useInterventionStore();
+const authStore = useAuthStore();
 
 const isSubmitting = ref(false);
 const isLoadingIntervention = ref(false);
@@ -378,6 +385,7 @@ async function onSubmit() {
       }
     } else {
       payload.status = 'Active';
+      payload.created_by = authStore.user?.resident_id || null;
       const result = await interventionStore.createIntervention(payload);
       if (result.success) {
         $q.notify({ type: 'positive', message: 'Intervention plan created.' });

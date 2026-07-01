@@ -49,10 +49,21 @@
         <div class="col-12">
           <q-banner class="bg-grey-2 rounded-borders">
             <template #avatar>
-              <q-icon :name="atRiskInfo ? 'warning' : 'check_circle'" :color="atRiskInfo ? 'negative' : 'positive'" />
+              <q-icon
+                :name="
+                  atRiskInfo ? 'warning' : atRiskNotComputed ? 'hourglass_top' : 'check_circle'
+                "
+                :color="atRiskInfo ? 'negative' : atRiskNotComputed ? 'grey-7' : 'positive'"
+              />
             </template>
             <div class="text-weight-medium">
-              {{ atRiskInfo ? `At Risk — ${atRiskInfo.reasons.map((r) => r.detail).join(', ')}` : 'Good Standing' }}
+              {{
+                atRiskInfo
+                  ? `At Risk — ${atRiskInfo.reasons.map((r) => r.detail).join(', ')}`
+                  : atRiskNotComputed
+                    ? 'At-risk status not yet computed — refreshing...'
+                    : 'Good Standing'
+              }}
             </div>
             <div class="text-caption text-grey-7">
               At-risk status is calculated from current attendance and scores — it updates
@@ -96,7 +107,9 @@
                   </q-item-section>
                   <q-item-section>
                     <q-item-label caption>End Date</q-item-label>
-                    <q-item-label>{{ intervention.end_date ? formatDate(intervention.end_date) : 'No end date' }}</q-item-label>
+                    <q-item-label>{{
+                      intervention.end_date ? formatDate(intervention.end_date) : 'No end date'
+                    }}</q-item-label>
                   </q-item-section>
                 </q-item>
                 <q-item>
@@ -114,7 +127,11 @@
                 <q-item>
                   <q-item-section>
                     <q-item-label caption>Academic Term</q-item-label>
-                    <q-item-label>{{ intervention.term ? `${intervention.term} (${intervention.academic_year})` : '—' }}</q-item-label>
+                    <q-item-label>{{
+                      intervention.term
+                        ? `${intervention.term} (${intervention.academic_year})`
+                        : '—'
+                    }}</q-item-label>
                   </q-item-section>
                 </q-item>
                 <q-item v-if="intervention.notes">
@@ -129,7 +146,10 @@
 
           <!-- Outcome -->
           <q-card
-            v-if="intervention.status === 'Resolved' || intervention.status === 'Closed Without Resolution'"
+            v-if="
+              intervention.status === 'Resolved' ||
+              intervention.status === 'Closed Without Resolution'
+            "
             flat
             bordered
             class="q-mt-md"
@@ -155,8 +175,12 @@
                 <q-item v-for="note in notes" :key="note.$id">
                   <q-item-section>
                     <div class="row items-center q-gutter-sm">
-                      <span class="text-weight-medium text-caption">{{ formatDateTime(note.note_date) }}</span>
-                      <span class="text-caption text-grey-7">{{ resolveAuthorName(note.author_id) }}</span>
+                      <span class="text-weight-medium text-caption">{{
+                        formatDateTime(note.note_date)
+                      }}</span>
+                      <span class="text-caption text-grey-7">{{
+                        resolveAuthorName(note.author_id)
+                      }}</span>
                       <q-chip
                         v-if="note.learner_response"
                         dense
@@ -188,7 +212,9 @@
                 />
                 <q-select
                   v-model="newNoteResponse"
-                  :options="LEARNER_RESPONSE_OPTIONS.map((o) => ({ label: o.label, value: o.value }))"
+                  :options="
+                    LEARNER_RESPONSE_OPTIONS.map((o) => ({ label: o.label, value: o.value }))
+                  "
                   label="Learner Response (optional)"
                   outlined
                   clearable
@@ -216,7 +242,13 @@
       <q-card-section class="text-center q-pa-xl text-grey-7">
         <q-icon name="support" size="48px" class="q-mb-sm" />
         <div>Intervention not found.</div>
-        <q-btn flat color="primary" label="Back to Interventions" to="/school/interventions" class="q-mt-sm" />
+        <q-btn
+          flat
+          color="primary"
+          label="Back to Interventions"
+          to="/school/interventions"
+          class="q-mt-sm"
+        />
       </q-card-section>
     </q-card>
   </q-page>
@@ -230,6 +262,7 @@ import { useLearnerStore } from '../stores/learner-store';
 import { useTeacherStore } from '../stores/teacher-store';
 import { useAtRiskStore } from '../stores/at-risk-store';
 import { useInterventionStore } from '../stores/intervention-store';
+import { useAuthStore } from 'src/stores/auth-store';
 import { usePermissions } from 'src/composables/usePermissions';
 import { LEARNER_RESPONSE_OPTIONS } from '../utils/school-constants';
 import InterventionStatusBadge from '../components/InterventionStatusBadge.vue';
@@ -243,14 +276,15 @@ const learnerStore = useLearnerStore();
 const teacherStore = useTeacherStore();
 const atRiskStore = useAtRiskStore();
 const interventionStore = useInterventionStore();
+const authStore = useAuthStore();
 
 const isLoading = ref(true);
 const isAddingNote = ref(false);
 const newNoteContent = ref('');
 const newNoteResponse = ref(null);
 
-const intervention = computed(() =>
-  interventionStore.interventions.find((i) => i.$id === route.params.id) || null,
+const intervention = computed(
+  () => interventionStore.interventions.find((i) => i.$id === route.params.id) || null,
 );
 
 const notes = computed(() =>
@@ -277,6 +311,8 @@ const atRiskInfo = computed(() => {
   if (!intervention.value) return null;
   return atRiskStore.getLearnerRisk(intervention.value.learner_id_normalized);
 });
+
+const atRiskNotComputed = computed(() => !atRiskStore.lastComputedAt);
 
 function formatDate(isoString) {
   if (!isoString) return '—';
@@ -306,7 +342,7 @@ async function onAddNote() {
     const result = await interventionStore.addNote(intervention.value.$id, {
       content: newNoteContent.value.trim(),
       learner_response: newNoteResponse.value,
-      author_id: teacherStore.currentTeacherResidentId,
+      author_id: authStore.user?.resident_id || null,
     });
     if (result.success) {
       newNoteContent.value = '';
