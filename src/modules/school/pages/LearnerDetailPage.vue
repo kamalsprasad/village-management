@@ -648,14 +648,12 @@ const termOptions = computed(() => {
   if (!selectedYear.value) return [];
   const yearValue =
     typeof selectedYear.value === 'object' ? selectedYear.value?.value : selectedYear.value;
-  return academicTermsStore.currentYearTerms
-    .filter((t) => t.academic_year === yearValue)
-    .map((t) => ({
-      label: t.term_name,
-      value: t.term_name,
-      start_date: t.start_date,
-      end_date: t.end_date,
-    }));
+  return academicTermsStore.termsByYear(yearValue).map((t) => ({
+    label: t.term_name,
+    value: t.term_name,
+    start_date: t.start_date,
+    end_date: t.end_date,
+  }));
 });
 
 const activeTab = ref('overview');
@@ -997,7 +995,7 @@ onMounted(async () => {
     schoolStore.fetchTestScores(),
     atRiskStore.computeAtRisk(),
     interventionStore.fetchInterventions(),
-    academicTermsStore.fetchTerms(),
+    academicTermsStore.fetchAcademicTerms(),
     teacherStore.fetchTeacherAssignments(),
     goalsStore.computeProgress(),
   ]);
@@ -1016,9 +1014,7 @@ onMounted(async () => {
       : academicTermsStore.availableYears[0];
     selectedYear.value = { label: String(defaultYear), value: defaultYear };
 
-    const yearTerms = academicTermsStore.currentYearTerms.filter(
-      (t) => t.academic_year === defaultYear,
-    );
+    const yearTerms = academicTermsStore.termsByYear(defaultYear);
     if (yearTerms.length > 0) {
       // Find the most recent term with recorded scores for this learner
       const scoredTerms = schoolStore.testScores
@@ -1027,7 +1023,9 @@ onMounted(async () => {
         )
         .map((s) => s.term);
       const scoredTermSet = new Set(scoredTerms);
-      const matchedTerm = yearTerms.find((t) => scoredTermSet.has(t.term_name)) || yearTerms[0];
+      const matchedTerm =
+        yearTerms.findLast((t) => scoredTermSet.has(t.term_name)) ||
+        yearTerms[yearTerms.length - 1];
 
       selectedTerm.value = {
         label: matchedTerm.term_name,

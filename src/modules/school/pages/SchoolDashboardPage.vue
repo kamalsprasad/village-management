@@ -174,10 +174,8 @@
 </template>
 
 <script setup>
-import { computed, onMounted } from 'vue';
+import { computed } from 'vue';
 import { useLearnerStore } from '../stores/learner-store';
-import { useSchoolGoalsStore } from '../stores/school-goals-store';
-import { useAtRiskStore } from '../stores/at-risk-store';
 import { usePermissions } from 'src/composables/usePermissions';
 import LearnersOverviewWidget from '../components/LearnersOverviewWidget.vue';
 import AtRiskLearnersWidget from '../components/AtRiskLearnersWidget.vue';
@@ -186,19 +184,12 @@ import MyInterventionsWidget from '../components/MyInterventionsWidget.vue';
 import ProgressToGoalWidget from '../components/ProgressToGoalWidget.vue';
 
 const learnerStore = useLearnerStore();
-const goalsStore = useSchoolGoalsStore();
-const atRiskStore = useAtRiskStore();
 const { hasPermission } = usePermissions();
 
 const canWrite = computed(() => hasPermission('school:write'));
 const canAdmin = computed(() => hasPermission('school:admin'));
 const isInitialLoading = computed(() => learnerStore.isLoading && !learnerStore.learnersLoaded);
 
-onMounted(async () => {
-  await Promise.all([
-    learnerStore.fetchLearners(),
-    goalsStore.computeProgress(),
-    atRiskStore.computeAtRisk(),
-  ]);
-});
+// All dashboard widgets self-initialize their data in their own onMounted hooks.
+// No parent-level fetch is needed — adding one would cause redundant double-fetches.
 </script>

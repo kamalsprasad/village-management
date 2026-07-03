@@ -249,6 +249,8 @@ import { useSchoolStore } from '../stores/school-store';
 import { useInterventionStore } from '../stores/intervention-store';
 import { exportBulkLearnerProgressToZip } from 'src/services/ReportExportService';
 import { computeLearnerOverallAverage } from '../utils/school-goal-utils';
+import { tables } from 'src/boot/appwrite';
+import { Query } from 'appwrite';
 import { ENROLLMENT_STATUSES } from '../utils/school-constants';
 import EnrollmentStatusBadge from '../components/EnrollmentStatusBadge.vue';
 
@@ -289,14 +291,12 @@ const bulkTermOptions = computed(() => {
     typeof selectedBulkYear.value === 'object'
       ? selectedBulkYear.value?.value
       : selectedBulkYear.value;
-  return academicTermsStore.currentYearTerms
-    .filter((t) => t.academic_year === yearValue)
-    .map((t) => ({
-      label: t.term_name,
-      value: t.term_name,
-      start_date: t.start_date,
-      end_date: t.end_date,
-    }));
+  return academicTermsStore.termsByYear(yearValue).map((t) => ({
+    label: t.term_name,
+    value: t.term_name,
+    start_date: t.start_date,
+    end_date: t.end_date,
+  }));
 });
 
 const selectedBulkClassCount = computed(() => {
@@ -371,6 +371,31 @@ async function generateBulkReports() {
     const className = classStore.classes.find((c) => c.$id === classValue)?.name || 'Class';
     const paramsList = [];
 
+    // Batch-fetch household names for all class learners' residents
+    const householdMap = new Map();
+    const householdIds = [
+      ...new Set(
+        classLearners
+          .map((l) => {
+            const hid = l.resident?.household_id;
+            return typeof hid === 'string' ? hid : hid?.$id;
+          })
+          .filter(Boolean),
+      ),
+    ];
+    if (householdIds.length > 0) {
+      try {
+        const householdsRes = await tables.listRows({
+          databaseId: import.meta.env.VITE_APPWRITE_DATABASE_ID,
+          tableId: import.meta.env.VITE_APPWRITE_TABLE_HOUSEHOLDS,
+          queries: [Query.equal('$id', householdIds), Query.limit(householdIds.length)],
+        });
+        householdsRes.rows.forEach((h) => householdMap.set(h.$id, h.name || ''));
+      } catch (err) {
+        console.warn('Batch-fetch of households failed; household names will be empty', err);
+      }
+    }
+
     // Loop and gather data for each learner
     for (const learner of classLearners) {
       // Fetch term attendance for this learner
@@ -391,10 +416,14 @@ async function generateBulkReports() {
       // Resolve resident details
       let residentData = null;
       if (learner.resident) {
+        const hid =
+          typeof learner.resident.household_id === 'string'
+            ? learner.resident.household_id
+            : learner.resident.household_id?.$id;
         residentData = {
           full_name: learnerStore.getLearnerName(learner),
           dob: learner.resident.dob,
-          household_name: learner.resident.household_id?.name || '',
+          household_name: (hid && householdMap.get(hid)) || '',
         };
       }
 
@@ -420,9 +449,19 @@ async function generateBulkReports() {
 
     const zipFileName = `progress-reports-${className.replace(/\s+/g, '')}-${yearValue}-${termValue.replace(/\s+/g, '')}`;
 
-    await exportBulkLearnerProgressToZip(paramsList, zipFileName);
+    const result = await exportBulkLearnerProgressToZip(paramsList, zipFileName);
 
-    $q.notify({ type: 'positive', message: `${classLearners.length} progress reports generated.` });
+    if (result?.fallback) {
+      $q.notify({
+        type: 'warning',
+        message: 'ZIP unavailable — downloading reports individually.',
+      });
+    } else {
+      $q.notify({
+        type: 'positive',
+        message: `${classLearners.length} progress reports generated.`,
+      });
+    }
     showBulkReportDialog.value = false;
   } catch (error) {
     console.error('Error generating bulk progress reports:', error);
@@ -495,7 +534,7 @@ onMounted(async () => {
   await Promise.all([
     learnerStore.fetchLearners(),
     classStore.fetchClasses(),
-    academicTermsStore.fetchTerms(),
+    academicTermsStore.fetchAcademicTerms(),
     teacherStore.fetchTeacherAssignments(),
     goalsStore.computeProgress(),
     schoolStore.fetchTestScores(),
@@ -510,15 +549,14 @@ onMounted(async () => {
       : academicTermsStore.availableYears[0];
     selectedBulkYear.value = { label: String(defaultYear), value: defaultYear };
 
-    const yearTerms = academicTermsStore.currentYearTerms.filter(
-      (t) => t.academic_year === defaultYear,
-    );
+    const yearTerms = academicTermsStore.termsByYear(defaultYear);
     if (yearTerms.length > 0) {
+      const lastTerm = yearTerms[yearTerms.length - 1];
       selectedBulkTerm.value = {
-        label: yearTerms[0].term_name,
-        value: yearTerms[0].term_name,
-        start_date: yearTerms[0].start_date,
-        end_date: yearTerms[0].end_date,
+        label: lastTerm.term_name,
+        value: lastTerm.term_name,
+        start_date: lastTerm.start_date,
+        end_date: lastTerm.end_date,
       };
     }
   }

@@ -880,7 +880,6 @@ function pdfFormatDate(isoString) {
  * @param {object[]} params.attendanceRecords      - From classStore.fetchAttendanceForLearner() for the term date range
  * @param {number}   params.totalSchoolDays        - calendarEventsStore.countSchoolDaysBetween(termStart, termEnd)
  * @param {object[]} params.interventions          - interventionStore.getInterventionsForLearner(learnerId)
- * @param {object|null} params.riskStatus          - atRiskStore.getLearnerRisk(learnerId) — may be null
  * @param {object|null} params.activeGoal          - schoolGoalsStore.activeGoal — may be null
  * @param {number|null} params.learnerOverallAverage - computeLearnerOverallAverage() result for selected year/term
  * @param {string}   params.teacherComment         - Free-text from dialog (may be empty string)
@@ -911,20 +910,29 @@ export async function exportLearnerProgressToPDF(params) {
   y += 10;
 
   // Learner Info
-  y = addPDFSummary(
-    doc,
-    [
-      {
-        label: 'Learner Name',
-        value: params.resident?.full_name || params.learner?.resident_full_name || '—',
-      },
-      { label: 'Grade & Class', value: params.className || '—' },
-      { label: 'Date of Birth', value: pdfFormatDate(params.resident?.dob) },
-      { label: 'Household', value: params.resident?.household_name || '—' },
-      { label: 'Enrollment Status', value: params.learner?.enrollment_status || '—' },
-    ],
-    y,
-  );
+  y = checkPageOverflow(doc, 35, y);
+  doc.setFontSize(11);
+  doc.setFont(undefined, 'bold');
+  doc.text('Learner Information', 14, y);
+  y += 6;
+
+  doc.setFontSize(10);
+  doc.setFont(undefined, 'normal');
+  const learnerInfoRows = [
+    {
+      label: 'Learner Name',
+      value: params.resident?.full_name || params.learner?.resident_full_name || '—',
+    },
+    { label: 'Grade & Class', value: params.className || '—' },
+    { label: 'Date of Birth', value: pdfFormatDate(params.resident?.dob) },
+    { label: 'Household', value: params.resident?.household_name || '—' },
+    { label: 'Enrollment Status', value: params.learner?.enrollment_status || '—' },
+  ];
+  for (const row of learnerInfoRows) {
+    doc.text(`${row.label}: ${row.value}`, 14, y);
+    y += 5;
+  }
+  y += 4;
 
   // Academic Performance Table
   y = checkPageOverflow(doc, 25, y);
@@ -1105,11 +1113,8 @@ export async function exportLearnerProgressToPDF(params) {
     return doc.output('arraybuffer');
   }
 
-  const res = params.resident || {};
-  const l = params.learner || {};
-  const lastName = res.last_name || l.last_name || 'Report';
-  const firstName = res.first_name || l.first_name || '';
-  const namePart = `${lastName}-${firstName}`.replace(/\s+/g, '-');
+  const fullName = params.resident?.full_name || params.learner?.resident_full_name || 'Unknown';
+  const namePart = fullName.replace(/\s+/g, '-');
   const termSlug = String(params.termName || '').replace(/\s+/g, '');
   const dateStr = new Date().toISOString().split('T')[0];
   const filename = `learner-progress-report-${namePart}-${params.academicYear}-${termSlug}-${dateStr}.pdf`;
@@ -1144,11 +1149,8 @@ export async function exportBulkLearnerProgressToZip(paramsList, zipFileName) {
   for (const params of paramsList) {
     const pdfBytes = await exportLearnerProgressToPDF({ ...params, returnBytes: true });
 
-    const res = params.resident || {};
-    const l = params.learner || {};
-    const lastName = res.last_name || l.last_name || 'Report';
-    const firstName = res.first_name || l.first_name || '';
-    const namePart = `${lastName}-${firstName}`.replace(/\s+/g, '-');
+    const fullName = params.resident?.full_name || params.learner?.resident_full_name || 'Unknown';
+    const namePart = fullName.replace(/\s+/g, '-');
     const termSlug = String(params.termName || '').replace(/\s+/g, '');
     const dateStr = new Date().toISOString().split('T')[0];
     const filename = `learner-progress-report-${namePart}-${params.academicYear}-${termSlug}-${dateStr}.pdf`;
