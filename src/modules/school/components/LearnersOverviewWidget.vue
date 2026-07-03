@@ -15,7 +15,7 @@
 
     <q-card-section v-if="learnerStore.isLoading && !learnerStore.learnersLoaded">
       <q-skeleton type="rect" height="120px" />
-    </card-section>
+    </q-card-section>
 
     <q-card-section v-else-if="learnerStore.learners.length === 0">
       <div class="text-grey-7 text-center q-pa-md">

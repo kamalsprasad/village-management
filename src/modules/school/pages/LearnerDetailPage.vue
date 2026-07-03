@@ -33,7 +33,6 @@
         class="q-mr-sm"
       />
       <q-btn
-        v-slot:default
         v-if="canWrite && learner"
         outline
         color="primary"

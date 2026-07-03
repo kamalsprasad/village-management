@@ -13,7 +13,6 @@
       </div>
       <q-space />
       <q-btn
-        v-slot:default
         v-if="canWrite"
         color="primary"
         icon="person_add"
@@ -22,7 +21,6 @@
         class="q-mr-sm"
       />
       <q-btn
-        v-slot:default
         v-if="canWrite"
         outline
         color="primary"
