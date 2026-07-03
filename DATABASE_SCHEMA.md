@@ -577,6 +577,22 @@ Append-only progress notes logged against an intervention (Story 4.8). Notes can
 
 **Indexes:** none — `intervention_id` is a relationship column (same constraint as above).
 
+### school_long_term_goals
+
+Long-term educational goal configuration (Story 4.12). Holds one active goal by convention (selected via `is_active`). The benchmark score threshold models the target percentile in the absence of a national exam data feed.
+
+| Column                       | Type    | Constraints            | Description                                                              |
+| ---------------------------- | ------- | ---------------------- | ------------------------------------------------------------------------ |
+| `goal_name`                  | string  | Required, max 255      | Human-readable goal name                                                 |
+| `target_percent_of_learners` | double  | Required, default 90   | Target percentage of active learners meeting the benchmark               |
+| `target_percentile_score`    | double  | Required, default 90   | Benchmark score threshold representing the percentile target (e.g., 90%) |
+| `baseline_academic_year`     | integer | Required               | First academic year used for progress tracking                           |
+| `target_academic_year`       | integer | Required               | Target academic year to reach the goal (typically baseline + 10)         |
+| `is_active`                  | boolean | Required, default true | Whether this goal is the current active goal                             |
+| `notes`                      | string  | Optional, max 1000     | Additional notes                                                         |
+
+**Indexes:** `idx_school_long_term_goals_active` on `(is_active ASC)`
+
 ### teacher_assignments
 
 Stores grade-level teacher assignments with optional subject specialization (Story 4.2). Grade teachers (EC–5) teach all subjects; subject teachers (Grade 6+) have specific subject assignments.
@@ -633,6 +649,7 @@ All relationships use Appwrite's native relationship columns (type `rel`). Key r
 - **`school_academic_terms`**: standalone (no relationships — self-contained calendar data)
 - **`school_calendar_events`**: standalone (no relationships — `affected_class_ids` stored as string array, not relationship column, to support optional scoping without cascade complexity)
 - **`school_period_slots`**: standalone (no relationships — `slot_id` on `class_timetable_entries` references `school_period_slots.$id` as a string, intentionally avoiding cascade to allow slot reuse across grades)
+- **`school_long_term_goals`**: standalone (no relationships — single configuration row selected by `is_active`)
 
 **Finance:**
 

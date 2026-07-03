@@ -396,6 +396,20 @@
 
           <q-item
             clickable
+            to="/school/educational-goals"
+            class="nav-sub-item"
+            active-class="nav-sub-item--active"
+          >
+            <q-item-section avatar class="nav-sub-icon">
+              <q-icon name="trending_up" size="16px" />
+            </q-item-section>
+            <q-item-section>
+              <q-item-label class="nav-sub-label">Educational Goals</q-item-label>
+            </q-item-section>
+          </q-item>
+
+          <q-item
+            clickable
             to="/school/learners"
             class="nav-sub-item"
             active-class="nav-sub-item--active"

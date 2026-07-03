@@ -216,6 +216,26 @@ const schoolRoutes = [
       requiresPermission: 'school:admin',
     },
   },
+
+  // Story 4.12: Educational Goals & Long-Term Goal Settings
+  {
+    path: 'school/educational-goals',
+    name: 'school-educational-goals',
+    component: () => import('./pages/EducationalGoalsPage.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresPermission: 'school:read',
+    },
+  },
+  {
+    path: 'school/settings/long-term-goals',
+    name: 'school-settings-long-term-goals',
+    component: () => import('./pages/LongTermGoalsSettingsPage.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresPermission: 'school:admin',
+    },
+  },
 ];
 
 export default schoolRoutes;

@@ -1768,6 +1768,18 @@ async function seedSchool(tablesDB, dbId, residentIds, slotIdsByGrade, log) {
   await batchRun(scoreTasks, 25);
   log(`  ${scoreTasks.length} test scores`);
 
+  log('Phase 4: Long-term educational goal (Story 4.12)...');
+  await createRow(tablesDB, dbId, 'school_long_term_goals', {
+    goal_name: '90% of learners at 90th-percentile benchmark',
+    target_percent_of_learners: 90,
+    target_percentile_score: 90,
+    baseline_academic_year: 2026,
+    target_academic_year: 2036,
+    is_active: true,
+    notes: 'Default long-term goal seeded for demonstration. Edit in School Settings.',
+  });
+  log('  1 long-term goal');
+
   log('Phase 4: Timetable...');
   // Story 4.5: class_timetable_entries use slot IDs from seedBellSchedules (run before seedSchool).
   // slotIdsByGrade[grade][periodNum] → slot.$id for 2026 class-type slots.

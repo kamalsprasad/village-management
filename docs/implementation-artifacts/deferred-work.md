@@ -28,3 +28,14 @@ Items deferred during code reviews. Revisit before closing their parent story or
 - Seed log message wording differs from spec — cosmetic, data is correct (2 plans + 5 notes), only the log format differs from AC15's suggested wording. [`seedAllData/src/main.js:2053`]
 - InterventionSummaryCard "Duration" shows end date, not "days since start or days until end" — minor UX deviation from AC7. Information is present, just formatted differently. [`InterventionSummaryCard.vue:108-111`]
 - MyInterventionsWidget not immediately below At-Risk widget — minor layout deviation from AC13. Widget is still below the At-Risk widget, just not immediately after it. [`SchoolDashboardPage.vue:76-79`]
+
+---`n
+## Deferred from: code review of story-4.12 (2026-07-03)
+
+- Server-side validation for baseline <= target -- Appwrite doesn't easily support row-level constraints; client validation is in place. [school-goals-store.js:137-173]
+- Type coercion validation for Appwrite numeric strings -- schema enforces double/integer types server-side. [school-goals-store.js:216-218]
+- PDF large dataset pagination -- autoTable handles page breaks automatically; low risk for MVP scale. [ReportExportService.js:755-823]
+- Timezone handling for currentYear -- new Date().getFullYear() is browser-local; academic year is a coarse unit and this matches existing codebase pattern. [school-goals-store.js:214]
+- Stale closure / periodic refresh in ProgressToGoalWidget -- dashboard widget pattern; 60s cache TTL is acceptable for non-real-time data. [ProgressToGoalWidget.vue:122-124]
+- computeScorePercent null/string handling -- pre-existing function used across the school module; null score_value -> 0 is acceptable. [school-utils.js:13-16]
+- Module-level useErrorHandler() call -- works because Notify.create is callable outside setup, but unconventional; matches pattern in other stores. [school-goals-store.js:40]

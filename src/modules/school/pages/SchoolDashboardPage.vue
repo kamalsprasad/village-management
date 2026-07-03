@@ -58,6 +58,11 @@
         </q-card>
       </div>
 
+      <!-- Progress to Goal Widget (Story 4.12) -->
+      <div class="col-12 col-md-4">
+        <ProgressToGoalWidget />
+      </div>
+
       <!-- At-Risk Learners Widget (Story 4.7 AC5) -->
       <div class="col-12 col-md-8">
         <AtRiskLearnersWidget />
@@ -84,6 +89,15 @@
           <q-card-section>
             <div class="text-h6 q-mb-sm">Quick Links</div>
             <q-list separator>
+              <q-item clickable to="/school/educational-goals">
+                <q-item-section avatar>
+                  <q-icon name="trending_up" color="deep-orange" />
+                </q-item-section>
+                <q-item-section>
+                  <q-item-label>Educational Goals</q-item-label>
+                  <q-item-label caption>Track progress toward the long-term goal</q-item-label>
+                </q-item-section>
+              </q-item>
               <q-item clickable to="/school/learners">
                 <q-item-section avatar>
                   <q-icon name="groups" color="primary" />
@@ -169,6 +183,7 @@ import LearnersOverviewWidget from '../components/LearnersOverviewWidget.vue';
 import AtRiskLearnersWidget from '../components/AtRiskLearnersWidget.vue';
 import ClassAttendanceWidget from '../components/ClassAttendanceWidget.vue';
 import MyInterventionsWidget from '../components/MyInterventionsWidget.vue';
+import ProgressToGoalWidget from '../components/ProgressToGoalWidget.vue';
 
 const learnerStore = useLearnerStore();
 const { hasPermission } = usePermissions();

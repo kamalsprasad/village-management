@@ -120,6 +120,33 @@
           </q-card-actions>
         </q-card>
       </div>
+
+      <!-- Long-Term Goals card (Story 4.12) -->
+      <div class="col-12 col-sm-6 col-md-4">
+        <q-card
+          flat
+          bordered
+          class="cursor-pointer settings-card"
+          role="button"
+          tabindex="0"
+          aria-label="Configure Long-Term Educational Goal"
+          @click="$router.push('/school/settings/long-term-goals')"
+          @keydown.enter="$router.push('/school/settings/long-term-goals')"
+        >
+          <q-card-section class="row items-center q-gutter-md">
+            <q-icon name="trending_up" size="48px" color="deep-orange-6" />
+            <div class="col">
+              <div class="text-h6">Long-Term Goal</div>
+              <div class="text-caption text-grey-7">
+                Configure the 10-year educational goal and benchmark threshold
+              </div>
+            </div>
+          </q-card-section>
+          <q-card-actions align="right">
+            <q-btn flat color="deep-orange-6" label="Configure" icon-right="chevron_right" />
+          </q-card-actions>
+        </q-card>
+      </div>
     </div>
   </q-page>
 </template>

@@ -1530,6 +1530,46 @@ const tableSchemas = {
     // No index: intervention_id is a relationship column (see interventions table note above).
     indexes: [],
   },
+
+  // Story 4.12: Long-term educational goal configuration (e.g. 90% of learners at 90th-percentile benchmark).
+  // Standalone table — one active row is selected by the school-goals store.
+  school_long_term_goals: {
+    name: 'School Long-Term Goals',
+    permissions: permissions,
+    columns: [
+      {
+        key: 'goal_name',
+        type: 'string',
+        size: 255,
+        required: true,
+        default: '90% of learners at 90th-percentile benchmark',
+      },
+      {
+        key: 'target_percent_of_learners',
+        type: 'double',
+        required: true,
+        default: 90,
+      },
+      {
+        key: 'target_percentile_score',
+        type: 'double',
+        required: true,
+        default: 90,
+      },
+      { key: 'baseline_academic_year', type: 'integer', required: true },
+      { key: 'target_academic_year', type: 'integer', required: true },
+      { key: 'is_active', type: 'boolean', required: true, default: true },
+      { key: 'notes', type: 'string', size: 1000, required: false },
+    ],
+    indexes: [
+      {
+        key: 'idx_school_long_term_goals_active',
+        type: 'key',
+        columns: ['is_active'],
+        orders: ['ASC'],
+      },
+    ],
+  },
 };
 
 // Helper functions
@@ -1829,7 +1869,7 @@ async function setupDatabase() {
     console.log(
       '   School: school_classes, learners, test_scores, teacher_assignments, learner_attendance,',
     );
-    console.log('           interventions, intervention_notes,');
+    console.log('           interventions, intervention_notes, school_long_term_goals,');
     console.log(
       '           school_academic_terms, school_calendar_events, school_period_slots, class_timetable_entries',
     );
