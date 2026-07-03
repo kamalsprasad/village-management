@@ -841,3 +841,331 @@ export async function exportEducationalGoalsToPDF({
   const dateStr = new Date().toISOString().split('T')[0];
   doc.save(`educational-goals-report${yearPart}${termPart}-${dateStr}.pdf`);
 }
+
+// ============================================================
+// School Module — Learner Progress Reports (Story 4.13)
+// ============================================================
+
+/**
+ * Helper to check page overflow and add a page if necessary.
+ */
+function checkPageOverflow(doc, neededHeight, currentY) {
+  const pageHeight = doc.internal.pageSize.getHeight();
+  if (currentY + neededHeight > pageHeight - 15) {
+    doc.addPage();
+    return 20; // top margin
+  }
+  return currentY;
+}
+
+/**
+ * Format date nicely.
+ */
+function pdfFormatDate(isoString) {
+  if (!isoString) return '—';
+  const date = new Date(isoString);
+  if (isNaN(date.getTime())) return '—';
+  return date.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+}
+
+/**
+ * Generate and download a learner progress report PDF.
+ * Teacher comments are intentionally not persisted — see Story 4.13 Concern 1.
+ *
+ * @param {object} params
+ * @param {object}   params.learner               - Learner record from learner-store
+ * @param {object}   params.resident              - Resident record (full name, DOB, household name)
+ * @param {string}   params.className             - Class name string (e.g. "Grade 5A")
+ * @param {object[]} params.testScores            - All test_scores for this learner in the selected year/term
+ * @param {object[]} params.attendanceRecords      - From classStore.fetchAttendanceForLearner() for the term date range
+ * @param {number}   params.totalSchoolDays        - calendarEventsStore.countSchoolDaysBetween(termStart, termEnd)
+ * @param {object[]} params.interventions          - interventionStore.getInterventionsForLearner(learnerId)
+ * @param {object|null} params.riskStatus          - atRiskStore.getLearnerRisk(learnerId) — may be null
+ * @param {object|null} params.activeGoal          - schoolGoalsStore.activeGoal — may be null
+ * @param {number|null} params.learnerOverallAverage - computeLearnerOverallAverage() result for selected year/term
+ * @param {string}   params.teacherComment         - Free-text from dialog (may be empty string)
+ * @param {string}   params.termName               - Selected term name (e.g. "Term 1")
+ * @param {number}   params.academicYear           - Selected academic year (e.g. 2026)
+ * @param {string}   params.villageName            - From settings-store.villageName
+ * @param {object[]} params.teacherAssignments      - From teacher-store.teacherAssignments (for resolving teacher names)
+ * @param {boolean}  [params.returnBytes=false]    - If true, returns ArrayBuffer instead of triggering save
+ */
+export async function exportLearnerProgressToPDF(params) {
+  // Teacher comments are intentionally NOT persisted. See Story 4.13 Concern 1 for rationale.
+  await loadPDFDependencies();
+
+  const doc = new jsPDFClass({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+  const generatedAt = new Date().toLocaleString();
+
+  let y = addPDFHeader(doc, 'Learner Progress Report', {
+    generatedAt,
+    villageName: params.villageName,
+  });
+
+  // Display academic year & term
+  doc.setFontSize(11);
+  doc.setFont(undefined, 'bold');
+  doc.text(`${params.academicYear} — ${params.termName}`, doc.internal.pageSize.getWidth() / 2, y, {
+    align: 'center',
+  });
+  y += 10;
+
+  // Learner Info
+  y = addPDFSummary(
+    doc,
+    [
+      {
+        label: 'Learner Name',
+        value: params.resident?.full_name || params.learner?.resident_full_name || '—',
+      },
+      { label: 'Grade & Class', value: params.className || '—' },
+      { label: 'Date of Birth', value: pdfFormatDate(params.resident?.dob) },
+      { label: 'Household', value: params.resident?.household_name || '—' },
+      { label: 'Enrollment Status', value: params.learner?.enrollment_status || '—' },
+    ],
+    y,
+  );
+
+  // Academic Performance Table
+  y = checkPageOverflow(doc, 25, y);
+  doc.setFontSize(11);
+  doc.setFont(undefined, 'bold');
+  doc.text('Academic Performance', 14, y);
+  y += 4;
+
+  const testScores = params.testScores || [];
+  const activeGoal = params.activeGoal || null;
+  const learnerOverallAverage = params.learnerOverallAverage;
+
+  // Filter scores for this year and term (note that the schema key is 'term')
+  const termScores = testScores.filter(
+    (s) => s.academic_year === params.academicYear && s.term === params.termName,
+  );
+
+  if (termScores.length === 0) {
+    doc.setFontSize(10);
+    doc.setFont(undefined, 'normal');
+    doc.text('No assessments recorded for this term.', 14, y);
+    y += 10;
+  } else {
+    const subjectsMap = {};
+    for (const s of termScores) {
+      if (!subjectsMap[s.subject]) {
+        subjectsMap[s.subject] = { total: 0, count: 0 };
+      }
+      subjectsMap[s.subject].total += Math.round((s.score_value / s.max_score) * 100);
+      subjectsMap[s.subject].count += 1;
+    }
+
+    const subjectAverages = Object.entries(subjectsMap)
+      .map(([subject, data]) => ({
+        subject,
+        average: Math.round(data.total / data.count),
+        testCount: data.count,
+      }))
+      .sort((a, b) => a.subject.localeCompare(b.subject));
+
+    const academicRows = subjectAverages.map((s) => {
+      let vsBenchmark = '—';
+      if (activeGoal && activeGoal.target_percentile_score != null) {
+        vsBenchmark = s.average >= activeGoal.target_percentile_score ? '✓' : '✗';
+      }
+      return [s.subject, String(s.testCount), `${s.average}%`, vsBenchmark];
+    });
+
+    let overallVsBenchmark = '—';
+    if (activeGoal && activeGoal.target_percentile_score != null && learnerOverallAverage != null) {
+      overallVsBenchmark =
+        learnerOverallAverage >= activeGoal.target_percentile_score ? 'Yes' : 'No';
+    }
+
+    academicRows.push([
+      'Overall Average',
+      '—',
+      learnerOverallAverage != null ? `${learnerOverallAverage}%` : '—',
+      overallVsBenchmark !== '—' ? `At Benchmark: ${overallVsBenchmark}` : '—',
+    ]);
+
+    y = addPDFTable(
+      doc,
+      ['Subject', 'Assessments', 'Average Score (%)', 'vs Benchmark'],
+      academicRows,
+      y,
+    );
+  }
+
+  // Attendance
+  y = checkPageOverflow(doc, 30, y);
+  doc.setFontSize(11);
+  doc.setFont(undefined, 'bold');
+  doc.text('Attendance', 14, y);
+  y += 5;
+
+  const totalDays = params.totalSchoolDays || 0;
+  const attRecords = params.attendanceRecords || [];
+  const present = attRecords.filter((r) => r.status === 'Present').length;
+  const late = attRecords.filter((r) => r.status === 'Late').length;
+  const absent = attRecords.filter((r) => r.status === 'Absent').length;
+  const excused = attRecords.filter((r) => r.status === 'Excused').length;
+
+  if (attRecords.length === 0) {
+    doc.setFontSize(10);
+    doc.setFont(undefined, 'normal');
+    doc.text('No attendance records for this term.', 14, y);
+    y += 10;
+  } else {
+    const rate = totalDays > 0 ? (((present + late) / totalDays) * 100).toFixed(1) : '—';
+    const rateText = rate !== '—' ? `${rate}%` : 'No attendance data';
+
+    let standing = 'No Data';
+    if (rate !== '—') {
+      standing = parseFloat(rate) >= 90 ? 'Good Standing (≥90%)' : 'At Risk (<90%)';
+    }
+
+    doc.setFontSize(10);
+    doc.setFont(undefined, 'normal');
+    doc.text(`Total school days: ${totalDays}`, 14, y);
+    y += 5;
+    doc.text(
+      `Record: ${present} Present, ${late} Late, ${absent} Absent, ${excused} Excused`,
+      14,
+      y,
+    );
+    y += 5;
+    doc.text(`Attendance Rate: ${rateText} (${standing})`, 14, y);
+    y += 8;
+  }
+
+  // Interventions
+  y = checkPageOverflow(doc, 25, y);
+  doc.setFontSize(11);
+  doc.setFont(undefined, 'bold');
+  doc.text('Interventions & Support', 14, y);
+  y += 4;
+
+  const interventions = params.interventions || [];
+  if (interventions.length === 0) {
+    doc.setFontSize(10);
+    doc.setFont(undefined, 'normal');
+    doc.text('No intervention plans recorded.', 14, y);
+    y += 10;
+  } else {
+    const interventionRows = interventions.map((i) => {
+      let teacherName = '—';
+      if (i.assigned_teacher_id_normalized && params.teacherAssignments) {
+        const ta = params.teacherAssignments.find(
+          (t) => t.teacher_id_normalized === i.assigned_teacher_id_normalized,
+        );
+        if (ta) teacherName = ta.teacher_name;
+      }
+      return [
+        i.intervention_type || '—',
+        i.status || '—',
+        teacherName,
+        i.start_date ? pdfFormatDate(i.start_date) : '—',
+        i.end_date ? pdfFormatDate(i.end_date) : '—',
+      ];
+    });
+
+    y = addPDFTable(
+      doc,
+      ['Type', 'Status', 'Assigned Teacher', 'Start Date', 'End Date'],
+      interventionRows,
+      y,
+    );
+  }
+
+  // Head Teacher's Comments
+  y = checkPageOverflow(doc, 25, y);
+  doc.setFontSize(11);
+  doc.setFont(undefined, 'bold');
+  doc.text("Head Teacher's Comments", 14, y);
+  y += 5;
+
+  doc.setFontSize(10);
+  doc.setFont(undefined, 'normal');
+  const comment = params.teacherComment || 'No comments provided.';
+  const splitComment = doc.splitTextToSize(comment, doc.internal.pageSize.getWidth() - 28);
+  doc.text(splitComment, 14, y);
+  y += splitComment.length * 5 + 8;
+
+  // Page Footers
+  const pageCount = doc.getNumberOfPages();
+  for (let i = 1; i <= pageCount; i++) {
+    doc.setPage(i);
+    const ph = doc.internal.pageSize.getHeight();
+    const pw = doc.internal.pageSize.getWidth();
+    doc.setFontSize(8);
+    doc.setFont(undefined, 'normal');
+    doc.text('Generated by Village Management System — Katete Model Village', 14, ph - 8);
+    doc.text(`Page ${i} of ${pageCount}`, pw - 14, ph - 8, { align: 'right' });
+  }
+
+  if (params.returnBytes) {
+    return doc.output('arraybuffer');
+  }
+
+  const res = params.resident || {};
+  const l = params.learner || {};
+  const lastName = res.last_name || l.last_name || 'Report';
+  const firstName = res.first_name || l.first_name || '';
+  const namePart = `${lastName}-${firstName}`.replace(/\s+/g, '-');
+  const termSlug = String(params.termName || '').replace(/\s+/g, '');
+  const dateStr = new Date().toISOString().split('T')[0];
+  const filename = `learner-progress-report-${namePart}-${params.academicYear}-${termSlug}-${dateStr}.pdf`;
+  doc.save(filename);
+}
+
+/**
+ * Generate a ZIP file of progress reports for multiple learners.
+ *
+ * @param {object[]} paramsList - Array of parameter objects for exportLearnerProgressToPDF
+ * @param {string} zipFileName - Desired filename of the ZIP file (without extension)
+ */
+export async function exportBulkLearnerProgressToZip(paramsList, zipFileName) {
+  await loadPDFDependencies();
+
+  let JSZip;
+  try {
+    JSZip = (await import('jszip')).default;
+  } catch (err) {
+    console.warn('Failed to load JSZip, falling back to sequential individual downloads', err);
+    // Fallback: download sequentially with delay
+    for (let i = 0; i < paramsList.length; i++) {
+      setTimeout(() => {
+        exportLearnerProgressToPDF({ ...paramsList[i], returnBytes: false });
+      }, i * 350);
+    }
+    return { fallback: true };
+  }
+
+  const zip = new JSZip();
+
+  for (const params of paramsList) {
+    const pdfBytes = await exportLearnerProgressToPDF({ ...params, returnBytes: true });
+
+    const res = params.resident || {};
+    const l = params.learner || {};
+    const lastName = res.last_name || l.last_name || 'Report';
+    const firstName = res.first_name || l.first_name || '';
+    const namePart = `${lastName}-${firstName}`.replace(/\s+/g, '-');
+    const termSlug = String(params.termName || '').replace(/\s+/g, '');
+    const dateStr = new Date().toISOString().split('T')[0];
+    const filename = `learner-progress-report-${namePart}-${params.academicYear}-${termSlug}-${dateStr}.pdf`;
+
+    zip.file(filename, pdfBytes);
+  }
+
+  const content = await zip.generateAsync({ type: 'blob' });
+  const url = URL.createObjectURL(content);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `${zipFileName}.zip`;
+  link.style.display = 'none';
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+
+  return { success: true };
+}

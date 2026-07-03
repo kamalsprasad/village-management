@@ -1,8 +1,6 @@
 <!--
-  SchoolDashboardPage.vue (Story 4.1)
-  School module dashboard: learner overview stats, at-risk learners widget,
-  class attendance widget, and navigation cards.
-  Future MVP stories add: progress to goal (4.12) widgets.
+  SchoolDashboardPage.vue (Story 4.13)
+  School module dashboard — Epic 4 complete.
   Teacher performance widgets (peer/self/HT evaluations) are deferred to post-MVP.
 -->
 <template>
@@ -178,6 +176,8 @@
 <script setup>
 import { computed, onMounted } from 'vue';
 import { useLearnerStore } from '../stores/learner-store';
+import { useSchoolGoalsStore } from '../stores/school-goals-store';
+import { useAtRiskStore } from '../stores/at-risk-store';
 import { usePermissions } from 'src/composables/usePermissions';
 import LearnersOverviewWidget from '../components/LearnersOverviewWidget.vue';
 import AtRiskLearnersWidget from '../components/AtRiskLearnersWidget.vue';
@@ -186,13 +186,19 @@ import MyInterventionsWidget from '../components/MyInterventionsWidget.vue';
 import ProgressToGoalWidget from '../components/ProgressToGoalWidget.vue';
 
 const learnerStore = useLearnerStore();
+const goalsStore = useSchoolGoalsStore();
+const atRiskStore = useAtRiskStore();
 const { hasPermission } = usePermissions();
 
 const canWrite = computed(() => hasPermission('school:write'));
 const canAdmin = computed(() => hasPermission('school:admin'));
 const isInitialLoading = computed(() => learnerStore.isLoading && !learnerStore.learnersLoaded);
 
-onMounted(() => {
-  learnerStore.fetchLearners();
+onMounted(async () => {
+  await Promise.all([
+    learnerStore.fetchLearners(),
+    goalsStore.computeProgress(),
+    atRiskStore.computeAtRisk(),
+  ]);
 });
 </script>

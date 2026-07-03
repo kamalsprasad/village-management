@@ -33,6 +33,16 @@
         class="q-mr-sm"
       />
       <q-btn
+        v-slot:default
+        v-if="canWrite && learner"
+        outline
+        color="primary"
+        icon="description"
+        label="Progress Report"
+        @click="showReportDialog = true"
+        class="q-mr-sm"
+      />
+      <q-btn
         v-if="canAdmin && learner"
         flat
         color="negative"
@@ -524,6 +534,64 @@
         />
       </q-card-section>
     </q-card>
+
+    <!-- Progress Report Dialog -->
+    <q-dialog v-model="showReportDialog" persistent>
+      <q-card style="min-width: 350px; max-width: 500px; width: 100%">
+        <q-card-section class="row items-center q-pb-none">
+          <div class="text-h6 text-weight-bold">Generate Learner Progress Report</div>
+          <q-space />
+          <q-btn icon="close" flat round dense v-close-popup :disabled="isGeneratingReport" />
+        </q-card-section>
+
+        <q-card-section class="q-pt-md q-gutter-md">
+          <!-- Academic Year Select -->
+          <q-select
+            v-model="selectedYear"
+            :options="yearOptions"
+            label="Academic Year"
+            outlined
+            dense
+            :disabled="isGeneratingReport"
+          />
+
+          <!-- Term Select -->
+          <q-select
+            v-model="selectedTerm"
+            :options="termOptions"
+            label="Academic Term"
+            outlined
+            dense
+            :disabled="isGeneratingReport || !selectedYear"
+          />
+
+          <!-- Comments field -->
+          <q-input
+            v-model="teacherComment"
+            type="textarea"
+            label="Head Teacher's Comments & Recommendations (Optional)"
+            placeholder="Add comments, observations, and recommended next steps for this learner…"
+            outlined
+            dense
+            rows="4"
+            maxlength="500"
+            counter
+            :disabled="isGeneratingReport"
+          />
+        </q-card-section>
+
+        <q-card-actions align="right" class="q-pb-md q-px-md text-primary">
+          <q-btn flat label="Cancel" v-close-popup :disabled="isGeneratingReport" />
+          <q-btn
+            color="primary"
+            icon="picture_as_pdf"
+            label="Generate PDF"
+            :loading="isGeneratingReport"
+            @click="generateReport"
+          />
+        </q-card-actions>
+      </q-card>
+    </q-dialog>
   </q-page>
 </template>
 
@@ -537,6 +605,13 @@ import { useSchoolStore } from '../stores/school-store';
 import { useAtRiskStore } from '../stores/at-risk-store';
 import { useInterventionStore } from '../stores/intervention-store';
 import { usePermissions } from 'src/composables/usePermissions';
+import { useAcademicTermsStore } from '../stores/academic-terms-store';
+import { useCalendarEventsStore } from '../stores/calendar-events-store';
+import { useTeacherStore } from '../stores/teacher-store';
+import { useSchoolGoalsStore } from '../stores/school-goals-store';
+import { useSettingsStore } from 'src/stores/settings-store';
+import { exportLearnerProgressToPDF } from 'src/services/ReportExportService';
+import { computeLearnerOverallAverage } from '../utils/school-goal-utils';
 import EnrollmentStatusBadge from '../components/EnrollmentStatusBadge.vue';
 import InterventionSummaryCard from '../components/InterventionSummaryCard.vue';
 
@@ -550,6 +625,39 @@ const interventionStore = useInterventionStore();
 const { hasPermission } = usePermissions();
 
 const canAdmin = computed(() => hasPermission('school:admin'));
+const canWrite = computed(() => hasPermission('school:write'));
+
+const academicTermsStore = useAcademicTermsStore();
+const calendarEventsStore = useCalendarEventsStore();
+const teacherStore = useTeacherStore();
+const goalsStore = useSchoolGoalsStore();
+const settingsStore = useSettingsStore();
+
+// Dialog state
+const showReportDialog = ref(false);
+const isGeneratingReport = ref(false);
+const selectedYear = ref(null);
+const selectedTerm = ref(null);
+const teacherComment = ref('');
+
+// Options for Year & Term selects
+const yearOptions = computed(() => {
+  return academicTermsStore.availableYears.map((y) => ({ label: String(y), value: y }));
+});
+
+const termOptions = computed(() => {
+  if (!selectedYear.value) return [];
+  const yearValue =
+    typeof selectedYear.value === 'object' ? selectedYear.value?.value : selectedYear.value;
+  return academicTermsStore.currentYearTerms
+    .filter((t) => t.academic_year === yearValue)
+    .map((t) => ({
+      label: t.term_name,
+      value: t.term_name,
+      start_date: t.start_date,
+      end_date: t.end_date,
+    }));
+});
 
 const activeTab = ref('overview');
 const householdName = ref('');
@@ -788,6 +896,75 @@ async function loadLearner() {
   await loadHousehold();
 }
 
+async function generateReport() {
+  if (!selectedYear.value || !selectedTerm.value) {
+    $q.notify({ type: 'warning', message: 'Please select an academic year and term' });
+    return;
+  }
+
+  isGeneratingReport.value = true;
+  try {
+    const yearValue =
+      typeof selectedYear.value === 'object' ? selectedYear.value?.value : selectedYear.value;
+    const termValue =
+      typeof selectedTerm.value === 'object' ? selectedTerm.value?.value : selectedTerm.value;
+    const termStart = selectedTerm.value?.start_date;
+    const termEnd = selectedTerm.value?.end_date;
+
+    // 1. Fetch term attendance
+    const attResult = await classStore.fetchAttendanceForLearner(
+      learner.value.$id,
+      termStart,
+      termEnd,
+    );
+    const attendanceRecords = attResult?.data || [];
+
+    // 2. Count total school days for term
+    const totalSchoolDays = calendarEventsStore.countSchoolDaysBetween(termStart, termEnd);
+
+    // 3. Compute overall average for the year/term combination
+    const learnerOverallAverage = computeLearnerOverallAverage(
+      schoolStore.testScores,
+      learner.value.$id,
+      yearValue,
+      termValue,
+    );
+
+    // 4. Generate and download PDF
+    await exportLearnerProgressToPDF({
+      learner: learner.value,
+      resident: resident.value
+        ? {
+            full_name: learnerName.value,
+            dob: resident.value.dob,
+            household_name: householdName.value,
+          }
+        : null,
+      className: learnerClassName.value,
+      testScores: schoolStore.testScores,
+      attendanceRecords,
+      totalSchoolDays,
+      interventions: learnerInterventions.value,
+      activeGoal: goalsStore.activeGoal,
+      learnerOverallAverage,
+      teacherComment: teacherComment.value,
+      termName: termValue,
+      academicYear: yearValue,
+      villageName: settingsStore.villageName,
+      teacherAssignments: teacherStore.teacherAssignments,
+      returnBytes: false,
+    });
+
+    $q.notify({ type: 'positive', message: 'Progress report downloaded.' });
+    showReportDialog.value = false;
+  } catch (error) {
+    console.error('Error generating learner progress report:', error);
+    $q.notify({ type: 'negative', message: 'Failed to generate progress report PDF' });
+  } finally {
+    isGeneratingReport.value = false;
+  }
+}
+
 function confirmDelete() {
   $q.dialog({
     title: 'Delete Learner Record',
@@ -817,13 +994,49 @@ onMounted(async () => {
   if (learner.value && learner.value.class_id) {
     await classStore.fetchAttendance(learner.value.class_id, new Date().toISOString().slice(0, 10));
   }
-  await schoolStore.fetchTestScores();
-  await atRiskStore.computeAtRisk();
-  await interventionStore.fetchInterventions();
+  await Promise.all([
+    schoolStore.fetchTestScores(),
+    atRiskStore.computeAtRisk(),
+    interventionStore.fetchInterventions(),
+    academicTermsStore.fetchTerms(),
+    teacherStore.fetchTeacherAssignments(),
+    goalsStore.computeProgress(),
+  ]);
+
   // Load notes for this learner's interventions so InterventionSummaryCard
   // can display an accurate progress notes count.
   await Promise.all(
     learnerInterventions.value.map((i) => interventionStore.fetchNotesForIntervention(i.$id)),
   );
+
+  // Set default values for report selects
+  if (academicTermsStore.availableYears.length > 0) {
+    const currentYear = new Date().getFullYear();
+    const defaultYear = academicTermsStore.availableYears.includes(currentYear)
+      ? currentYear
+      : academicTermsStore.availableYears[0];
+    selectedYear.value = { label: String(defaultYear), value: defaultYear };
+
+    const yearTerms = academicTermsStore.currentYearTerms.filter(
+      (t) => t.academic_year === defaultYear,
+    );
+    if (yearTerms.length > 0) {
+      // Find the most recent term with recorded scores for this learner
+      const scoredTerms = schoolStore.testScores
+        .filter(
+          (s) => s.learner_id_normalized === learner.value?.$id && s.academic_year === defaultYear,
+        )
+        .map((s) => s.term);
+      const scoredTermSet = new Set(scoredTerms);
+      const matchedTerm = yearTerms.find((t) => scoredTermSet.has(t.term_name)) || yearTerms[0];
+
+      selectedTerm.value = {
+        label: matchedTerm.term_name,
+        value: matchedTerm.term_name,
+        start_date: matchedTerm.start_date,
+        end_date: matchedTerm.end_date,
+      };
+    }
+  }
 });
 </script>

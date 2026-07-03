@@ -13,7 +13,7 @@
       </q-btn>
     </q-card-section>
 
-    <card-section v-if="learnerStore.isLoading && !learnerStore.learnersLoaded">
+    <q-card-section v-if="learnerStore.isLoading && !learnerStore.learnersLoaded">
       <q-skeleton type="rect" height="120px" />
     </card-section>
 

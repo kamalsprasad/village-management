@@ -30,6 +30,7 @@ Items deferred during code reviews. Revisit before closing their parent story or
 - MyInterventionsWidget not immediately below At-Risk widget — minor layout deviation from AC13. Widget is still below the At-Risk widget, just not immediately after it. [`SchoolDashboardPage.vue:76-79`]
 
 ---`n
+
 ## Deferred from: code review of story-4.12 (2026-07-03)
 
 - Server-side validation for baseline <= target -- Appwrite doesn't easily support row-level constraints; client validation is in place. [school-goals-store.js:137-173]
@@ -39,3 +40,8 @@ Items deferred during code reviews. Revisit before closing their parent story or
 - Stale closure / periodic refresh in ProgressToGoalWidget -- dashboard widget pattern; 60s cache TTL is acceptable for non-real-time data. [ProgressToGoalWidget.vue:122-124]
 - computeScorePercent null/string handling -- pre-existing function used across the school module; null score_value -> 0 is acceptable. [school-utils.js:13-16]
 - Module-level useErrorHandler() call -- works because Notify.create is callable outside setup, but unconventional; matches pattern in other stores. [school-goals-store.js:40]
+
+## Deferred from: code review of story-4.13 (2026-07-03)
+
+- Ephemeral teacher comments -- comments are intentionally NOT persisted in the database. This keeps the MVP schema clean and avoids database bloating. [LearnerDetailPage.vue:830-845, LearnersListPage.vue:260-275]
+- JSZip dynamic import fallback -- if JSZip dynamic load fails, bulk generation gracefully falls back to sequential individual PDF downloads with a 350ms delay. [ReportExportService.js:1010-1035]

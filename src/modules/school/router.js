@@ -1,5 +1,5 @@
 /**
- * School Module Routes (Story 4.1, updated Story 4.3)
+ * School Module Routes (Story 4.1, updated Story 4.3, Story 4.13)
  *
  * Route definitions for the School module. Registered in src/router/routes.js
  * via spread, same as the Farm and Finance modules.
@@ -15,6 +15,8 @@
  *
  * Story 4.5 addition:
  *   /school/settings/timetable-templates — TimetableTemplatesPage (school:admin)
+ *
+ * Story 4.13: learner progress reports (dialog-based, no new routes)
  */
 
 const schoolRoutes = [
