@@ -5,11 +5,49 @@ import { SAMPLE_HOUSEHOLDS, SAMPLE_RESIDENTS, TIMETABLE_SCHEDULE } from './data.
 // HELPERS
 // =============================================================================
 
-async function createRow(tablesDB, dbId, tableId, data) {
-  return tablesDB.createRow({ databaseId: dbId, tableId, rowId: ID.unique(), data });
+function isTransientError(err) {
+  if (!err) return false;
+  const code = err.code || err.status || 0;
+  return code === 429 || code === 408 || code >= 500;
 }
 
-async function batchRun(tasks, concurrency = 20) {
+async function createRow(tablesDB, dbId, tableId, data, maxRetries = 3) {
+  let lastErr;
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      return await tablesDB.createRow({ databaseId: dbId, tableId, rowId: ID.unique(), data });
+    } catch (err) {
+      lastErr = err;
+      if (attempt < maxRetries && isTransientError(err)) {
+        const delay = Math.min(1000 * Math.pow(2, attempt), 8000);
+        await new Promise((resolve) => setTimeout(resolve, delay));
+      } else {
+        throw err;
+      }
+    }
+  }
+  throw lastErr;
+}
+
+async function updateRow(tablesDB, dbId, tableId, rowId, data, maxRetries = 3) {
+  let lastErr;
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      return await tablesDB.updateRow({ databaseId: dbId, tableId, rowId, data });
+    } catch (err) {
+      lastErr = err;
+      if (attempt < maxRetries && isTransientError(err)) {
+        const delay = Math.min(1000 * Math.pow(2, attempt), 8000);
+        await new Promise((resolve) => setTimeout(resolve, delay));
+      } else {
+        throw err;
+      }
+    }
+  }
+  throw lastErr;
+}
+
+async function batchRun(tasks, concurrency = 25) {
   const results = [];
   for (let i = 0; i < tasks.length; i += concurrency) {
     const chunk = tasks.slice(i, i + concurrency);
@@ -46,44 +84,48 @@ function findResIdx(first, last) {
 
 async function seedHouseholdsAndResidents(tablesDB, dbId, log) {
   log('Phase 1: Households...');
-  const householdIds = [];
-  for (const h of SAMPLE_HOUSEHOLDS) {
-    const row = await createRow(tablesDB, dbId, 'households', h);
-    householdIds.push(row.$id);
-  }
+  const householdRows = await batchRun(
+    SAMPLE_HOUSEHOLDS.map((h) => () => createRow(tablesDB, dbId, 'households', h)),
+  );
+  const householdIds = householdRows.map((r) => r.$id);
 
   log('Phase 1: Residents...');
-  const residentIds = [];
+  const residentRows = await batchRun(
+    SAMPLE_RESIDENTS.map(
+      (r) => () =>
+        createRow(tablesDB, dbId, 'residents', {
+          first_name: r.first_name,
+          middle_names: r.middle_names || '',
+          last_name: r.last_name,
+          dob: r.dob,
+          gender: r.gender,
+          household_id: householdIds[r.householdIndex],
+          room_number: r.room_number || '',
+          phone: r.phone || '',
+          notes: r.notes || '',
+        }),
+    ),
+  );
+  const residentIds = residentRows.map((r) => r.$id);
   const councilMemberIds = [];
   const headMap = {};
   for (let i = 0; i < SAMPLE_RESIDENTS.length; i++) {
     const r = SAMPLE_RESIDENTS[i];
-    const row = await createRow(tablesDB, dbId, 'residents', {
-      first_name: r.first_name,
-      middle_names: r.middle_names || '',
-      last_name: r.last_name,
-      dob: r.dob,
-      gender: r.gender,
-      household_id: householdIds[r.householdIndex],
-      room_number: r.room_number || '',
-      phone: r.phone || '',
-      notes: r.notes || '',
-    });
-    residentIds.push(row.$id);
-    if (r.isCouncilMember) councilMemberIds.push({ residentId: row.$id, role: r.councilRole });
-    if (headMap[r.householdIndex] === undefined) headMap[r.householdIndex] = row.$id;
+    if (r.isCouncilMember)
+      councilMemberIds.push({ residentId: residentIds[i], role: r.councilRole });
+    if (headMap[r.householdIndex] === undefined) headMap[r.householdIndex] = residentIds[i];
   }
 
   log('Phase 1: Setting household heads...');
-  for (const [hIdx, headId] of Object.entries(headMap)) {
-    const i = parseInt(hIdx);
-    await tablesDB.updateRow({
-      databaseId: dbId,
-      tableId: 'households',
-      rowId: householdIds[i],
-      data: { ...SAMPLE_HOUSEHOLDS[i], head_resident_id: headId },
-    });
-  }
+  await batchRun(
+    Object.entries(headMap).map(([hIdx, headId]) => () => {
+      const i = parseInt(hIdx);
+      return updateRow(tablesDB, dbId, 'households', householdIds[i], {
+        ...SAMPLE_HOUSEHOLDS[i],
+        head_resident_id: headId,
+      });
+    }),
+  );
   log(`  Done: ${householdIds.length} households, ${residentIds.length} residents`);
   return { residentIds, councilMemberIds };
 }
@@ -121,8 +163,8 @@ async function seedFinance(tablesDB, dbId, residentIds, log) {
     { name: 'Administration', type: 'expense', subcategories: ['Office Supplies', 'Travel'] },
     { name: 'Loan Disbursement', type: 'expense', subcategories: ['Agriculture', 'Business'] },
   ];
-  const categories = await Promise.all(
-    catDefs.map((c) => createRow(tablesDB, dbId, 'finance_categories', c)),
+  const categories = await batchRun(
+    catDefs.map((c) => () => createRow(tablesDB, dbId, 'finance_categories', c)),
   );
   const getCatId = (name) => categories.find((c) => c.name === name)?.$id;
 
@@ -130,42 +172,46 @@ async function seedFinance(tablesDB, dbId, residentIds, log) {
   const now = new Date();
   const mAgo = (n) =>
     new Date(now.getFullYear(), now.getMonth() - n, 1).toISOString().split('T')[0];
-  const fundingSources = await Promise.all([
-    createRow(tablesDB, dbId, 'funding_sources', {
-      name: 'Village General Fund',
-      type: 'income',
-      total_received: 50000,
-      current_balance: 15500,
-      date_received: mAgo(18),
-      status: 'active',
-    }),
-    createRow(tablesDB, dbId, 'funding_sources', {
-      name: 'Water Sanitation Grant 2024',
-      type: 'grant',
-      total_received: 120000,
-      current_balance: 45000,
-      date_received: mAgo(14),
-      restrictions: 'Water infrastructure only',
-      status: 'active',
-    }),
-    createRow(tablesDB, dbId, 'funding_sources', {
-      name: 'Rotary Education Initiative',
-      type: 'donation',
-      total_received: 30000,
-      current_balance: 0,
-      date_received: mAgo(12),
-      restrictions: 'School supplies and teacher allowances',
-      status: 'depleted',
-    }),
-    createRow(tablesDB, dbId, 'funding_sources', {
-      name: 'Micro-Finance Seed Fund',
-      type: 'grant',
-      total_received: 80000,
-      current_balance: 32000,
-      date_received: mAgo(16),
-      restrictions: 'Village loans only',
-      status: 'active',
-    }),
+  const fundingSources = await batchRun([
+    () =>
+      createRow(tablesDB, dbId, 'funding_sources', {
+        name: 'Village General Fund',
+        type: 'income',
+        total_received: 50000,
+        current_balance: 15500,
+        date_received: mAgo(18),
+        status: 'active',
+      }),
+    () =>
+      createRow(tablesDB, dbId, 'funding_sources', {
+        name: 'Water Sanitation Grant 2024',
+        type: 'grant',
+        total_received: 120000,
+        current_balance: 45000,
+        date_received: mAgo(14),
+        restrictions: 'Water infrastructure only',
+        status: 'active',
+      }),
+    () =>
+      createRow(tablesDB, dbId, 'funding_sources', {
+        name: 'Rotary Education Initiative',
+        type: 'donation',
+        total_received: 30000,
+        current_balance: 0,
+        date_received: mAgo(12),
+        restrictions: 'School supplies and teacher allowances',
+        status: 'depleted',
+      }),
+    () =>
+      createRow(tablesDB, dbId, 'funding_sources', {
+        name: 'Micro-Finance Seed Fund',
+        type: 'grant',
+        total_received: 80000,
+        current_balance: 32000,
+        date_received: mAgo(16),
+        restrictions: 'Village loans only',
+        status: 'active',
+      }),
   ]);
   const getSrcId = (name) => fundingSources.find((s) => s.name === name)?.$id;
 
@@ -250,7 +296,7 @@ async function seedFinance(tablesDB, dbId, residentIds, log) {
         }),
       );
   }
-  await batchRun(txTasks, 20);
+  await batchRun(txTasks, 25);
 
   log('Phase 2: Loans...');
   const today = new Date();
@@ -356,7 +402,7 @@ async function seedFinance(tablesDB, dbId, residentIds, log) {
         }
       });
     }
-    await batchRun(installmentTasks, 10);
+    await batchRun(installmentTasks, 25);
   }
   log('  Finance done');
   return { categories, fundingSources };
@@ -399,8 +445,8 @@ async function seedFarm(tablesDB, dbId, residentIds, categories, fundingSources,
   ];
   let soilTypes = await listAll(tablesDB, dbId, 'soil_types');
   if (!soilTypes.length)
-    soilTypes = await Promise.all(
-      SOIL_TYPES.map((t) => createRow(tablesDB, dbId, 'soil_types', t)),
+    soilTypes = await batchRun(
+      SOIL_TYPES.map((t) => () => createRow(tablesDB, dbId, 'soil_types', t)),
     );
   const soilId = (n) => soilTypes.find((s) => s.name === n)?.$id || null;
 
@@ -521,8 +567,8 @@ async function seedFarm(tablesDB, dbId, residentIds, categories, fundingSources,
   ];
   let crops = await listAll(tablesDB, dbId, 'crops');
   if (!crops.length)
-    crops = await Promise.all(
-      CROPS.map((c) => createRow(tablesDB, dbId, 'crops', { ...c, is_active: true })),
+    crops = await batchRun(
+      CROPS.map((c) => () => createRow(tablesDB, dbId, 'crops', { ...c, is_active: true })),
     );
   const cropId = (n) => crops.find((c) => c.crop_name === n)?.$id || null;
 
@@ -629,13 +675,17 @@ async function seedFarm(tablesDB, dbId, residentIds, categories, fundingSources,
       date_added: isoMo(5),
     },
   ];
-  for (const inp of inputs)
-    await createRow(tablesDB, dbId, 'inventory', {
-      ...inp,
-      estimated_value: Math.round(inp.quantity * inp.unit_cost * 100) / 100,
-      status: invStatus(inp.quantity, inp.reorder_threshold),
-      last_updated: inp.date_added,
-    });
+  await batchRun(
+    inputs.map(
+      (inp) => () =>
+        createRow(tablesDB, dbId, 'inventory', {
+          ...inp,
+          estimated_value: Math.round(inp.quantity * inp.unit_cost * 100) / 100,
+          status: invStatus(inp.quantity, inp.reorder_threshold),
+          last_updated: inp.date_added,
+        }),
+    ),
+  );
 
   log('Phase 3: Plots...');
   const plotDefs = [
@@ -685,11 +735,17 @@ async function seedFarm(tablesDB, dbId, residentIds, categories, fundingSources,
       crop_manager_id: emmanuelId,
     },
   ];
+  const plotRows = await batchRun(
+    plotDefs.map(
+      ({ _k, ...data }) =>
+        () =>
+          createRow(tablesDB, dbId, 'plots', data),
+    ),
+  );
   const plots = {};
-  for (const { _k, ...data } of plotDefs) {
-    const r = await createRow(tablesDB, dbId, 'plots', data);
-    plots[_k] = r;
-  }
+  plotDefs.forEach((pd, i) => {
+    plots[pd._k] = plotRows[i];
+  });
   const plotId = (k) => plots[k]?.$id;
 
   log('Phase 3: Plantings...');
@@ -890,11 +946,17 @@ async function seedFarm(tablesDB, dbId, residentIds, categories, fundingSources,
       status: 'harvesting',
     },
   ].filter((d) => d.plot_id && d.crop_id);
+  const plantingRows = await batchRun(
+    pd.map(
+      ({ _k, ...data }) =>
+        () =>
+          createRow(tablesDB, dbId, 'plantings', data),
+    ),
+  );
   const plantings = {};
-  for (const { _k, ...data } of pd) {
-    const r = await createRow(tablesDB, dbId, 'plantings', data);
-    plantings[_k] = r;
-  }
+  pd.forEach((p, i) => {
+    plantings[p._k] = plantingRows[i];
+  });
   const pByK = (k) => plantings[k];
 
   log('Phase 3: Harvests + produce + sales...');
@@ -902,101 +964,105 @@ async function seedFarm(tablesDB, dbId, residentIds, categories, fundingSources,
   const villageFund = fundingSources.find((s) => s.name === 'Village General Fund');
 
   const harvestPlans = buildHarvestPlans(dAgo, pByK, cropId);
-  for (const plan of harvestPlans) {
-    const hRow = await createRow(tablesDB, dbId, 'harvests', plan.harvest);
-    for (const entry of plan.entries || [])
-      await createRow(tablesDB, dbId, 'harvest_entries', { ...entry, harvest_id: hRow.$id });
-    if (!plan.produce) continue;
-    const pData = {
-      ...plan.produce,
-      source_reference_id: hRow.$id,
-      planting_id: plan.planting_id,
-      crop_id: plan.crop_id,
-      date_added: toISO(plan.harvest.harvest_end_date || plan.harvest.harvest_start_date),
-    };
-    pData.last_updated = pData.date_added;
-    const pRow = await createRow(tablesDB, dbId, 'inventory', pData);
-    if (!plan.sale || !farmRevCat) continue;
-    const tx = await createRow(tablesDB, dbId, 'finance_transactions', {
-      type: 'income',
-      amount_needed: plan.sale.total_amount,
-      amount_funded: plan.sale.total_amount,
-      payment_method: plan.sale.payment_method,
-      category_id: farmRevCat.$id,
-      source_module: 'Farm',
-      funding_source_id: villageFund?.$id || null,
-      date: new Date(`${plan.sale.sale_date}T10:00:00Z`).toISOString(),
-      description: `Sale: ${plan.sale.quantity_sold}kg to ${plan.sale.buyer_name}`,
-      status: 'completed',
-    });
-    await createRow(tablesDB, dbId, 'farm_sales', {
-      harvest_id: hRow.$id,
-      inventory_item_id: pRow.$id,
-      finance_transaction_id: tx.$id,
-      ...(plan.crop_id ? { crop_id: plan.crop_id } : {}),
-      buyer_type: plan.sale.buyer_type,
-      buyer_id: '',
-      buyer_name: plan.sale.buyer_name,
-      sale_date: toISO(plan.sale.sale_date),
-      quantity_sold: plan.sale.quantity_sold,
-      unit: plan.sale.unit || 'kg',
-      price_per_unit: plan.sale.price_per_unit,
-      total_amount: plan.sale.total_amount,
-      payment_status: plan.sale.payment_status || 'Completed',
-      payment_method: plan.sale.payment_method,
-      notes: plan.sale.notes || '',
-    });
-    let totalSold = plan.sale.quantity_sold;
-    if (plan.additional_sale) {
-      const aS = plan.additional_sale;
-      const aTx = await createRow(tablesDB, dbId, 'finance_transactions', {
+  await batchRun(
+    harvestPlans.map((plan) => async () => {
+      const hRow = await createRow(tablesDB, dbId, 'harvests', plan.harvest);
+      if (plan.entries?.length) {
+        await batchRun(
+          plan.entries.map(
+            (entry) => () =>
+              createRow(tablesDB, dbId, 'harvest_entries', { ...entry, harvest_id: hRow.$id }),
+          ),
+        );
+      }
+      if (!plan.produce) return;
+      const pData = {
+        ...plan.produce,
+        source_reference_id: hRow.$id,
+        planting_id: plan.planting_id,
+        crop_id: plan.crop_id,
+        date_added: toISO(plan.harvest.harvest_end_date || plan.harvest.harvest_start_date),
+      };
+      pData.last_updated = pData.date_added;
+      const pRow = await createRow(tablesDB, dbId, 'inventory', pData);
+      if (!plan.sale || !farmRevCat) return;
+      const tx = await createRow(tablesDB, dbId, 'finance_transactions', {
         type: 'income',
-        amount_needed: aS.total_amount,
-        amount_funded: aS.total_amount,
-        payment_method: aS.payment_method,
+        amount_needed: plan.sale.total_amount,
+        amount_funded: plan.sale.total_amount,
+        payment_method: plan.sale.payment_method,
         category_id: farmRevCat.$id,
         source_module: 'Farm',
         funding_source_id: villageFund?.$id || null,
-        date: new Date(`${aS.sale_date}T14:00:00Z`).toISOString(),
-        description: `Sale: ${aS.quantity_sold}kg to ${aS.buyer_name}`,
+        date: new Date(`${plan.sale.sale_date}T10:00:00Z`).toISOString(),
+        description: `Sale: ${plan.sale.quantity_sold}kg to ${plan.sale.buyer_name}`,
         status: 'completed',
       });
       await createRow(tablesDB, dbId, 'farm_sales', {
         harvest_id: hRow.$id,
         inventory_item_id: pRow.$id,
-        finance_transaction_id: aTx.$id,
+        finance_transaction_id: tx.$id,
         ...(plan.crop_id ? { crop_id: plan.crop_id } : {}),
-        buyer_type: aS.buyer_type,
+        buyer_type: plan.sale.buyer_type,
         buyer_id: '',
-        buyer_name: aS.buyer_name,
-        sale_date: toISO(aS.sale_date),
-        quantity_sold: aS.quantity_sold,
-        unit: aS.unit || 'kg',
-        price_per_unit: aS.price_per_unit,
-        total_amount: aS.total_amount,
-        payment_status: aS.payment_status || 'Completed',
-        payment_method: aS.payment_method,
-        notes: aS.notes || '',
+        buyer_name: plan.sale.buyer_name,
+        sale_date: toISO(plan.sale.sale_date),
+        quantity_sold: plan.sale.quantity_sold,
+        unit: plan.sale.unit || 'kg',
+        price_per_unit: plan.sale.price_per_unit,
+        total_amount: plan.sale.total_amount,
+        payment_status: plan.sale.payment_status || 'Completed',
+        payment_method: plan.sale.payment_method,
+        notes: plan.sale.notes || '',
       });
-      totalSold += aS.quantity_sold;
-    }
-    const rem = Math.max(0, (pData.quantity || 0) - totalSold);
-    try {
-      await tablesDB.updateRow({
-        databaseId: dbId,
-        tableId: 'inventory',
-        rowId: pRow.$id,
-        data: {
+      let totalSold = plan.sale.quantity_sold;
+      if (plan.additional_sale) {
+        const aS = plan.additional_sale;
+        const aTx = await createRow(tablesDB, dbId, 'finance_transactions', {
+          type: 'income',
+          amount_needed: aS.total_amount,
+          amount_funded: aS.total_amount,
+          payment_method: aS.payment_method,
+          category_id: farmRevCat.$id,
+          source_module: 'Farm',
+          funding_source_id: villageFund?.$id || null,
+          date: new Date(`${aS.sale_date}T14:00:00Z`).toISOString(),
+          description: `Sale: ${aS.quantity_sold}kg to ${aS.buyer_name}`,
+          status: 'completed',
+        });
+        await createRow(tablesDB, dbId, 'farm_sales', {
+          harvest_id: hRow.$id,
+          inventory_item_id: pRow.$id,
+          finance_transaction_id: aTx.$id,
+          ...(plan.crop_id ? { crop_id: plan.crop_id } : {}),
+          buyer_type: aS.buyer_type,
+          buyer_id: '',
+          buyer_name: aS.buyer_name,
+          sale_date: toISO(aS.sale_date),
+          quantity_sold: aS.quantity_sold,
+          unit: aS.unit || 'kg',
+          price_per_unit: aS.price_per_unit,
+          total_amount: aS.total_amount,
+          payment_status: aS.payment_status || 'Completed',
+          payment_method: aS.payment_method,
+          notes: aS.notes || '',
+        });
+        totalSold += aS.quantity_sold;
+      }
+      const rem = Math.max(0, (pData.quantity || 0) - totalSold);
+      try {
+        await updateRow(tablesDB, dbId, 'inventory', pRow.$id, {
           quantity: rem,
           estimated_value: Math.round(rem * (pData.unit_cost || 0) * 100) / 100,
           status: invStatus(rem, pData.reorder_threshold),
           last_updated: toISO(plan.additional_sale?.sale_date || plan.sale.sale_date),
-        },
-      });
-    } catch (_) {
-      /* non-fatal */
-    }
-  }
+        });
+      } catch (_) {
+        /* non-fatal */
+      }
+    }),
+    5,
+  );
   log('  Farm done');
 }
 
@@ -1429,25 +1495,30 @@ async function seedSchool(tablesDB, dbId, residentIds, slotIdsByGrade, log) {
     'Grade 11',
     'Grade 12',
   ];
-  const classes = {};
+  // Build flat list of class definitions with their key mappings
+  const classDefs = [];
   for (const gl of gradeLevels) {
-    // Story 4.5: create two classes for Grade 3 to test template / class split.
     const classNames = gl === 'Grade 3' ? ['Grade 3A', 'Grade 3B'] : [gl];
     for (const className of classNames) {
-      const r = await createRow(tablesDB, dbId, 'school_classes', {
-        name: className,
-        grade_level: gl,
-        academic_year: 2026,
-        notes: '',
-      });
-      // Use the grade as the key for the primary class; Grade 3A / 3B stored separately.
-      if (className === 'Grade 3B') {
-        classes['Grade 3B'] = r;
-      } else {
-        classes[gl] = r;
-      }
+      const key = className === 'Grade 3B' ? 'Grade 3B' : gl;
+      classDefs.push({ key, className, gl });
     }
   }
+  const classRows = await batchRun(
+    classDefs.map(
+      (cd) => () =>
+        createRow(tablesDB, dbId, 'school_classes', {
+          name: cd.className,
+          grade_level: cd.gl,
+          academic_year: 2026,
+          notes: '',
+        }),
+    ),
+  );
+  const classes = {};
+  classDefs.forEach((cd, i) => {
+    classes[cd.key] = classRows[i];
+  });
   const clsId = (g) => {
     if (classes[g]) return classes[g].$id;
     const match = Object.values(classes).find((c) => c.name === g);
@@ -1471,27 +1542,24 @@ async function seedSchool(tablesDB, dbId, residentIds, slotIdsByGrade, log) {
     ['Grade 11', 'Andrew', 'Mulenga'],
     ['Grade 12', 'Priscilla', 'Mulenga'],
   ];
-  for (const [className, f, l] of clsTeachers) {
-    const cls = Object.values(classes).find((c) => c.name === className);
-    const tid = findResId(f, l);
-    if (cls && tid)
-      try {
-        await tablesDB.updateRow({
-          databaseId: dbId,
-          tableId: 'school_classes',
-          rowId: cls.$id,
-          data: {
+  await batchRun(
+    clsTeachers.map(([className, f, l]) => async () => {
+      const cls = Object.values(classes).find((c) => c.name === className);
+      const tid = findResId(f, l);
+      if (cls && tid)
+        try {
+          await updateRow(tablesDB, dbId, 'school_classes', cls.$id, {
             name: cls.name,
             grade_level: cls.grade_level,
             academic_year: cls.academic_year,
             notes: cls.notes || '',
             class_teacher_id: tid,
-          },
-        });
-      } catch (_) {
-        /* non-fatal */
-      }
-  }
+          });
+        } catch (_) {
+          /* non-fatal */
+        }
+    }),
+  );
 
   log('Phase 4: Learners...');
   // en() accepts an optional overrides object for non-Active statuses, medical_notes, etc.
@@ -1587,7 +1655,7 @@ async function seedSchool(tablesDB, dbId, residentIds, slotIdsByGrade, log) {
   ].filter((l) => l.resident_id && l.class_id);
   const createdLearners = await batchRun(
     learnerDefs.map((ld) => () => createRow(tablesDB, dbId, 'learners', ld)),
-    20,
+    25,
   );
   log(`  ${createdLearners.length} learners`);
 
@@ -1703,7 +1771,7 @@ async function seedSchool(tablesDB, dbId, residentIds, slotIdsByGrade, log) {
   ].filter((a) => a.teacher_id);
   await batchRun(
     asgns.map((a) => () => createRow(tablesDB, dbId, 'teacher_assignments', a)),
-    20,
+    25,
   );
   log(`  ${asgns.length} teacher assignments`);
 
@@ -2047,82 +2115,81 @@ async function seedSchool(tablesDB, dbId, residentIds, slotIdsByGrade, log) {
   const demoTeacherId = asgns[0]?.teacher_id || null;
 
   // Intervention 1: Active attendance counselling for learner 0 (attendance at-risk)
-  const intervention1 = await createRow(tablesDB, dbId, 'interventions', {
-    learner_id: createdLearners[0].$id,
-    assigned_teacher_id: demoTeacherId,
-    intervention_type: 'Attendance Counselling',
-    focus_areas: ['Attendance improvement', 'Punctuality'],
-    frequency: 'Weekly check-in with Head Teacher, Mon 8am',
-    success_criteria: 'Attendance above 90% for 3 consecutive weeks',
-    start_date: new Date(Date.now() - 14 * 86400000).toISOString(),
-    status: 'Active',
-    term: 'Term 2',
-    academic_year: 2026,
-  });
-
-  // Intervention 2: Resolved maths support for learner 2 (academic at-risk)
-  const intervention2 = await createRow(tablesDB, dbId, 'interventions', {
-    learner_id: createdLearners[2].$id,
-    assigned_teacher_id: demoTeacherId,
-    intervention_type: 'Mathematics Support',
-    focus_areas: ['Mathematics foundations', 'Problem solving'],
-    frequency: '3x per week — Mon/Wed/Fri, 2:30-3:30pm after school',
-    success_criteria: 'Score above 60% in Mathematics',
-    start_date: new Date(Date.now() - 45 * 86400000).toISOString(),
-    end_date: new Date(Date.now() - 15 * 86400000).toISOString(),
-    status: 'Resolved',
-    outcome:
-      'Learner improved from 35% to 55% in Mathematics over 4 weeks of focused tutoring. Latest Mid-Term score at 55%. Monitoring continues.',
-    term: 'Term 2',
-    academic_year: 2026,
-  });
-
-  // Intervention 3: Active parent/guardian meeting for learner 1 (also attendance at-risk)
-  const intervention3 = await createRow(tablesDB, dbId, 'interventions', {
-    learner_id: createdLearners[1].$id,
-    assigned_teacher_id: demoTeacherId,
-    intervention_type: 'Parent/Guardian Meeting',
-    focus_areas: ['Home environment', 'Attendance improvement', 'Morning routine'],
-    frequency: 'Bi-weekly meeting with guardian, alternate Fridays 1pm',
-    success_criteria:
-      'Attendance above 85% for 4 consecutive weeks; guardian engagement at every meeting',
-    start_date: new Date(Date.now() - 10 * 86400000).toISOString(),
-    status: 'Active',
-    term: 'Term 2',
-    academic_year: 2026,
-  });
-
-  // Intervention 4: Paused reading support (showcases Paused status)
-  const intervention4 = await createRow(tablesDB, dbId, 'interventions', {
-    learner_id: createdLearners[4].$id,
-    assigned_teacher_id: demoTeacherId,
-    intervention_type: 'Reading Support',
-    focus_areas: ['Reading fluency', 'Comprehension'],
-    frequency: '2x per week — Tue/Thu, during study period',
-    success_criteria: 'Read at grade level (Grade 1 benchmark) by end of Term 2',
-    start_date: new Date(Date.now() - 30 * 86400000).toISOString(),
-    status: 'Paused',
-    notes: 'Paused during exam block. Will resume after mid-term exams.',
-    term: 'Term 2',
-    academic_year: 2026,
-  });
-
-  // Intervention 5: Closed Without Resolution (showcases this status)
-  const intervention5 = await createRow(tablesDB, dbId, 'interventions', {
-    learner_id: createdLearners[8].$id,
-    assigned_teacher_id: demoTeacherId,
-    intervention_type: 'Mentoring',
-    focus_areas: ['Social skills', 'Classroom behaviour'],
-    frequency: 'Weekly 1-on-1 mentoring, Wed 12pm',
-    success_criteria: 'No behavioural incidents for 4 consecutive weeks',
-    start_date: new Date(Date.now() - 60 * 86400000).toISOString(),
-    end_date: new Date(Date.now() - 20 * 86400000).toISOString(),
-    status: 'Closed Without Resolution',
-    outcome:
-      'Learner disengaged from mentoring sessions. Guardian unresponsive to follow-up. Referred to Head Teacher for alternative approach.',
-    term: 'Term 1',
-    academic_year: 2026,
-  });
+  const interventionDefs = [
+    {
+      learner_id: createdLearners[0].$id,
+      assigned_teacher_id: demoTeacherId,
+      intervention_type: 'Attendance Counselling',
+      focus_areas: ['Attendance improvement', 'Punctuality'],
+      frequency: 'Weekly check-in with Head Teacher, Mon 8am',
+      success_criteria: 'Attendance above 90% for 3 consecutive weeks',
+      start_date: new Date(Date.now() - 14 * 86400000).toISOString(),
+      status: 'Active',
+      term: 'Term 2',
+      academic_year: 2026,
+    },
+    {
+      learner_id: createdLearners[2].$id,
+      assigned_teacher_id: demoTeacherId,
+      intervention_type: 'Mathematics Support',
+      focus_areas: ['Mathematics foundations', 'Problem solving'],
+      frequency: '3x per week — Mon/Wed/Fri, 2:30-3:30pm after school',
+      success_criteria: 'Score above 60% in Mathematics',
+      start_date: new Date(Date.now() - 45 * 86400000).toISOString(),
+      end_date: new Date(Date.now() - 15 * 86400000).toISOString(),
+      status: 'Resolved',
+      outcome:
+        'Learner improved from 35% to 55% in Mathematics over 4 weeks of focused tutoring. Latest Mid-Term score at 55%. Monitoring continues.',
+      term: 'Term 2',
+      academic_year: 2026,
+    },
+    {
+      learner_id: createdLearners[1].$id,
+      assigned_teacher_id: demoTeacherId,
+      intervention_type: 'Parent/Guardian Meeting',
+      focus_areas: ['Home environment', 'Attendance improvement', 'Morning routine'],
+      frequency: 'Bi-weekly meeting with guardian, alternate Fridays 1pm',
+      success_criteria:
+        'Attendance above 85% for 4 consecutive weeks; guardian engagement at every meeting',
+      start_date: new Date(Date.now() - 10 * 86400000).toISOString(),
+      status: 'Active',
+      term: 'Term 2',
+      academic_year: 2026,
+    },
+    {
+      learner_id: createdLearners[4].$id,
+      assigned_teacher_id: demoTeacherId,
+      intervention_type: 'Reading Support',
+      focus_areas: ['Reading fluency', 'Comprehension'],
+      frequency: '2x per week — Tue/Thu, during study period',
+      success_criteria: 'Read at grade level (Grade 1 benchmark) by end of Term 2',
+      start_date: new Date(Date.now() - 30 * 86400000).toISOString(),
+      status: 'Paused',
+      notes: 'Paused during exam block. Will resume after mid-term exams.',
+      term: 'Term 2',
+      academic_year: 2026,
+    },
+    {
+      learner_id: createdLearners[8].$id,
+      assigned_teacher_id: demoTeacherId,
+      intervention_type: 'Mentoring',
+      focus_areas: ['Social skills', 'Classroom behaviour'],
+      frequency: 'Weekly 1-on-1 mentoring, Wed 12pm',
+      success_criteria: 'No behavioural incidents for 4 consecutive weeks',
+      start_date: new Date(Date.now() - 60 * 86400000).toISOString(),
+      end_date: new Date(Date.now() - 20 * 86400000).toISOString(),
+      status: 'Closed Without Resolution',
+      outcome:
+        'Learner disengaged from mentoring sessions. Guardian unresponsive to follow-up. Referred to Head Teacher for alternative approach.',
+      term: 'Term 1',
+      academic_year: 2026,
+    },
+  ];
+  const interventionRows = await batchRun(
+    interventionDefs.map((d) => () => createRow(tablesDB, dbId, 'interventions', d)),
+  );
+  const [intervention1, intervention2, intervention3, intervention4, intervention5] =
+    interventionRows;
 
   const noteTasks = [
     // Intervention 1 notes (attendance counselling — Active)
@@ -2239,7 +2306,7 @@ async function seedSchool(tablesDB, dbId, residentIds, slotIdsByGrade, log) {
         author_id: demoTeacherId,
       }),
   ];
-  await batchRun(noteTasks, 10);
+  await batchRun(noteTasks, 25);
   log(`  5 intervention plans + ${noteTasks.length} progress notes`);
 }
 
@@ -2275,12 +2342,7 @@ async function seedVillageSettings(tablesDB, dbId, councilMemberIds, log) {
   try {
     const existing = await listAll(tablesDB, dbId, 'village_settings');
     if (existing.length > 0) {
-      await tablesDB.updateRow({
-        databaseId: dbId,
-        tableId: 'village_settings',
-        rowId: existing[0].$id,
-        data: settingsData,
-      });
+      await updateRow(tablesDB, dbId, 'village_settings', existing[0].$id, settingsData);
     } else {
       await tablesDB.createRow({
         databaseId: dbId,
@@ -2360,13 +2422,16 @@ async function seedCalendar(tablesDB, dbId, log) {
   ];
 
   const toDateTime = (date) => new Date(`${date}T12:00:00Z`).toISOString();
-  for (const term of TERMS) {
-    await createRow(tablesDB, dbId, 'school_academic_terms', {
-      ...term,
-      start_date: toDateTime(term.start_date),
-      end_date: toDateTime(term.end_date),
-    });
-  }
+  await batchRun(
+    TERMS.map(
+      (term) => () =>
+        createRow(tablesDB, dbId, 'school_academic_terms', {
+          ...term,
+          start_date: toDateTime(term.start_date),
+          end_date: toDateTime(term.end_date),
+        }),
+    ),
+  );
   log(`  ${TERMS.length} academic terms created`);
 
   log('Phase 5: Calendar events (2025 & 2026)...');
@@ -2933,7 +2998,7 @@ async function seedCalendar(tablesDB, dbId, log) {
     };
     return createRow(tablesDB, dbId, 'school_calendar_events', data);
   });
-  await batchRun(eventTasks, 20);
+  await batchRun(eventTasks, 25);
   log(`  ${EVENTS.length} calendar events created`);
 }
 
@@ -3083,7 +3148,7 @@ async function seedBellSchedules(tablesDB, dbId, log) {
 
   // Must run sequentially per-slot within batchRun to avoid race conditions on slotIdsByGrade writes.
   // batchRun already serialises in chunks so this is safe.
-  await batchRun(allTasks, 20);
+  await batchRun(allTasks, 25);
 
   const totalSlots =
     Object.values(GRADE_SLOT_MAP).reduce((s, defs) => s + defs.length, 0) * YEARS.length;

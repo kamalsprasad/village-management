@@ -112,7 +112,7 @@ const isSeeding = ref(false);
 const seedingStatus = ref('');
 
 const POLL_INTERVAL_MS = 2000;
-const MAX_POLL_TIME_MS = 10 * 60 * 1000; // 10 minutes
+const MAX_POLL_TIME_MS = 15 * 60 * 1000; // 15 minutes
 
 function selectOption(option) {
   if (option === 'fresh') return;
