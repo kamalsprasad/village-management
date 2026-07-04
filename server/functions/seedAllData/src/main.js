@@ -1494,7 +1494,8 @@ async function seedSchool(tablesDB, dbId, residentIds, slotIdsByGrade, log) {
   }
 
   log('Phase 4: Learners...');
-  const en = (f, l, grade, date, g, gp) => ({
+  // en() accepts an optional overrides object for non-Active statuses, medical_notes, etc.
+  const en = (f, l, grade, date, g, gp, overrides) => ({
     resident_id: findResId(f, l),
     class_id: clsId(grade),
     enrollment_date: new Date(`${date}T12:00:00Z`).toISOString(),
@@ -1505,11 +1506,15 @@ async function seedSchool(tablesDB, dbId, residentIds, slotIdsByGrade, log) {
     emergency_contact_phone: gp || '',
     medical_notes: '',
     notes: '',
+    ...overrides,
   });
   const learnerDefs = [
     en('Abel', 'Zulu', 'Early Childhood', '2026-01-12', 'Daniel Zulu', '+260976789012'),
     en('Daniel', 'Phiri', 'Early Childhood', '2026-01-12', 'Emmanuel Phiri', '+260972345678'),
-    en('Natasha', 'Mumba', 'Early Childhood', '2026-01-12', 'Nkosi Mumba', '+260977001001'),
+    en('Natasha', 'Mumba', 'Early Childhood', '2026-01-12', 'Nkosi Mumba', '+260977001001', {
+      medical_notes:
+        'Mild asthma — keep inhaler in classroom. Avoid prolonged outdoor activity in dusty conditions.',
+    }),
     en('Isaac', 'Kapata', 'Early Childhood', '2026-01-12', 'Bernard Kapata', '+260977002002'),
     en('Faith', 'Tembo', 'Grade 1', '2025-01-13', 'Michael Tembo', ''),
     en('Joseph', 'Tembo', 'Grade 1', '2025-01-13', 'Michael Tembo', ''),
@@ -1517,7 +1522,9 @@ async function seedSchool(tablesDB, dbId, residentIds, slotIdsByGrade, log) {
     en('Thandeka', 'Phiri', 'Grade 1', '2025-01-13', 'Emmanuel Phiri', '+260972345678'),
     en('Samuel', 'Zulu', 'Grade 2', '2024-01-15', 'Daniel Zulu', ''),
     en('Naomi', 'Tembo', 'Grade 2', '2024-01-15', 'Michael Tembo', ''),
-    en('Moses', 'Kapata', 'Grade 2', '2024-01-15', 'Bernard Kapata', '+260977002002'),
+    en('Moses', 'Kapata', 'Grade 2', '2024-01-15', 'Bernard Kapata', '+260977002002', {
+      medical_notes: 'Peanut allergy — no groundnut products. EpiPen in school office.',
+    }),
     en('Priscah', 'Zulu', 'Grade 2', '2024-01-15', 'Esther Zulu', '+260976789012'),
     en('Blessing', 'Zulu', 'Grade 3A', '2023-01-16', 'Daniel Zulu', ''),
     en('Elijah', 'Banda', 'Grade 3A', '2023-01-16', 'Joseph Banda', '+260971234567'),
@@ -1526,7 +1533,9 @@ async function seedSchool(tablesDB, dbId, residentIds, slotIdsByGrade, log) {
     en('Esther', 'Phiri', 'Grade 4', '2022-01-17', 'Emmanuel Phiri', '+260972345678'),
     en('Hannah', 'Mwale', 'Grade 4', '2022-01-17', 'James Mwale', '+260973456789'),
     en('Levi', 'Banda', 'Grade 4', '2022-01-17', 'Joseph Banda', '+260971234567'),
-    en('Joy', 'Tembo', 'Grade 4', '2022-01-17', 'Michael Tembo', ''),
+    en('Joy', 'Tembo', 'Grade 4', '2022-01-17', 'Michael Tembo', '', {
+      medical_notes: 'Wears prescription glasses. Seat near front of classroom recommended.',
+    }),
     en('Lucy', 'Banda', 'Grade 5', '2021-01-18', 'Joseph Banda', '+260971234567'),
     en('Aaron', 'Phiri', 'Grade 5', '2021-01-18', 'Emmanuel Phiri', '+260972345678'),
     en('Miriam', 'Mwale', 'Grade 5', '2021-01-18', 'James Mwale', '+260973456789'),
@@ -1559,6 +1568,22 @@ async function seedSchool(tablesDB, dbId, residentIds, slotIdsByGrade, log) {
     en('Peter', 'Banda', 'Grade 12', '2014-01-20', 'Joseph Banda', '+260971234567'),
     en('Dorcas', 'Phiri', 'Grade 12', '2014-01-20', 'Emmanuel Phiri', '+260972345678'),
     en('Tobias', 'Tembo', 'Grade 12', '2014-01-20', 'Michael Tembo', ''),
+    // Non-Active enrollment statuses — showcase Graduated, Transferred, Dropped Out
+    en('David', 'Phiri', 'Grade 12', '2012-01-16', 'Emmanuel Phiri', '+260972345678', {
+      enrollment_status: 'Graduated',
+      status_effective_date: new Date('2024-12-06T12:00:00Z').toISOString(),
+      notes: 'Completed Grade 12 with distinction. Now at university.',
+    }),
+    en('Martha', 'Mwale', 'Grade 11', '2013-01-14', 'James Mwale', '+260973456789', {
+      enrollment_status: 'Transferred',
+      status_effective_date: new Date('2025-04-10T12:00:00Z').toISOString(),
+      notes: 'Transferred to boarding school in Lusaka for specialised science programme.',
+    }),
+    en('John', 'Mwale', 'Grade 9', '2014-01-20', 'James Mwale', '+260973456789', {
+      enrollment_status: 'Dropped Out',
+      status_effective_date: new Date('2023-06-15T12:00:00Z').toISOString(),
+      notes: 'Left school to assist with family business. Guardian meeting held.',
+    }),
   ].filter((l) => l.resident_id && l.class_id);
   const createdLearners = await batchRun(
     learnerDefs.map((ld) => () => createRow(tablesDB, dbId, 'learners', ld)),
@@ -1717,11 +1742,14 @@ async function seedSchool(tablesDB, dbId, residentIds, slotIdsByGrade, log) {
     'Grade 11': ['Mathematics', 'English', 'Biology', 'Chemistry', 'Physics', 'Business Studies'],
     'Grade 12': ['Mathematics', 'English', 'Biology', 'Chemistry', 'Physics', 'Business Studies'],
   };
+  // Mix of assessment types — showcases Mid-Term Exam, End-of-Term Exam, Class Exercise, Quiz
   const assessments = [
     { type: 'Mid-Term Exam', date: '2025-08-15', term: 'Term 2', year: 2025 },
     { type: 'End-of-Term Exam', date: '2025-10-31', term: 'Term 3', year: 2025 },
+    { type: 'Class Exercise', date: '2026-01-28', term: 'Term 1', year: 2026 },
     { type: 'Mid-Term Exam', date: '2026-02-14', term: 'Term 1', year: 2026 },
     { type: 'End-of-Term Exam', date: '2026-03-28', term: 'Term 1', year: 2026 },
+    { type: 'Quiz', date: '2026-05-05', term: 'Term 2', year: 2026 },
     { type: 'Mid-Term Exam', date: '2026-05-16', term: 'Term 2', year: 2026 },
   ];
   const bases = [
@@ -1731,9 +1759,13 @@ async function seedSchool(tablesDB, dbId, residentIds, slotIdsByGrade, log) {
   const gradeByClsId = {};
   for (const cls of Object.values(classes)) gradeByClsId[cls.$id] = cls.grade_level;
   const scoreTasks = [];
-  // Story 4.7: Learner 2 (index 2) is the academic-only at-risk case —
-  // inject low Math scores (< 50%) while keeping other subjects normal.
+  // Story 4.7: At-risk learner indices (active learners only — non-Active statuses excluded from scoring):
+  //   Index 2 = academic at-risk (Math < 50%, high severity, good attendance)
+  //   Index 3 = medium-severity at-risk (overall < 60% but no subject individually < 50%)
   const ACADEMIC_AT_RISK_INDEX = 2;
+  const MEDIUM_AT_RISK_INDEX = 3;
+  // Non-Active learners: last 3 entries in learnerDefs are Graduated/Transferred/Dropped Out.
+  // They still get scores for historical completeness but won't trigger at-risk (filter is Active-only).
   for (let li = 0; li < createdLearners.length; li++) {
     const learner = createdLearners[li];
     const cId2 = typeof learner.class_id === 'object' ? learner.class_id?.$id : learner.class_id;
@@ -1747,7 +1779,12 @@ async function seedSchool(tablesDB, dbId, residentIds, slotIdsByGrade, log) {
         let score = Math.max(20, Math.min(100, base + variation));
         // Story 4.7: For the academic-only at-risk learner, cap Math scores at 45%
         if (li === ACADEMIC_AT_RISK_INDEX && subjects[si] === 'Mathematics') {
-          score = 35 + ai * 5; // 35, 40, 45, 50, 55 — most below 50%
+          score = 35 + ai * 2; // 35, 37, 39, 41, 43, 45, 47 — all below 50%
+        }
+        // Story 4.7: Medium-severity at-risk — overall < 60% but no single subject < 50%.
+        // Push all subjects into the 50-58 range so the average sits around 54%.
+        if (li === MEDIUM_AT_RISK_INDEX) {
+          score = 50 + ((si * 3 + ai * 2) % 9); // 50–58 range, avg ~54%
         }
         scoreTasks.push(() =>
           createRow(tablesDB, dbId, 'test_scores', {
@@ -1932,7 +1969,8 @@ async function seedSchool(tablesDB, dbId, residentIds, slotIdsByGrade, log) {
   // Most learners get ~94% attendance (above the 90% threshold).
   // Learners 0 and 1 get heavy absence (~60% rate) → at-risk on attendance.
   // Learner 2 gets perfect attendance → not at-risk on attendance, but is at-risk
-  //   on academics (low Math scores injected below).
+  //   on academics (low Math scores injected above).
+  // Learner 3 gets perfect attendance (medium-severity at-risk via academics only).
   const STATUSES = [
     'Present',
     'Present',
@@ -1944,6 +1982,15 @@ async function seedSchool(tablesDB, dbId, residentIds, slotIdsByGrade, log) {
     'Present',
     'Late',
     'Absent',
+  ];
+  // Rotating absence reasons for realistic variety
+  const ABSENCE_REASONS = [
+    'Illness — fever and headache',
+    'Family commitment — funeral attendance',
+    'Transport unavailable — heavy rain',
+    'Helping at home — harvest season',
+    'Medical appointment at clinic',
+    'Unknown — guardian not contactable',
   ];
   // Indices of learners who should be at-risk on attendance (heavy absence pattern)
   const ATTENDANCE_AT_RISK_INDICES = new Set([0, 1]);
@@ -1961,12 +2008,24 @@ async function seedSchool(tablesDB, dbId, residentIds, slotIdsByGrade, log) {
         const statusIdx = (li * 7 + di * 3) % STATUSES.length;
         status = STATUSES[statusIdx];
       }
+      // Add absence_reason for Absent records; use Excused for a few non-at-risk absences
+      let absence_reason = '';
+      let finalStatus = status;
+      if (status === 'Absent') {
+        absence_reason = ABSENCE_REASONS[(li + di) % ABSENCE_REASONS.length];
+        // For non-at-risk learners, mark some absences as Excused to showcase that status
+        if (!isAttendanceAtRisk && di % 3 === 0) {
+          finalStatus = 'Excused';
+          absence_reason = 'Medical appointment (excused by Head Teacher)';
+        }
+      }
       attTasks.push(() =>
         createRow(tablesDB, dbId, 'learner_attendance', {
           learner_id: learner.$id,
           class_id: cId2,
           attendance_date: new Date(`${attendanceDates[di]}T07:00:00Z`).toISOString(),
-          status,
+          status: finalStatus,
+          absence_reason,
           notes: '',
         }),
       );
@@ -1977,6 +2036,7 @@ async function seedSchool(tablesDB, dbId, residentIds, slotIdsByGrade, log) {
   // Story 4.7: Expected at-risk learners after seeding:
   //   - Learners 0 and 1: at-risk on attendance (~60% rate, high severity)
   //   - Learner 2: at-risk on academics (Math < 50%, high severity) with good attendance
+  //   - Learner 3: at-risk on academics (overall < 60%, medium severity) — no single subject < 50%
   //   - Most other learners: above 90% attendance, above 50% per subject → not at-risk
   //   - Grace period is NOT active (Term 2 started 2026-04-27, well over 5 school days ago)
 
@@ -1986,6 +2046,7 @@ async function seedSchool(tablesDB, dbId, residentIds, slotIdsByGrade, log) {
   log('  Interventions...');
   const demoTeacherId = asgns[0]?.teacher_id || null;
 
+  // Intervention 1: Active attendance counselling for learner 0 (attendance at-risk)
   const intervention1 = await createRow(tablesDB, dbId, 'interventions', {
     learner_id: createdLearners[0].$id,
     assigned_teacher_id: demoTeacherId,
@@ -1999,22 +2060,72 @@ async function seedSchool(tablesDB, dbId, residentIds, slotIdsByGrade, log) {
     academic_year: 2026,
   });
 
+  // Intervention 2: Resolved maths support for learner 2 (academic at-risk)
   const intervention2 = await createRow(tablesDB, dbId, 'interventions', {
     learner_id: createdLearners[2].$id,
     assigned_teacher_id: demoTeacherId,
     intervention_type: 'Mathematics Support',
     focus_areas: ['Mathematics foundations', 'Problem solving'],
+    frequency: '3x per week — Mon/Wed/Fri, 2:30-3:30pm after school',
     success_criteria: 'Score above 60% in Mathematics',
     start_date: new Date(Date.now() - 45 * 86400000).toISOString(),
     end_date: new Date(Date.now() - 15 * 86400000).toISOString(),
     status: 'Resolved',
     outcome:
-      'Learner improved from 35% to 68% in Mathematics through focused tutoring. No longer flagged at-risk.',
+      'Learner improved from 35% to 55% in Mathematics over 4 weeks of focused tutoring. Latest Mid-Term score at 55%. Monitoring continues.',
     term: 'Term 2',
     academic_year: 2026,
   });
 
+  // Intervention 3: Active parent/guardian meeting for learner 1 (also attendance at-risk)
+  const intervention3 = await createRow(tablesDB, dbId, 'interventions', {
+    learner_id: createdLearners[1].$id,
+    assigned_teacher_id: demoTeacherId,
+    intervention_type: 'Parent/Guardian Meeting',
+    focus_areas: ['Home environment', 'Attendance improvement', 'Morning routine'],
+    frequency: 'Bi-weekly meeting with guardian, alternate Fridays 1pm',
+    success_criteria:
+      'Attendance above 85% for 4 consecutive weeks; guardian engagement at every meeting',
+    start_date: new Date(Date.now() - 10 * 86400000).toISOString(),
+    status: 'Active',
+    term: 'Term 2',
+    academic_year: 2026,
+  });
+
+  // Intervention 4: Paused reading support (showcases Paused status)
+  const intervention4 = await createRow(tablesDB, dbId, 'interventions', {
+    learner_id: createdLearners[4].$id,
+    assigned_teacher_id: demoTeacherId,
+    intervention_type: 'Reading Support',
+    focus_areas: ['Reading fluency', 'Comprehension'],
+    frequency: '2x per week — Tue/Thu, during study period',
+    success_criteria: 'Read at grade level (Grade 1 benchmark) by end of Term 2',
+    start_date: new Date(Date.now() - 30 * 86400000).toISOString(),
+    status: 'Paused',
+    notes: 'Paused during exam block. Will resume after mid-term exams.',
+    term: 'Term 2',
+    academic_year: 2026,
+  });
+
+  // Intervention 5: Closed Without Resolution (showcases this status)
+  const intervention5 = await createRow(tablesDB, dbId, 'interventions', {
+    learner_id: createdLearners[8].$id,
+    assigned_teacher_id: demoTeacherId,
+    intervention_type: 'Mentoring',
+    focus_areas: ['Social skills', 'Classroom behaviour'],
+    frequency: 'Weekly 1-on-1 mentoring, Wed 12pm',
+    success_criteria: 'No behavioural incidents for 4 consecutive weeks',
+    start_date: new Date(Date.now() - 60 * 86400000).toISOString(),
+    end_date: new Date(Date.now() - 20 * 86400000).toISOString(),
+    status: 'Closed Without Resolution',
+    outcome:
+      'Learner disengaged from mentoring sessions. Guardian unresponsive to follow-up. Referred to Head Teacher for alternative approach.',
+    term: 'Term 1',
+    academic_year: 2026,
+  });
+
   const noteTasks = [
+    // Intervention 1 notes (attendance counselling — Active)
     () =>
       createRow(tablesDB, dbId, 'intervention_notes', {
         intervention_id: intervention1.$id,
@@ -2042,10 +2153,11 @@ async function seedSchool(tablesDB, dbId, residentIds, slotIdsByGrade, log) {
         learner_response: 'Neutral',
         author_id: demoTeacherId,
       }),
+    // Intervention 2 notes (maths support — Resolved)
     () =>
       createRow(tablesDB, dbId, 'intervention_notes', {
         intervention_id: intervention2.$id,
-        note_date: new Date(Date.now() - 30 * 86400000).toISOString(),
+        note_date: new Date(Date.now() - 40 * 86400000).toISOString(),
         content:
           'Started small-group Math sessions. Learner engaged but struggles with multiplication tables.',
         learner_response: 'Neutral',
@@ -2054,15 +2166,81 @@ async function seedSchool(tablesDB, dbId, residentIds, slotIdsByGrade, log) {
     () =>
       createRow(tablesDB, dbId, 'intervention_notes', {
         intervention_id: intervention2.$id,
+        note_date: new Date(Date.now() - 25 * 86400000).toISOString(),
+        content:
+          'Week 2: Some improvement on multiplication drills but word problems remain difficult. Learner becoming frustrated.',
+        learner_response: 'Negative',
+        author_id: demoTeacherId,
+      }),
+    () =>
+      createRow(tablesDB, dbId, 'intervention_notes', {
+        intervention_id: intervention2.$id,
         note_date: new Date(Date.now() - 15 * 86400000).toISOString(),
         content:
-          'Final session. Math score improved from 35% to 68% on latest class test. Recommending no further intervention unless scores drop.',
+          'Final session. Math score improved from 35% to 55% on latest mid-term. Recommending continued monitoring.',
         learner_response: 'Positive',
+        author_id: demoTeacherId,
+      }),
+    // Intervention 3 notes (parent/guardian meeting — Active)
+    () =>
+      createRow(tablesDB, dbId, 'intervention_notes', {
+        intervention_id: intervention3.$id,
+        note_date: new Date(Date.now() - 10 * 86400000).toISOString(),
+        content:
+          'First meeting with guardian. Identified that learner walks 3km to school and often misses morning classes. Exploring transport alternatives.',
+        learner_response: 'Not Observed',
+        author_id: demoTeacherId,
+      }),
+    // Intervention 4 notes (reading support — Paused)
+    () =>
+      createRow(tablesDB, dbId, 'intervention_notes', {
+        intervention_id: intervention4.$id,
+        note_date: new Date(Date.now() - 28 * 86400000).toISOString(),
+        content:
+          'Initial assessment: learner reads at pre-Grade 1 level. Started with phonics flashcards and simple sentence exercises.',
+        learner_response: 'Positive',
+        author_id: demoTeacherId,
+      }),
+    () =>
+      createRow(tablesDB, dbId, 'intervention_notes', {
+        intervention_id: intervention4.$id,
+        note_date: new Date(Date.now() - 14 * 86400000).toISOString(),
+        content:
+          'Good progress on letter recognition. Pausing sessions during exam block — will resume next week.',
+        learner_response: 'Positive',
+        author_id: demoTeacherId,
+      }),
+    // Intervention 5 notes (mentoring — Closed Without Resolution)
+    () =>
+      createRow(tablesDB, dbId, 'intervention_notes', {
+        intervention_id: intervention5.$id,
+        note_date: new Date(Date.now() - 55 * 86400000).toISOString(),
+        content:
+          'First mentoring session. Learner reluctant to speak. Established ground rules and built initial rapport.',
+        learner_response: 'Neutral',
+        author_id: demoTeacherId,
+      }),
+    () =>
+      createRow(tablesDB, dbId, 'intervention_notes', {
+        intervention_id: intervention5.$id,
+        note_date: new Date(Date.now() - 40 * 86400000).toISOString(),
+        content:
+          'Learner missed 2 of 3 scheduled sessions. When present, remained withdrawn. Guardian did not attend requested follow-up.',
+        learner_response: 'Negative',
+        author_id: demoTeacherId,
+      }),
+    () =>
+      createRow(tablesDB, dbId, 'intervention_notes', {
+        intervention_id: intervention5.$id,
+        note_date: new Date(Date.now() - 20 * 86400000).toISOString(),
+        content:
+          'Closing intervention. Learner has not attended last 3 sessions. Guardian unreachable. Referring to Head Teacher.',
+        learner_response: 'Not Observed',
         author_id: demoTeacherId,
       }),
   ];
   await batchRun(noteTasks, 10);
-  log(`  2 intervention plans + ${noteTasks.length} progress notes`);
+  log(`  5 intervention plans + ${noteTasks.length} progress notes`);
 }
 
 // =============================================================================

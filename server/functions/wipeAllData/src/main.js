@@ -42,6 +42,7 @@ const TABLES_TO_WIPE = [
   'learner_attendance',
   'teacher_assignments',
   'learners',
+  'school_long_term_goals',
   'school_classes',
   'village_settings',
   'residents',
