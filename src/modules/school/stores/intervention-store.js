@@ -14,13 +14,9 @@ import { defineStore } from 'pinia';
 import { tables } from 'src/boot/appwrite';
 import { useErrorHandler } from 'src/composables/useErrorHandler';
 import { ID, Query } from 'appwrite';
+import { normalizeClassId } from '../utils/school-utils';
 
 const errorHandler = useErrorHandler();
-
-function normalizeId(value) {
-  if (!value) return null;
-  return typeof value === 'object' ? value.$id : value;
-}
 
 export const useInterventionStore = defineStore('intervention', {
   state: () => ({
@@ -81,8 +77,8 @@ export const useInterventionStore = defineStore('intervention', {
     enrichIntervention(row) {
       return {
         ...row,
-        learner_id_normalized: normalizeId(row.learner_id),
-        assigned_teacher_id_normalized: normalizeId(row.assigned_teacher_id),
+        learner_id_normalized: normalizeClassId(row.learner_id),
+        assigned_teacher_id_normalized: normalizeClassId(row.assigned_teacher_id),
       };
     },
 
@@ -92,7 +88,7 @@ export const useInterventionStore = defineStore('intervention', {
     enrichNote(row) {
       return {
         ...row,
-        intervention_id_normalized: normalizeId(row.intervention_id),
+        intervention_id_normalized: normalizeClassId(row.intervention_id),
       };
     },
 

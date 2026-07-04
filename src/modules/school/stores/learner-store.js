@@ -12,20 +12,9 @@ import { defineStore } from 'pinia';
 import { tables } from 'src/boot/appwrite';
 import { useErrorHandler } from 'src/composables/useErrorHandler';
 import { ID, Query } from 'appwrite';
+import { normalizeClassId } from '../utils/school-utils';
 
 const errorHandler = useErrorHandler();
-
-/**
- * Normalize a relationship value to its row ID.
- * Appwrite returns relationship columns as embedded objects on reads,
- * but accepts plain IDs on writes.
- * @param {Object|string|null} value - Relationship value
- * @returns {string|null} Row ID
- */
-function normalizeId(value) {
-  if (!value) return null;
-  return typeof value === 'object' ? value.$id : value;
-}
 
 /**
  * Build full name from resident object parts (mirrors residents-store)
@@ -136,9 +125,9 @@ export const useLearnerStore = defineStore('learner', {
       return {
         ...learner,
         resident: resident,
-        resident_id_normalized: normalizeId(learner.resident_id),
+        resident_id_normalized: normalizeClassId(learner.resident_id),
         resident_full_name: buildResidentFullName(resident),
-        class_id_normalized: normalizeId(learner.class_id),
+        class_id_normalized: normalizeClassId(learner.class_id),
       };
     },
 

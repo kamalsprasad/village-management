@@ -238,7 +238,8 @@
 import { computed, onMounted, ref } from 'vue';
 import { useQuasar, date } from 'quasar';
 import { useLearnerStore } from '../stores/learner-store';
-import { normalizeClassId, useClassStore } from '../stores/class-store';
+import { useClassStore } from '../stores/class-store';
+import { normalizeClassId } from '../utils/school-utils';
 import { usePermissions } from 'src/composables/usePermissions';
 import { useAcademicTermsStore } from '../stores/academic-terms-store';
 import { useCalendarEventsStore } from '../stores/calendar-events-store';

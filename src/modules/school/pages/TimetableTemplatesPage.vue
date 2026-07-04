@@ -106,6 +106,8 @@
 </template>
 
 <script setup>
+defineOptions({ name: 'TimetableTemplatesPage' });
+
 import { ref, computed, onMounted, watch } from 'vue';
 import { useQuasar } from 'quasar';
 import { useRouter } from 'vue-router';
@@ -287,12 +289,6 @@ watch([selectedGrade, selectedYear], async () => {
 onMounted(() => {
   loadData();
 });
-</script>
-
-<script>
-export default {
-  name: 'TimetableTemplatesPage',
-};
 </script>
 
 <style scoped>

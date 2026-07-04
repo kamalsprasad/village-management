@@ -233,7 +233,8 @@
 import { ref, onMounted, computed } from 'vue';
 import { useRouter } from 'vue-router';
 import { useQuasar } from 'quasar';
-import { normalizeClassId, useClassStore } from '../stores/class-store';
+import { useClassStore } from '../stores/class-store';
+import { normalizeClassId } from '../utils/school-utils';
 import { useLearnerStore } from '../stores/learner-store';
 import { useSchoolStore } from '../stores/school-store';
 import { usePermissions } from 'src/composables/usePermissions';

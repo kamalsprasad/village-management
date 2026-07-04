@@ -516,7 +516,8 @@
 import { ref, onMounted, computed, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useQuasar, date } from 'quasar';
-import { normalizeClassId, useClassStore } from '../stores/class-store';
+import { useClassStore } from '../stores/class-store';
+import { normalizeClassId } from '../utils/school-utils';
 import { useLearnerStore } from '../stores/learner-store';
 import { useSchoolStore } from '../stores/school-store';
 import { useCalendarEventsStore } from '../stores/calendar-events-store';

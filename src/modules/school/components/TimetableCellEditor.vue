@@ -66,6 +66,8 @@
 </template>
 
 <script setup>
+defineOptions({ name: 'TimetableCellEditor' });
+
 import { ref, computed } from 'vue';
 import { SUBJECTS } from '../utils/school-constants';
 

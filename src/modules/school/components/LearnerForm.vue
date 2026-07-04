@@ -241,6 +241,7 @@ import { tables } from 'src/boot/appwrite';
 import { useLearnerStore } from '../stores/learner-store';
 import { useClassStore } from '../stores/class-store';
 import { ENROLLMENT_STATUSES, STATUSES_REQUIRING_EFFECTIVE_DATE } from '../utils/school-constants';
+import { normalizeClassId } from '../utils/school-utils';
 import ResidentSearchInput from 'src/components/inputs/ResidentSearchInput.vue';
 
 const props = defineProps({
@@ -384,7 +385,7 @@ async function loadHouseholdName(householdRef) {
 function populateFromLearner(learner) {
   form.value = {
     resident_id: learner.resident_id_normalized || null,
-    class_id: normalizeId(learner.class_id),
+    class_id: normalizeClassId(learner.class_id),
     enrollment_date: toDateInputValue(learner.enrollment_date),
     enrollment_status: learner.enrollment_status,
     status_effective_date: toDateInputValue(learner.status_effective_date),
@@ -407,14 +408,6 @@ watch(
     if (learner) populateFromLearner(learner);
   },
 );
-
-/**
- * Normalize a relationship value to its row ID.
- */
-function normalizeId(value) {
-  if (!value) return null;
-  return typeof value === 'object' ? value.$id : value;
-}
 
 onMounted(() => {
   classStore.fetchClasses();

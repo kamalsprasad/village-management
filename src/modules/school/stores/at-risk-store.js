@@ -29,7 +29,7 @@ import { useAcademicTermsStore } from './academic-terms-store';
 import { useCalendarEventsStore } from './calendar-events-store';
 import { useSettingsStore } from 'src/stores/settings-store';
 import { toDateStrInTimezone } from 'src/utils/dateUtils';
-import { normalizeClassId } from './class-store';
+import { normalizeClassId } from '../utils/school-utils';
 import {
   computeAttendanceRate,
   computeSubjectAverages,

@@ -221,6 +221,8 @@
 </template>
 
 <script setup>
+defineOptions({ name: 'ClassTimetablePanel' });
+
 import { ref, computed, onMounted, watch } from 'vue';
 import { useQuasar } from 'quasar';
 import { VueCal } from 'vue-cal';
@@ -564,12 +566,6 @@ async function loadPanelData() {
     classStore.fetchClasses(),
   ]);
 }
-</script>
-
-<script>
-export default {
-  name: 'ClassTimetablePanel',
-};
 </script>
 
 <style scoped>

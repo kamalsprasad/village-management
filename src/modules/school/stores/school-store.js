@@ -11,14 +11,9 @@ import { tables } from 'src/boot/appwrite';
 import { useErrorHandler } from 'src/composables/useErrorHandler';
 import { useLearnerStore } from './learner-store';
 import { ID, Query } from 'appwrite';
-import { computeScorePercent } from '../utils/school-utils';
+import { computeScorePercent, normalizeClassId } from '../utils/school-utils';
 
 const errorHandler = useErrorHandler();
-
-function normalizeId(value) {
-  if (!value) return null;
-  return typeof value === 'object' ? value.$id : value;
-}
 
 export const useSchoolStore = defineStore('school', {
   state: () => ({
@@ -41,9 +36,9 @@ export const useSchoolStore = defineStore('school', {
         const learner = learnerStore.learners.find((l) => l.$id === score.learner_id_normalized);
         const classId =
           score.class_id_normalized ||
-          normalizeId(score.class_id) ||
+          normalizeClassId(score.class_id) ||
           learner?.class_id_normalized ||
-          normalizeId(learner?.class_id) ||
+          normalizeClassId(learner?.class_id) ||
           'Unknown';
 
         // Extract ISO date portion
@@ -124,8 +119,8 @@ export const useSchoolStore = defineStore('school', {
     enrichTestScore(score) {
       const learnerStore = useLearnerStore();
       const classStore = useClassStore();
-      const learnerId = normalizeId(score.learner_id);
-      const classId = normalizeId(score.class_id);
+      const learnerId = normalizeClassId(score.learner_id);
+      const classId = normalizeClassId(score.class_id);
       const learner = learnerStore.learners.find((l) => l.$id === learnerId);
 
       const className = classId
@@ -241,9 +236,9 @@ export const useSchoolStore = defineStore('school', {
           const learner = learnerStore.learners.find((l) => l.$id === score.learner_id_normalized);
           const classId =
             score.class_id_normalized ||
-            normalizeId(score.class_id) ||
+            normalizeClassId(score.class_id) ||
             learner?.class_id_normalized ||
-            normalizeId(learner?.class_id) ||
+            normalizeClassId(learner?.class_id) ||
             'Unknown';
           const sDateStr = score.assessment_date ? score.assessment_date.slice(0, 10) : '';
 

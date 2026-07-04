@@ -10,18 +10,13 @@ import { defineStore } from 'pinia';
 import { tables } from 'src/boot/appwrite';
 import { useLearnerStore } from './learner-store';
 import { ID, Query } from 'appwrite';
-import { computeScorePercent } from '../utils/school-utils';
+import { computeScorePercent, normalizeClassId } from '../utils/school-utils';
 
 // Seed data helper for local fallback mode
 const LOCAL_STORAGE_KEYS = {
   CLASSES: 'school_classes_fallback',
   ATTENDANCE: 'school_attendance_fallback',
 };
-
-export function normalizeClassId(value) {
-  if (!value) return null;
-  return typeof value === 'object' ? value.$id : value;
-}
 
 export const useClassStore = defineStore('class', {
   state: () => ({

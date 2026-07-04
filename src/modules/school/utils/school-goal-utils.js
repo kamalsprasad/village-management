@@ -13,7 +13,7 @@
  */
 
 import { computeSubjectAverages, computeOverallAverage } from './at-risk-utils';
-import { computeScorePercent } from './school-utils';
+import { computeScorePercent, normalizeClassId } from './school-utils';
 
 /**
  * Round a number to one decimal place for display.
@@ -23,16 +23,6 @@ import { computeScorePercent } from './school-utils';
 export function roundToOneDecimal(value) {
   if (value == null || Number.isNaN(value)) return 0;
   return Math.round(value * 10) / 10;
-}
-
-/**
- * Normalize an ID that may be an Appwrite relationship object or a plain string.
- * @param {*} value
- * @returns {string|null}
- */
-function normalizeId(value) {
-  if (!value) return null;
-  return typeof value === 'object' ? value.$id : value;
 }
 
 /**
@@ -221,7 +211,7 @@ export function computeBreakdownByGrade(
 ) {
   const learnersByGrade = {};
   for (const learner of activeLearners) {
-    const classId = learner.class_id_normalized || normalizeId(learner.class_id);
+    const classId = learner.class_id_normalized || normalizeClassId(learner.class_id);
     const grade = classId && classesMap[classId] ? classesMap[classId].grade_level : 'Unassigned';
     if (!learnersByGrade[grade]) learnersByGrade[grade] = [];
     learnersByGrade[grade].push(learner);

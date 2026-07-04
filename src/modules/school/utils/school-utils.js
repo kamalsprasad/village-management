@@ -5,6 +5,18 @@
  */
 
 /**
+ * Normalize a relationship value to its row ID.
+ * Appwrite returns relationship columns as embedded objects on reads,
+ * but accepts plain IDs on writes.
+ * @param {Object|string|null} value - Relationship value
+ * @returns {string|null} Row ID
+ */
+export function normalizeClassId(value) {
+  if (!value) return null;
+  return typeof value === 'object' ? value.$id : value;
+}
+
+/**
  * Compute the score percentage
  * @param {number} scoreValue - Raw score
  * @param {number} maxScore - Maximum score
@@ -22,8 +34,8 @@ export function computeScorePercent(scoreValue, maxScore) {
  */
 export function getScoreColorClass(percent) {
   if (percent < 50) return 'text-negative'; // Red (< 50%)
-  if (percent < 60) return 'text-warning';  // Orange (50-59%)
-  return 'text-positive';                    // Green (60%+)
+  if (percent < 60) return 'text-warning'; // Orange (50-59%)
+  return 'text-positive'; // Green (60%+)
 }
 
 /**

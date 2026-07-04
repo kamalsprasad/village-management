@@ -82,7 +82,8 @@
 import { computed, onMounted } from 'vue';
 import { date } from 'quasar';
 import { useLearnerStore } from '../stores/learner-store';
-import { normalizeClassId, useClassStore } from '../stores/class-store';
+import { useClassStore } from '../stores/class-store';
+import { normalizeClassId } from '../utils/school-utils';
 import EnrollmentStatusBadge from './EnrollmentStatusBadge.vue';
 
 const learnerStore = useLearnerStore();

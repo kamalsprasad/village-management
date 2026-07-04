@@ -176,6 +176,8 @@
 </template>
 
 <script setup>
+defineOptions({ name: 'TimetableGrid' });
+
 import { ref, computed } from 'vue';
 import { useTimetableStore } from '../stores/timetable-store';
 import { getSlotTypeColor, getSlotTypeIcon } from '../stores/period-slots-store';
@@ -296,12 +298,6 @@ function cellClasses(slot, day) {
   }
   return classes;
 }
-</script>
-
-<script>
-export default {
-  name: 'TimetableGrid',
-};
 </script>
 
 <style scoped>

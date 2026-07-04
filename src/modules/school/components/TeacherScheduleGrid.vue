@@ -100,6 +100,8 @@
 </template>
 
 <script setup>
+defineOptions({ name: 'TeacherScheduleGrid' });
+
 import { ref, computed, onMounted, watch } from 'vue';
 import { useTimetableStore } from '../stores/timetable-store';
 import { usePeriodSlotsStore } from '../stores/period-slots-store';
@@ -196,12 +198,6 @@ const cellMap = computed(() => {
 function getCell(slotKey, day) {
   return cellMap.value.get(`${slotKey}:${day}`) || null;
 }
-</script>
-
-<script>
-export default {
-  name: 'TeacherScheduleGrid',
-};
 </script>
 
 <style scoped>
