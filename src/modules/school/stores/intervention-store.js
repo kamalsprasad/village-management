@@ -15,6 +15,7 @@ import { tables } from 'src/boot/appwrite';
 import { useErrorHandler } from 'src/composables/useErrorHandler';
 import { ID, Query } from 'appwrite';
 import { normalizeClassId } from '../utils/school-utils';
+import { getAllowedStatusTransitions, statusRequiresOutcome } from '../utils/school-constants';
 
 const errorHandler = useErrorHandler();
 
@@ -210,6 +211,52 @@ export const useInterventionStore = defineStore('intervention', {
       } finally {
         this.isLoading = false;
       }
+    },
+
+    /**
+     * Change an intervention's status, enforcing the intervention lifecycle rules:
+     *   - The transition must be allowed by getAllowedStatusTransitions().
+     *   - At least one progress note must exist for the intervention.
+     *   - Resolved / Closed Without Resolution require an outcome.
+     *
+     * This is the recommended entry point for status changes from the UI so the
+     * rules are applied consistently across all pages and future features.
+     */
+    async changeStatus(interventionId, newStatus, outcome) {
+      const intervention = this.interventions.find((i) => i.$id === interventionId);
+      if (!intervention) {
+        return { success: false, error: 'Intervention not found.' };
+      }
+
+      const allowedTransitions = getAllowedStatusTransitions(intervention.status);
+      if (!allowedTransitions.includes(newStatus)) {
+        return {
+          success: false,
+          error: `Cannot change status from ${intervention.status} to ${newStatus}.`,
+        };
+      }
+
+      const notes = this.getNotesForIntervention(interventionId);
+      if (notes.length === 0) {
+        return {
+          success: false,
+          error: 'At least one progress note is required before changing status.',
+        };
+      }
+
+      if (statusRequiresOutcome(newStatus) && !outcome?.trim()) {
+        return {
+          success: false,
+          error: 'An outcome is required when resolving or closing an intervention.',
+        };
+      }
+
+      const payload = { status: newStatus };
+      if (statusRequiresOutcome(newStatus)) {
+        payload.outcome = outcome.trim();
+      }
+
+      return this.updateIntervention(interventionId, payload);
     },
 
     /**

@@ -216,7 +216,11 @@ import { useAcademicTermsStore } from '../stores/academic-terms-store';
 import { useAtRiskStore } from '../stores/at-risk-store';
 import { useInterventionStore } from '../stores/intervention-store';
 import { useAuthStore } from 'src/stores/auth-store';
-import { INTERVENTION_TYPES, INTERVENTION_STATUSES } from '../utils/school-constants';
+import {
+  INTERVENTION_TYPES,
+  INTERVENTION_STATUSES,
+  statusRequiresOutcome,
+} from '../utils/school-constants';
 
 const route = useRoute();
 const router = useRouter();
@@ -264,9 +268,7 @@ const form = ref({
   notes: '',
 });
 
-const requiresOutcome = computed(
-  () => form.value.status === 'Resolved' || form.value.status === 'Closed Without Resolution',
-);
+const requiresOutcome = computed(() => statusRequiresOutcome(form.value.status));
 
 const learnerOptions = computed(() =>
   learnerStore.activeLearners.map((l) => ({

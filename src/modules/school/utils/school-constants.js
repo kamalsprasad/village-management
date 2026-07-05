@@ -178,3 +178,32 @@ export function getInterventionStatusTextColor(status) {
   const match = INTERVENTION_STATUSES.find((s) => s.value === status);
   return match ? match.textColor : 'white';
 }
+
+/**
+ * Get the list of status values a user can transition to from the given status.
+ * Resolved and Closed Without Resolution are terminal states.
+ * @param {string} currentStatus
+ * @returns {Array<string>}
+ */
+export function getAllowedStatusTransitions(currentStatus) {
+  switch (currentStatus) {
+    case 'Active':
+      return ['Paused', 'Resolved', 'Closed Without Resolution'];
+    case 'Paused':
+      return ['Active', 'Resolved', 'Closed Without Resolution'];
+    case 'Resolved':
+    case 'Closed Without Resolution':
+      return [];
+    default:
+      return [];
+  }
+}
+
+/**
+ * Whether a transition to the given status requires an outcome to be recorded.
+ * @param {string} status
+ * @returns {boolean}
+ */
+export function statusRequiresOutcome(status) {
+  return status === 'Resolved' || status === 'Closed Without Resolution';
+}

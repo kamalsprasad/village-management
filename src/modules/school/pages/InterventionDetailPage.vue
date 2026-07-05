@@ -25,6 +25,25 @@
           <div class="text-caption text-grey-7">{{ intervention.intervention_type }}</div>
         </div>
         <InterventionStatusBadge :status="intervention.status" class="q-ml-md" />
+
+        <template v-if="hasPermission('school:write') && allowedTransitions.length > 0">
+          <div class="row items-center q-gutter-sm q-ml-md">
+            <q-tooltip v-if="!hasNotes">
+              Add at least one progress note before changing status
+            </q-tooltip>
+            <q-btn
+              v-for="nextStatus in allowedTransitions"
+              :key="nextStatus"
+              :label="transitionLabel(nextStatus)"
+              :color="transitionColor(nextStatus)"
+              :disable="!hasNotes"
+              outline
+              size="sm"
+              @click="onChangeStatus(nextStatus)"
+            />
+          </div>
+        </template>
+
         <q-space />
         <q-btn
           v-if="hasPermission('school:write')"
@@ -264,8 +283,13 @@ import { useAtRiskStore } from '../stores/at-risk-store';
 import { useInterventionStore } from '../stores/intervention-store';
 import { useAuthStore } from 'src/stores/auth-store';
 import { usePermissions } from 'src/composables/usePermissions';
-import { LEARNER_RESPONSE_OPTIONS } from '../utils/school-constants';
+import {
+  LEARNER_RESPONSE_OPTIONS,
+  INTERVENTION_STATUSES,
+  getAllowedStatusTransitions,
+} from '../utils/school-constants';
 import InterventionStatusBadge from '../components/InterventionStatusBadge.vue';
+import InterventionStatusChangeDialog from '../components/InterventionStatusChangeDialog.vue';
 
 const route = useRoute();
 const router = useRouter();
@@ -313,6 +337,52 @@ const atRiskInfo = computed(() => {
 });
 
 const atRiskNotComputed = computed(() => !atRiskStore.lastComputedAt);
+
+const hasNotes = computed(() => notes.value.length > 0);
+
+const allowedTransitions = computed(() => {
+  if (!intervention.value) return [];
+  return getAllowedStatusTransitions(intervention.value.status);
+});
+
+function transitionLabel(nextStatus) {
+  if (intervention.value?.status === 'Active' && nextStatus === 'Paused') return 'Pause';
+  if (intervention.value?.status === 'Paused' && nextStatus === 'Active') return 'Resume';
+  const match = INTERVENTION_STATUSES.find((s) => s.value === nextStatus);
+  return match?.label || nextStatus;
+}
+
+function transitionColor(nextStatus) {
+  if (nextStatus === 'Resolved') return 'positive';
+  if (nextStatus === 'Closed Without Resolution') return 'grey';
+  if (nextStatus === 'Paused') return 'warning';
+  return 'primary';
+}
+
+async function onChangeStatus(nextStatus) {
+  if (!intervention.value) return;
+  const allowed = getAllowedStatusTransitions(intervention.value.status);
+  if (!allowed.includes(nextStatus)) return;
+
+  $q.dialog({
+    component: InterventionStatusChangeDialog,
+    componentProps: {
+      currentStatus: intervention.value.status,
+      targetStatus: nextStatus,
+    },
+  }).onOk(async ({ outcome }) => {
+    const result = await interventionStore.changeStatus(
+      intervention.value.$id,
+      nextStatus,
+      outcome,
+    );
+    if (result.success) {
+      $q.notify({ type: 'positive', message: `Intervention status updated to ${nextStatus}.` });
+    } else {
+      $q.notify({ type: 'negative', message: result.error || 'Failed to update status.' });
+    }
+  });
+}
 
 function formatDate(isoString) {
   if (!isoString) return '—';
