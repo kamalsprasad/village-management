@@ -1,10 +1,19 @@
+<!--
+  TeachersListPage.vue
+
+  Full-width faculty browser with a responsive detail drawer.
+  - Desktop: table view; row click opens a right-side drawer with full week schedule.
+  - Mobile: table view; row click opens a full-screen dialog with swipeable day schedule.
+  - Each row shows a "Current / Next" class indicator.
+-->
 <template>
   <q-page padding>
+    <!-- Page header -->
     <div class="row items-center justify-between q-mb-md">
       <div>
         <div class="text-h5">School Faculty & Teachers</div>
         <div class="text-caption text-grey-7">
-          View teaching profiles, class assignments, and master schedules
+          Browse teaching profiles, class assignments, and master schedules
         </div>
       </div>
       <q-btn
@@ -16,178 +25,150 @@
       />
     </div>
 
-    <!-- Main Content Grid -->
-    <div class="row q-col-gutter-md">
-      <!-- Left: Teachers List Cards -->
-      <div class="col-12 col-md-5">
-        <q-card flat bordered>
-          <q-card-section class="bg-grey-1 row items-center q-py-sm">
-            <div class="text-subtitle1 text-weight-bold">Teaching Faculty</div>
-          </q-card-section>
+    <!-- Search & filters -->
+    <q-card flat bordered class="q-mb-md">
+      <q-card-section class="row q-col-gutter-sm items-center">
+        <div class="col-12 col-sm-6 col-md-4">
+          <q-input
+            v-model="searchQuery"
+            label="Search by name, email, or role"
+            outlined
+            dense
+            clearable
+            debounce="200"
+          >
+            <template #prepend>
+              <q-icon name="search" />
+            </template>
+          </q-input>
+        </div>
+        <div class="col-12 col-sm-6 col-md-8 text-right">
+          <span class="text-caption text-grey-7">
+            {{ filteredTeachers.length }} of {{ teachers.length }} faculty members
+          </span>
+        </div>
+      </q-card-section>
+    </q-card>
 
-          <q-separator />
-
-          <q-card-section v-if="loading" class="text-center q-pa-xl">
-            <q-spinner color="primary" size="lg" />
-            <div class="text-caption q-mt-sm">Loading faculty records...</div>
-          </q-card-section>
-
-          <q-list v-else separator>
-            <q-item
-              v-for="teacher in teachers"
-              :key="teacher.$id"
-              clickable
-              :active="selectedTeacher && selectedTeacher.$id === teacher.$id"
-              active-class="bg-blue-1 text-primary"
-              @click="selectTeacher(teacher)"
-            >
-              <q-item-section avatar>
-                <q-avatar color="primary" text-color="white" icon="school" />
-              </q-item-section>
-
-              <q-item-section>
-                <q-item-label class="text-weight-bold">{{ teacher.name }}</q-item-label>
-                <q-item-label caption>
-                  <q-icon name="email" class="q-mr-xs" size="xs" />
-                  {{ teacher.email || 'No email registered' }}
-                </q-item-label>
-                <q-item-label caption class="row items-center q-mt-xs">
-                  <q-chip outline color="primary" dense square size="10px">
-                    {{ getPrimaryClassLabel(teacher.$id) }}
-                  </q-chip>
-                  <q-chip outline color="secondary" dense square size="10px">
-                    {{ getTeachingPeriodsCount(teacher.$id) }} Periods Scheduled
-                  </q-chip>
-                </q-item-label>
-              </q-item-section>
-
-              <q-item-section side>
-                <div class="row items-center">
-                  <q-btn
-                    v-if="canAdmin"
-                    flat
-                    round
-                    dense
-                    color="negative"
-                    icon="delete"
-                    size="sm"
-                    @click.stop="removeTeacher(teacher)"
-                  >
-                    <q-tooltip>Remove all assignments</q-tooltip>
-                  </q-btn>
-                  <q-icon name="chevron_right" class="q-ml-sm" />
-                </div>
-              </q-item-section>
-            </q-item>
-          </q-list>
-        </q-card>
-      </div>
-
-      <!-- Right: Selected Teacher Schedule & Assignments -->
-      <div class="col-12 col-md-7">
-        <q-card v-if="selectedTeacher" flat bordered>
-          <q-card-section class="bg-primary text-white row items-center">
-            <q-avatar color="white" text-color="primary" icon="person" size="md" class="q-mr-md" />
-            <div>
-              <div class="text-subtitle1 text-weight-bold">{{ selectedTeacher.name }}</div>
-              <div class="text-caption text-white-5">Faculty Profile & Timetable Schedule</div>
-            </div>
-          </q-card-section>
-
-          <q-card-section class="q-pa-md">
-            <!-- Faculty Information -->
-            <div class="row q-col-gutter-sm q-mb-md">
-              <div class="col-6">
-                <div class="text-caption text-grey-7">Primary Class Assignment</div>
-                <div class="text-subtitle2 text-weight-bold text-primary">
-                  {{ getPrimaryClassLabel(selectedTeacher.$id) }}
-                </div>
-              </div>
-              <div class="col-6 border-left">
-                <div class="text-caption text-grey-7">Total Scheduled Periods</div>
-                <div class="text-subtitle2 text-weight-bold text-secondary">
-                  {{ getTeachingPeriodsCount(selectedTeacher.$id) }} periods per week
-                </div>
-              </div>
-            </div>
-
-            <q-separator class="q-my-md" />
-
-            <!-- Grade Assignments -->
-            <div class="text-subtitle1 text-weight-bold q-mb-xs">Grade Assignments</div>
-            <div v-if="selectedTeacher" class="q-mb-md">
-              <div
-                v-for="assignment in getTeacherAssignments(selectedTeacher.$id)"
-                :key="assignment.grade_level"
-                class="q-mb-sm"
-              >
-                <div class="row items-center">
-                  <q-chip color="primary" text-color="white" dense size="sm">
-                    {{ assignment.grade_level }}
-                  </q-chip>
-                  <span v-if="isSubjectTeacherGrade(assignment.grade_level)" class="q-ml-sm">
-                    <q-chip
-                      v-for="subject in assignment.subjects || []"
-                      :key="subject"
-                      outline
-                      color="accent"
-                      dense
-                      size="sm"
-                    >
-                      {{ subject }}
-                    </q-chip>
-                    <span
-                      v-if="!(assignment.subjects && assignment.subjects.length)"
-                      class="text-caption text-grey-6"
-                    >
-                      No subjects assigned
-                    </span>
-                  </span>
-                  <span v-else class="text-caption text-grey-7 q-ml-sm">
-                    All Subjects (Grade Teacher)
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            <q-separator class="q-my-md" />
-
-            <!-- Master teaching timetable -->
-            <div class="row items-center justify-between q-mb-xs">
-              <div class="text-subtitle1 text-weight-bold">Master Teaching Schedule</div>
-              <q-input
-                v-model.number="selectedScheduleYear"
-                type="number"
-                outlined
-                dense
-                label="Academic Year"
-                style="width: 120px"
-                :rules="[(v) => (v >= 2000 && v <= 2100) || 'Enter a year between 2000–2100']"
-                hide-bottom-space
-              />
-            </div>
-            <div class="text-caption text-grey-6 q-mb-md">
-              Unified schedule aggregating all periods where this teacher is assigned as the subject
-              instructor.
-            </div>
-
-            <TeacherScheduleGrid
-              :teacher-id="selectedTeacher.$id"
-              :academic-year="selectedScheduleYear"
+    <!-- Faculty data table -->
+    <q-table
+      :rows="filteredTeachers"
+      :columns="columns"
+      row-key="$id"
+      :loading="loading"
+      :pagination="{ rowsPerPage: 25 }"
+      flat
+      bordered
+      dense
+      @row-click="(evt, row) => openDrawer(row)"
+    >
+      <template #body-cell-name="props">
+        <q-td :props="props">
+          <div class="row items-center no-wrap">
+            <q-avatar
+              color="primary"
+              text-color="white"
+              icon="school"
+              size="32px"
+              class="q-mr-sm"
             />
-          </q-card-section>
-        </q-card>
-
-        <!-- Empty state placeholder -->
-        <q-card v-else flat bordered class="text-center q-pa-xl text-grey-7">
-          <q-icon name="badge" size="48px" />
-          <div class="text-subtitle1 q-mt-md">No teacher selected</div>
-          <div class="text-caption">
-            Select a teacher from the left panel to inspect their teaching schedule and assignments.
+            <span class="text-weight-medium">{{ props.value }}</span>
           </div>
-        </q-card>
-      </div>
-    </div>
+        </q-td>
+      </template>
+
+      <template #body-cell-email="props">
+        <q-td :props="props">
+          <span v-if="props.value" class="text-caption">{{ props.value }}</span>
+          <span v-else class="text-caption text-grey-5">No email registered</span>
+        </q-td>
+      </template>
+
+      <template #body-cell-role="props">
+        <q-td :props="props">
+          <q-chip outline color="primary" dense square size="10px">
+            {{ props.value }}
+          </q-chip>
+        </q-td>
+      </template>
+
+      <template #body-cell-periods="props">
+        <q-td :props="props">
+          <q-chip outline color="secondary" dense square size="10px">
+            {{ props.value }} Periods
+          </q-chip>
+        </q-td>
+      </template>
+
+      <template #body-cell-nextClass="props">
+        <q-td :props="props">
+          <div v-if="props.value" class="row items-center">
+            <q-badge
+              :color="props.value.isNow ? 'positive' : 'grey-6'"
+              text-color="white"
+              class="q-mr-xs"
+            >
+              {{ props.value.isNow ? 'Now' : 'Next' }}
+            </q-badge>
+            <div class="text-caption">
+              <span class="text-weight-bold">{{ props.value.periodLabel }}</span>
+              <span class="text-grey-7"> · {{ props.value.className }}</span>
+              <span class="text-grey-6"> · {{ props.value.subject }}</span>
+              <span class="text-grey-5"> · {{ props.value.startTime }}</span>
+            </div>
+          </div>
+          <span v-else class="text-caption text-grey-5">No class scheduled</span>
+        </q-td>
+      </template>
+
+      <template #body-cell-actions="props">
+        <q-td :props="props" @click.stop>
+          <q-btn
+            flat
+            dense
+            round
+            icon="visibility"
+            size="sm"
+            color="primary"
+            @click="openDrawer(props.row)"
+          >
+            <q-tooltip>View Schedule</q-tooltip>
+          </q-btn>
+          <q-btn
+            v-if="canAdmin"
+            flat
+            dense
+            round
+            icon="delete"
+            size="sm"
+            color="negative"
+            class="q-ml-xs"
+            @click="removeTeacher(props.row)"
+          >
+            <q-tooltip>Remove all assignments</q-tooltip>
+          </q-btn>
+        </q-td>
+      </template>
+
+      <template #no-data>
+        <div class="full-width text-center q-pa-lg text-grey-7">
+          <template v-if="teachers.length === 0">
+            No teaching faculty assigned yet.
+            <span v-if="canAdmin">Click "Assign Teacher" to get started.</span>
+          </template>
+          <template v-else>No faculty match the current search.</template>
+        </div>
+      </template>
+    </q-table>
+
+    <!-- Detail drawer -->
+    <TeacherDetailDrawer
+      v-model="drawerOpen"
+      :teacher="drawerTeacher"
+      :academic-year="selectedScheduleYear"
+      :can-admin="canAdmin"
+      @remove="removeTeacher"
+    />
 
     <!-- Assign Teacher Dialog -->
     <q-dialog v-model="showAssignDialog" persistent>
@@ -212,40 +193,42 @@
           <div
             v-for="(row, idx) in assignForm.rows"
             :key="idx"
-            class="row q-col-gutter-sm items-start"
+            class="row q-col-gutter-sm items-center"
           >
             <div class="col-5">
               <q-select
                 v-model="row.grade"
-                :options="availableGradesForRow(row)"
-                label="Grade *"
+                :options="gradeOptions"
+                label="Grade Level *"
                 outlined
                 dense
-                :rules="[(val) => !!val || 'Select a grade']"
+                emit-value
+                map-options
               />
             </div>
-            <div class="col">
+            <div class="col-6">
               <q-select
                 v-if="isSubjectTeacherGrade(row.grade)"
                 v-model="row.subjects"
-                :options="SUBJECTS"
+                :options="subjectOptions"
                 label="Subjects *"
-                multiple
                 outlined
                 dense
-                :rules="[(val) => val?.length > 0 || 'Select at least one subject']"
+                multiple
+                use-chips
+                stack-label
+                clearable
               />
-              <div v-else-if="row.grade" class="text-caption text-grey-7 q-pt-sm">
-                All Subjects (Grade Teacher)
-              </div>
+              <q-chip v-else outline color="grey-6" dense size="sm">All Subjects</q-chip>
             </div>
-            <div class="col-auto q-pt-xs">
+            <div class="col-1">
               <q-btn
+                v-if="assignForm.rows.length > 1"
                 flat
                 round
                 dense
                 color="negative"
-                icon="remove_circle"
+                icon="remove"
                 size="sm"
                 @click="removeAssignRow(idx)"
               />
@@ -305,25 +288,32 @@ import { useClassStore } from '../stores/class-store';
 import { useTeacherStore } from '../stores/teacher-store';
 import { useTimetableStore } from '../stores/timetable-store';
 import { usePeriodSlotsStore } from '../stores/period-slots-store';
+import { useResidentsStore } from 'src/stores/residents-store';
 import { usePermissions } from 'src/composables/usePermissions';
-import { useAuthStore } from 'src/stores/auth-store';
+import { useSettingsStore } from 'src/stores/settings-store';
 import ResidentSearchInput from 'src/components/inputs/ResidentSearchInput.vue';
-import TeacherScheduleGrid from '../components/TeacherScheduleGrid.vue';
+import TeacherDetailDrawer from '../components/TeacherDetailDrawer.vue';
 import { GRADE_LEVELS, SUBJECTS } from '../utils/school-constants';
+import { findCurrentOrNextClass } from '../utils/schedule-utils';
 
 const $q = useQuasar();
 const classStore = useClassStore();
 const teacherStore = useTeacherStore();
 const timetableStore = useTimetableStore();
 const periodSlotsStore = usePeriodSlotsStore();
-const authStore = useAuthStore();
+const residentsStore = useResidentsStore();
+const settingsStore = useSettingsStore();
 const { hasPermission } = usePermissions();
+
 const loading = ref(false);
 const teachers = ref([]);
-const selectedTeacher = ref(null);
+const searchQuery = ref('');
+const drawerOpen = ref(false);
+const drawerTeacher = ref(null);
 const selectedScheduleYear = ref(new Date().getFullYear());
 const showAssignDialog = ref(false);
 const canAdmin = computed(() => hasPermission('school:admin'));
+const timezone = computed(() => settingsStore.timezone);
 
 const assignForm = reactive({
   residentId: null,
@@ -334,6 +324,9 @@ const assignForm = reactive({
   submitting: false,
 });
 
+const gradeOptions = GRADE_LEVELS.map((g) => ({ label: g, value: g }));
+const subjectOptions = SUBJECTS.map((s) => ({ label: s, value: s }));
+
 onMounted(async () => {
   loading.value = true;
   try {
@@ -341,45 +334,53 @@ onMounted(async () => {
       classStore.fetchClasses(),
       timetableStore.fetchTimetableEntries(),
       periodSlotsStore.fetchPeriodSlots(),
+      residentsStore.fetchResidents(1, 500),
     ]);
     await loadFaculty();
-
-    // If the current user is a teacher, default to their schedule; otherwise select the first teacher.
-    const currentTeacher = teachers.value.find((t) => t.$id === authStore.user?.resident_id);
-    if (currentTeacher) {
-      selectedTeacher.value = currentTeacher;
-    } else if (teachers.value.length > 0) {
-      selectedTeacher.value = teachers.value[0];
-    }
   } finally {
     loading.value = false;
   }
 });
 
-// Fetch actual teachers from teacher_assignments (joined with residents)
 async function loadFaculty() {
   try {
     await teacherStore.fetchTeacherAssignments();
     const byTeacher = teacherStore.assignmentsByTeacher;
-    teachers.value = Object.values(byTeacher).map((t) => ({
-      $id: t.teacher_id,
-      name: t.teacher_name || 'Unknown Teacher',
-      email: '',
-      phone: '',
-    }));
+    teachers.value = Object.values(byTeacher).map((t) => {
+      const resident = residentsStore.getResidentById(t.teacher_id);
+      return {
+        $id: t.teacher_id,
+        name: t.teacher_name || 'Unknown Teacher',
+        email: resident?.email || '',
+        phone: resident?.phone || '',
+      };
+    });
   } catch (error) {
     console.error('TeachersListPage: failed to load teachers', error);
   }
 }
 
-function selectTeacher(teacher) {
-  selectedTeacher.value = teacher;
+function openDrawer(teacher) {
+  drawerTeacher.value = teacher;
+  drawerOpen.value = true;
 }
 
-function getTeacherAssignments(teacherId) {
-  return teacherStore.teacherAssignments
-    .filter((a) => a.teacher_id_normalized === teacherId)
-    .sort((a, b) => GRADE_LEVELS.indexOf(a.grade_level) - GRADE_LEVELS.indexOf(b.grade_level));
+function getPrimaryClassLabel(teacherId) {
+  const matchClass = classStore.classes.find(
+    (c) => c.class_teacher_id_normalized === teacherId || c.class_teacher_id === teacherId,
+  );
+  return matchClass ? `Class Teacher: ${matchClass.name}` : 'Subject Instructor';
+}
+
+function getTeacherNextClass(teacherId) {
+  return findCurrentOrNextClass(
+    teacherId,
+    selectedScheduleYear.value,
+    timetableStore,
+    periodSlotsStore,
+    classStore,
+    timezone.value,
+  );
 }
 
 function openAssignDialog() {
@@ -397,23 +398,12 @@ function resetAssignForm() {
   assignForm.rows = [{ grade: '', subjects: [] }];
   assignForm.notes = '';
   assignForm.ageError = '';
-  assignForm.submitting = false;
 }
 
 function isSubjectTeacherGrade(grade) {
   if (!grade) return false;
   const idx = GRADE_LEVELS.indexOf(grade);
-  // Grade 6 is index 6 (0: Early Childhood, 1: Grade 1, ... 6: Grade 6)
   return idx >= 6;
-}
-
-function usedGrades() {
-  return assignForm.rows.map((r) => r.grade).filter(Boolean);
-}
-
-function availableGradesForRow(row) {
-  const used = usedGrades();
-  return GRADE_LEVELS.filter((g) => g === row.grade || !used.includes(g));
 }
 
 const canAddAssignRow = computed(() => {
@@ -507,11 +497,6 @@ async function submitAssign() {
 
     closeAssignDialog();
     await loadFaculty();
-    if (selectedTeacher.value) {
-      selectTeacher(
-        teachers.value.find((t) => t.$id === selectedTeacher.value.$id) || teachers.value[0],
-      );
-    }
   } catch (error) {
     console.error('Error assigning teacher:', error);
     $q.notify({ type: 'negative', message: 'Failed to assign teacher. Please try again.' });
@@ -534,57 +519,75 @@ async function removeTeacher(teacher) {
       await teacherStore.deleteTeacherAssignment(a.$id);
     }
     await loadFaculty();
-    if (selectedTeacher.value?.$id === teacher.$id) {
-      selectedTeacher.value = teachers.value.length > 0 ? teachers.value[0] : null;
+    if (drawerTeacher.value?.$id === teacher.$id) {
+      drawerOpen.value = false;
+      drawerTeacher.value = null;
     }
     $q.notify({ type: 'positive', message: `${teacher.name} removed from all assignments.` });
   });
 }
 
-function getPrimaryClassLabel(teacherId) {
-  const matchClass = classStore.classes.find(
-    (c) => c.class_teacher_id_normalized === teacherId || c.class_teacher_id === teacherId,
-  );
-  return matchClass ? `Class Teacher: ${matchClass.name}` : 'Subject Instructor';
-}
+const columns = [
+  {
+    name: 'name',
+    label: 'Name',
+    field: 'name',
+    align: 'left',
+    sortable: true,
+  },
+  {
+    name: 'email',
+    label: 'Email',
+    field: 'email',
+    align: 'left',
+    sortable: true,
+  },
+  {
+    name: 'role',
+    label: 'Role',
+    field: (row) => getPrimaryClassLabel(row.$id),
+    align: 'left',
+    sortable: true,
+  },
+  {
+    name: 'periods',
+    label: 'Periods',
+    field: (row) => timetableStore.teacherSchedule(row.$id, selectedScheduleYear.value).length,
+    align: 'center',
+    sortable: true,
+  },
+  {
+    name: 'nextClass',
+    label: 'Current / Next',
+    field: (row) => getTeacherNextClass(row.$id),
+    align: 'left',
+    sortable: false,
+  },
+  {
+    name: 'actions',
+    label: 'Actions',
+    field: '$id',
+    align: 'right',
+  },
+];
 
-const teachingPeriodsCountByTeacher = computed(() => {
-  const map = new Map();
-  teachers.value.forEach((teacher) => {
-    const count = timetableStore.teacherSchedule(teacher.$id, selectedScheduleYear.value).length;
-    map.set(teacher.$id, count);
+const filteredTeachers = computed(() => {
+  if (!searchQuery.value) return teachers.value;
+  const term = searchQuery.value.toLowerCase();
+  return teachers.value.filter((teacher) => {
+    const role = getPrimaryClassLabel(teacher.$id).toLowerCase();
+    const nextClass = getTeacherNextClass(teacher.$id);
+    const nextClassText = nextClass
+      ? `${nextClass.periodLabel} ${nextClass.className} ${nextClass.subject}`.toLowerCase()
+      : '';
+    return (
+      (teacher.name || '').toLowerCase().includes(term) ||
+      (teacher.email || '').toLowerCase().includes(term) ||
+      role.includes(term) ||
+      nextClassText.includes(term)
+    );
   });
-  return map;
 });
-
-function getTeachingPeriodsCount(teacherId) {
-  return teachingPeriodsCountByTeacher.value.get(teacherId) || 0;
-}
 </script>
 
-<style scoped>
-.border-left {
-  border-left: 1px solid #e0e0e0;
-  padding-left: 16px;
-}
-.teacher-schedule-table {
-  border-radius: 8px;
-  overflow: hidden;
-}
-.schedule-cell {
-  vertical-align: middle;
-  padding: 4px;
-}
-.cell-block {
-  background-color: #f1f8e9;
-  border-left: 3px solid #4caf50;
-  border-radius: 4px;
-  line-height: 1.2;
-}
-.time-col {
-  width: 80px;
-}
-.day-header {
-  width: calc(100% / 5);
-}
-</style>
+<style scoped></style>

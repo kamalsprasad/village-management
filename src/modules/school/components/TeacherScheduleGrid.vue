@@ -4,6 +4,11 @@
   Read-only weekly grid showing all class timetable entries assigned to a teacher.
   Rows = unique time slots across all grades; columns = Monday–Friday;
   cells show class name + subject.
+
+  Responsive behaviour:
+  - Desktop / week mode: full 5-day table.
+  - Mobile / day mode: single-day view with prev/next buttons and swipe gestures.
+  - mode='auto' flips between week (≥sm) and day (<sm).
 -->
 <template>
   <div>
@@ -21,8 +26,8 @@
     </div>
 
     <template v-else>
-      <!-- Desktop grid -->
-      <div class="gt-xs">
+      <!-- Week view (desktop or explicit week mode) -->
+      <div v-if="!isDayMode" class="week-table-wrapper">
         <q-markup-table flat bordered dense class="teacher-schedule-table">
           <thead>
             <tr>
@@ -60,40 +65,70 @@
         </q-markup-table>
       </div>
 
-      <!-- Mobile day tabs -->
-      <div class="lt-sm">
-        <q-tabs
-          v-model="mobileDay"
-          dense
-          class="bg-grey-1 text-grey-7"
-          active-color="primary"
-          indicator-color="primary"
-          align="justify"
-        >
-          <q-tab v-for="day in DAYS" :key="day" :name="day" :label="day" />
-        </q-tabs>
+      <!-- Day view (mobile or explicit day mode) -->
+      <div v-else>
+        <div class="row items-center justify-between q-mb-sm">
+          <q-btn
+            flat
+            round
+            dense
+            icon="chevron_left"
+            color="primary"
+            aria-label="Previous day"
+            @click="prevDay"
+          />
+          <div class="text-center">
+            <div class="text-subtitle2 text-weight-bold">{{ displayDay }}</div>
+            <div class="text-caption text-grey-6">{{ displayDayDate }}</div>
+          </div>
+          <q-btn
+            flat
+            round
+            dense
+            icon="chevron_right"
+            color="primary"
+            aria-label="Next day"
+            @click="nextDay"
+          />
+        </div>
 
-        <q-list bordered separator class="rounded-borders">
-          <q-item v-for="slot in uniqueSlots" :key="slot.key" class="q-py-sm">
-            <q-item-section side style="min-width: 80px">
-              <div class="text-weight-bold text-caption">{{ slot.label }}</div>
-              <div class="text-caption text-grey-7">
-                {{ slot.start_time }} – {{ slot.end_time }}
-              </div>
-            </q-item-section>
-            <q-item-section>
-              <div v-if="getCell(slot.key, mobileDay)" class="cell-block q-pa-xs">
-                <div class="text-caption text-weight-bold text-primary">
-                  {{ getCell(slot.key, mobileDay).subject || 'No subject' }}
+        <div
+          class="day-schedule-swipe"
+          role="tabpanel"
+          :aria-label="`Schedule for ${displayDay}`"
+          @touchstart="onTouchStart"
+          @touchend="onTouchEnd"
+        >
+          <q-list v-if="dayHasSlots" bordered separator class="rounded-borders">
+            <q-item v-for="slot in uniqueSlots" :key="slot.key" class="q-py-sm">
+              <q-item-section side style="min-width: 80px">
+                <div class="text-weight-bold text-caption">{{ slot.label }}</div>
+                <div class="text-caption text-grey-7">
+                  {{ slot.start_time }} – {{ slot.end_time }}
                 </div>
-                <div class="text-caption text-weight-medium text-grey-8" style="font-size: 10px">
-                  {{ getCell(slot.key, mobileDay).className }}
+              </q-item-section>
+              <q-item-section>
+                <div v-if="getCell(slot.key, displayDay)" class="cell-block q-pa-xs">
+                  <div class="text-caption text-weight-bold text-primary">
+                    {{ getCell(slot.key, displayDay).subject || 'No subject' }}
+                  </div>
+                  <div class="text-caption text-weight-medium text-grey-8" style="font-size: 10px">
+                    {{ getCell(slot.key, displayDay).className }}
+                  </div>
                 </div>
-              </div>
-              <div v-else class="text-center text-grey-4 text-caption q-py-sm">—</div>
-            </q-item-section>
-          </q-item>
-        </q-list>
+                <div v-else class="text-center text-grey-4 text-caption q-py-sm">—</div>
+              </q-item-section>
+            </q-item>
+          </q-list>
+
+          <div v-else class="text-center q-pa-md text-grey-7">
+            <q-icon name="event_busy" size="36px" color="grey-5" />
+            <div class="text-subtitle2 q-mt-sm">No scheduled periods</div>
+            <div class="text-caption">
+              {{ displayDay }} has no assigned classes for this teacher.
+            </div>
+          </div>
+        </div>
       </div>
     </template>
   </div>
@@ -103,29 +138,96 @@
 defineOptions({ name: 'TeacherScheduleGrid' });
 
 import { ref, computed, onMounted, watch } from 'vue';
+import { useQuasar } from 'quasar';
 import { useTimetableStore } from '../stores/timetable-store';
 import { usePeriodSlotsStore } from '../stores/period-slots-store';
 import { useClassStore } from '../stores/class-store';
+import { getCurrentSchoolDayName } from '../utils/schedule-utils';
 
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
 
 const props = defineProps({
   teacherId: { type: String, required: true },
   academicYear: { type: Number, default: () => new Date().getFullYear() },
+  mode: {
+    type: String,
+    default: 'auto',
+    validator: (value) => ['auto', 'week', 'day'].includes(value),
+  },
+  initialDay: { type: String, default: '' },
+  timezone: { type: String, default: 'Africa/Lusaka' },
 });
 
+const $q = useQuasar();
 const timetableStore = useTimetableStore();
 const periodSlotsStore = usePeriodSlotsStore();
 const classStore = useClassStore();
 
-const mobileDay = ref('Monday');
+const displayDay = ref('Monday');
 const dayCount = computed(() => DAYS.length);
+
+const isDayMode = computed(() => {
+  if (props.mode === 'day') return true;
+  if (props.mode === 'week') return false;
+  return $q.screen.lt.sm;
+});
+
+const displayDayDate = computed(() => {
+  const today = new Date();
+  // Find the next occurrence of displayDay from today.
+  const currentDayIndex = today.getDay();
+  const targetDayIndex = DAYS.indexOf(displayDay.value) + 1; // DAYS are Mon-Fri, JS day 1-5
+  if (targetDayIndex === -1) return '';
+  const diff = (targetDayIndex - currentDayIndex + 7) % 7;
+  const date = new Date(today);
+  date.setDate(today.getDate() + diff);
+  return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+});
+
+const dayHasSlots = computed(() =>
+  uniqueSlots.value.some((slot) => getCell(slot.key, displayDay.value)),
+);
+
+const touchStartX = ref(0);
+const touchStartY = ref(0);
+const SWIPE_THRESHOLD = 50;
+
+function onTouchStart(event) {
+  touchStartX.value = event.changedTouches[0].screenX;
+  touchStartY.value = event.changedTouches[0].screenY;
+}
+
+function onTouchEnd(event) {
+  const endX = event.changedTouches[0].screenX;
+  const endY = event.changedTouches[0].screenY;
+  const diffX = touchStartX.value - endX;
+  const diffY = touchStartY.value - endY;
+
+  if (Math.abs(diffX) > Math.abs(diffY) && Math.abs(diffX) > SWIPE_THRESHOLD) {
+    if (diffX > 0) {
+      nextDay();
+    } else {
+      prevDay();
+    }
+  }
+}
+
+function nextDay() {
+  const idx = DAYS.indexOf(displayDay.value);
+  displayDay.value = DAYS[idx + 1] || DAYS[0];
+}
+
+function prevDay() {
+  const idx = DAYS.indexOf(displayDay.value);
+  displayDay.value = DAYS[idx - 1] || DAYS[DAYS.length - 1];
+}
 
 const loading = computed(
   () => timetableStore.isLoading || periodSlotsStore.isLoading || classStore.isLoading,
 );
 
 onMounted(async () => {
+  displayDay.value = props.initialDay || getCurrentSchoolDayName(props.timezone);
   await loadScheduleData();
 });
 
@@ -140,6 +242,15 @@ watch(
   () => props.academicYear,
   async () => {
     await timetableStore.fetchTimetableEntries();
+  },
+);
+
+watch(
+  () => props.initialDay,
+  (value) => {
+    if (value && DAYS.includes(value)) {
+      displayDay.value = value;
+    }
   },
 );
 
@@ -206,10 +317,12 @@ function getCell(slotKey, day) {
   overflow: hidden;
 }
 .time-col {
-  width: 100px;
+  width: 80px;
+  min-width: 80px;
 }
 .day-header {
-  width: calc((100% - 100px) / v-bind('dayCount'));
+  width: calc((100% - 80px) / v-bind('dayCount'));
+  min-width: 140px;
 }
 .period-info {
   vertical-align: middle;
@@ -224,5 +337,15 @@ function getCell(slotKey, day) {
   border-left: 3px solid #4caf50;
   border-radius: 4px;
   line-height: 1.2;
+}
+
+.week-table-wrapper {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.day-schedule-swipe {
+  touch-action: pan-y;
+  user-select: none;
 }
 </style>
