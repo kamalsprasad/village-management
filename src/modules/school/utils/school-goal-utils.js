@@ -225,7 +225,7 @@ export function computeBreakdownByGrade(
         total: progress.total,
         atTarget: progress.atTarget,
         percentAtTarget: progress.percentAtTarget,
-        gap: roundToOneDecimal(targetPercentOfLearners - progress.percentAtTarget),
+        gap: roundToOneDecimal(Math.max(0, targetPercentOfLearners - progress.percentAtTarget)),
       };
     })
     .sort((a, b) => a.grade.localeCompare(b.grade));
@@ -278,7 +278,7 @@ export function computeBreakdownBySubject(
       total,
       atTarget,
       percentAtTarget,
-      gap: roundToOneDecimal(targetPercentOfLearners - percentAtTarget),
+      gap: roundToOneDecimal(Math.max(0, targetPercentOfLearners - percentAtTarget)),
     };
   });
 }
