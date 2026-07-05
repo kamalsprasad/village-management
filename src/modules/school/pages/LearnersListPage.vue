@@ -76,7 +76,9 @@
           />
         </div>
         <div class="col-12 col-sm-2">
-          <q-btn flat color="grey-7" label="Clear Filters" @click="learnerStore.resetFilters()" />
+          <q-btn flat color="grey-7" label="Reset Filters" @click="learnerStore.resetFilters()">
+            <q-tooltip>Reset to showing active learners only</q-tooltip>
+          </q-btn>
         </div>
       </q-card-section>
     </q-card>
