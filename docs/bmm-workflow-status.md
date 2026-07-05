@@ -30,7 +30,7 @@ TODO_STORY: 2.9
 TODO_TITLE: Financial Dashboard Widgets
 IN_PROGRESS_STORY:
 IN_PROGRESS_TITLE:
-STORIES_DONE: [1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 1.8, 1.9, 1.10, 1.11, 2.1, 2.2, 2.3, 2.4, 2.5, 2.6, 2.7, 2.8]
+STORIES_DONE: [1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 1.8, 1.9, 1.10, 1.11, 2.1, 2.2, 2.3, 2.4, 2.5, 2.6, 2.7, 2.8, 4.5]
 STORIES_READY: []
 
 ## Next Action
@@ -102,6 +102,7 @@ See docs/epics.md for complete story breakdown
 - **Story 1.7:** Residents Management - CRUD Operations ✅ (Completed: 2025-10-31)
 - **Story 1.8:** Village Configuration and Default Settings ✅ (Completed: 2025-11-25)
 - **Story 2.8:** Financial Reports - Basic Reports Suite ✅ (Completed: 2026-04-05)
+- **Story 4.5:** Class Timetable — Weekly Schedule Builder ✅ (Completed: 2026-06-24)
 
 ## Stories in Progress
 
@@ -139,6 +140,14 @@ See docs/epics.md for complete story breakdown
 **Confidence Level:** High - Project ready to proceed to implementation
 
 ## Recent Activity
+
+**2026-06-24 12:00 UTC:**
+
+- ✅ Story 4.5 implemented and verified: Class Timetable — Weekly Schedule Builder
+- 📄 Story file updated: `docs/stories/story-4.5.md` (status → done, all acceptance criteria completed, implementation notes added)
+- 📊 `docs/sprint-status.yaml` updated: Story 4.5 marked done
+- 📊 `docs/epics.md` updated: Story 4.5 status → Done
+- 🔍 Code review completed and follow-up fixes applied (subject colors, custom subjects UX, bulk-save documentation)
 
 **2026-04-05 16:00 UTC:**
 

@@ -1,8 +1,8 @@
-# generated: 2025-10-28
+# generated: 2026-06-25
 # project: Sustainable Model Village Management System
 # project_key: Sustainable Model Village Management System
 # tracking_system: file-system
-# story_location: {project-root}/docs/stories
+# story_location: "{project-root}/docs/stories"
 
 # STATUS DEFINITIONS:
 # ==================
@@ -16,11 +16,15 @@
 # - SM typically drafts next story after previous one is 'done' to incorporate learnings
 # - Dev moves story to 'review', SM reviews, then Dev moves to 'done'
 
-generated: 2025-10-28
+# NOTE: Epic 4 renumbered 2026-06-20. Stories 4.3-4.5 are the new School Calendar
+# stories (terms/holidays, bell schedules, timetable builder). Original stories
+# 4.3-4.10 are now 4.6-4.13.
+
+generated: 2026-06-25
 project: Sustainable Model Village Management System
 project_key: Sustainable Model Village Management System
 tracking_system: file-system
-story_location: {project-root}/docs/stories
+story_location: '{project-root}/docs/stories'
 
 development_status:
   epic-1: contexted
@@ -59,17 +63,20 @@ development_status:
   3-9-farm-module-profitability-analysis-and-roi-calculation: done
   3-10-farm-module-yield-analysis-trend-reporting-and-configurable-alerts: done
   epic-3-retrospective: optional
-  epic-4: backlog
-  4-1-school-module-student-registration-and-grade-tracking: backlog
-  4-2-school-module-class-scheduling-and-attendance: backlog
-  4-3-school-module-assessment-and-reporting: backlog
-  4-4-school-module-parent-engagement-portal: backlog
-  4-5-school-module-teacher-performance-and-development: backlog
-  4-6-school-module-student-support-and-intervention-tracking: backlog
-  4-7-school-module-extracurricular-program-management: backlog
-  4-8-school-module-resource-library-and-document-management: backlog
-  4-9-school-module-community-service-tracking: backlog
-  4-10-school-module-education-analytics-dashboard: backlog
+  epic-4: contexted
+  4-1-school-module-learner-enrollment-from-residents: done
+  4-2-school-module-test-score-recording-bulk-entry-by-grade: done
+  4-3-school-calendar-academic-terms-and-school-holidays: done
+  4-4-school-calendar-grade-bell-schedules-period-slots: done
+  4-5-school-calendar-class-timetable-weekly-schedule-builder: done
+  4-6-school-module-attendance-tracking-bulk-entry-by-grade: done
+  4-7-school-module-at-risk-learner-identification-90-percent-attendance-threshold: done
+  4-8-school-module-intervention-planning-and-progress-tracking: done
+  4-9-school-module-peer-review-with-enhanced-categories-and-checked-status: deferred
+  4-10-school-module-self-evaluation-and-head-teacher-evaluation: deferred
+  4-11-school-module-collaborative-teaching-practices-documentation: deferred
+  4-12-school-module-progress-toward-long-term-educational-goal-90-percent-in-90th-percentile: done
+  4-13-school-module-learner-progress-reports-and-school-dashboard-completion: done
   epic-4-retrospective: optional
   epic-5: backlog
   5-1-calendar-module-community-events-scheduling: backlog

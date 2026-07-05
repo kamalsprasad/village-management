@@ -8,10 +8,6 @@ While serving as a Peace Corps Volunteer in rural Zambia, I observed that many r
 
 Having a background in software development, I wanted to create a solution that would help such communities transition from memory-based operations to data-driven, systematically managed communities. I expanded the idea of village management to include not just agricultural operations, but also community services, education, healthcare, and other aspects of village life.
 
-The Village Management System provides a digital solution to modernize these processes while remaining accessible offline and on low-bandwidth connections.
-
-To keep it affordable and accessible, the system is designed to run on low-cost hardware, using open-source technologies and work offline with automatic sync when connectivity returns.
-
 ## Live Demo
 
 **[https://village.ideacollab.app](https://village.ideacollab.app)**
@@ -65,7 +61,7 @@ Install these required tools before proceeding:
 - **Git** - Version control ([git-scm.com](https://git-scm.com/downloads))
 - **Yarn** (recommended) or npm - `npm install -g yarn`
 - **Quasar CLI** - `npm install -g @quasar/cli`
-- **Appwrite CLI** (optional) - `npm install -g appwrite-cli`
+- **Appwrite CLI** - `npm install -g appwrite-cli`
 
 **Appwrite Account:** [cloud.appwrite.io](https://cloud.appwrite.io) (free tier) or self-hosted via Docker (instructions below).
 
@@ -79,6 +75,12 @@ Install these required tools before proceeding:
 
 ## Installation
 
+### Video Walkthrough
+
+A step-by-step video guide covering the complete setup process:
+
+[![Setup Walkthrough](https://img.youtube.com/vi/chT54P2n3b8/0.jpg)](https://youtu.be/chT54P2n3b8?si=jVTQt02akGSYxHOY)
+
 ### 1. Set Up Appwrite
 
 This project uses [Appwrite](https://appwrite.io) as its backend.
@@ -89,17 +91,17 @@ This project uses [Appwrite](https://appwrite.io) as its backend.
 
 ```bash
 # Windows (PowerShell)
-docker run -it --rm `\`
-    --volume /var/run/docker.sock:/var/run/docker.sock `\`
-    --volume "${pwd}/appwrite:/usr/src/code/appwrite:rw" `\`
-    --entrypoint="install" `\`
+docker run -it --rm `
+    --volume /var/run/docker.sock:/var/run/docker.sock `
+    --volume "${pwd}/appwrite:/usr/src/code/appwrite:rw" `
+    --entrypoint="install" `
     appwrite/appwrite:1.8.1
 
 # macOS/Linux
-docker run -it --rm \\
-    --volume /var/run/docker.sock:/var/run/docker.sock \\
-    --volume "$(pwd)"/appwrite:/usr/src/code/appwrite:rw \\
-    --entrypoint="install" \\
+docker run -it --rm \
+    --volume /var/run/docker.sock:/var/run/docker.sock \
+    --volume "$(pwd)"/appwrite:/usr/src/code/appwrite:rw \
+    --entrypoint="install" \
     appwrite/appwrite:1.8.1
 ```
 
@@ -238,7 +240,7 @@ See [ROADMAP.md](ROADMAP.md) for full epic-by-epic breakdown.
 
 The setup wizard offers **"Explore with Sample Data"** to load the Katete Model Village dataset (6 households, 20+ residents, 3 council members).
 
-**Wipe sample data:** Click "Start Fresh" in the banner, type `DELETE EVERYTHING`, confirm. (Admin only.)
+**Wipe sample data:** Click "Start Fresh" in the banner, type `DELETE EVERYTHING`, confirm. (Admin only.) You'll need to manually create "Village Administrator" team with team id "village_administrators" in Appwrite Auth console and add the admin user (created at setup) to this team.
 
 ## Contributing
 

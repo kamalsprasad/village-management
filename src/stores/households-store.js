@@ -189,7 +189,6 @@ export const useHouseholdsStore = defineStore('households', {
         const householdsCollectionId = import.meta.env.VITE_APPWRITE_TABLE_HOUSEHOLDS;
 
         const householdId = ID.unique();
-        const now = new Date().toISOString();
 
         const newHousehold = await tables.createRow({
           databaseId: dbId,
@@ -203,8 +202,6 @@ export const useHouseholdsStore = defineStore('households', {
             bathrooms: householdData.bathrooms || 0,
             notes: householdData.notes || '',
             head_resident_id: householdData.head_resident_id || null,
-            $createdAt: now,
-            $updatedAt: now,
           },
         });
 
@@ -249,7 +246,6 @@ export const useHouseholdsStore = defineStore('households', {
             bathrooms: householdData.bathrooms || 0,
             notes: householdData.notes || '',
             head_resident_id: householdData.head_resident_id || null,
-            $updatedAt: new Date().toISOString(),
           },
         });
 

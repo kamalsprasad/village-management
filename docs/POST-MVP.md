@@ -204,3 +204,21 @@ This document tracks deferred improvements, upgrades, and refactoring items that
 - **Added**: Story 3.10
 
 ---
+
+## School Module
+
+### Teacher Evaluations Suite (Self, Peer, and Head Teacher)
+
+- **Current State**: Deferred entirely from Epic 4 to POST-MVP.
+- **Improvement**: Build full multi-angle teacher evaluations (self-evaluation form, peer-review forms with enhanced categories, and Head Teacher formal evaluation).
+- **Benefits**: Complete professional performance feedback loop for teachers.
+- **Effort**: High (multiple dynamic tables and assessment forms)
+- **Added**: Course Correction (2026-06-12)
+
+### Collaborative Teaching Practices Documentation
+
+- **Current State**: Deferred entirely from Epic 4 to POST-MVP.
+- **Improvement**: Log shared lesson planning, co-teaching sessions, and cross-subject teaching reviews.
+- **Benefits**: Support professional growth and team-based teaching alignment.
+- **Effort**: Medium
+- **Added**: Course Correction (2026-06-12)

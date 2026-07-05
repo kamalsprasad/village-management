@@ -23,6 +23,7 @@ const TABLES_TO_WIPE = [
   'finance_transactions',
   'loans',
   'harvests',
+  'farm_alerts',
   'inventory',
   'plantings',
   'plots',
@@ -30,6 +31,19 @@ const TABLES_TO_WIPE = [
   'soil_types',
   'finance_categories',
   'funding_sources',
+  // School tables (children before parents)
+  'school_calendar_events',
+  'school_academic_terms',
+  'class_timetable_entries',
+  'school_period_slots',
+  'intervention_notes',
+  'interventions',
+  'test_scores',
+  'learner_attendance',
+  'teacher_assignments',
+  'learners',
+  'school_long_term_goals',
+  'school_classes',
   'village_settings',
   'residents',
   'households',
@@ -124,8 +138,8 @@ export default async ({ req, res, log, error }) => {
     const deleted = [];
     // Start with full list; each pass attempts to delete remaining tables
     let remaining = [...TABLES_TO_WIPE];
-    // Also exclude the users table from wiping (auth accounts remain)
-    remaining = remaining.filter((t) => t !== usersTableId);
+    // Exclude users and roles tables from wiping (auth accounts and roles remain)
+    remaining = remaining.filter((t) => t !== usersTableId && t !== rolesTableId);
 
     for (let pass = 1; pass <= MAX_PASSES && remaining.length > 0; pass++) {
       log(`Pass ${pass}: ${remaining.length} table(s) remaining — ${remaining.join(', ')}`);

@@ -115,64 +115,92 @@
       <SampleDataBanner v-if="settingsStore.isUsingSampleData" />
     </q-header>
 
-    <q-drawer v-model="leftDrawerOpen" show-if-above bordered>
-      <q-list>
-        <q-item-label header> Navigation </q-item-label>
+    <q-drawer v-model="leftDrawerOpen" show-if-above bordered class="nav-drawer">
+      <!-- Drawer brand header -->
+      <div class="nav-brand q-px-md q-pt-md q-pb-sm">
+        <div
+          class="text-overline text-weight-bold text-primary"
+          style="letter-spacing: 0.12em; font-size: 0.68rem"
+        >
+          NAVIGATION
+        </div>
+      </div>
 
+      <q-list class="nav-list q-pb-md">
         <!-- Dashboard - Always visible -->
-        <q-item clickable to="/" exact>
-          <q-item-section avatar>
-            <q-icon name="dashboard" />
+        <q-item clickable to="/" exact class="nav-top-item" active-class="nav-top-item--active">
+          <q-item-section avatar class="nav-top-icon">
+            <q-icon name="dashboard" size="22px" />
           </q-item-section>
           <q-item-section>
-            <q-item-label>Dashboard</q-item-label>
+            <q-item-label class="nav-top-label">Dashboard</q-item-label>
           </q-item-section>
         </q-item>
 
-        <q-separator class="q-my-sm" />
+        <q-separator spaced="sm" inset class="nav-separator" />
 
-        <!-- Households & Residents Section -->
-        <q-item-label header> Community </q-item-label>
+        <!-- Community Section -->
+        <q-expansion-item
+          v-model="expandedSections.community"
+          icon="people"
+          label="Community"
+          class="nav-section"
+          header-class="nav-section-header"
+          expand-icon-class="nav-expand-icon"
+        >
+          <q-item
+            v-if="isClient && hasPermission('households:read')"
+            clickable
+            to="/households"
+            class="nav-sub-item"
+            active-class="nav-sub-item--active"
+          >
+            <q-item-section avatar class="nav-sub-icon">
+              <q-icon name="home" size="16px" />
+            </q-item-section>
+            <q-item-section>
+              <q-item-label class="nav-sub-label">Households</q-item-label>
+            </q-item-section>
+          </q-item>
 
-        <q-item v-if="isClient && hasPermission('households:read')" clickable to="/households">
-          <q-item-section avatar>
-            <q-icon name="home" />
-          </q-item-section>
-          <q-item-section>
-            <q-item-label>Households</q-item-label>
-          </q-item-section>
-        </q-item>
-
-        <q-item v-if="isClient && hasPermission('residents:read')" clickable to="/residents">
-          <q-item-section avatar>
-            <q-icon name="people" />
-          </q-item-section>
-          <q-item-section>
-            <q-item-label>Residents</q-item-label>
-          </q-item-section>
-        </q-item>
+          <q-item
+            v-if="isClient && hasPermission('residents:read')"
+            clickable
+            to="/residents"
+            class="nav-sub-item"
+            active-class="nav-sub-item--active"
+          >
+            <q-item-section avatar class="nav-sub-icon">
+              <q-icon name="people" size="16px" />
+            </q-item-section>
+            <q-item-section>
+              <q-item-label class="nav-sub-label">Residents</q-item-label>
+            </q-item-section>
+          </q-item>
+        </q-expansion-item>
 
         <!-- Finance Section -->
-        <template
+        <q-expansion-item
           v-if="isClient && hasAnyPermission(['finance:read', 'inventory:read', 'lending:read'])"
+          v-model="expandedSections.finance"
+          icon="account_balance"
+          label="Finance"
+          class="nav-section"
+          header-class="nav-section-header"
+          expand-icon-class="nav-expand-icon"
         >
-          <q-separator class="q-my-sm" />
-          <q-item-label header> Finance </q-item-label>
-
           <q-item
             v-if="hasPermission('finance:read')"
             clickable
             to="/finance/dashboard"
-            :class="{
-              'bg-primary text-white':
-                $route.path === '/finance' || $route.path === '/finance/dashboard',
-            }"
+            class="nav-sub-item"
+            active-class="nav-sub-item--active"
           >
-            <q-item-section avatar>
-              <q-icon name="dashboard" />
+            <q-item-section avatar class="nav-sub-icon">
+              <q-icon name="dashboard" size="16px" />
             </q-item-section>
             <q-item-section>
-              <q-item-label>Dashboard</q-item-label>
+              <q-item-label class="nav-sub-label">Dashboard</q-item-label>
             </q-item-section>
           </q-item>
 
@@ -180,37 +208,44 @@
             v-if="hasPermission('finance:read')"
             clickable
             to="/finance/transactions"
-            :class="{ 'bg-primary text-white': $route.path === '/finance/transactions' }"
+            class="nav-sub-item"
+            active-class="nav-sub-item--active"
           >
-            <q-item-section avatar>
-              <q-icon name="receipt_long" />
+            <q-item-section avatar class="nav-sub-icon">
+              <q-icon name="receipt_long" size="16px" />
             </q-item-section>
             <q-item-section>
-              <q-item-label>Transactions</q-item-label>
+              <q-item-label class="nav-sub-label">Transactions</q-item-label>
             </q-item-section>
           </q-item>
 
-          <!-- Story 2.8: Finance Reports -->
           <q-item
             v-if="hasPermission('finance:read')"
             clickable
             to="/finance/reports"
-            :class="{ 'bg-primary text-white': $route.path === '/finance/reports' }"
+            class="nav-sub-item"
+            active-class="nav-sub-item--active"
           >
-            <q-item-section avatar>
-              <q-icon name="assessment" />
+            <q-item-section avatar class="nav-sub-icon">
+              <q-icon name="assessment" size="16px" />
             </q-item-section>
             <q-item-section>
-              <q-item-label>Reports</q-item-label>
+              <q-item-label class="nav-sub-label">Reports</q-item-label>
             </q-item-section>
           </q-item>
 
-          <q-item v-if="hasPermission('inventory:read')" clickable to="/inventory">
-            <q-item-section avatar>
-              <q-icon name="inventory_2" />
+          <q-item
+            v-if="hasPermission('inventory:read')"
+            clickable
+            to="/inventory"
+            class="nav-sub-item"
+            active-class="nav-sub-item--active"
+          >
+            <q-item-section avatar class="nav-sub-icon">
+              <q-icon name="inventory_2" size="16px" />
             </q-item-section>
             <q-item-section>
-              <q-item-label>Inventory</q-item-label>
+              <q-item-label class="nav-sub-label">Inventory</q-item-label>
             </q-item-section>
           </q-item>
 
@@ -218,173 +253,359 @@
             v-if="hasPermission('lending:read') && settingsStore.lendingEnabled"
             clickable
             to="/lending"
+            class="nav-sub-item"
+            active-class="nav-sub-item--active"
           >
-            <q-item-section avatar>
-              <q-icon name="account_balance" />
+            <q-item-section avatar class="nav-sub-icon">
+              <q-icon name="account_balance" size="16px" />
             </q-item-section>
             <q-item-section>
-              <q-item-label>Lending</q-item-label>
+              <q-item-label class="nav-sub-label">Lending</q-item-label>
             </q-item-section>
           </q-item>
-        </template>
+        </q-expansion-item>
 
-        <!-- Farm Section -->
-        <template v-if="isClient && hasPermission('farm:read')">
-          <q-separator class="q-my-sm" />
-          <q-item-label header> Agriculture </q-item-label>
-
-          <q-item clickable to="/farm">
-            <q-item-section avatar>
-              <q-icon name="agriculture" />
+        <!-- Agriculture Section -->
+        <q-expansion-item
+          v-if="isClient && hasPermission('farm:read')"
+          v-model="expandedSections.agriculture"
+          icon="agriculture"
+          label="Agriculture"
+          class="nav-section"
+          header-class="nav-section-header"
+          expand-icon-class="nav-expand-icon"
+        >
+          <q-item clickable to="/farm" class="nav-sub-item" active-class="nav-sub-item--active">
+            <q-item-section avatar class="nav-sub-icon">
+              <q-icon name="agriculture" size="16px" />
             </q-item-section>
             <q-item-section>
-              <q-item-label>Farm</q-item-label>
-            </q-item-section>
-          </q-item>
-
-          <q-item clickable to="/farm/plantings">
-            <q-item-section avatar>
-              <q-icon name="spa" />
-            </q-item-section>
-            <q-item-section>
-              <q-item-label>Plantings</q-item-label>
+              <q-item-label class="nav-sub-label">Farm</q-item-label>
             </q-item-section>
           </q-item>
 
-          <q-item clickable to="/farm/crops">
-            <q-item-section avatar>
-              <q-icon name="grass" />
+          <q-item
+            clickable
+            to="/farm/plantings"
+            class="nav-sub-item"
+            active-class="nav-sub-item--active"
+          >
+            <q-item-section avatar class="nav-sub-icon">
+              <q-icon name="spa" size="16px" />
             </q-item-section>
             <q-item-section>
-              <q-item-label>Crop Database</q-item-label>
+              <q-item-label class="nav-sub-label">Plantings</q-item-label>
             </q-item-section>
           </q-item>
 
-          <!-- Story 3.8: Farm Sales -->
-          <q-item clickable to="/farm/sales">
-            <q-item-section avatar>
-              <q-icon name="point_of_sale" />
+          <q-item
+            clickable
+            to="/farm/crops"
+            class="nav-sub-item"
+            active-class="nav-sub-item--active"
+          >
+            <q-item-section avatar class="nav-sub-icon">
+              <q-icon name="grass" size="16px" />
             </q-item-section>
             <q-item-section>
-              <q-item-label>Farm Sales</q-item-label>
+              <q-item-label class="nav-sub-label">Crop Database</q-item-label>
             </q-item-section>
           </q-item>
 
-          <!-- Story 3.9: Farm Reports -->
-          <q-item clickable to="/farm/reports">
-            <q-item-section avatar>
-              <q-icon name="bar_chart" />
+          <q-item
+            clickable
+            to="/farm/sales"
+            class="nav-sub-item"
+            active-class="nav-sub-item--active"
+          >
+            <q-item-section avatar class="nav-sub-icon">
+              <q-icon name="point_of_sale" size="16px" />
             </q-item-section>
             <q-item-section>
-              <q-item-label>Farm Reports</q-item-label>
+              <q-item-label class="nav-sub-label">Farm Sales</q-item-label>
             </q-item-section>
           </q-item>
 
-          <!-- Story 3.10: Farm Alerts -->
-          <q-item clickable to="/farm/alerts">
-            <q-item-section avatar>
-              <q-icon name="notifications_active" />
+          <q-item
+            clickable
+            to="/farm/reports"
+            class="nav-sub-item"
+            active-class="nav-sub-item--active"
+          >
+            <q-item-section avatar class="nav-sub-icon">
+              <q-icon name="bar_chart" size="16px" />
             </q-item-section>
             <q-item-section>
-              <q-item-label>Farm Alerts</q-item-label>
+              <q-item-label class="nav-sub-label">Farm Reports</q-item-label>
             </q-item-section>
           </q-item>
 
-          <!-- Story 3.10: Farm Settings -->
-          <q-item v-if="hasPermission('farm:write')" clickable to="/farm/settings">
-            <q-item-section avatar>
-              <q-icon name="tune" />
+          <q-item
+            clickable
+            to="/farm/alerts"
+            class="nav-sub-item"
+            active-class="nav-sub-item--active"
+          >
+            <q-item-section avatar class="nav-sub-icon">
+              <q-icon name="notifications_active" size="16px" />
             </q-item-section>
             <q-item-section>
-              <q-item-label>Farm Settings</q-item-label>
+              <q-item-label class="nav-sub-label">Farm Alerts</q-item-label>
             </q-item-section>
           </q-item>
-        </template>
+
+          <q-item
+            v-if="hasPermission('farm:write')"
+            clickable
+            to="/farm/settings"
+            class="nav-sub-item"
+            active-class="nav-sub-item--active"
+          >
+            <q-item-section avatar class="nav-sub-icon">
+              <q-icon name="tune" size="16px" />
+            </q-item-section>
+            <q-item-section>
+              <q-item-label class="nav-sub-label">Farm Settings</q-item-label>
+            </q-item-section>
+          </q-item>
+        </q-expansion-item>
 
         <!-- School Section -->
-        <template v-if="isClient && hasPermission('school:read')">
-          <q-separator class="q-my-sm" />
-          <q-item-label header> Education </q-item-label>
-
-          <q-item clickable to="/school">
-            <q-item-section avatar>
-              <q-icon name="school" />
+        <q-expansion-item
+          v-if="isClient && hasPermission('school:read')"
+          v-model="expandedSections.school"
+          icon="school"
+          label="School"
+          class="nav-section"
+          header-class="nav-section-header"
+          expand-icon-class="nav-expand-icon"
+        >
+          <q-item
+            clickable
+            to="/school/dashboard"
+            class="nav-sub-item"
+            active-class="nav-sub-item--active"
+          >
+            <q-item-section avatar class="nav-sub-icon">
+              <q-icon name="school" size="16px" />
             </q-item-section>
             <q-item-section>
-              <q-item-label>School</q-item-label>
+              <q-item-label class="nav-sub-label">Dashboard</q-item-label>
             </q-item-section>
           </q-item>
-        </template>
 
-        <!-- Community Services Section -->
-        <template
+          <q-item
+            clickable
+            to="/school/educational-goals"
+            class="nav-sub-item"
+            active-class="nav-sub-item--active"
+          >
+            <q-item-section avatar class="nav-sub-icon">
+              <q-icon name="trending_up" size="16px" />
+            </q-item-section>
+            <q-item-section>
+              <q-item-label class="nav-sub-label">Educational Goals</q-item-label>
+            </q-item-section>
+          </q-item>
+
+          <q-item
+            clickable
+            to="/school/learners"
+            class="nav-sub-item"
+            active-class="nav-sub-item--active"
+          >
+            <q-item-section avatar class="nav-sub-icon">
+              <q-icon name="groups" size="16px" />
+            </q-item-section>
+            <q-item-section>
+              <q-item-label class="nav-sub-label">Learners</q-item-label>
+            </q-item-section>
+          </q-item>
+
+          <q-item
+            clickable
+            to="/school/classes"
+            class="nav-sub-item"
+            active-class="nav-sub-item--active"
+          >
+            <q-item-section avatar class="nav-sub-icon">
+              <q-icon name="groups_3" size="16px" />
+            </q-item-section>
+            <q-item-section>
+              <q-item-label class="nav-sub-label">Classes</q-item-label>
+            </q-item-section>
+          </q-item>
+
+          <q-item
+            clickable
+            to="/school/teachers"
+            class="nav-sub-item"
+            active-class="nav-sub-item--active"
+          >
+            <q-item-section avatar class="nav-sub-icon">
+              <q-icon name="badge" size="16px" />
+            </q-item-section>
+            <q-item-section>
+              <q-item-label class="nav-sub-label">Teachers &amp; Faculty</q-item-label>
+            </q-item-section>
+          </q-item>
+
+          <q-item
+            clickable
+            to="/school/calendar"
+            class="nav-sub-item"
+            active-class="nav-sub-item--active"
+          >
+            <q-item-section avatar class="nav-sub-icon">
+              <q-icon name="event" size="16px" />
+            </q-item-section>
+            <q-item-section>
+              <q-item-label class="nav-sub-label">School Calendar</q-item-label>
+            </q-item-section>
+          </q-item>
+
+          <q-item
+            clickable
+            to="/school/at-risk-learners"
+            class="nav-sub-item"
+            active-class="nav-sub-item--active"
+          >
+            <q-item-section avatar class="nav-sub-icon">
+              <q-icon name="warning" size="16px" />
+            </q-item-section>
+            <q-item-section>
+              <q-item-label class="nav-sub-label">At-Risk Learners</q-item-label>
+            </q-item-section>
+          </q-item>
+
+          <q-item
+            v-if="hasPermission('school:admin')"
+            clickable
+            to="/school/settings"
+            class="nav-sub-item"
+            active-class="nav-sub-item--active"
+          >
+            <q-item-section avatar class="nav-sub-icon">
+              <q-icon name="tune" size="16px" />
+            </q-item-section>
+            <q-item-section>
+              <q-item-label class="nav-sub-label">School Settings</q-item-label>
+            </q-item-section>
+          </q-item>
+        </q-expansion-item>
+
+        <!-- Services Section -->
+        <q-expansion-item
           v-if="
             isClient && hasAnyPermission(['calendar:read', 'communications:read', 'storage:read'])
           "
+          v-model="expandedSections.services"
+          icon="miscellaneous_services"
+          label="Services"
+          class="nav-section"
+          header-class="nav-section-header"
+          expand-icon-class="nav-expand-icon"
         >
-          <q-separator class="q-my-sm" />
-          <q-item-label header> Services </q-item-label>
-
-          <q-item v-if="hasPermission('calendar:read')" clickable to="/calendar">
-            <q-item-section avatar>
-              <q-icon name="event" />
+          <q-item
+            v-if="hasPermission('calendar:read')"
+            clickable
+            to="/calendar"
+            class="nav-sub-item"
+            active-class="nav-sub-item--active"
+          >
+            <q-item-section avatar class="nav-sub-icon">
+              <q-icon name="event" size="16px" />
             </q-item-section>
             <q-item-section>
-              <q-item-label>Calendar</q-item-label>
+              <q-item-label class="nav-sub-label">Calendar</q-item-label>
             </q-item-section>
           </q-item>
 
-          <q-item v-if="hasPermission('communications:read')" clickable to="/communications">
-            <q-item-section avatar>
-              <q-icon name="campaign" />
+          <q-item
+            v-if="hasPermission('communications:read')"
+            clickable
+            to="/communications"
+            class="nav-sub-item"
+            active-class="nav-sub-item--active"
+          >
+            <q-item-section avatar class="nav-sub-icon">
+              <q-icon name="campaign" size="16px" />
             </q-item-section>
             <q-item-section>
-              <q-item-label>Communications</q-item-label>
+              <q-item-label class="nav-sub-label">Communications</q-item-label>
             </q-item-section>
           </q-item>
 
-          <q-item v-if="hasPermission('storage:read')" clickable to="/storage">
-            <q-item-section avatar>
-              <q-icon name="folder" />
+          <q-item
+            v-if="hasPermission('storage:read')"
+            clickable
+            to="/storage"
+            class="nav-sub-item"
+            active-class="nav-sub-item--active"
+          >
+            <q-item-section avatar class="nav-sub-icon">
+              <q-icon name="folder" size="16px" />
             </q-item-section>
             <q-item-section>
-              <q-item-label>Storage</q-item-label>
+              <q-item-label class="nav-sub-label">Storage</q-item-label>
             </q-item-section>
           </q-item>
-        </template>
+        </q-expansion-item>
 
-        <!-- Admin Section - Only visible to System Administrators -->
-        <template v-if="isClient && hasPermission('*')">
-          <q-separator class="q-my-md" />
-          <q-item-label header> Administration </q-item-label>
+        <q-separator spaced="sm" inset class="nav-separator" />
 
-          <q-item clickable to="/admin/users">
-            <q-item-section avatar>
-              <q-icon name="admin_panel_settings" />
+        <!-- Admin Section -->
+        <q-expansion-item
+          v-if="isClient && hasPermission('*')"
+          v-model="expandedSections.administration"
+          icon="admin_panel_settings"
+          label="Administration"
+          class="nav-section"
+          header-class="nav-section-header"
+          expand-icon-class="nav-expand-icon"
+        >
+          <q-item
+            clickable
+            to="/admin/users"
+            class="nav-sub-item"
+            active-class="nav-sub-item--active"
+          >
+            <q-item-section avatar class="nav-sub-icon">
+              <q-icon name="admin_panel_settings" size="16px" />
             </q-item-section>
             <q-item-section>
-              <q-item-label>User Management</q-item-label>
+              <q-item-label class="nav-sub-label">User Management</q-item-label>
             </q-item-section>
           </q-item>
 
-          <q-item clickable to="/settings/village">
-            <q-item-section avatar>
-              <q-icon name="settings" />
+          <q-item
+            clickable
+            to="/settings/village"
+            class="nav-sub-item"
+            active-class="nav-sub-item--active"
+          >
+            <q-item-section avatar class="nav-sub-icon">
+              <q-icon name="settings" size="16px" />
             </q-item-section>
             <q-item-section>
-              <q-item-label>Village Settings</q-item-label>
+              <q-item-label class="nav-sub-label">Village Settings</q-item-label>
             </q-item-section>
           </q-item>
 
-          <q-item clickable to="/admin/finance-settings">
-            <q-item-section avatar>
-              <q-icon name="account_balance_wallet" />
+          <q-item
+            clickable
+            to="/admin/finance-settings"
+            class="nav-sub-item"
+            active-class="nav-sub-item--active"
+          >
+            <q-item-section avatar class="nav-sub-icon">
+              <q-icon name="account_balance_wallet" size="16px" />
             </q-item-section>
             <q-item-section>
-              <q-item-label>Finance Settings</q-item-label>
+              <q-item-label class="nav-sub-label">Finance Settings</q-item-label>
             </q-item-section>
           </q-item>
-        </template>
+        </q-expansion-item>
       </q-list>
     </q-drawer>
 
@@ -395,7 +616,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, reactive } from 'vue';
 import { useRouter } from 'vue-router';
 import { useQuasar } from 'quasar';
 import { useAuthStore } from 'src/stores/auth-store';
@@ -414,6 +635,15 @@ const leftDrawerOpen = ref(false);
 const userMenu = ref(null);
 const userMenuVisible = ref(false);
 const isClient = ref(false); // Track client-side hydration for SSR
+
+const expandedSections = reactive({
+  community: false,
+  finance: false,
+  agriculture: false,
+  school: false,
+  services: false,
+  administration: false,
+});
 
 onMounted(() => {
   isClient.value = true; // Enable client-side rendering after hydration
@@ -479,3 +709,206 @@ function formatStorageQuota(bytes) {
   return `${gb.toFixed(1)} GB`;
 }
 </script>
+
+<style lang="scss">
+/* ─── Drawer shell ─────────────────────────────────────────────── */
+.nav-drawer {
+  background: #ffffff;
+}
+
+.nav-brand {
+  border-bottom: 1px solid rgba(0, 0, 0, 0.07);
+  margin-bottom: 4px;
+}
+
+.nav-list {
+  padding-top: 4px;
+}
+
+/* ─── Separator between logical groups ────────────────────────── */
+.nav-separator {
+  opacity: 0.5;
+}
+
+/* ─── Top-level standalone item (Dashboard) ────────────────────── */
+.nav-top-item {
+  border-radius: 8px;
+  margin: 2px 8px;
+  min-height: 44px;
+  color: rgba(0, 0, 0, 0.72);
+  transition:
+    background 0.15s ease,
+    color 0.15s ease;
+
+  .nav-top-icon {
+    min-width: 40px;
+  }
+
+  .nav-top-label {
+    font-size: 0.875rem;
+    font-weight: 500;
+  }
+
+  &:hover {
+    background: rgba(25, 118, 210, 0.06);
+    color: rgba(0, 0, 0, 0.87);
+  }
+
+  &.nav-top-item--active {
+    background: rgba(25, 118, 210, 0.12);
+    color: #1565c0;
+
+    .q-icon {
+      color: #1565c0;
+    }
+
+    .nav-top-label {
+      font-weight: 600;
+    }
+  }
+}
+
+/* ─── Section headers (expansion items) ───────────────────────── */
+.nav-section {
+  margin: 1px 0;
+
+  /* The clickable header row */
+  .nav-section-header {
+    min-height: 44px;
+    border-radius: 8px;
+    margin: 2px 8px;
+    color: rgba(0, 0, 0, 0.8);
+    font-size: 0.875rem;
+    font-weight: 600;
+    transition: background 0.15s ease;
+
+    &:hover {
+      background: rgba(0, 0, 0, 0.04);
+    }
+
+    /* Keep icon and chevron matching text colour */
+    .q-icon,
+    .nav-expand-icon {
+      color: rgba(0, 0, 0, 0.55);
+    }
+  }
+}
+
+/* ─── Sub-items (children inside expansion panels) ─────────────── */
+.nav-sub-item {
+  border-radius: 6px;
+  /* indent relative to section header */
+  margin: 1px 8px 1px 20px;
+  min-height: 36px;
+  color: rgba(0, 0, 0, 0.58);
+  transition:
+    background 0.15s ease,
+    color 0.15s ease,
+    border-left-color 0.15s ease;
+  border-left: 2px solid transparent;
+
+  .nav-sub-icon {
+    min-width: 32px;
+
+    .q-icon {
+      color: rgba(0, 0, 0, 0.4);
+      transition: color 0.15s ease;
+    }
+  }
+
+  .nav-sub-label {
+    font-size: 0.825rem;
+    font-weight: 400;
+  }
+
+  &:hover {
+    background: rgba(25, 118, 210, 0.05);
+    color: rgba(0, 0, 0, 0.8);
+    border-left-color: rgba(25, 118, 210, 0.3);
+
+    .nav-sub-icon .q-icon {
+      color: rgba(25, 118, 210, 0.75);
+    }
+  }
+
+  &.nav-sub-item--active {
+    background: rgba(25, 118, 210, 0.1);
+    color: #1565c0;
+    border-left-color: #1976d2;
+
+    .nav-sub-icon .q-icon {
+      color: #1976d2;
+    }
+
+    .nav-sub-label {
+      font-weight: 600;
+    }
+  }
+}
+
+/* ─── Dark mode overrides ──────────────────────────────────────── */
+.body--dark {
+  .nav-drawer {
+    background: #1e1e2e;
+  }
+
+  .nav-top-item {
+    color: rgba(255, 255, 255, 0.75);
+
+    &:hover {
+      background: rgba(100, 181, 246, 0.08);
+      color: rgba(255, 255, 255, 0.92);
+    }
+
+    &.nav-top-item--active {
+      background: rgba(100, 181, 246, 0.15);
+      color: #90caf9;
+
+      .q-icon {
+        color: #90caf9;
+      }
+    }
+  }
+
+  .nav-section .nav-section-header {
+    color: rgba(255, 255, 255, 0.8);
+
+    &:hover {
+      background: rgba(255, 255, 255, 0.05);
+    }
+
+    .q-icon,
+    .nav-expand-icon {
+      color: rgba(255, 255, 255, 0.45);
+    }
+  }
+
+  .nav-sub-item {
+    color: rgba(255, 255, 255, 0.52);
+
+    .nav-sub-icon .q-icon {
+      color: rgba(255, 255, 255, 0.35);
+    }
+
+    &:hover {
+      background: rgba(100, 181, 246, 0.06);
+      color: rgba(255, 255, 255, 0.8);
+      border-left-color: rgba(100, 181, 246, 0.4);
+
+      .nav-sub-icon .q-icon {
+        color: rgba(100, 181, 246, 0.8);
+      }
+    }
+
+    &.nav-sub-item--active {
+      background: rgba(100, 181, 246, 0.14);
+      color: #90caf9;
+      border-left-color: #64b5f6;
+
+      .nav-sub-icon .q-icon {
+        color: #64b5f6;
+      }
+    }
+  }
+}
+</style>

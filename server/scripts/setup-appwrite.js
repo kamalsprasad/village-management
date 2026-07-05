@@ -19,7 +19,7 @@
  *   npm run setup:appwrite
  */
 
-import { Client, Databases, TablesDB, RelationshipType, RelationMutate } from 'node-appwrite';
+import { Client, Databases, TablesDB, RelationshipType } from 'node-appwrite';
 import dotenv from 'dotenv';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
@@ -978,19 +978,611 @@ const tableSchemas = {
       },
     ],
   },
+
+  // School Module Tables (Story 4.1)
+  learners: {
+    name: 'Learners',
+    permissions: permissions,
+    columns: [
+      // One learner row per resident, ever (Option A — Story 4.1).
+      // Uniqueness is enforced in the school store (checkExistingEnrollment)
+      // because Appwrite does not support indexes on relationship columns.
+      {
+        key: 'resident_id',
+        type: 'relationship',
+        relatedTable: 'residents',
+        relationType: 'manyToOne',
+        twoWay: false,
+        onDelete: 'restrict',
+        required: true,
+      },
+      { key: 'enrollment_date', type: 'datetime', required: true },
+      {
+        key: 'enrollment_status',
+        type: 'enum',
+        elements: ['Active', 'Inactive', 'Graduated', 'Transferred', 'Dropped Out'],
+        required: true,
+        default: 'Active',
+      },
+      // Effective date for the most recent status change (Graduated/Transferred/Dropped Out)
+      { key: 'status_effective_date', type: 'datetime', required: false },
+      { key: 'parent_guardian_name', type: 'string', size: 255, required: false },
+      { key: 'parent_guardian_phone', type: 'string', size: 20, required: false },
+      { key: 'emergency_contact_name', type: 'string', size: 255, required: false },
+      { key: 'emergency_contact_phone', type: 'string', size: 20, required: false },
+      { key: 'medical_notes', type: 'string', size: 1000, required: false },
+      { key: 'notes', type: 'string', size: 1000, required: false },
+      {
+        key: 'class_id',
+        type: 'relationship',
+        relatedTable: 'school_classes',
+        relationType: 'manyToOne',
+        twoWay: false,
+        onDelete: 'setNull',
+        required: false,
+      },
+    ],
+    indexes: [
+      {
+        key: 'idx_learners_status',
+        type: 'key',
+        columns: ['enrollment_status'],
+        orders: ['ASC'],
+      },
+    ],
+  },
+  test_scores: {
+    name: 'Test Scores',
+    permissions: permissions,
+    columns: [
+      {
+        key: 'learner_id',
+        type: 'relationship',
+        relatedTable: 'learners',
+        relationType: 'manyToOne',
+        twoWay: false,
+        onDelete: 'cascade',
+        required: true,
+      },
+      {
+        key: 'class_id',
+        type: 'relationship',
+        relatedTable: 'school_classes',
+        relationType: 'manyToOne',
+        twoWay: false,
+        onDelete: 'cascade',
+        required: false,
+      },
+      {
+        key: 'subject',
+        type: 'enum',
+        elements: [
+          'Mathematics',
+          'English',
+          'Integrated Science',
+          'Social Studies',
+          'Religious Education',
+          'Civic Education',
+          'Creative and Technology Studies',
+          'Local Language',
+          'Computer Studies',
+          'Agriculture Science',
+          'History',
+          'Geography',
+          'Biology',
+          'Chemistry',
+          'Physics',
+          'Business Studies',
+          'French',
+          'Art',
+          'Music',
+          'Physical Education',
+          'Other',
+        ],
+        required: true,
+      },
+      {
+        key: 'assessment_type',
+        type: 'enum',
+        elements: [
+          'Class Exercise',
+          'Monthly Test',
+          'Mid-Term Exam',
+          'End-of-Term Exam',
+          'Quiz',
+          'Project',
+          'Assignment',
+          'Other',
+        ],
+        required: true,
+      },
+      // Story 4.3: Changed from enum to string — terms are now configurable via school_academic_terms.
+      // The term name at recording time is stored literally so historical scores remain valid
+      // even if terms are later renamed.
+      { key: 'term', type: 'string', size: 100, required: true },
+      { key: 'academic_year', type: 'integer', required: true },
+      { key: 'assessment_date', type: 'datetime', required: true },
+      { key: 'score_value', type: 'double', required: true },
+      { key: 'max_score', type: 'double', required: true },
+      { key: 'notes', type: 'string', size: 500, required: false },
+    ],
+    indexes: [
+      {
+        key: 'idx_test_scores_subject_date',
+        type: 'key',
+        columns: ['assessment_date', 'subject', 'assessment_type'],
+        orders: ['DESC', 'ASC', 'ASC'],
+      },
+    ],
+  },
+  teacher_assignments: {
+    name: 'Teacher Assignments',
+    permissions: permissions,
+    columns: [
+      {
+        key: 'teacher_id',
+        type: 'relationship',
+        relatedTable: 'residents',
+        relationType: 'manyToOne',
+        twoWay: false,
+        onDelete: 'cascade',
+        required: true,
+      },
+      {
+        key: 'grade_level',
+        type: 'enum',
+        elements: [
+          'Early Childhood',
+          'Grade 1',
+          'Grade 2',
+          'Grade 3',
+          'Grade 4',
+          'Grade 5',
+          'Grade 6',
+          'Grade 7',
+          'Grade 8',
+          'Grade 9',
+          'Grade 10',
+          'Grade 11',
+          'Grade 12',
+        ],
+        required: true,
+      },
+      { key: 'subjects', type: 'string', size: 100, array: true, required: false },
+      { key: 'notes', type: 'string', size: 500, required: false },
+    ],
+    indexes: [
+      {
+        key: 'idx_teacher_assignments_grade',
+        type: 'key',
+        columns: ['grade_level'],
+        orders: ['ASC'],
+      },
+    ],
+  },
+  school_classes: {
+    name: 'School Classes',
+    permissions: permissions,
+    columns: [
+      { key: 'name', type: 'string', size: 100, required: true },
+      {
+        key: 'grade_level',
+        type: 'enum',
+        elements: [
+          'Early Childhood',
+          'Grade 1',
+          'Grade 2',
+          'Grade 3',
+          'Grade 4',
+          'Grade 5',
+          'Grade 6',
+          'Grade 7',
+          'Grade 8',
+          'Grade 9',
+          'Grade 10',
+          'Grade 11',
+          'Grade 12',
+        ],
+        required: true,
+      },
+      { key: 'academic_year', type: 'integer', required: true },
+      {
+        key: 'class_teacher_id',
+        type: 'relationship',
+        relatedTable: 'residents',
+        relationType: 'manyToOne',
+        twoWay: false,
+        onDelete: 'setNull',
+        required: false,
+      },
+      { key: 'notes', type: 'string', size: 500, required: false },
+    ],
+    indexes: [
+      {
+        key: 'idx_school_classes_year',
+        type: 'key',
+        columns: ['academic_year'],
+        orders: ['ASC'],
+      },
+    ],
+  },
+  // Story 4.3: Configurable academic terms (replaces hard-coded TERMS constant)
+  school_academic_terms: {
+    name: 'School Academic Terms',
+    permissions: permissions,
+    columns: [
+      { key: 'academic_year', type: 'integer', required: true },
+      // Free text — e.g. "Term 1", "Semester 1", "Quarter 3"
+      { key: 'term_name', type: 'string', size: 100, required: true },
+      // Ordering within the year (1, 2, 3...)
+      { key: 'term_order', type: 'integer', required: true },
+      { key: 'start_date', type: 'datetime', required: true },
+      { key: 'end_date', type: 'datetime', required: true },
+      { key: 'notes', type: 'string', size: 500, required: false },
+    ],
+    indexes: [
+      {
+        key: 'idx_academic_terms_year',
+        type: 'key',
+        columns: ['academic_year'],
+        orders: ['ASC'],
+      },
+      {
+        key: 'idx_academic_terms_year_order',
+        type: 'key',
+        columns: ['academic_year', 'term_order'],
+        orders: ['ASC', 'ASC'],
+      },
+    ],
+  },
+
+  // Story 4.3: School calendar events — holidays, PD days, exam blocks, etc.
+  school_calendar_events: {
+    name: 'School Calendar Events',
+    permissions: permissions,
+    columns: [
+      { key: 'title', type: 'string', size: 255, required: true },
+      {
+        key: 'event_type',
+        type: 'enum',
+        elements: [
+          'public_holiday',
+          'school_holiday',
+          'pd_day',
+          'exam_block',
+          'early_dismissal',
+          'assembly',
+          'other',
+        ],
+        required: true,
+      },
+      // start_date = end_date for single-day events
+      { key: 'start_date', type: 'datetime', required: true },
+      { key: 'end_date', type: 'datetime', required: true },
+      // false = school closed (not a school day); true = school open but modified
+      { key: 'is_school_day', type: 'boolean', required: true, default: false },
+      // Empty/null = school-wide; populated = only these class IDs affected.
+      // Stored as string array (not a relationship) to avoid cascade complexity.
+      { key: 'affected_class_ids', type: 'string', size: 50, array: true, required: false },
+      { key: 'notes', type: 'string', size: 500, required: false },
+    ],
+    indexes: [
+      {
+        key: 'idx_calendar_events_start',
+        type: 'key',
+        columns: ['start_date'],
+        orders: ['ASC'],
+      },
+      {
+        key: 'idx_calendar_events_type',
+        type: 'key',
+        columns: ['event_type'],
+        orders: ['ASC'],
+      },
+    ],
+  },
+
+  // Story 4.4: Per-grade daily bell schedule (replaces school_timetable stub)
+  school_period_slots: {
+    name: 'School Period Slots',
+    permissions: permissions,
+    columns: [
+      {
+        key: 'grade_level',
+        type: 'enum',
+        elements: [
+          'Early Childhood',
+          'Grade 1',
+          'Grade 2',
+          'Grade 3',
+          'Grade 4',
+          'Grade 5',
+          'Grade 6',
+          'Grade 7',
+          'Grade 8',
+          'Grade 9',
+          'Grade 10',
+          'Grade 11',
+          'Grade 12',
+        ],
+        required: true,
+      },
+      { key: 'academic_year', type: 'integer', required: true },
+      // Ordering within the day (1, 2, 3...)
+      { key: 'slot_number', type: 'integer', required: true },
+      // Display label: "Period 1", "Morning Break", "Lunch", "Assembly", etc.
+      { key: 'label', type: 'string', size: 100, required: true },
+      {
+        key: 'slot_type',
+        type: 'enum',
+        elements: ['class', 'break', 'lunch', 'assembly', 'free'],
+        required: true,
+        default: 'class',
+      },
+      // HH:mm 24-hour format stored as string (e.g. "08:00")
+      { key: 'start_time', type: 'string', size: 5, required: true },
+      { key: 'end_time', type: 'string', size: 5, required: true },
+      // Empty array = applies every school day.
+      // Populated = only on listed days: ['Monday', 'Friday'] etc.
+      { key: 'applies_to_days', type: 'string', size: 10, array: true, required: false },
+      { key: 'notes', type: 'string', size: 255, required: false },
+    ],
+    indexes: [
+      {
+        key: 'idx_period_slots_grade_year',
+        type: 'key',
+        columns: ['grade_level', 'academic_year'],
+        orders: ['ASC', 'ASC'],
+      },
+      {
+        key: 'idx_period_slots_grade_year_slot',
+        type: 'key',
+        columns: ['grade_level', 'academic_year', 'slot_number'],
+        orders: ['ASC', 'ASC', 'ASC'],
+      },
+    ],
+  },
+
+  // Story 4.5: Class timetable entries — weekly subject grid per class or grade template.
+  // Replaces the removed school_timetable stub.
+  // is_template = true + class_id = null → grade-level template
+  // is_template = false + class_id set → class-specific schedule
+  class_timetable_entries: {
+    name: 'Class Timetable Entries',
+    permissions: permissions,
+    columns: [
+      // null when is_template = true
+      {
+        key: 'class_id',
+        type: 'relationship',
+        relatedTable: 'school_classes',
+        relationType: 'manyToOne',
+        twoWay: false,
+        onDelete: 'cascade',
+        required: false,
+      },
+      { key: 'is_template', type: 'boolean', required: true, default: false },
+      {
+        key: 'grade_level',
+        type: 'enum',
+        elements: [
+          'Early Childhood',
+          'Grade 1',
+          'Grade 2',
+          'Grade 3',
+          'Grade 4',
+          'Grade 5',
+          'Grade 6',
+          'Grade 7',
+          'Grade 8',
+          'Grade 9',
+          'Grade 10',
+          'Grade 11',
+          'Grade 12',
+        ],
+        required: true,
+      },
+      // school_period_slots.$id stored as string (not relationship) — intentional,
+      // avoids cascade and allows slot reuse across grades.
+      { key: 'slot_id', type: 'string', size: 50, required: true },
+      {
+        key: 'day_of_week',
+        type: 'enum',
+        elements: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'],
+        required: true,
+      },
+      // Free string — not enum — allows subjects not in the standard SUBJECTS list
+      { key: 'subject', type: 'string', size: 100, required: false },
+      {
+        key: 'teacher_id',
+        type: 'relationship',
+        relatedTable: 'residents',
+        relationType: 'manyToOne',
+        twoWay: false,
+        onDelete: 'setNull',
+        required: false,
+      },
+      { key: 'academic_year', type: 'integer', required: true },
+      // Date range for mid-year timetable changes. null valid_to = currently active.
+      { key: 'valid_from', type: 'datetime', required: false },
+      { key: 'valid_to', type: 'datetime', required: false },
+      { key: 'notes', type: 'string', size: 255, required: false },
+    ],
+    indexes: [
+      {
+        key: 'idx_timetable_grade_template',
+        type: 'key',
+        columns: ['grade_level', 'is_template', 'academic_year'],
+        orders: ['ASC', 'ASC', 'ASC'],
+      },
+    ],
+  },
+  learner_attendance: {
+    name: 'Learner Attendance',
+    permissions: permissions,
+    columns: [
+      {
+        key: 'learner_id',
+        type: 'relationship',
+        relatedTable: 'learners',
+        relationType: 'manyToOne',
+        twoWay: false,
+        onDelete: 'cascade',
+        required: true,
+      },
+      {
+        key: 'class_id',
+        type: 'relationship',
+        relatedTable: 'school_classes',
+        relationType: 'manyToOne',
+        twoWay: false,
+        onDelete: 'cascade',
+        required: true,
+      },
+      { key: 'attendance_date', type: 'datetime', required: true },
+      {
+        key: 'status',
+        type: 'enum',
+        elements: ['Present', 'Absent', 'Late', 'Excused'],
+        required: true,
+      },
+      { key: 'absence_reason', type: 'string', size: 255, required: false },
+      { key: 'notes', type: 'string', size: 500, required: false },
+    ],
+    indexes: [],
+  },
+  interventions: {
+    name: 'Interventions',
+    permissions: permissions,
+    columns: [
+      {
+        key: 'learner_id',
+        type: 'relationship',
+        relatedTable: 'learners',
+        relationType: 'manyToOne',
+        twoWay: false,
+        onDelete: 'cascade',
+        required: true,
+      },
+      {
+        key: 'assigned_teacher_id',
+        type: 'relationship',
+        relatedTable: 'residents',
+        relationType: 'manyToOne',
+        twoWay: false,
+        onDelete: 'setNull',
+        required: false,
+      },
+      // Intervention type: controlled vocabulary (see INTERVENTION_TYPES constant)
+      { key: 'intervention_type', type: 'string', size: 100, required: true },
+      // Focus areas: free-text array (e.g. ["Reading comprehension", "Mathematics"])
+      { key: 'focus_areas', type: 'string', size: 255, array: true, required: false },
+      // Frequency description: free text (e.g. "3x per week - Mon/Wed/Fri")
+      { key: 'frequency', type: 'string', size: 255, required: false },
+      // Success criteria: free text (e.g. "Score above 60% in all subjects by end of term")
+      { key: 'success_criteria', type: 'string', size: 500, required: false },
+      { key: 'start_date', type: 'datetime', required: true },
+      { key: 'end_date', type: 'datetime', required: false },
+      // Academic term when intervention was created (free string, from academic-terms-store)
+      { key: 'term', type: 'string', size: 100, required: false },
+      { key: 'academic_year', type: 'integer', required: false },
+      {
+        key: 'status',
+        type: 'enum',
+        elements: ['Active', 'Paused', 'Resolved', 'Closed Without Resolution'],
+        required: true,
+      },
+      // Outcome (filled when status is Resolved or Closed): free text summary
+      { key: 'outcome', type: 'string', size: 1000, required: false },
+      // Created by (resident ID of the user who created the plan)
+      { key: 'created_by', type: 'string', size: 255, required: false },
+      { key: 'notes', type: 'string', size: 500, required: false },
+    ],
+    // No indexes: learner_id and assigned_teacher_id are relationship columns,
+    // and Appwrite does not support indexing relationship attributes.
+    // Matches learner_attendance (relationship columns, indexes: []).
+    indexes: [],
+  },
+  intervention_notes: {
+    name: 'Intervention Notes',
+    permissions: permissions,
+    columns: [
+      {
+        key: 'intervention_id',
+        type: 'relationship',
+        relatedTable: 'interventions',
+        relationType: 'manyToOne',
+        twoWay: false,
+        onDelete: 'cascade',
+        required: true,
+      },
+      { key: 'note_date', type: 'datetime', required: true },
+      { key: 'content', type: 'string', size: 2000, required: true },
+      // Who wrote the note (resident ID, stored as string for resilience)
+      { key: 'author_id', type: 'string', size: 255, required: false },
+      {
+        key: 'learner_response',
+        type: 'enum',
+        elements: ['Positive', 'Neutral', 'Negative', 'Not Observed'],
+        required: false,
+      },
+    ],
+    // No index: intervention_id is a relationship column (see interventions table note above).
+    indexes: [],
+  },
+
+  // Story 4.12: Long-term educational goal configuration (e.g. 90% of learners at 90th-percentile benchmark).
+  // Standalone table — one active row is selected by the school-goals store.
+  school_long_term_goals: {
+    name: 'School Long-Term Goals',
+    permissions: permissions,
+    columns: [
+      {
+        key: 'goal_name',
+        type: 'string',
+        size: 255,
+        required: true,
+        default: '90% of learners at 90th-percentile benchmark',
+      },
+      {
+        key: 'target_percent_of_learners',
+        type: 'double',
+        required: true,
+        default: 90,
+      },
+      {
+        key: 'target_percentile_score',
+        type: 'double',
+        required: true,
+        default: 90,
+      },
+      { key: 'baseline_academic_year', type: 'integer', required: true },
+      { key: 'target_academic_year', type: 'integer', required: true },
+      { key: 'is_active', type: 'boolean', required: true, default: true },
+      { key: 'notes', type: 'string', size: 1000, required: false },
+    ],
+    indexes: [
+      {
+        key: 'idx_school_long_term_goals_active',
+        type: 'key',
+        columns: ['is_active'],
+        orders: ['ASC'],
+      },
+    ],
+  },
 };
 
 // Helper functions
 async function createTable(tableId, schema) {
+  const permissions = schema.permissions || [
+    'read("any")',
+    'create("any")',
+    'update("any")',
+    'delete("any")',
+  ];
+
   try {
     console.log(`\n📦 Creating table: ${schema.name} (${tableId})`);
-
-    const permissions = schema.permissions || [
-      'read("any")',
-      'create("any")',
-      'update("any")',
-      'delete("any")',
-    ];
 
     await tables.createTable({
       databaseId: config.databaseId,
@@ -1006,6 +1598,13 @@ async function createTable(tableId, schema) {
   } catch (error) {
     if (error.code === 409) {
       console.log(`   ⚠️  Table already exists: ${schema.name}`);
+      // Sync permissions on existing tables so schema changes take effect
+      try {
+        await databases.updateCollection(config.databaseId, tableId, schema.name, permissions);
+        console.log(`   🔄 Permissions synced: ${schema.name}`);
+      } catch (permErr) {
+        console.warn(`   ⚠️  Could not sync permissions for ${schema.name}:`, permErr.message);
+      }
       return false;
     }
     throw error;
@@ -1253,9 +1852,9 @@ async function setupDatabase() {
 
     console.log('\n✅ Database setup complete!');
     console.log('\n📋 Summary:');
-    console.log('   - 21 Tables created/verified');
-    console.log('   - 130+ columns created/verified');
-    console.log('   - 16 indexes created/verified');
+    console.log('   - 24 Tables created/verified');
+    console.log('   - 150+ columns created/verified');
+    console.log('   - 25+ indexes created/verified');
     console.log('   - Permissions configured');
     console.log('\n🎉 You can now test the database connection at /appwrite-test');
     console.log('\n📦 Tables created:');
@@ -1267,6 +1866,13 @@ async function setupDatabase() {
       '   Finance: finance_categories, funding_sources, loans, inventory, finance_transactions, transaction_links',
     );
     console.log('   Loan Mgmt: repayment_schedule, loan_payments');
+    console.log(
+      '   School: school_classes, learners, test_scores, teacher_assignments, learner_attendance,',
+    );
+    console.log('           interventions, intervention_notes, school_long_term_goals,');
+    console.log(
+      '           school_academic_terms, school_calendar_events, school_period_slots, class_timetable_entries',
+    );
   } catch (error) {
     console.error('\n❌ Setup failed:', error.message);
     if (error.response) {
