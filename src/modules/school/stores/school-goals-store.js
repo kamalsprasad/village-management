@@ -289,7 +289,9 @@ export const useSchoolGoalsStore = defineStore('schoolGoals', {
           current: {
             ...currentProgress,
             targetPercent: targetPercentOfLearners,
-            gap: roundToOneDecimal(targetPercentOfLearners - currentProgress.percentAtTarget),
+            gap: roundToOneDecimal(
+              Math.max(0, targetPercentOfLearners - currentProgress.percentAtTarget),
+            ),
             yearsRemaining: targetYear - currentYear,
             requiredAnnualImprovement: projection.requiredAnnualImprovement,
             projectedOutcome: projection.projectedOutcome,

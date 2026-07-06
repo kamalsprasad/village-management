@@ -40,7 +40,7 @@ export const useLearnerStore = defineStore('learner', {
     isCurrentLearnerLoading: false,
     filters: {
       classIds: [], // Multi-select class filter
-      statuses: [], // Multi-select status filter
+      statuses: ['Active'], // Multi-select status filter — defaults to Active only
       searchQuery: '',
     },
   }),
@@ -80,15 +80,18 @@ export const useLearnerStore = defineStore('learner', {
     filteredLearners: (state) => {
       let result = state.learners;
 
-      if (state.filters.classIds.length > 0) {
+      const classIds = state.filters.classIds || [];
+      const statuses = state.filters.statuses || [];
+
+      if (classIds.length > 0) {
         result = result.filter((l) => {
           const classId = l.class_id_normalized || l.class_id;
-          return state.filters.classIds.includes(classId);
+          return classIds.includes(classId);
         });
       }
 
-      if (state.filters.statuses.length > 0) {
-        result = result.filter((l) => state.filters.statuses.includes(l.enrollment_status));
+      if (statuses.length > 0) {
+        result = result.filter((l) => statuses.includes(l.enrollment_status));
       }
 
       if (state.filters.searchQuery && state.filters.searchQuery.trim()) {
@@ -361,7 +364,7 @@ export const useLearnerStore = defineStore('learner', {
      */
     resetFilters() {
       this.filters.classIds = [];
-      this.filters.statuses = [];
+      this.filters.statuses = ['Active'];
       this.filters.searchQuery = '';
     },
   },

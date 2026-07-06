@@ -231,8 +231,14 @@
               {{ formatDate(selectedEvent?.start_date || selectedEvent?.start) }}
               <template
                 v-if="
-                  (selectedEvent?.end_date || selectedEvent?.end)?.slice(0, 10) !==
-                  (selectedEvent?.start_date || selectedEvent?.start)?.slice(0, 10)
+                  toDateStrInTimezone(
+                    selectedEvent?.end_date || selectedEvent?.end,
+                    settingsStore.timezone,
+                  ) !==
+                  toDateStrInTimezone(
+                    selectedEvent?.start_date || selectedEvent?.start,
+                    settingsStore.timezone,
+                  )
                 "
               >
                 &ndash; {{ formatDate(selectedEvent?.end_date || selectedEvent?.end) }}
@@ -287,7 +293,7 @@ import { useCalendarEventsStore } from '../stores/calendar-events-store';
 import { usePermissions } from 'src/composables/usePermissions';
 import { useSettingsStore } from 'src/stores/settings-store';
 import { CALENDAR_EVENT_TYPES, getCalendarEventType } from '../utils/school-constants';
-import { formatDateInTimezone, addDaysToDateStr } from 'src/utils/dateUtils';
+import { formatDateInTimezone, addDaysToDateStr, toDateStrInTimezone } from 'src/utils/dateUtils';
 
 const termsStore = useAcademicTermsStore();
 const eventsStore = useCalendarEventsStore();
@@ -319,12 +325,16 @@ const eventsForListYear = computed(() => eventsStore.eventsByYear(listYear.value
  */
 const calendarEvents = computed(() => {
   const items = [];
+  const tz = settingsStore.timezone;
 
   // Term bands — styled as background all-day events spanning term dates.
   // vue-cal treats all-day end dates as exclusive, so add 1 day to the stored end date.
+  // Convert stored UTC ISO strings back to the village timezone calendar date first.
   termsStore.academicTerms.forEach((term) => {
-    const start = term.start_date ? term.start_date.slice(0, 10) : '';
-    const end = term.end_date ? addDaysToDateStr(term.end_date.slice(0, 10), 1) : start;
+    const start = toDateStrInTimezone(term.start_date, tz);
+    const end = term.end_date
+      ? addDaysToDateStr(toDateStrInTimezone(term.end_date, tz), 1)
+      : addDaysToDateStr(start, 1);
     items.push({
       id: `term-${term.$id}`,
       title: term.term_name,
@@ -340,8 +350,10 @@ const calendarEvents = computed(() => {
   // Calendar events
   eventsStore.calendarEvents.forEach((evt) => {
     const typeConfig = getCalendarEventType(evt.event_type);
-    const start = evt.start_date ? evt.start_date.slice(0, 10) : '';
-    const end = evt.end_date ? addDaysToDateStr(evt.end_date.slice(0, 10), 1) : start;
+    const start = toDateStrInTimezone(evt.start_date, tz);
+    const end = evt.end_date
+      ? addDaysToDateStr(toDateStrInTimezone(evt.end_date, tz), 1)
+      : addDaysToDateStr(start, 1);
     items.push({
       id: `evt-${evt.$id}`,
       title: evt.title,
