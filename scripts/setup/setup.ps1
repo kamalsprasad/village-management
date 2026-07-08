@@ -302,6 +302,8 @@ if ($BackendChoice -eq "2") {
   Write-Host "  1. Create an admin account."
   Write-Host "  2. Create a new project (note the Project ID)."
   Write-Host "  3. Go to Settings -> API Keys and create a key with Database and Users scopes."
+  Write-Info "Opening Appwrite Console at http://localhost in your browser..."
+  try { Start-Process "http://localhost" } catch {}
 }
 else {
   Write-Info "Using Appwrite Cloud."
@@ -312,6 +314,8 @@ else {
   Write-Host "Then create an API key:"
   Write-Host "  Settings -> API Keys -> Create API Key"
   Write-Host "  Scopes: Database (all), Users (read)"
+  Write-Info "Opening Appwrite Cloud Console in your browser..."
+  try { Start-Process "https://cloud.appwrite.io" } catch {}
 }
 
 Read-Host "Press Enter when you have your Project ID and API Key ready..."
