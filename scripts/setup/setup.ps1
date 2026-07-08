@@ -28,6 +28,13 @@ function Get-NodeVersion {
   return (node --version).Trim().TrimStart('v')
 }
 
+function Refresh-Env {
+  Write-Info "Refreshing environment path from registry..."
+  $sysPath = [System.Environment]::GetEnvironmentVariable("Path", "Machine")
+  $userPath = [System.Environment]::GetEnvironmentVariable("Path", "User")
+  $env:Path = "$sysPath;$userPath"
+}
+
 function Install-NpmGlobal($package, $command) {
   if (Test-Command $command) {
     Write-Ok "$package is already installed."
@@ -62,26 +69,93 @@ function Wait-ForUrl($url, $maxAttempts = 30) {
 
 Write-Step "Checking prerequisites"
 
+# Check Node.js
+$needsNode = $false
 if (-not (Test-Command "node")) {
-  Write-Error "Node.js is not installed."
-  Write-Host ""
-  Write-Host "Please install Node.js v20 LTS or newer:"
-  Write-Host "  https://nodejs.org/en/download/"
-  exit 1
+  Write-Warn "Node.js is not installed."
+  $needsNode = $true
+} else {
+  $NodeVersion = [System.Version](Get-NodeVersion)
+  if ($NodeVersion -lt [System.Version]"20.0.0") {
+    Write-Warn "Node.js v$NodeVersion is too old. Node.js v20+ is required."
+    $needsNode = $true
+  } else {
+    Write-Ok "Node.js v$NodeVersion found."
+  }
 }
 
-$NodeVersion = [System.Version](Get-NodeVersion)
-if ($NodeVersion -lt [System.Version]"20.0.0") {
-  Write-Error "Node.js v$NodeVersion is too old. Node.js v20+ is required."
-  exit 1
+if ($needsNode) {
+  if (Test-Command "winget") {
+    Write-Host "Would you like to install/upgrade Node.js v20 LTS automatically using winget? [Y/n]"
+    $choice = Read-Host
+    if ([string]::IsNullOrWhiteSpace($choice) -or $choice -eq "y" -or $choice -eq "Y") {
+      Write-Info "Installing Node.js LTS via winget... (This might prompt for UAC/Admin permission)"
+      Start-Process winget -ArgumentList "install --id OpenJS.NodeJS.LTS -e --silent --accept-source-agreements --accept-package-agreements" -NoNewWindow -Wait
+      Refresh-Env
+      if (Test-Command "node") {
+        $NodeVersion = [System.Version](Get-NodeVersion)
+        Write-Ok "Node.js v$NodeVersion installed successfully."
+      } else {
+        Write-Error "Node.js was installed but still not found in PATH. You might need to restart your terminal."
+        exit 1
+      }
+    } else {
+      Write-Error "Node.js setup declined. Cannot proceed without Node.js v20+."
+      exit 1
+    }
+  } else {
+    Write-Error "Node.js v20+ is required, and winget is not available for auto-installation."
+    Write-Host "Please install Node.js manually: https://nodejs.org/en/download/"
+    exit 1
+  }
 }
-Write-Ok "Node.js v$NodeVersion found."
 
+# Check Git
 if (-not (Test-Command "git")) {
-  Write-Error "Git is not installed. Please install Git: https://git-scm.com/downloads"
-  exit 1
+  Write-Warn "Git is not installed."
+  if (Test-Command "winget") {
+    Write-Host "Would you like to install Git automatically using winget? [Y/n]"
+    $choice = Read-Host
+    if ([string]::IsNullOrWhiteSpace($choice) -or $choice -eq "y" -or $choice -eq "Y") {
+      Write-Info "Installing Git via winget... (This might prompt for UAC/Admin permission)"
+      Start-Process winget -ArgumentList "install --id Git.Git -e --silent --accept-source-agreements --accept-package-agreements" -NoNewWindow -Wait
+      Refresh-Env
+      if (Test-Command "git") {
+        Write-Ok "Git installed successfully."
+      } else {
+        Write-Error "Git was installed but still not found in PATH. You might need to restart your terminal."
+        exit 1
+      }
+    } else {
+      Write-Error "Git setup declined. Cannot proceed without Git."
+      exit 1
+    }
+  } else {
+    Write-Error "Git is required, and winget is not available for auto-installation."
+    Write-Host "Please install Git manually: https://git-scm.com/downloads"
+    exit 1
+  }
+} else {
+  Write-Ok "Git found."
 }
-Write-Ok "Git found."
+
+# Check Yarn
+if (-not (Test-Command "yarn")) {
+  Write-Info "Yarn is not installed. Installing Yarn globally..."
+  if (Test-Command "npm") {
+    npm install -g yarn
+    Refresh-Env
+    if (Test-Command "yarn") {
+      Write-Ok "Yarn installed successfully."
+    } else {
+      Write-Warn "Yarn installation succeeded but it's not immediately available in PATH. Setup will continue."
+    }
+  } else {
+    Write-Warn "npm is not available to install yarn. Setup will continue."
+  }
+} else {
+  Write-Ok "Yarn found."
+}
 
 # Determine package manager
 if ((Test-Path "yarn.lock") -and (Test-Command "yarn")) {
@@ -123,11 +197,48 @@ if ($BackendChoice -eq "2") {
   $SelfHosted = $true
 
   if (-not (Test-Command "docker")) {
-    Write-Error "Docker is not installed. Docker Desktop is required for self-hosted Appwrite."
-    Write-Host ""
-    Write-Host "Install Docker Desktop first:"
-    Write-Host "  https://docs.docker.com/desktop/install/windows-install/"
-    exit 1
+    Write-Warn "Docker is not installed. Docker Desktop is required for self-hosted Appwrite."
+    if (Test-Command "winget") {
+      Write-Host "Would you like to install Docker Desktop automatically using winget? [Y/n]"
+      $choice = Read-Host
+      if ([string]::IsNullOrWhiteSpace($choice) -or $choice -eq "y" -or $choice -eq "Y") {
+        Write-Info "Installing Docker Desktop via winget... (This might prompt for UAC/Admin permission)"
+        Write-Warn "Note: This will enable virtualization features and requires a system reboot."
+        Start-Process winget -ArgumentList "install --id Docker.DockerDesktop -e --silent --accept-source-agreements --accept-package-agreements" -NoNewWindow -Wait
+        
+        # Configure RunOnce registry key to auto-continue setup after reboot
+        try {
+          Write-Info "Configuring automatic setup continuation after reboot..."
+          Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\RunOnce" -Name "VillageManagementSetup" -Value "cmd.exe /c \`"$RootDir\windows.bat\`""
+          Write-Ok "Automatic continuation configured successfully."
+        }
+        catch {
+          Write-Warn "Failed to configure automatic continuation: $_"
+        }
+        
+        Write-Ok "Docker Desktop installation triggered."
+        Write-Warn "IMPORTANT: You MUST reboot your computer for virtualization and Docker service to initialize properly."
+        Write-Host "The script will automatically resume setup once you reboot and log in."
+        Write-Host "Would you like to reboot your computer now? [y/N]"
+        $rebootChoice = Read-Host
+        if ($rebootChoice -eq "y" -or $rebootChoice -eq "Y") {
+          Write-Info "Restarting computer..."
+          Restart-Computer
+        } else {
+          Write-Host "Please manually restart your PC to complete setup."
+          pause
+        }
+        exit 0
+      } else {
+        Write-Error "Docker setup declined. Cannot proceed with self-hosted Appwrite."
+        exit 1
+      }
+    } else {
+      Write-Error "Docker is not installed and winget is not available for auto-installation."
+      Write-Host "Please install Docker Desktop manually:"
+      Write-Host "  https://docs.docker.com/desktop/install/windows-install/"
+      exit 1
+    }
   }
   Write-Ok "Docker found."
 
@@ -251,6 +362,9 @@ $projectId = (Get-Content "$RootDir\.env" | Where-Object { $_ -match '^VITE_APPW
 Write-Info "Initializing project with ID: $projectId"
 appwrite init project --project-id $projectId 2>$null
 if (-not $?) { Write-Warn "Project init step skipped or failed; continuing..." }
+
+Write-Info "Creating required team: village_administrators..."
+appwrite teams create --teamId village_administrators --name "Administrators" 2>$null
 
 Write-Info "Pushing functions (this will build and deploy checkUsersExist, wipeAllData, seedAllData)..."
 appwrite push functions

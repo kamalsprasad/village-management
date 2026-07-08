@@ -18,6 +18,12 @@ if [[ "$(uname -s)" != "Linux" ]]; then
   exit 1
 fi
 
+# Load NVM if it exists
+if [[ -s "$HOME/.nvm/nvm.sh" ]]; then
+  export NVM_DIR="$HOME/.nvm"
+  \. "$NVM_DIR/nvm.sh"
+fi
+
 echo "============================================================"
 echo "  Village Management System  |  Linux"
 echo "============================================================"

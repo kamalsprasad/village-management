@@ -18,6 +18,21 @@ if [[ "$(uname -s)" != "Darwin" ]]; then
   exit 1
 fi
 
+# Load Homebrew if it exists but is not in PATH
+if ! command -v brew >/dev/null 2>&1; then
+  if [[ -f "/opt/homebrew/bin/brew" ]]; then
+    eval "$(/opt/homebrew/bin/brew shellenv)"
+  elif [[ -f "/usr/local/bin/brew" ]]; then
+    eval "$(/usr/local/bin/brew shellenv)"
+  fi
+fi
+
+# Load NVM if it exists
+if [[ -s "$HOME/.nvm/nvm.sh" ]]; then
+  export NVM_DIR="$HOME/.nvm"
+  \. "$NVM_DIR/nvm.sh"
+fi
+
 echo "============================================================"
 echo "  Village Management System  |  macOS"
 echo "============================================================"

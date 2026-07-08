@@ -43,6 +43,14 @@ has_command() {
   command -v "$1" >/dev/null 2>&1
 }
 
+refresh_brew_path() {
+  if [[ -f "/opt/homebrew/bin/brew" ]]; then
+    eval "$(/opt/homebrew/bin/brew shellenv)"
+  elif [[ -f "/usr/local/bin/brew" ]]; then
+    eval "$(/usr/local/bin/brew shellenv)"
+  fi
+}
+
 get_node_version() {
   node --version 2>/dev/null | sed 's/v//'
 }
@@ -98,27 +106,163 @@ wait_for_url() {
 
 log_step "Checking prerequisites"
 
+install_node() {
+  if [[ "$PLATFORM" == "Darwin" ]]; then
+    log_info "Attempting to install/upgrade Node.js via Homebrew..."
+    refresh_brew_path
+    if ! has_command brew; then
+      log_warn "Homebrew is not installed/configured."
+      read -rp "Would you like to install Homebrew automatically? [Y/n]: " CONFIRM_BREW
+      CONFIRM_BREW="${CONFIRM_BREW:-y}"
+      if [[ "$CONFIRM_BREW" =~ ^[Yy]$ ]]; then
+        /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+        refresh_brew_path
+      else
+        log_error "Homebrew not installed. Cannot proceed with automatic Node.js setup."
+        return 1
+      fi
+    fi
+    if has_command brew; then
+      log_info "Running: brew install node"
+      brew install node
+      return 0
+    fi
+  elif [[ "$PLATFORM" == "Linux" ]]; then
+    log_info "Attempting to install/upgrade Node.js via system package manager..."
+    if has_command apt-get; then
+      log_warn "This requires sudo privileges."
+      read -rp "Run sudo apt-get update and install nodejs? [Y/n]: " CONFIRM_APT
+      CONFIRM_APT="${CONFIRM_APT:-y}"
+      if [[ "$CONFIRM_APT" =~ ^[Yy]$ ]]; then
+        log_info "Adding NodeSource repository for Node.js v20..."
+        curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+        sudo apt-get install -y nodejs
+        return 0
+      fi
+    elif has_command dnf; then
+      log_warn "This requires sudo privileges."
+      read -rp "Run sudo dnf install nodejs? [Y/n]: " CONFIRM_DNF
+      CONFIRM_DNF="${CONFIRM_DNF:-y}"
+      if [[ "$CONFIRM_DNF" =~ ^[Yy]$ ]]; then
+        sudo dnf module enable nodejs:20 -y || true
+        sudo dnf install -y nodejs
+        return 0
+      fi
+    elif has_command pacman; then
+      log_warn "This requires sudo privileges."
+      read -rp "Run sudo pacman -S nodejs npm? [Y/n]: " CONFIRM_PAC
+      CONFIRM_PAC="${CONFIRM_PAC:-y}"
+      if [[ "$CONFIRM_PAC" =~ ^[Yy]$ ]]; then
+        sudo pacman -S --noconfirm nodejs npm
+        return 0
+      fi
+    fi
+  fi
+  return 1
+}
+
+install_node_nvm() {
+  log_info "Attempting to install Node.js via NVM (Node Version Manager) in user space..."
+  curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash || return 1
+  export NVM_DIR="$HOME/.nvm"
+  [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+  nvm install 20
+  nvm use 20
+  return 0
+}
+
+NEEDS_NODE=0
 if ! has_command node; then
-  log_error "Node.js is not installed."
-  echo
-  echo "Please install Node.js v20 LTS or newer:"
-  echo "  - macOS/Linux: https://nodejs.org/en/download/"
-  echo "  - or use a version manager: nvm (https://github.com/nvm-sh/nvm)"
-  exit 1
+  log_warn "Node.js is not installed."
+  NEEDS_NODE=1
+else
+  NODE_VERSION="$(get_node_version)"
+  if ! version_ge "$NODE_VERSION" "20.0.0"; then
+    log_warn "Node.js v${NODE_VERSION} is too old. Node.js v20+ is required."
+    NEEDS_NODE=1
+  fi
 fi
 
-NODE_VERSION="$(get_node_version)"
-if ! version_ge "$NODE_VERSION" "20.0.0"; then
-  log_error "Node.js v${NODE_VERSION} is too old. Node.js v20+ is required."
-  exit 1
+if [[ "$NEEDS_NODE" == "1" ]]; then
+  if install_node || install_node_nvm; then
+    hash -r
+    refresh_brew_path
+    if has_command node && version_ge "$(get_node_version)" "20.0.0"; then
+      log_success "Node.js v$(get_node_version) found/installed."
+    else
+      log_error "Node.js was installed but is still not available or too old. Please restart your shell and try again."
+      exit 1
+    fi
+  else
+    log_error "Failed to install Node.js. Please install Node.js v20+ manually."
+    exit 1
+  fi
 fi
-log_success "Node.js v${NODE_VERSION} found."
+
+# Check Git
+install_git() {
+  if [[ "$PLATFORM" == "Darwin" ]]; then
+    log_info "Installing Git via Homebrew..."
+    refresh_brew_path
+    if has_command brew; then
+      brew install git
+      return 0
+    fi
+  elif [[ "$PLATFORM" == "Linux" ]]; then
+    log_info "Installing Git via system package manager..."
+    if has_command apt-get; then
+      sudo apt-get install -y git && return 0
+    elif has_command dnf; then
+      sudo dnf install -y git && return 0
+    elif has_command pacman; then
+      sudo pacman -S --noconfirm git && return 0
+    fi
+  fi
+  return 1
+}
 
 if ! has_command git; then
-  log_error "Git is not installed. Please install Git: https://git-scm.com/downloads"
-  exit 1
+  log_warn "Git is not installed."
+  read -rp "Would you like to install Git automatically? [Y/n]: " CONFIRM_GIT
+  CONFIRM_GIT="${CONFIRM_GIT:-y}"
+  if [[ "$CONFIRM_GIT" =~ ^[Yy]$ ]]; then
+    if install_git; then
+      hash -r
+      if has_command git; then
+        log_success "Git installed successfully."
+      else
+        log_error "Git was installed but is still not available. Please restart your shell and try again."
+        exit 1
+      fi
+    else
+      log_error "Failed to install Git automatically. Please install it manually: https://git-scm.com/downloads"
+      exit 1
+    fi
+  else
+    log_error "Git is required to proceed. Setup aborted."
+    exit 1
+  fi
+else
+  log_success "Git found."
 fi
-log_success "Git found."
+
+# Check Yarn
+if ! has_command yarn; then
+  log_info "Yarn is not installed. Installing Yarn globally..."
+  if has_command npm; then
+    npm install -g yarn || sudo npm install -g yarn || true
+    hash -r
+    if has_command yarn; then
+      log_success "Yarn installed successfully."
+    else
+      log_warn "Yarn installation succeeded but it is not in the current shell path. Setup will continue using npm."
+    fi
+  else
+    log_warn "npm is not available to install Yarn. Setup will continue."
+  fi
+else
+  log_success "Yarn found."
+fi
 
 # Determine package manager
 if [[ -f "yarn.lock" ]] && has_command yarn; then
@@ -157,12 +301,50 @@ BACKEND_CHOICE="${BACKEND_CHOICE:-1}"
 if [[ "$BACKEND_CHOICE" == "2" ]]; then
   SELF_HOSTED=1
   if ! has_command docker; then
-    log_error "Docker is not installed. Docker Desktop is required for self-hosted Appwrite."
-    echo
-    echo "Install Docker Desktop first:"
-    echo "  - macOS: https://docs.docker.com/desktop/install/mac-install/"
-    echo "  - Linux: https://docs.docker.com/desktop/install/linux/"
-    exit 1
+    log_warn "Docker is not installed. Docker Desktop/Engine is required for self-hosted Appwrite."
+    read -rp "Would you like to install Docker automatically? [Y/n]: " CONFIRM_DOCKER
+    CONFIRM_DOCKER="${CONFIRM_DOCKER:-y}"
+    if [[ "$CONFIRM_DOCKER" =~ ^[Yy]$ ]]; then
+      if [[ "$PLATFORM" == "Darwin" ]]; then
+        refresh_brew_path
+        if has_command brew; then
+          log_info "Installing Docker Desktop via Homebrew Cask..."
+          brew install --cask docker
+          log_success "Docker Desktop has been installed. Please open Docker Desktop from Applications to start the daemon."
+          read -rp "Press Enter once Docker Desktop is running..."
+        else
+          log_error "Homebrew is not available. Please install Docker manually."
+          exit 1
+        fi
+      elif [[ "$PLATFORM" == "Linux" ]]; then
+        log_info "Installing Docker via package manager..."
+        if has_command apt-get; then
+          sudo apt-get update
+          sudo apt-get install -y docker.io docker-compose
+        elif has_command dnf; then
+          sudo dnf install -y docker docker-compose
+        elif has_command pacman; then
+          sudo pacman -S --noconfirm docker docker-compose
+        else
+          log_error "Unsupported package manager. Please install Docker manually: https://docs.docker.com/engine/install/"
+          exit 1
+        fi
+        
+        # Start and enable docker service
+        log_info "Starting and enabling Docker service..."
+        sudo systemctl start docker || true
+        sudo systemctl enable docker || true
+        
+        # Add current user to docker group
+        log_info "Adding $USER to the docker group..."
+        sudo usermod -aG docker "$USER" || true
+        log_success "Docker installed successfully."
+        log_warn "To run docker without sudo, you may need to run 'newgrp docker' or log out and log back in."
+      fi
+    else
+      log_error "Docker installation declined. Cannot proceed with self-hosted Appwrite."
+      exit 1
+    fi
   fi
   log_success "Docker found."
 
@@ -280,6 +462,9 @@ log_info "Initializing project with ID: $PROJECT_ID"
 if appwrite init project --project-id "$PROJECT_ID" 2>/dev/null || true; then
   log_info "Project initialized."
 fi
+
+log_info "Creating required team: village_administrators..."
+appwrite teams create --teamId village_administrators --name "Administrators" 2>/dev/null || true
 
 log_info "Pushing functions (this will build and deploy checkUsersExist, wipeAllData, seedAllData)..."
 appwrite push functions || {
