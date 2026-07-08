@@ -24,6 +24,20 @@ function Test-Command($cmd) {
   return [bool](Get-Command -Name $cmd -ErrorAction SilentlyContinue)
 }
 
+function Test-WslInstalled {
+  if (-not (Test-Command "wsl")) {
+    return $false
+  }
+  try {
+    $feature = Get-WindowsOptionalFeature -Online -FeatureName "Microsoft-Windows-Subsystem-Linux" -ErrorAction Stop
+    return ($feature -and $feature.State -eq "Enabled")
+  }
+  catch {
+    # Fallback if Get-WindowsOptionalFeature is not available or fails
+    return $true
+  }
+}
+
 function Get-NodeVersion {
   return (node --version).Trim().TrimStart('v')
 }
@@ -202,6 +216,16 @@ if ($BackendChoice -eq "2") {
       Write-Host "Would you like to install Docker Desktop automatically using winget? [Y/n]"
       $choice = Read-Host
       if ([string]::IsNullOrWhiteSpace($choice) -or $choice -eq "y" -or $choice -eq "Y") {
+        # Check and install WSL if not installed
+        if (-not (Test-WslInstalled)) {
+          Write-Info "WSL (Windows Subsystem for Linux) is not installed or enabled. Installing WSL first..."
+          Write-Warn "Note: WSL installation will require a system reboot."
+          Start-Process wsl -ArgumentList "--install" -NoNewWindow -Wait
+          Write-Ok "WSL installation triggered."
+        } else {
+          Write-Ok "WSL is already installed."
+        }
+
         Write-Info "Installing Docker Desktop via winget... (This might prompt for UAC/Admin permission)"
         Write-Warn "Note: This will enable virtualization features and requires a system reboot."
         Start-Process winget -ArgumentList "install --id Docker.DockerDesktop -e --silent --accept-source-agreements --accept-package-agreements" -NoNewWindow -Wait
@@ -209,7 +233,7 @@ if ($BackendChoice -eq "2") {
         # Configure RunOnce registry key to auto-continue setup after reboot
         try {
           Write-Info "Configuring automatic setup continuation after reboot..."
-          Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\RunOnce" -Name "VillageManagementSetup" -Value "cmd.exe /c \`"$RootDir\windows.bat\`""
+          Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\RunOnce" -Name "VillageManagementSetup" -Value "cmd.exe /c `"$RootDir\windows.bat`""
           Write-Ok "Automatic continuation configured successfully."
         }
         catch {
@@ -242,13 +266,18 @@ if ($BackendChoice -eq "2") {
   }
   Write-Ok "Docker found."
 
-  try {
-    docker info | Out-Null
-    Write-Ok "Docker is running."
-  }
-  catch {
-    Write-Error "Docker is installed but not running. Please start Docker Desktop and try again."
-    exit 1
+  $dockerRunning = $false
+  while (-not $dockerRunning) {
+    try {
+      docker info 2>&1 | Out-Null
+      $dockerRunning = $true
+      Write-Ok "Docker is running."
+    }
+    catch {
+      Write-Warn "Docker is installed but not running. Please make sure Docker Desktop is running."
+      Write-Host "If Docker Desktop has just been installed or is starting up, please open it manually and wait for it to initialize."
+      $retry = Read-Host "Press Enter to retry checking Docker status, or Ctrl+C to cancel..."
+    }
   }
 
   Write-Warn "Self-hosted Appwrite requires a few manual steps in the Docker install wizard."
