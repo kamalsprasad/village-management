@@ -348,10 +348,60 @@ if [[ "$BACKEND_CHOICE" == "2" ]]; then
   fi
   log_success "Docker found."
 
-  # Check if Docker is running
-  if ! docker info >/dev/null 2>&1; then
-    log_error "Docker is installed but not running. Please start Docker Desktop and try again."
-    exit 1
+  # Check if Docker is running (with timeout to avoid hanging during "Docker starting" phase)
+  docker_ready=0
+  if timeout 5 docker info >/dev/null 2>&1; then
+    docker_ready=1
+  fi
+
+  if [[ "$docker_ready" == "0" ]]; then
+    log_info "Docker Desktop is not running. Attempting to start it..."
+
+    # Try to auto-launch Docker Desktop
+    if [[ "$PLATFORM" == "Darwin" ]]; then
+      if [[ -d "/Applications/Docker.app" ]]; then
+        open -a Docker
+        log_info "Docker Desktop launched. Waiting for it to become ready (this can take 30-90 seconds)..."
+      else
+        log_warn "Could not find Docker Desktop. Please start it manually."
+      fi
+    else
+      # On Linux, try starting the docker service
+      if has_command systemctl; then
+        sudo systemctl start docker 2>/dev/null || true
+        log_info "Docker service start requested. Waiting for it to become ready..."
+      else
+        log_warn "Please start Docker manually."
+      fi
+    fi
+
+    max_wait=120
+    elapsed=0
+    interval=5
+    while [[ $elapsed -lt $max_wait ]]; do
+      sleep $interval
+      elapsed=$((elapsed + interval))
+      printf "\r  Waiting... %ds / %ds" "$elapsed" "$max_wait"
+
+      if timeout 10 docker info >/dev/null 2>&1; then
+        docker_ready=1
+        break
+      fi
+    done
+    echo ""
+
+    if [[ "$docker_ready" == "0" ]]; then
+      log_error "Docker did not become ready within $max_wait seconds."
+      echo "  Troubleshooting tips:"
+      if [[ "$PLATFORM" == "Darwin" ]]; then
+        echo "    - Click the Docker icon in the menu bar and choose 'Restart'"
+        echo "    - If it stays on 'Docker starting...', quit Docker Desktop and reopen it"
+      else
+        echo "    - Run: sudo systemctl restart docker"
+      fi
+      echo "    - Then re-run this script"
+      exit 1
+    fi
   fi
   log_success "Docker is running."
 

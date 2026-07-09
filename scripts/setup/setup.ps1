@@ -266,19 +266,60 @@ if ($BackendChoice -eq "2") {
   }
   Write-Ok "Docker found."
 
+  # Try to auto-launch Docker Desktop if it's not running
   $dockerRunning = $false
-  while (-not $dockerRunning) {
-    try {
-      docker info 2>&1 | Out-Null
-      $dockerRunning = $true
-      Write-Ok "Docker is running."
+  try {
+    $job = Start-Job -ScriptBlock { docker info 2>&1 | Out-Null }
+    if (Wait-Job $job -Timeout 5) {
+      if ($job.State -eq "Completed") { $dockerRunning = $true }
     }
-    catch {
-      Write-Warn "Docker is installed but not running. Please make sure Docker Desktop is running."
-      Write-Host "If Docker Desktop has just been installed or is starting up, please open it manually and wait for it to initialize."
-      $retry = Read-Host "Press Enter to retry checking Docker status, or Ctrl+C to cancel..."
+    Remove-Job $job -Force -ErrorAction SilentlyContinue
+  }
+  catch {}
+
+  if (-not $dockerRunning) {
+    Write-Info "Docker Desktop is not running. Attempting to start it..."
+    $dockerExe = "${env:ProgramFiles}\Docker\Docker\Docker Desktop.exe"
+    if (Test-Path $dockerExe) {
+      Start-Process $dockerExe
+      Write-Info "Docker Desktop launched. Waiting for it to become ready (this can take 30-90 seconds)..."
+    } else {
+      Write-Warn "Could not find Docker Desktop executable. Please start Docker Desktop manually."
+    }
+
+    $maxWaitSecs = 120
+    $elapsed = 0
+    $interval = 5
+    while ($elapsed -lt $maxWaitSecs) {
+      Start-Sleep -Seconds $interval
+      $elapsed += $interval
+      Write-Host -NoNewline "`r  Waiting... ${elapsed}s / ${maxWaitSecs}s"
+
+      try {
+        $job = Start-Job -ScriptBlock { docker info 2>&1 | Out-Null }
+        if (Wait-Job $job -Timeout 10) {
+          if ($job.State -eq "Completed" -and $job.ChildJobs[0].Error.Count -eq 0) {
+            $dockerRunning = $true
+          }
+        }
+        Remove-Job $job -Force -ErrorAction SilentlyContinue
+      }
+      catch {}
+
+      if ($dockerRunning) { break }
+    }
+    Write-Host ""
+
+    if (-not $dockerRunning) {
+      Write-Error "Docker Desktop did not become ready within $maxWaitSecs seconds."
+      Write-Host "  Troubleshooting tips:"
+      Write-Host "    - Right-click the Docker icon in the system tray and choose 'Restart Docker Desktop'"
+      Write-Host "    - If it stays on 'Docker starting...', quit Docker Desktop and reopen it"
+      Write-Host "    - Then re-run this script"
+      exit 1
     }
   }
+  Write-Ok "Docker is running."
 
   Write-Warn "Self-hosted Appwrite requires a few manual steps in the Docker install wizard."
   Read-Host "Press Enter to run the Appwrite Docker install command, or Ctrl+C to cancel..."
