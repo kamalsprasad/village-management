@@ -13,6 +13,19 @@ $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Definition
 $RootDir = Split-Path -Parent (Split-Path -Parent $ScriptDir)
 Set-Location $RootDir
 
+# Setup session state for continuation after reboot
+$StateFile = Join-Path $RootDir ".setup-state.json"
+$State = $null
+if (Test-Path $StateFile) {
+  try {
+    $State = Get-Content $StateFile | ConvertFrom-Json
+    Write-Info "Found existing setup state. Resuming setup session..."
+  }
+  catch {
+    Write-Warn "Could not read setup state: $_"
+  }
+}
+
 # Logging helpers
 function Write-Info($msg) { Write-Host "[INFO] $msg" -ForegroundColor Blue }
 function Write-Ok($msg) { Write-Host "[OK] $msg" -ForegroundColor Green }
@@ -214,11 +227,17 @@ Write-Info "Using package manager: $PkgManager"
 
 Write-Step "Appwrite backend"
 
-Write-Host "Do you want to set up:"
-Write-Host "  1) Appwrite Cloud (recommended - no Docker needed)"
-Write-Host "  2) Self-hosted Appwrite via Docker"
-$BackendChoice = Read-Host "Enter choice [1]"
-if ([string]::IsNullOrWhiteSpace($BackendChoice)) { $BackendChoice = "1" }
+$BackendChoice = $null
+if ($State -and $State.BackendChoice) {
+  $BackendChoice = $State.BackendChoice
+  Write-Info "Resuming setup with backend choice: $BackendChoice"
+} else {
+  Write-Host "Do you want to set up:"
+  Write-Host "  1) Appwrite Cloud (recommended - no Docker needed)"
+  Write-Host "  2) Self-hosted Appwrite via Docker"
+  $BackendChoice = Read-Host "Enter choice [1]"
+  if ([string]::IsNullOrWhiteSpace($BackendChoice)) { $BackendChoice = "1" }
+}
 
 $SelfHosted = $false
 if ($BackendChoice -eq "2") {
@@ -227,14 +246,31 @@ if ($BackendChoice -eq "2") {
   if (-not (Test-Command "docker")) {
     Write-Warn "Docker is not installed. Docker Desktop is required for self-hosted Appwrite."
     if (Test-Command "winget") {
-      Write-Host "Would you like to install Docker Desktop automatically using winget? [Y/n]"
-      $choice = Read-Host
+      $AttemptedDocker = ($State -and $State.Step -eq "DockerInstall")
+      $choice = "y"
+      if (-not $AttemptedDocker) {
+        Write-Host "Would you like to install Docker Desktop automatically using winget? [Y/n]"
+        $choice = Read-Host
+      }
       if ([string]::IsNullOrWhiteSpace($choice) -or $choice -eq "y" -or $choice -eq "Y") {
+        # Save state before installing Docker / WSL / rebooting
+        try {
+          $SaveState = @{
+            BackendChoice = "2"
+            Step = "DockerInstall"
+          }
+          $SaveState | ConvertTo-Json | Out-File -FilePath $StateFile -Encoding utf8
+          Write-Ok "Setup state saved."
+        }
+        catch {
+          Write-Warn "Failed to save setup state: $_"
+        }
+
         # Check and install WSL if not installed
         if (-not (Test-WslInstalled)) {
           Write-Info "WSL (Windows Subsystem for Linux) is not installed or enabled. Installing WSL first..."
           Write-Warn "Note: WSL installation will require a system reboot."
-          Start-Process wsl -ArgumentList "--install" -NoNewWindow -Wait
+          Start-Process wsl -ArgumentList "--install --no-distribution" -NoNewWindow -Wait
           Write-Ok "WSL installation triggered."
         } else {
           Write-Ok "WSL is already installed."
@@ -470,7 +506,7 @@ Write-Info "Pushing functions (this will build and deploy checkUsersExist, wipeA
 appwrite push functions
 if (-not $?) {
   Write-Warn "Function deployment encountered an issue. You can deploy manually later."
-  Write-Host "  cd server\"
+  Write-Host "  cd server"
   Write-Host "  appwrite login"
   Write-Host "  appwrite push functions"
 }
@@ -493,6 +529,11 @@ Write-ActionRequired @(
 )
 
 Read-Host "Press Enter after you have set the function environment variables in the Appwrite Console..."
+
+# Clean up setup state file
+if (Test-Path $StateFile) {
+  Remove-Item $StateFile -Force -ErrorAction SilentlyContinue
+}
 
 # ── Phase 7: Start development server ─────────────────────────────────────────
 
