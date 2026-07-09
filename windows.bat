@@ -7,7 +7,7 @@ setlocal EnableExtensions
 ::
 :: On first run (or if node_modules\.env are missing), this runs the full
 :: setup wizard. On subsequent runs it starts the dev server directly.
-:: TEMP
+:: 
 
 title Village Management System
 
@@ -53,11 +53,18 @@ if %errorLevel% neq 0 (
     echo  [INFO] The setup wizard requires Administrator privileges to install dependencies.
     echo  Requesting elevation...
     if "%~1" == "" (
-        powershell -Command "Start-Process -FilePath cmd.exe -ArgumentList '/c \"%~f0\"' -Verb RunAs"
+        powershell -Command "Start-Process -FilePath cmd.exe -ArgumentList '/c \"%~f0\"' -Verb RunAs -WorkingDirectory '%~dp0'"
     ) else (
-        powershell -Command "Start-Process -FilePath cmd.exe -ArgumentList '/c \"%~f0\" %*' -Verb RunAs"
+        powershell -Command "Start-Process -FilePath cmd.exe -ArgumentList '/c \"%~f0\" %*' -Verb RunAs -WorkingDirectory '%~dp0'"
     )
     exit /b 0
+)
+
+if not exist "%~dp0scripts\setup\setup.ps1" (
+    echo  [ERROR] Setup script not found: scripts\setup\setup.ps1
+    echo  Please ensure the repository was cloned completely.
+    pause
+    exit /b 1
 )
 
 powershell -ExecutionPolicy Bypass -File "%~dp0scripts\setup\setup.ps1"
@@ -69,11 +76,12 @@ if errorlevel 1 (
     exit /b 1
 )
 
+:: After setup completes, setup.ps1 starts the dev server itself.
 exit /b 0
 
 :launch
 echo  Environment already configured. Starting dev server...
-echo  The app will open at http://localhost:9100
+echo  The app will be available at http://localhost:9100
 echo  Press Ctrl+C to stop.
 echo.
 

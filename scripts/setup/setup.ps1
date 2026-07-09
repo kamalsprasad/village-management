@@ -64,7 +64,7 @@ function Wait-ForUrl($url, $maxAttempts = 30) {
   for ($attempt = 1; $attempt -le $maxAttempts; $attempt++) {
     try {
       $response = Invoke-WebRequest -Uri $url -UseBasicParsing -TimeoutSec 2 -ErrorAction SilentlyContinue
-      if ($response.StatusCode -eq 200) {
+      if ($response.StatusCode -ge 200 -and $response.StatusCode -lt 400) {
         Write-Ok "$url is reachable."
         return
       }
@@ -76,7 +76,7 @@ function Wait-ForUrl($url, $maxAttempts = 30) {
     Start-Sleep -Seconds 2
   }
   Write-Host
-  throw "$url did not become reachable within $((maxAttempts * 2)) seconds."
+  throw "$url did not become reachable within $(($maxAttempts * 2)) seconds."
 }
 
 # ── Phase 1: Prerequisites ───────────────────────────────────────────────────
@@ -289,9 +289,9 @@ if ($BackendChoice -eq "2") {
     --entrypoint="install" `
     appwrite/appwrite:1.8.1
 
-  Write-Info "Waiting for Appwrite to start at http://localhost/v1..."
+  Write-Info "Waiting for Appwrite to start at http://localhost..."
   try {
-    Wait-ForUrl "http://localhost/v1" 30
+    Wait-ForUrl "http://localhost" 30
   }
   catch {
     Write-Warn "Appwrite may not be ready yet. You can continue and check manually."
@@ -344,10 +344,12 @@ if ((Test-Path ".env") -and (Test-Path "server\.env")) {
     Write-Info "Skipping environment configuration."
   }
   else {
+    $env:VILLAGE_BACKEND = if ($SelfHosted) { "self-hosted" } else { "cloud" }
     node "$ScriptDir\configure-env.js"
   }
 }
 else {
+  $env:VILLAGE_BACKEND = if ($SelfHosted) { "self-hosted" } else { "cloud" }
   node "$ScriptDir\configure-env.js"
 }
 

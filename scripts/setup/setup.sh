@@ -372,8 +372,8 @@ if [[ "$BACKEND_CHOICE" == "2" ]]; then
       appwrite/appwrite:1.8.1
   fi
 
-  log_info "Waiting for Appwrite to start at http://localhost/v1..."
-  if wait_for_url "http://localhost/v1" 30; then
+  log_info "Waiting for Appwrite to start at http://localhost..."
+  if wait_for_url "http://localhost" 30; then
     log_success "Appwrite appears to be running."
   else
     log_warn "Appwrite may not be ready yet. You can continue and check manually."
@@ -418,10 +418,10 @@ if [[ -f ".env" && -f "server/.env" ]]; then
   if [[ "$OVERWRITE_LOWER" != "y" ]]; then
     log_info "Skipping environment configuration."
   else
-    node "$SCRIPT_DIR/configure-env.js"
+    VILLAGE_BACKEND=$( [[ "$SELF_HOSTED" == "1" ]] && echo "self-hosted" || echo "cloud" ) node "$SCRIPT_DIR/configure-env.js"
   fi
 else
-  node "$SCRIPT_DIR/configure-env.js"
+  VILLAGE_BACKEND=$( [[ "$SELF_HOSTED" == "1" ]] && echo "self-hosted" || echo "cloud" ) node "$SCRIPT_DIR/configure-env.js"
 fi
 
 log_success "Environment files configured."

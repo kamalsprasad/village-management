@@ -118,13 +118,24 @@ async function main() {
   const existingRoot = loadExistingEnv(rootEnvPath);
   const existingServer = loadExistingEnv(serverEnvPath);
 
-  const backendChoices = ['Appwrite Cloud (recommended)', 'Self-hosted (Docker required)'];
-  const backendIndex = await askChoice(
-    'Which Appwrite backend do you want to use?',
-    backendChoices,
-    0,
-  );
-  const isSelfHosted = backendIndex === 1;
+  // If the parent setup script already asked, honour VILLAGE_BACKEND env var
+  let isSelfHosted;
+  const backendEnv = (process.env.VILLAGE_BACKEND || '').toLowerCase();
+  if (backendEnv === 'self-hosted') {
+    console.log('\nUsing self-hosted Appwrite backend (from setup wizard).');
+    isSelfHosted = true;
+  } else if (backendEnv === 'cloud') {
+    console.log('\nUsing Appwrite Cloud backend (from setup wizard).');
+    isSelfHosted = false;
+  } else {
+    const backendChoices = ['Appwrite Cloud (recommended)', 'Self-hosted (Docker required)'];
+    const backendIndex = await askChoice(
+      'Which Appwrite backend do you want to use?',
+      backendChoices,
+      0,
+    );
+    isSelfHosted = backendIndex === 1;
+  }
 
   const defaultEndpoint = isSelfHosted ? 'http://localhost/v1' : 'https://cloud.appwrite.io/v1';
   const endpoint = await ask(
