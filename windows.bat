@@ -7,7 +7,7 @@ setlocal EnableExtensions
 ::
 :: On first run (or if node_modules\.env are missing), this runs the full
 :: setup wizard. On subsequent runs it starts the dev server directly.
-::
+:: TEMP
 
 title Village Management System
 
