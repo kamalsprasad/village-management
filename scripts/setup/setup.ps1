@@ -20,6 +20,20 @@ function Write-Warn($msg) { Write-Host "[WARN] $msg" -ForegroundColor Yellow }
 function Write-Error($msg) { Write-Host "[ERROR] $msg" -ForegroundColor Red }
 function Write-Step($msg) { Write-Host "`n=== $msg ===" -ForegroundColor Cyan }
 
+function Write-ActionRequired {
+  param([string[]]$Lines)
+  $border = "*" * 64
+  Write-Host ""
+  Write-Host $border -ForegroundColor Yellow
+  Write-Host "*  ACTION REQUIRED                                            *" -ForegroundColor Yellow
+  Write-Host $border -ForegroundColor Yellow
+  foreach ($line in $Lines) {
+    Write-Host "  $line" -ForegroundColor White
+  }
+  Write-Host $border -ForegroundColor Yellow
+  Write-Host ""
+}
+
 function Test-Command($cmd) {
   return [bool](Get-Command -Name $cmd -ErrorAction SilentlyContinue)
 }
@@ -338,25 +352,35 @@ if ($BackendChoice -eq "2") {
     Write-Warn "Appwrite may not be ready yet. You can continue and check manually."
   }
 
-  Write-Host ""
-  Write-Info "Next steps in the Appwrite Console at http://localhost:"
-  Write-Host "  1. Create an admin account."
-  Write-Host "  2. Create a new project (note the Project ID)."
-  Write-Host "  3. Go to Settings -> API Keys and create a key with Database and Users scopes."
   Write-Info "Opening Appwrite Console at http://localhost in your browser..."
   try { Start-Process "http://localhost" } catch {}
+
+  Write-ActionRequired @(
+    "Complete these steps in the Appwrite Console (http://localhost):",
+    "",
+    "  1. Create an admin account (first-time only)",
+    "  2. Create a new project and note the Project ID",
+    "  3. Go to Settings -> API Keys -> Create API Key",
+    "     Scopes needed: Database (all), Users (read)",
+    "",
+    "You will need the Project ID and API Key in the next step."
+  )
 }
 else {
   Write-Info "Using Appwrite Cloud."
-  Write-Host ""
-  Write-Host "Before continuing, please create an Appwrite Cloud account and project:"
-  Write-Host "  https://cloud.appwrite.io"
-  Write-Host ""
-  Write-Host "Then create an API key:"
-  Write-Host "  Settings -> API Keys -> Create API Key"
-  Write-Host "  Scopes: Database (all), Users (read)"
   Write-Info "Opening Appwrite Cloud Console in your browser..."
   try { Start-Process "https://cloud.appwrite.io" } catch {}
+
+  Write-ActionRequired @(
+    "Complete these steps at https://cloud.appwrite.io:",
+    "",
+    "  1. Create an Appwrite Cloud account (if you don't have one)",
+    "  2. Create a new project and note the Project ID",
+    "  3. Go to Settings -> API Keys -> Create API Key",
+    "     Scopes needed: Database (all), Users (read)",
+    "",
+    "You will need the Project ID and API Key in the next step."
+  )
 }
 
 Read-Host "Press Enter when you have your Project ID and API Key ready..."
@@ -453,19 +477,20 @@ if (-not $?) {
 
 Set-Location $RootDir
 
-Write-Host ""
-Write-Warn "Important: set the following environment variables in the Appwrite Console for each deployed function:"
-Write-Host "  Functions -> [Function] -> Settings -> Environment Variables"
-Write-Host ""
-if ($SelfHosted) {
-  Write-Host "  APPWRITE_ENDPOINT=http://host.docker.internal/v1"
-}
-else {
-  Write-Host "  APPWRITE_ENDPOINT=https://cloud.appwrite.io/v1"
-}
-Write-Host "  APPWRITE_PROJECT_ID=<your-project-id>"
-Write-Host "  APPWRITE_API_KEY=<your-api-key>"
-Write-Host ""
+$endpointValue = if ($SelfHosted) { "http://host.docker.internal/v1" } else { "https://cloud.appwrite.io/v1" }
+
+Write-ActionRequired @(
+  "Set environment variables for EACH deployed function:",
+  "",
+  "  In the Appwrite Console, navigate to:",
+  "    Functions -> [Function] -> Settings -> Environment Variables",
+  "",
+  "  Add these three variables to each function:",
+  "",
+  "    APPWRITE_ENDPOINT=$endpointValue",
+  "    APPWRITE_PROJECT_ID=<your-project-id>",
+  "    APPWRITE_API_KEY=<your-api-key>"
+)
 
 Read-Host "Press Enter after you have set the function environment variables in the Appwrite Console..."
 

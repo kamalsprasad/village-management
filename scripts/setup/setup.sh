@@ -28,6 +28,20 @@ log_warn() { echo -e "${YELLOW}[WARN]${NC} $1"; }
 log_error() { echo -e "${RED}[ERROR]${NC} $1" >&2; }
 log_step() { echo -e "\n${CYAN}=== $1 ===${NC}"; }
 
+action_required() {
+  local border="****************************************************************"
+  echo ""
+  echo -e "${YELLOW}${border}${NC}"
+  echo -e "${YELLOW}*  ACTION REQUIRED                                            *${NC}"
+  echo -e "${YELLOW}${border}${NC}"
+  while [[ $# -gt 0 ]]; do
+    echo -e "  $1"
+    shift
+  done
+  echo -e "${YELLOW}${border}${NC}"
+  echo ""
+}
+
 # Platform detection
 PLATFORM="$(uname -s)"
 if [[ "$PLATFORM" != "Linux" && "$PLATFORM" != "Darwin" ]]; then
@@ -429,21 +443,28 @@ if [[ "$BACKEND_CHOICE" == "2" ]]; then
     log_warn "Appwrite may not be ready yet. You can continue and check manually."
   fi
 
-  echo
-  log_info "Next steps in the Appwrite Console at http://localhost:"
-  echo "  1. Create an admin account."
-  echo "  2. Create a new project (note the Project ID)."
-  echo "  3. Go to Settings -> API Keys and create a key with Database and Users scopes."
+  action_required \
+    "Complete these steps in the Appwrite Console (http://localhost):" \
+    "" \
+    "  1. Create an admin account (first-time only)" \
+    "  2. Create a new project and note the Project ID" \
+    "  3. Go to Settings -> API Keys -> Create API Key" \
+    "     Scopes needed: Database (all), Users (read)" \
+    "" \
+    "You will need the Project ID and API Key in the next step."
 else
   SELF_HOSTED=0
   log_info "Using Appwrite Cloud."
-  echo
-  echo "Before continuing, please create an Appwrite Cloud account and project:"
-  echo "  https://cloud.appwrite.io"
-  echo
-  echo "Then create an API key:"
-  echo "  Settings -> API Keys -> Create API Key"
-  echo "  Scopes: Database (all), Users (read)"
+
+  action_required \
+    "Complete these steps at https://cloud.appwrite.io:" \
+    "" \
+    "  1. Create an Appwrite Cloud account (if you don't have one)" \
+    "  2. Create a new project and note the Project ID" \
+    "  3. Go to Settings -> API Keys -> Create API Key" \
+    "     Scopes needed: Database (all), Users (read)" \
+    "" \
+    "You will need the Project ID and API Key in the next step."
 fi
 
 read -rp "Press Enter when you have your Project ID and API Key ready..."
@@ -526,18 +547,23 @@ appwrite push functions || {
 
 cd "$ROOT_DIR"
 
-echo
-log_warn "Important: set the following environment variables in the Appwrite Console for each deployed function:"
-echo "  Functions -> [Function] -> Settings -> Environment Variables"
-echo
 if [[ "$SELF_HOSTED" == "1" ]]; then
-  echo "  APPWRITE_ENDPOINT=http://host.docker.internal/v1"
+  ENDPOINT_VALUE="http://host.docker.internal/v1"
 else
-  echo "  APPWRITE_ENDPOINT=https://cloud.appwrite.io/v1"
+  ENDPOINT_VALUE="https://cloud.appwrite.io/v1"
 fi
-echo "  APPWRITE_PROJECT_ID=<your-project-id>"
-echo "  APPWRITE_API_KEY=<your-api-key>"
-echo
+
+action_required \
+  "Set environment variables for EACH deployed function:" \
+  "" \
+  "  In the Appwrite Console, navigate to:" \
+  "    Functions -> [Function] -> Settings -> Environment Variables" \
+  "" \
+  "  Add these three variables to each function:" \
+  "" \
+  "    APPWRITE_ENDPOINT=$ENDPOINT_VALUE" \
+  "    APPWRITE_PROJECT_ID=<your-project-id>" \
+  "    APPWRITE_API_KEY=<your-api-key>"
 
 read -rp "Press Enter after you have set the function environment variables in the Appwrite Console..."
 
