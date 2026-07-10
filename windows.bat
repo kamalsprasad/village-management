@@ -57,7 +57,7 @@ if %errorLevel% neq 0 (
     ) else (
         powershell -Command "Start-Process -FilePath cmd.exe -ArgumentList '/c \"%~f0\" %*' -Verb RunAs -WorkingDirectory '%~dp0'"
     )
-    exit /b 0
+    exit
 )
 
 if not exist "%~dp0scripts\setup\setup.ps1" (
