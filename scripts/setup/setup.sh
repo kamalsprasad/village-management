@@ -447,11 +447,12 @@ if [[ "$BACKEND_CHOICE" == "2" ]]; then
     "Complete these steps in the Appwrite Console (http://localhost):" \
     "" \
     "  1. Create an admin account (first-time only)" \
-    "  2. Create a new project and note the Project ID" \
-    "  3. Go to Settings -> API Keys -> Create API Key" \
-    "     Scopes needed: Database (all), Users (read)" \
-    "" \
-    "You will need the Project ID and API Key in the next step."
+    "  2. Create a new project and set the Project ID to something like 'village-management'" \
+    "  3. Go to Settings -> View API Keys -> Create API Key" \
+    "  4. Create a new database. Go to Databases -> Create Database. Set Database ID to something like 'villageDB' " \
+    "     Scopes needed: Select all", \
+    "", \
+    "You will need the Project ID, Database ID and API Key in the next step."
 else
   SELF_HOSTED=0
   log_info "Using Appwrite Cloud."
@@ -460,14 +461,15 @@ else
     "Complete these steps at https://cloud.appwrite.io:" \
     "" \
     "  1. Create an Appwrite Cloud account (if you don't have one)" \
-    "  2. Create a new project and note the Project ID" \
-    "  3. Go to Settings -> API Keys -> Create API Key" \
-    "     Scopes needed: Database (all), Users (read)" \
-    "" \
-    "You will need the Project ID and API Key in the next step."
+    "  2. Create a new project and set the Project ID to something like 'village-management'" \
+    "  3. Go to Settings -> View API Keys -> Create API Key" \
+    "  4. Create a new database. Go to Databases -> Create Database. Set Database ID to something like 'villageDB' " \
+    "     Scopes needed: Select all", \
+    "", \
+    "You will need the Project ID, Database ID and API Key in the next step."
 fi
 
-read -rp "Press Enter when you have your Project ID and API Key ready..."
+read -rp "Press Enter when you have your Project ID, Database ID and API Key ready..."
 
 # ── Phase 3: Install tools and dependencies ───────────────────────────────────
 
