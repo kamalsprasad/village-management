@@ -166,43 +166,16 @@ async function main() {
     existingRoot.VITE_APPWRITE_DATABASE_ID || existingServer.APPWRITE_DATABASE_ID || 'villageDB',
   );
 
-  const functionCheckUsers = await ask(
-    'Function ID: Check Users Exist',
-    existingRoot.VITE_APPWRITE_FUNCTION_CHECK_USERS || 'checkUsersExist',
-  );
-  const functionWipeData = await ask(
-    'Function ID: Wipe All Data',
-    existingRoot.VITE_APPWRITE_FUNCTION_WIPE_DATA || 'wipeAllData',
-  );
-  const functionSeedData = await ask(
-    'Function ID: Seed All Data',
-    existingRoot.VITE_APPWRITE_FUNCTION_SEED_DATA || 'seedAllData',
-  );
-
-  const tableUsers = await ask(
-    'Table ID: users',
-    existingRoot.VITE_APPWRITE_TABLE_USERS || 'users',
-  );
-  const tableResidents = await ask(
-    'Table ID: residents',
-    existingRoot.VITE_APPWRITE_TABLE_RESIDENTS || 'residents',
-  );
-  const tableHouseholds = await ask(
-    'Table ID: households',
-    existingRoot.VITE_APPWRITE_TABLE_HOUSEHOLDS || 'households',
-  );
-  const tableRoles = await ask(
-    'Table ID: roles',
-    existingRoot.VITE_APPWRITE_TABLE_ROLES || 'roles',
-  );
-  const tableVillageSettings = await ask(
-    'Table ID: village_settings',
-    existingRoot.VITE_APPWRITE_TABLE_VILLAGE_SETTINGS || 'village_settings',
-  );
-  const tableInventory = await ask(
-    'Table ID: inventory',
-    existingRoot.VITE_APPWRITE_TABLE_INVENTORY || 'inventory',
-  );
+  // Function and table IDs use fixed defaults — the Appwrite setup script creates these.
+  const functionCheckUsers = 'checkUsersExist';
+  const functionWipeData = 'wipeAllData';
+  const functionSeedData = 'seedAllData';
+  const tableUsers = 'users';
+  const tableResidents = 'residents';
+  const tableHouseholds = 'households';
+  const tableRoles = 'roles';
+  const tableVillageSettings = 'village_settings';
+  const tableInventory = 'inventory';
 
   const rootEntries = [
     ['VITE_APPWRITE_ENDPOINT', endpoint, 'Appwrite API endpoint'],
