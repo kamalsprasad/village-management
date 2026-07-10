@@ -13,6 +13,13 @@ $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Definition
 $RootDir = Split-Path -Parent (Split-Path -Parent $ScriptDir)
 Set-Location $RootDir
 
+# Logging helpers
+function Write-Info($msg) { Write-Host "[INFO] $msg" -ForegroundColor Blue }
+function Write-Ok($msg) { Write-Host "[OK] $msg" -ForegroundColor Green }
+function Write-Warn($msg) { Write-Host "[WARN] $msg" -ForegroundColor Yellow }
+function Write-Error($msg) { Write-Host "[ERROR] $msg" -ForegroundColor Red }
+function Write-Step($msg) { Write-Host "`n=== $msg ===" -ForegroundColor Cyan }
+
 # Setup session state for continuation after reboot
 $StateFile = Join-Path $RootDir ".setup-state.json"
 $State = $null
@@ -25,13 +32,6 @@ if (Test-Path $StateFile) {
     Write-Warn "Could not read setup state: $_"
   }
 }
-
-# Logging helpers
-function Write-Info($msg) { Write-Host "[INFO] $msg" -ForegroundColor Blue }
-function Write-Ok($msg) { Write-Host "[OK] $msg" -ForegroundColor Green }
-function Write-Warn($msg) { Write-Host "[WARN] $msg" -ForegroundColor Yellow }
-function Write-Error($msg) { Write-Host "[ERROR] $msg" -ForegroundColor Red }
-function Write-Step($msg) { Write-Host "`n=== $msg ===" -ForegroundColor Cyan }
 
 function Write-ActionRequired {
   param([string[]]$Lines)
@@ -394,12 +394,13 @@ if ($BackendChoice -eq "2") {
   Write-ActionRequired @(
     "Complete these steps in the Appwrite Console (http://localhost):",
     "",
-    "  1. Create an admin account (first-time only)",
-    "  2. Create a new project and note the Project ID",
-    "  3. Go to Settings -> API Keys -> Create API Key",
-    "     Scopes needed: Database (all), Users (read)",
+    "  1. Create an admin account (first-time only) by clicking on the 'Sign up' button.",
+    "  2. Create a new project and set the Project ID to something like 'village-management'",
+    "  3. Go to Settings -> View API Keys -> Create API Key",
+    "  4. Create a new database. Go to Databases -> Create Database. Set Database ID to something like 'villageDB' "
+    "     Scopes needed: Select all",
     "",
-    "You will need the Project ID and API Key in the next step."
+    "You will need the Project ID, Database ID and API Key in the next step."
   )
 }
 else {
