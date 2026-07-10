@@ -492,8 +492,23 @@ Write-Step "Deploying Appwrite functions"
 
 Set-Location "$RootDir\server"
 
+$loginCmd = if ($SelfHosted) { "appwrite login --endpoint http://localhost/v1" } else { "appwrite login" }
 Write-Info "Logging in to Appwrite CLI (interactive)..."
-appwrite login
+$loginSuccess = $false
+for ($attempt = 1; $attempt -le 3; $attempt++) {
+  Invoke-Expression $loginCmd
+  if ($?) {
+    $loginSuccess = $true
+    break
+  }
+  if ($attempt -lt 3) {
+    Write-Warn "Login attempt $attempt of 3 failed. Retrying..."
+  }
+}
+if (-not $loginSuccess) {
+  Write-Error "Appwrite CLI login failed after 3 attempts. You can retry manually later with: appwrite login"
+  exit 1
+}
 
 $projectId = (Get-Content "$RootDir\.env" | Where-Object { $_ -match '^VITE_APPWRITE_PROJECT_ID=' }) -replace '^VITE_APPWRITE_PROJECT_ID=', '' | Select-Object -First 1
 Write-Info "Initializing project with ID: $projectId"

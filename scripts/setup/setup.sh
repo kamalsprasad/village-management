@@ -526,7 +526,24 @@ log_step "Deploying Appwrite functions"
 cd "$ROOT_DIR/server"
 
 log_info "Logging in to Appwrite CLI (interactive)..."
-appwrite login || true
+LOGIN_CMD="appwrite login"
+if [[ "$SELF_HOSTED" == "1" ]]; then
+  LOGIN_CMD="appwrite login --endpoint http://localhost/v1"
+fi
+LOGIN_SUCCESS=0
+for attempt in 1 2 3; do
+  if $LOGIN_CMD; then
+    LOGIN_SUCCESS=1
+    break
+  fi
+  if [[ "$attempt" -lt 3 ]]; then
+    log_warn "Login attempt $attempt of 3 failed. Retrying..."
+  fi
+done
+if [[ "$LOGIN_SUCCESS" -ne 1 ]]; then
+  log_error "Appwrite CLI login failed after 3 attempts. You can retry manually later with: $LOGIN_CMD"
+  exit 1
+fi
 
 PROJECT_ID=$(grep -E '^VITE_APPWRITE_PROJECT_ID=' "$ROOT_DIR/.env" | cut -d= -f2- | head -n1)
 log_info "Initializing project with ID: $PROJECT_ID"
