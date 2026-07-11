@@ -64,7 +64,7 @@ Install these required tools before proceeding:
 The automated setup scripts below will install **Quasar CLI** and **Appwrite CLI** globally if they are not already present. If you prefer the manual route, install them with:
 
 ```bash
-npm install -g @quasar/cli appwrite-cli
+npm install -g @quasar/cli appwrite-cli@16.0.0
 ```
 
 **Appwrite Account:** [cloud.appwrite.io](https://cloud.appwrite.io) (free tier) or self-hosted via Docker (instructions below).

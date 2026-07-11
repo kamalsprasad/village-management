@@ -475,7 +475,33 @@ read -rp "Press Enter when you have your Project ID, Database ID and API Key rea
 
 log_step "Installing global tools"
 install_npm_global "@quasar/cli" "quasar"
-install_npm_global "appwrite-cli" "appwrite"
+
+# Check and install correct version of Appwrite CLI
+needs_appwrite=1
+if has_command appwrite; then
+  version_output=$(appwrite -v 2>/dev/null || true)
+  if [[ "$version_output" =~ appwrite\ version\ ([0-9.]+) ]]; then
+    current_version="${BASH_REMATCH[1]}"
+    if [[ "$current_version" == "16.0.0" ]]; then
+      log_success "appwrite-cli@16.0.0 is already installed."
+      needs_appwrite=0
+    else
+      log_warn "Found appwrite-cli version $current_version, but version 16.0.0 is required."
+    fi
+  else
+    log_warn "Could not detect appwrite-cli version."
+  fi
+fi
+
+if [[ "$needs_appwrite" -eq 1 ]]; then
+  log_info "Installing appwrite-cli@16.0.0 globally..."
+  if has_command yarn; then
+    yarn global add appwrite-cli@16.0.0 || npm install -g appwrite-cli@16.0.0
+  else
+    npm install -g appwrite-cli@16.0.0
+  fi
+  log_success "appwrite-cli@16.0.0 installed."
+fi
 
 log_step "Installing project dependencies"
 $PKG_INSTALL

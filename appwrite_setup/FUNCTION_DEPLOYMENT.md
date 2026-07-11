@@ -71,7 +71,7 @@ This function checks if any users exist in the Appwrite authentication system. I
 1. Install Appwrite CLI if not already installed:
 
    ```bash
-   npm install -g appwrite-cli
+   npm install -g appwrite-cli@16.0.0
    ```
 
 2. Login to Appwrite:
