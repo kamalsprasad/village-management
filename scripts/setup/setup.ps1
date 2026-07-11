@@ -334,6 +334,7 @@ if ($BackendChoice -eq "2") {
       Start-Process $dockerExe
       Write-Info "Docker Desktop launched. Waiting for it to become ready (this can take 30-90 seconds)..."
       Write-Info "If you see an option to login into Docker, you can skip it, it is not required for this application."
+      Write-Info "Please wait for Docker to start..."
     } else {
       Write-Warn "Could not find Docker Desktop executable. Please start Docker Desktop manually."
     }

@@ -377,6 +377,7 @@ if [[ "$BACKEND_CHOICE" == "2" ]]; then
         open -a Docker
         log_info "Docker Desktop launched. Waiting for it to become ready (this can take 30-90 seconds)..."
         log_info "If you see an option to login into Docker, you can skip it, it is not required for this application."
+        log_info "Please wait for Docker to start..."
       else
         log_warn "Could not find Docker Desktop. Please start it manually."
       fi
