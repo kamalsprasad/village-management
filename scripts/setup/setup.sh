@@ -376,6 +376,7 @@ if [[ "$BACKEND_CHOICE" == "2" ]]; then
       if [[ -d "/Applications/Docker.app" ]]; then
         open -a Docker
         log_info "Docker Desktop launched. Waiting for it to become ready (this can take 30-90 seconds)..."
+        log_info "If you see an option to login into Docker, you can skip it, it is not required for this application."
       else
         log_warn "Could not find Docker Desktop. Please start it manually."
       fi
@@ -420,6 +421,8 @@ if [[ "$BACKEND_CHOICE" == "2" ]]; then
   log_success "Docker is running."
 
   log_warn "Self-hosted Appwrite requires a few manual steps in the Docker install wizard."
+  log_info "You can close the Docker Desktop window."
+  log_info "You can press enter for all the Appwrite questions to use default settings."
   read -rp "Press Enter to run the Appwrite Docker install command, or Ctrl+C to cancel..."
 
   if [[ "$PLATFORM" == "Linux" ]]; then

@@ -333,6 +333,7 @@ if ($BackendChoice -eq "2") {
     if (Test-Path $dockerExe) {
       Start-Process $dockerExe
       Write-Info "Docker Desktop launched. Waiting for it to become ready (this can take 30-90 seconds)..."
+      Write-Info "If you see an option to login into Docker, you can skip it, it is not required for this application."
     } else {
       Write-Warn "Could not find Docker Desktop executable. Please start Docker Desktop manually."
     }
@@ -372,6 +373,8 @@ if ($BackendChoice -eq "2") {
   Write-Ok "Docker is running."
 
   Write-Warn "Self-hosted Appwrite requires a few manual steps in the Docker install wizard."
+  Write-Info "If you see a WSL window, you can close it. You can also close the Docker Desktop window."
+  Write-Info "You can press enter for all the Appwrite questions to use default settings."
   Read-Host "Press Enter to run the Appwrite Docker install command, or Ctrl+C to cancel..."
 
   docker run -it --rm `
