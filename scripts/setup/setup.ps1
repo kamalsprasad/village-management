@@ -538,9 +538,25 @@ if (-not $loginSuccess) {
 }
 
 $projectId = (Get-Content "$RootDir\.env" | Where-Object { $_ -match '^VITE_APPWRITE_PROJECT_ID=' }) -replace '^VITE_APPWRITE_PROJECT_ID=', '' | Select-Object -First 1
-Write-Info "Initializing project with ID: $projectId"
-appwrite init project --project-id $projectId 2>$null
-if (-not $?) { Write-Warn "Project init step skipped or failed; continuing..." }
+
+$configExists = $false
+$configPath = "appwrite.config.json"
+if (Test-Path $configPath) {
+  try {
+    $config = Get-Content $configPath -Raw | ConvertFrom-Json
+    if ($config.projectId -eq $projectId) {
+      $configExists = $true
+    }
+  } catch {}
+}
+
+if ($configExists) {
+  Write-Ok "Project already initialized and linked in $configPath."
+} else {
+  Write-Info "Initializing project with ID: $projectId"
+  appwrite init project --project-id $projectId 2>$null
+  if (-not $?) { Write-Warn "Project init step skipped or failed; continuing..." }
+}
 
 Write-Info "Creating required team: village_administrators..."
 appwrite teams create --teamId village_administrators --name "Administrators" 2>$null

@@ -578,9 +578,22 @@ if [[ "$LOGIN_SUCCESS" -ne 1 ]]; then
 fi
 
 PROJECT_ID=$(grep -E '^VITE_APPWRITE_PROJECT_ID=' "$ROOT_DIR/.env" | cut -d= -f2- | head -n1)
-log_info "Initializing project with ID: $PROJECT_ID"
-if appwrite init project --project-id "$PROJECT_ID" 2>/dev/null || true; then
-  log_info "Project initialized."
+
+# Check if project is already linked in appwrite.config.json
+CONFIG_LINKED=0
+if [[ -f "appwrite.config.json" ]]; then
+  if grep -q "\"projectId\": \"$PROJECT_ID\"" appwrite.config.json; then
+    CONFIG_LINKED=1
+  fi
+fi
+
+if [[ "$CONFIG_LINKED" -eq 1 ]]; then
+  log_success "Project already initialized and linked in appwrite.config.json."
+else
+  log_info "Initializing project with ID: $PROJECT_ID"
+  if appwrite init project --project-id "$PROJECT_ID" 2>/dev/null || true; then
+    log_info "Project initialized."
+  fi
 fi
 
 log_info "Creating required team: village_administrators..."
