@@ -452,10 +452,10 @@ if [[ "$BACKEND_CHOICE" == "2" ]]; then
     "" \
     "  1. Create an admin account (first-time only)" \
     "  2. Create a new project and set the Project ID to something like 'village-management'" \
-    "  3. Go to Settings -> View API Keys -> Create API Key" \
-    "  4. Create a new database. Go to Databases -> Create Database. Set Database ID to something like 'villageDB' " \
-    "     Scopes needed: Select all", \
-    "", \
+    "  3. Go to Settings -> View API Keys -> Create API Key." \
+    "     IMPORTANT: Select ALL scopes (Required for seeding and automated admin setup)." \
+    "  4. Create a new database. Go to Databases -> Create Database. Set Database ID to something like 'villageDB'" \
+    "" \
     "You will need the Project ID, Database ID and API Key in the next step."
 else
   SELF_HOSTED=0
@@ -466,10 +466,10 @@ else
     "" \
     "  1. Create an Appwrite Cloud account (if you don't have one)" \
     "  2. Create a new project and set the Project ID to something like 'village-management'" \
-    "  3. Go to Settings -> View API Keys -> Create API Key" \
-    "  4. Create a new database. Go to Databases -> Create Database. Set Database ID to something like 'villageDB' " \
-    "     Scopes needed: Select all", \
-    "", \
+    "  3. Go to Settings -> View API Keys -> Create API Key." \
+    "     IMPORTANT: Select ALL scopes (Required for seeding and automated admin setup)." \
+    "  4. Create a new database. Go to Databases -> Create Database. Set Database ID to something like 'villageDB'" \
+    "" \
     "You will need the Project ID, Database ID and API Key in the next step."
 fi
 
@@ -628,6 +628,9 @@ action_required \
   "    APPWRITE_API_KEY=<your-api-key>"
 
 read -rp "Press Enter after you have set the function environment variables in the Appwrite Console..."
+
+log_step "Creating Initial Administrator (Optional)"
+node "$SCRIPT_DIR/create-admin.js"
 
 # ── Phase 7: Start development server ─────────────────────────────────────────
 

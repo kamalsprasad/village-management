@@ -400,9 +400,9 @@ if ($BackendChoice -eq "2") {
     "",
     "  1. Create an admin account (first-time only) by clicking on the 'Sign up' button.",
     "  2. Create a new project and set the Project ID to something like 'village-management'",
-    "  3. Go to Settings -> View API Keys -> Create API Key",
-    "  4. Create a new database. Go to Databases -> Create Database. Set Database ID to something like 'villageDB' "
-    "     Scopes needed: Select all",
+    "  3. Go to Settings -> View API Keys -> Create API Key.",
+    "     IMPORTANT: Select ALL scopes (Required for seeding and automated admin setup).",
+    "  4. Create a new database. Go to Databases -> Create Database. Set Database ID to something like 'villageDB'",
     "",
     "You will need the Project ID, Database ID and API Key in the next step."
   )
@@ -417,9 +417,9 @@ else {
     "",
     "  1. Create an Appwrite Cloud account (if you don't have one)",
     "  2. Create a new project and set the Project ID to something like 'village-management'",
-    "  3. Go to Settings -> View API Keys -> Create API Key",
-    "  4. Create a new database. Go to Databases -> Create Database. Set Database ID to something like 'villageDB' "
-    "     Scopes needed: Select all",
+    "  3. Go to Settings -> View API Keys -> Create API Key.",
+    "     IMPORTANT: Select ALL scopes (Required for seeding and automated admin setup).",
+    "  4. Create a new database. Go to Databases -> Create Database. Set Database ID to something like 'villageDB'",
     "",
     "You will need the Project ID, Database ID and API Key in the next step."
   )
@@ -588,6 +588,9 @@ Write-ActionRequired @(
 )
 
 Read-Host "Press Enter after you have set the function environment variables in the Appwrite Console..."
+
+Write-Step "Creating Initial Administrator (Optional)"
+node "$ScriptDir\create-admin.js"
 
 # Clean up setup state file
 if (Test-Path $StateFile) {
