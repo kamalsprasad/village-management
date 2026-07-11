@@ -578,13 +578,15 @@ Write-ActionRequired @(
   "Set environment variables for EACH deployed function:",
   "",
   "  In the Appwrite Console, navigate to:",
-  "    Functions -> [Function] -> Settings -> Environment Variables",
+  "    Settings -> Global Variables",
   "",
-  "  Add these three variables to each function:",
+  "  Add these four variables and their values to each function:",
   "",
   "    APPWRITE_ENDPOINT=$endpointValue",
   "    APPWRITE_PROJECT_ID=<your-project-id>",
-  "    APPWRITE_API_KEY=<your-api-key>"
+  "    APPWRITE_API_KEY=<your-api-key>",
+  "    APPWRITE_DATABASE_ID=<your-database-id>",
+  "    "
 )
 
 Read-Host "Press Enter after you have set the function environment variables in the Appwrite Console..."
