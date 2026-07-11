@@ -597,7 +597,7 @@ else
 fi
 
 log_info "Creating required team: village_administrators..."
-appwrite teams create --teamId village_administrators --name "Administrators" 2>/dev/null || true
+appwrite teams create --team-id village_administrators --name "Administrators" 2>/dev/null || true
 
 log_info "Pushing functions (this will build and deploy checkUsersExist, wipeAllData, seedAllData)..."
 appwrite push functions || {

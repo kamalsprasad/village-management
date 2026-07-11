@@ -559,7 +559,7 @@ if ($configExists) {
 }
 
 Write-Info "Creating required team: village_administrators..."
-appwrite teams create --teamId village_administrators --name "Administrators" 2>$null
+appwrite teams create --team-id village_administrators --name "Administrators" 2>$null
 
 Write-Info "Pushing functions (this will build and deploy checkUsersExist, wipeAllData, seedAllData)..."
 appwrite push functions
