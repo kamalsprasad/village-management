@@ -568,7 +568,32 @@ if ($configExists) {
 Write-Info "Creating required team: village_administrators..."
 appwrite teams create --team-id village_administrators --name "Administrators" 2>$null
 
-Write-Info "Pushing functions (this will build and deploy checkUsersExist, wipeAllData, seedAllData)..."
+$endpointValue = if ($SelfHosted) { "http://host.docker.internal/v1" } else { "https://cloud.appwrite.io/v1" }
+
+Write-ActionRequired @(
+  "Set environment variables for functions:",
+  "",
+  "  In the Appwrite Console, navigate to:",
+  "    Settings (bottom left) -> Global Variables",
+  "",
+  "  Add these four variables and their values:",
+  "",
+  "    APPWRITE_ENDPOINT=$endpointValue",
+  "    APPWRITE_PROJECT_ID=$projectId",
+  "    APPWRITE_API_KEY=<your-api-key>",
+  "    APPWRITE_DATABASE_ID=villageDB",
+  ""
+)
+
+Read-Host "Press Enter after you have set the Global Variables in the Appwrite Console..."
+
+Write-Step "Deploying Appwrite functions"
+Write-Info "We will now deploy the functions to Appwrite."
+Write-Warn "IMPORTANT interactive prompt instructions:"
+Write-Host "  1. When asked which functions to push, press 'a' to select all, then press 'Enter'."
+Write-Host "  2. Answer 'y' (yes) to any subsequent questions (like deploying code, settings, etc.)."
+Write-Host ""
+
 appwrite push functions
 if (-not $?) {
   Write-Warn "Function deployment encountered an issue. You can deploy manually later."
@@ -578,25 +603,6 @@ if (-not $?) {
 }
 
 Set-Location $RootDir
-
-$endpointValue = if ($SelfHosted) { "http://host.docker.internal/v1" } else { "https://cloud.appwrite.io/v1" }
-
-Write-ActionRequired @(
-  "Set environment variables for EACH deployed function:",
-  "",
-  "  In the Appwrite Console, navigate to:",
-  "    Settings -> Global Variables",
-  "",
-  "  Add these four variables and their values to each function:",
-  "",
-  "    APPWRITE_ENDPOINT=$endpointValue",
-  "    APPWRITE_PROJECT_ID=<your-project-id>",
-  "    APPWRITE_API_KEY=<your-api-key>",
-  "    APPWRITE_DATABASE_ID=<your-database-id>",
-  "    "
-)
-
-Read-Host "Press Enter after you have set the function environment variables in the Appwrite Console..."
 
 Write-Step "Creating Initial Administrator (Optional)"
 node "$ScriptDir\create-admin.js"

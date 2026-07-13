@@ -609,7 +609,34 @@ fi
 log_info "Creating required team: village_administrators..."
 appwrite teams create --team-id village_administrators --name "Administrators" 2>/dev/null || true
 
-log_info "Pushing functions (this will build and deploy checkUsersExist, wipeAllData, seedAllData)..."
+if [[ "$SELF_HOSTED" == "1" ]]; then
+  ENDPOINT_VALUE="http://host.docker.internal/v1"
+else
+  ENDPOINT_VALUE="https://cloud.appwrite.io/v1"
+fi
+
+action_required \
+  "Set environment variables for functions:" \
+  "" \
+  "  In the Appwrite Console, navigate to:" \
+  "    Settings (bottom left) -> Global Variables" \
+  "" \
+  "  Add these four variables and their values:" \
+  "" \
+  "    APPWRITE_ENDPOINT=$ENDPOINT_VALUE" \
+  "    APPWRITE_PROJECT_ID=$PROJECT_ID" \
+  "    APPWRITE_API_KEY=<your-api-key>" \
+  "    APPWRITE_DATABASE_ID=villageDB"
+
+read -rp "Press Enter after you have set the Global Variables in the Appwrite Console..."
+
+log_step "Deploying Appwrite functions"
+log_info "We will now deploy the functions to Appwrite."
+log_warn "IMPORTANT interactive prompt instructions:"
+echo "  1. When asked which functions to push, press 'a' to select all, then press 'Enter'."
+echo "  2. Answer 'y' (yes) to any subsequent questions (like deploying code, settings, etc.)."
+echo ""
+
 appwrite push functions || {
   log_warn "Function deployment encountered an issue. You can deploy manually later."
   echo "  cd server/"
@@ -618,27 +645,6 @@ appwrite push functions || {
 }
 
 cd "$ROOT_DIR"
-
-if [[ "$SELF_HOSTED" == "1" ]]; then
-  ENDPOINT_VALUE="http://host.docker.internal/v1"
-else
-  ENDPOINT_VALUE="https://cloud.appwrite.io/v1"
-fi
-
-action_required \
-  "Set environment variables for EACH deployed function:" \
-  "" \
-  "  In the Appwrite Console, navigate to:" \
-  "    Settings -> Global Variables" \
-  "" \
-  "  Add these four variables and their values to each function:" \
-  "" \
-  "    APPWRITE_ENDPOINT=$ENDPOINT_VALUE" \
-  "    APPWRITE_PROJECT_ID=<your-project-id>" \
-  "    APPWRITE_API_KEY=<your-api-key>" \
-  "    APPWRITE_DATABASE_ID=<your-database-id>"
-
-read -rp "Press Enter after you have set the function environment variables in the Appwrite Console..."
 
 log_step "Creating Initial Administrator (Optional)"
 node "$SCRIPT_DIR/create-admin.js"
