@@ -117,20 +117,11 @@ async function main() {
       process.exit(0);
     }
 
-    console.log('\n--- Administrator Account Setup (Recommended) ---');
-    console.log('You can pre-create the initial System Administrator account now.');
+    console.log('\n--- Administrator Account Setup (Mandatory) ---');
+    console.log('You must create the initial System Administrator account now.');
     console.log('This will create the account, assign the System Administrator DB role,');
     console.log('and automatically add the user to the "village_administrators" team.\n');
 
-    const choice = await ask('Pre-create System Administrator account? (Y/n)', 'y');
-    if (choice.toLowerCase() !== 'y') {
-      console.log('\n⚠️  Skipped administrator account creation.');
-      console.log('👉 IMPORTANT: If you register your user later via the app UI, you MUST');
-      console.log('   manually add them to the "village_administrators" team in the Appwrite Console');
-      console.log('   to access administrative features (e.g. wiping/seeding data).\n');
-      rl.close();
-      process.exit(0);
-    }
 
     let email = '';
     let name = '';
@@ -226,6 +217,7 @@ async function main() {
       console.log('   have "users.write" and "teams.write" scopes. Please update your API Key');
       console.log('   scopes in the Appwrite console and try running this script again.');
     }
+    process.exitCode = 1;
   } finally {
     rl.close();
   }

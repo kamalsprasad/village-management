@@ -539,17 +539,7 @@ log_step "Seeding default roles"
 $PKG_RUN seed:roles
 log_success "Roles seeded."
 
-read -rp "Seed sample/farm data (crops, soil types, village settings)? [y/N]: " SEED_EXTRA
-SEED_EXTRA_LOWER=$(echo "$SEED_EXTRA" | tr '[:upper:]' '[:lower:]')
-if [[ "$SEED_EXTRA_LOWER" == "y" ]]; then
-  log_step "Seeding additional data"
-  [[ -f "server/scripts/seed-crops.js" ]] && $PKG_RUN seed:crops || true
-  [[ -f "server/scripts/seed-soil-types.js" ]] && $PKG_RUN seed:soil-types || true
-  [[ -f "server/scripts/seed-village-settings.js" ]] && $PKG_RUN seed:settings || true
-  [[ -f "server/scripts/seed-finance-categories.js" ]] && $PKG_RUN seed:finance-categories || true
-  [[ -f "server/scripts/seed-funding-sources.js" ]] && $PKG_RUN seed:funding-sources || true
-  log_success "Additional data seeded."
-fi
+
 
 # ── Phase 6: Function deployment ────────────────────────────────────────────
 
@@ -646,10 +636,10 @@ appwrite push functions || {
 
 cd "$ROOT_DIR"
 
-log_step "Creating Initial Administrator (Optional)"
+log_step "Creating Initial Administrator"
 node "$SCRIPT_DIR/create-admin.js" || {
-  log_warn "Initial administrator creation failed or was skipped."
-  log_warn "You can run this manually later using: $PKG_RUN create:admin"
+  log_error "Initial administrator creation failed."
+  exit 1
 }
 
 # ── Phase 7: Start development server ─────────────────────────────────────────

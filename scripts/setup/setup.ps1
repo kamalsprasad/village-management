@@ -510,16 +510,7 @@ if ($LASTEXITCODE -ne 0) {
 }
 Write-Ok "Roles seeded."
 
-$SeedExtra = Read-Host "Seed sample/farm data (crops, soil types, village settings)? [y/N]"
-if ($SeedExtra -eq "y" -or $SeedExtra -eq "Y") {
-  Write-Step "Seeding additional data"
-  if (Test-Path "server\scripts\seed-crops.js") { Invoke-Expression "$PkgRun seed:crops" }
-  if (Test-Path "server\scripts\seed-soil-types.js") { Invoke-Expression "$PkgRun seed:soil-types" }
-  if (Test-Path "server\scripts\seed-village-settings.js") { Invoke-Expression "$PkgRun seed:settings" }
-  if (Test-Path "server\scripts\seed-finance-categories.js") { Invoke-Expression "$PkgRun seed:finance-categories" }
-  if (Test-Path "server\scripts\seed-funding-sources.js") { Invoke-Expression "$PkgRun seed:funding-sources" }
-  Write-Ok "Additional data seeded."
-}
+
 
 # ── Phase 6: Function deployment ──────────────────────────────────────────────
 
@@ -612,11 +603,11 @@ if ($LASTEXITCODE -ne 0) {
 
 Set-Location $RootDir
 
-Write-Step "Creating Initial Administrator (Optional)"
+Write-Step "Creating Initial Administrator"
 node "$ScriptDir\create-admin.js"
 if ($LASTEXITCODE -ne 0) {
-  Write-Warn "Initial administrator creation failed or was skipped."
-  Write-Warn "You can run this manually later using: $PkgRun create:admin"
+  Write-Error "Initial administrator creation failed."
+  exit 1
 }
 
 # Clean up setup state file
