@@ -9,6 +9,38 @@
 
 $ErrorActionPreference = "Stop"
 
+# Disable QuickEdit Mode to prevent accidental clicks from freezing/pausing execution.
+# This works in classic CMD/PowerShell windows, is a no-op in Windows Terminal, and
+# degrades gracefully if run in non-interactive/redirected environments or if Add-Type is blocked.
+try {
+    if (-not ([System.Management.Automation.PSTypeName]"Win32.NativeMethods").Type) {
+        $definition = @'
+        [DllImport("kernel32.dll", SetLastError=true)]
+        public static extern bool GetConsoleMode(IntPtr hConsoleHandle, out int lpMode);
+
+        [DllImport("kernel32.dll", SetLastError=true)]
+        public static extern bool SetConsoleMode(IntPtr hConsoleHandle, int dwMode);
+
+        [DllImport("kernel32.dll", SetLastError=true)]
+        public static extern IntPtr GetStdHandle(int nStdHandle);
+'@
+        Add-Type -MemberDefinition $definition -Namespace Win32 -Name NativeMethods
+    }
+
+    $handle = [Win32.NativeMethods]::GetStdHandle(-10) # STD_INPUT_HANDLE
+    if ($handle -and $handle -ne [IntPtr]::Zero -and $handle -ne [IntPtr]-1) {
+        $mode = 0
+        if ([Win32.NativeMethods]::GetConsoleMode($handle, [ref]$mode)) {
+            # ENABLE_QUICK_EDIT_MODE = 0x0040, ENABLE_EXTENDED_FLAGS = 0x0080
+            # Clear QuickEdit, set Extended Flags
+            $newMode = ($mode -band (-bnot 0x0040)) -bor 0x0080
+            [Win32.NativeMethods]::SetConsoleMode($handle, $newMode) | Out-Null
+        }
+    }
+} catch {
+    # Fallback/ignore silently
+}
+
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Definition
 $RootDir = Split-Path -Parent (Split-Path -Parent $ScriptDir)
 Set-Location $RootDir
