@@ -553,7 +553,7 @@ if (Test-Path $configPath) {
     }
     $configExists = $true
   } catch {
-    Write-Warn "Could not update or parse $configPath: $_"
+    Write-Warn "Could not update or parse `${configPath}: $_"
   }
 }
 
