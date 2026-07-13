@@ -647,7 +647,10 @@ appwrite push functions || {
 cd "$ROOT_DIR"
 
 log_step "Creating Initial Administrator (Optional)"
-node "$SCRIPT_DIR/create-admin.js"
+node "$SCRIPT_DIR/create-admin.js" || {
+  log_warn "Initial administrator creation failed or was skipped."
+  log_warn "You can run this manually later using: $PKG_RUN create:admin"
+}
 
 # ── Phase 7: Start development server ─────────────────────────────────────────
 

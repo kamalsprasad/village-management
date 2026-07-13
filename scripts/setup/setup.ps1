@@ -83,6 +83,10 @@ function Install-NpmGlobal($package, $command) {
   }
   Write-Info "Installing $package globally..."
   npm install -g $package
+  if ($LASTEXITCODE -ne 0) {
+    Write-Error "Failed to install $package globally."
+    exit 1
+  }
   Write-Ok "$package installed."
 }
 
@@ -452,12 +456,16 @@ if (Test-Command "appwrite") {
 if ($needsAppwrite) {
   Write-Info "Installing appwrite-cli@16.0.0 globally..."
   npm install -g appwrite-cli@16.0.0
+  if ($LASTEXITCODE -ne 0) {
+    Write-Error "Failed to install appwrite-cli@16.0.0."
+    exit 1
+  }
   Write-Ok "appwrite-cli@16.0.0 installed."
 }
 
 Write-Step "Installing project dependencies"
 Invoke-Expression $PkgInstall
-if (-not $?) {
+if ($LASTEXITCODE -ne 0) {
   Write-Error "Dependency installation failed."
   exit 1
 }
@@ -488,7 +496,7 @@ Write-Ok "Environment files configured."
 
 Write-Step "Setting up Appwrite database"
 Invoke-Expression "$PkgRun setup:appwrite"
-if (-not $?) {
+if ($LASTEXITCODE -ne 0) {
   Write-Error "Database setup failed."
   exit 1
 }
@@ -496,7 +504,7 @@ Write-Ok "Database setup complete."
 
 Write-Step "Seeding default roles"
 Invoke-Expression "$PkgRun seed:roles"
-if (-not $?) {
+if ($LASTEXITCODE -ne 0) {
   Write-Error "Role seeding failed."
   exit 1
 }
@@ -524,7 +532,7 @@ Write-Info "Logging in to Appwrite CLI (interactive)..."
 $loginSuccess = $false
 for ($attempt = 1; $attempt -le 3; $attempt++) {
   Invoke-Expression $loginCmd
-  if ($?) {
+  if ($LASTEXITCODE -eq 0) {
     $loginSuccess = $true
     break
   }
@@ -562,7 +570,7 @@ if ($configExists) {
 } else {
   Write-Info "Initializing project with ID: $projectId"
   appwrite init project --project-id $projectId 2>$null
-  if (-not $?) { Write-Warn "Project init step skipped or failed; continuing..." }
+  if ($LASTEXITCODE -ne 0) { Write-Warn "Project init step skipped or failed; continuing..." }
 }
 
 Write-Info "Creating required team: village_administrators..."
@@ -595,7 +603,7 @@ Write-Host "  2. Answer 'y' (yes) to any subsequent questions (like deploying co
 Write-Host ""
 
 appwrite push functions
-if (-not $?) {
+if ($LASTEXITCODE -ne 0) {
   Write-Warn "Function deployment encountered an issue. You can deploy manually later."
   Write-Host "  cd server"
   Write-Host "  appwrite login"
@@ -606,6 +614,10 @@ Set-Location $RootDir
 
 Write-Step "Creating Initial Administrator (Optional)"
 node "$ScriptDir\create-admin.js"
+if ($LASTEXITCODE -ne 0) {
+  Write-Warn "Initial administrator creation failed or was skipped."
+  Write-Warn "You can run this manually later using: $PkgRun create:admin"
+}
 
 # Clean up setup state file
 if (Test-Path $StateFile) {
