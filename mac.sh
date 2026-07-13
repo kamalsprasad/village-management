@@ -65,7 +65,13 @@ if [[ ! -d "node_modules" || ! -f ".env" || ! -f "server/.env" ]]; then
 fi
 
 echo ""
-echo "Environment already configured. Starting dev server..."
+echo "Environment already configured. Pushing Appwrite functions..."
+cd server
+appwrite push functions || echo "[WARN] Failed to push Appwrite functions. Continuing..."
+cd ..
+
+echo ""
+echo "Starting dev server..."
 echo "The app will be available at http://localhost:9100"
 echo "Press Ctrl+C to stop."
 echo ""

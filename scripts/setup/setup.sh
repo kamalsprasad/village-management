@@ -584,6 +584,16 @@ CONFIG_LINKED=0
 if [[ -f "appwrite.config.json" ]]; then
   if grep -q "\"projectId\": \"$PROJECT_ID\"" appwrite.config.json; then
     CONFIG_LINKED=1
+  else
+    log_info "Updating project ID in appwrite.config.json to: $PROJECT_ID"
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+      sed -i '' -E "s/\"projectId\": \"[^\"]*\"/\"projectId\": \"$PROJECT_ID\"/g" appwrite.config.json
+      sed -i '' -E "s/\"projectName\": \"[^\"]*\"/\"projectName\": \"$PROJECT_ID\"/g" appwrite.config.json
+    else
+      sed -i -E "s/\"projectId\": \"[^\"]*\"/\"projectId\": \"$PROJECT_ID\"/g" appwrite.config.json
+      sed -i -E "s/\"projectName\": \"[^\"]*\"/\"projectName\": \"$PROJECT_ID\"/g" appwrite.config.json
+    fi
+    CONFIG_LINKED=1
   fi
 fi
 

@@ -543,11 +543,18 @@ $configExists = $false
 $configPath = "appwrite.config.json"
 if (Test-Path $configPath) {
   try {
-    $config = Get-Content $configPath -Raw | ConvertFrom-Json
-    if ($config.projectId -eq $projectId) {
-      $configExists = $true
+    $content = Get-Content $configPath -Raw
+    $config = $content | ConvertFrom-Json
+    if ($config.projectId -ne $projectId) {
+      Write-Info "Updating project ID in $configPath to: $projectId"
+      $content = $content -replace '"projectId":\s*"[^"]*"', "`"projectId`": `"$projectId`""
+      $content = $content -replace '"projectName":\s*"[^"]*"', "`"projectName`": `"$projectId`""
+      Set-Content -Path $configPath -Value $content -NoNewline
     }
-  } catch {}
+    $configExists = $true
+  } catch {
+    Write-Warn "Could not update or parse $configPath: $_"
+  }
 }
 
 if ($configExists) {
