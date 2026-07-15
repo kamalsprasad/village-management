@@ -113,6 +113,74 @@ The easiest way to get started is with the one-command launcher for your platfor
 windows.bat
 ```
 
+#### 💡 Tips for a Smooth Automated Setup
+
+To ensure the setup script runs without issues, keep these key steps and OS-specific instructions in mind:
+
+##### 🔑 1. User Privileges & System Elevation (OS-Specific)
+
+- **Linux (Ubuntu/Debian/Fedora/Arch)**: The automated setup installs system dependencies (Docker, Node.js, Git) and must be run with root privileges. Run the script as:
+  ```bash
+  sudo ./linux.sh
+  ```
+- **Windows**: The launcher will automatically request Administrator elevation. You will see a Windows User Account Control (UAC) prompt; please click **Yes** to allow the PowerShell installer to proceed.
+- **macOS**: The launcher can be run with standard privileges. Homebrew or npm will request sudo elevation in the terminal if needed.
+
+##### 🔄 2. WSL & Docker Desktop Reboot (Windows-Specific)
+
+- If WSL (Windows Subsystem for Linux) or Docker Desktop are not already installed on your system, the script will install them using `winget`.
+- > [!WARNING]
+  > **Mandatory Reboot Required**: Once WSL/Docker installation finishes, Windows requires a system restart. The script will save its current setup state and add a `RunOnce` registry key to automatically resume the setup script in a command window when you log back in. Please be patient after the reboot, as it may take some time to resume.
+
+##### 🐳 3. Self-Hosted Appwrite & Docker (All Platforms)
+
+- If choosing **Self-hosted Appwrite** (Option 2):
+  - **Daemon Status**: Docker must be running. The setup script attempts to start Docker Desktop (Windows/macOS) or the Docker service (Linux) and waits up to 2 minutes for it to be ready.
+  - **Docker Login**: If a Docker Desktop login window pops up, you can safely **ignore or close** it; it is not required for the setup.
+  - **Linux Docker permissions**: If you get a permission denied error connecting to the Docker daemon on Linux, ensure your user is added to the `docker` group. Run `newgrp docker` or re-run with `sudo ./linux.sh`.
+  - **Appwrite Installation**: Accept the defaults for all prompts (just press **Enter**) during the Appwrite Docker installation.
+
+##### 🕸️ 4. Appwrite Console Project Configuration (All Platforms)
+
+The setup script will open the Appwrite Console in your browser. You must manually complete the following:
+
+1. **Create an account** (if first-time) and log in.
+2. **Create a project** (e.g., ID: `village-management`).
+3. **Create a database** (e.g., ID: `villageDB`).
+4. **Create an API Key**: Go to **Settings** → **API Keys** → **Create API Key**.
+   - > [!IMPORTANT]
+     - **CRITICAL API SCOPES**: You **must check all scopes** when creating the API Key. The setup and database seeding scripts require full administrative scopes to configure the tables, default roles, and users.
+5. Copy the Project ID, Database ID, and API Key to input into the script's terminal prompt.
+
+##### 🔧 5. Function Global Variables (All Platforms)
+
+In the Appwrite Console, navigate to **Settings** (gear icon on bottom left of the Appwrite sidebar) → **Global Variables** and add the following four variables. This enables the serverless functions to access the backend database:
+
+- `APPWRITE_ENDPOINT`: `https://cloud.appwrite.io/v1` (Cloud) or `http://host.docker.internal/v1` (Self-hosted Windows/macOS) or the gateway IP (Self-hosted Linux).
+- `APPWRITE_PROJECT_ID`: Your Appwrite project ID.
+- `APPWRITE_API_KEY`: The API Key you generated with **all scopes**.
+- `APPWRITE_DATABASE_ID`: Your database ID (default: `villageDB`).
+
+##### 💻 6. Interactive Terminal Prompts (All Platforms)
+
+During the script execution, pay close attention to these prompts:
+
+- **Appwrite CLI Login**: You will see an interactive prompt `appwrite login`. Enter the email and password you used to register on the Appwrite Console.
+- **Appwrite Push Functions**: When prompted which functions to deploy:
+  1. Press **`a`** (to select all functions).
+  2. Press **`Enter`**.
+  3. Respond **`y`** (yes) to any subsequent settings deployment prompts.
+
+##### 🛡️ 7. Initial Admin Account Creation (All Platforms)
+
+- At the final step, the script will run `create-admin.js` in your terminal. You must provide:
+  - A valid email address.
+  - A display name (defaults to "System Administrator").
+  - A password (minimum 8 characters).
+- This creates the initial account in Appwrite Auth, assigns the System Administrator database role, and adds the user to the `village_administrators` team. Use these credentials to log in to the dev server.
+
+---
+
 For the manual step-by-step setup, continue with the sections below.
 
 ### 1. Set Up Appwrite
