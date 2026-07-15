@@ -176,7 +176,7 @@ During the script execution, pay close attention to these prompts:
 - At the final step, the script will run `create-admin.js` in your terminal. You must provide:
   - A valid email address.
   - A display name (defaults to "System Administrator").
-  - A password (minimum 8 characters).
+  - A password (minimum 8 characters, UPPERCASE, lowercase characters and a number).
 - This creates the initial account in Appwrite Auth, assigns the System Administrator database role, and adds the user to the `village_administrators` team. Use these credentials to log in to the dev server.
 
 ---
