@@ -1,6 +1,6 @@
 {
   "name": "village-management-system",
-  "version": "0.3.10-alpha",
+  "version": "0.4.13-alpha",
   "description": "The Sustainable Model Village Management System is an open-source web platform designed to transform rural African villages from memory-based, trial-and-error operations into data-driven, systematically managed communities.",
   "productName": "Village Management System",
   "author": "Kamal S. Prasad",
@@ -16,6 +16,7 @@
     "postinstall": "quasar prepare",
     "setup:appwrite": "node server/scripts/setup-appwrite.js",
     "seed:roles": "node server/scripts/seed-roles.js",
+    "create:admin": "node scripts/setup/create-admin.js",
     "seed:soil-types": "node server/scripts/seed-soil-types.js",
     "seed:crops": "node server/scripts/seed-crops.js",
     "seed:settings": "node server/scripts/seed-village-settings.js",
@@ -31,6 +32,7 @@
     "dexie": "^4.2.1",
     "jspdf": "^4.0.0",
     "jspdf-autotable": "^5.0.7",
+    "jszip": "^3.10.1",
     "pinia": "^3.0.4",
     "quasar": "^2.18.6",
     "vue": "^3.5.27",

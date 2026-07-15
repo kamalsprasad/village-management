@@ -58,7 +58,7 @@ You can test functions locally using the Appwrite CLI:
 
 ```bash
 # Install Appwrite CLI globally
-npm install -g appwrite-cli
+npm install -g appwrite-cli@16.0.0
 
 # Login to Appwrite
 appwrite login

@@ -51,7 +51,7 @@ Design an intuitive, accessible interface that enables users with basic digital 
 - **Pain Points:** No systematic at-risk identification until too late, teacher accountability was checkbox exercise, manual reporting burden
 - **Digital Literacy:** Moderate – comfortable with forms, needs efficient bulk data entry (test scores, attendance)
 - **Context:** Office-based but mobile for classroom visits, needs quick access to learner profiles
-- **Key Tasks:** Bulk record test scores/attendance, review at-risk dashboard, assign interventions, conduct teacher evaluations
+- **Key Tasks:** Bulk record test scores/attendance, review at-risk dashboard, assign interventions, conduct teacher evaluations *(post-MVP)*
 
 **Secondary Personas:**
 
@@ -187,7 +187,7 @@ Village Management System
 │   │   ├── Attendance (bulk entry)
 │   │   ├── At-Risk Learners
 │   │   ├── Interventions
-│   │   ├── Teacher Evaluations
+│   │   ├── Teacher Evaluations *(post-MVP)*
 │   │   └── Reports
 │   │
 │   ├── Guests (if enabled)
@@ -484,7 +484,7 @@ graph TD
     AJ --> AL[End-of-Term<br/>Assessment]
     AL --> AM[Generate Progress<br/>Report]
     AM --> AN[Export PDF for<br/>Parent Meeting]
-    AN --> AO[Conduct Teacher<br/>Peer Review]
+    AN --> AO[Conduct Teacher<br/>Peer Review (Post-MVP)]
     AO --> AP[End: Documented<br/>Success]
 ```
 
@@ -882,7 +882,7 @@ graph TD
 - **Class Performance:** Average scores by grade (bar chart)
 - **Attendance Summary:** This week vs last week
 - **Active Interventions:** Count + upcoming sessions
-- **Teacher Evaluations:** Pending reviews count
+- **Teacher Evaluations:** Pending reviews count *(post-MVP)*
 - **Quick Actions:** Record Test Scores, Record Attendance, Create Intervention
 
 **Finance Manager Dashboard:**

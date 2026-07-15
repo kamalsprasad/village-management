@@ -203,7 +203,7 @@ npm run seed:roles
 cd server/
 
 # Install Appwrite CLI locally if not using global
-npm install -g appwrite-cli
+npm install -g appwrite-cli@16.0.0
 
 # Login (use your admin credentials)
 appwrite login --endpoint http://localhost:8080/v1

@@ -413,6 +413,199 @@ Tracks physical village assets, supplies, and harvested goods.
 
 **Farm Produce Aggregation Rule (Story 3.5):** When a harvest entry is recorded, the store finds or creates exactly one inventory row keyed by `(planting_id, crop_id, item_type = 'farm_produce')` and increments its quantity. `unit_cost` stores the market price from historical sales (if available) or user-provided estimate.
 
+## School Tables
+
+### learners
+
+Stores learner enrollment records for the School module (Story 4.1). Learners are village residents with school-specific attributes — personal data (name, DOB, gender, household) is never duplicated; it is always read from the linked `residents` row. **One learner row per resident, ever**: status changes (class reassignment, graduation, re-enrollment) mutate the single row, preserving a stable learner ID for test scores, attendance, and interventions in Stories 4.2+. Uniqueness is enforced in the school store (Appwrite does not support indexes on relationship columns). Learners are assigned to classes through `class_id`; grade level is derived from the linked class.
+
+| Column                    | Type     | Constraints                                                                                  | Description                                    |
+| ------------------------- | -------- | -------------------------------------------------------------------------------------------- | ---------------------------------------------- |
+| `resident_id`             | rel      | Required, manyToOne → residents, onDelete: restrict                                          | Linked resident (source of personal info)      |
+| `class_id`                | rel      | Optional, manyToOne → school_classes, onDelete: setNull                                      | Assigned class section                         |
+| `enrollment_date`         | datetime | Required                                                                                     | Date of (initial) enrollment                   |
+| `enrollment_status`       | enum     | Required: 'Active', 'Inactive', 'Graduated', 'Transferred', 'Dropped Out'. Default: 'Active' | Current enrollment status                      |
+| `status_effective_date`   | datetime | Optional                                                                                     | Effective date of most recent status change    |
+| `parent_guardian_name`    | string   | Optional, max 255                                                                            | Parent/guardian full name (free text)          |
+| `parent_guardian_phone`   | string   | Optional, max 20                                                                             | Parent/guardian phone                          |
+| `emergency_contact_name`  | string   | Optional, max 255                                                                            | Emergency contact full name (free text)        |
+| `emergency_contact_phone` | string   | Optional, max 20                                                                             | Emergency contact phone                        |
+| `medical_notes`           | string   | Optional, max 1000                                                                           | Medical conditions, allergies, etc.            |
+| `notes`                   | string   | Optional, max 1000                                                                           | Additional notes (incl. status change history) |
+
+**Indexes:** `idx_learners_status` on `(enrollment_status ASC)`
+
+### test_scores
+
+Stores individual test/assessment scores for learners (Story 4.2). Grouping of scores into "assessments" is performed client-side based on matching headers: `class_id`, `assessment_date`, `subject`, `assessment_type`, `term`, `academic_year`.
+
+> **Schema change (Story 4.3):** The `term` column was changed from a hard-coded enum (`'Term 1'`, `'Term 2'`, `'Term 3'`) to a free string (`size: 100`). Terms are now configurable via `school_academic_terms`. The term name is stored literally on each score row so historical records remain valid even if terms are later renamed.
+
+| Column            | Type     | Constraints                                                              | Description                                        |
+| ----------------- | -------- | ------------------------------------------------------------------------ | -------------------------------------------------- |
+| `learner_id`      | rel      | Required, manyToOne → learners, onDelete: cascade                        | Linked learner record                              |
+| `class_id`        | rel      | Optional, manyToOne → school_classes, onDelete: cascade                  | Class context at score recording time              |
+| `subject`         | enum     | Required: 'Mathematics', 'English', 'Integrated Science'...              | Academic subject                                   |
+| `assessment_type` | enum     | Required: 'Class Exercise', 'Monthly Test', 'Exam'...                    | Type of assessment                                 |
+| `term`            | string   | Required, max 100 — free string (term name from `school_academic_terms`) | Academic term name as recorded                     |
+| `academic_year`   | integer  | Required                                                                 | Numeric year (e.g. 2026)                           |
+| `assessment_date` | datetime | Required                                                                 | Date of the assessment                             |
+| `score_value`     | double   | Required                                                                 | Raw score received                                 |
+| `max_score`       | double   | Required                                                                 | Maximum achievable score (e.g. 20.0, 100.0)        |
+| `notes`           | string   | Optional, max 500                                                        | Teacher notes regarding this learner's performance |
+
+**Indexes:** `idx_test_scores_subject_date` on `(assessment_date DESC, subject ASC, assessment_type ASC)`
+
+### school_academic_terms
+
+Configurable academic terms for each academic year (Story 4.3). Replaces the hard-coded `TERMS` constant. Each row defines one term or semester for a given year. Term count, names, and dates are fully configurable by the School Administrator.
+
+| Column          | Type     | Constraints       | Description                                          |
+| --------------- | -------- | ----------------- | ---------------------------------------------------- |
+| `academic_year` | integer  | Required          | Numeric year (e.g. 2026)                             |
+| `term_name`     | string   | Required, max 100 | Term name (e.g. "Term 1", "Semester 1", "Quarter 3") |
+| `term_order`    | integer  | Required          | Ordering within the year (1, 2, 3...)                |
+| `start_date`    | datetime | Required          | First day of the term                                |
+| `end_date`      | datetime | Required          | Last day of the term                                 |
+| `notes`         | string   | Optional, max 500 | Additional notes                                     |
+
+**Indexes:** `idx_academic_terms_year` on `(academic_year ASC)`, `idx_academic_terms_year_order` on `(academic_year ASC, term_order ASC)`
+
+### school_calendar_events
+
+School calendar events including public holidays, PD days, exam blocks, early dismissals, and other non-standard school days (Story 4.3). Events are school-wide by default; `affected_class_ids` enables optional per-class scoping for field trips or class-specific closures.
+
+| Column               | Type     | Constraints                                                                                                  | Description                                                              |
+| -------------------- | -------- | ------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------ |
+| `title`              | string   | Required, max 255                                                                                            | Event name (e.g. "Independence Day", "Staff PD Day")                     |
+| `event_type`         | enum     | Required: 'public_holiday', 'school_holiday', 'pd_day', 'exam_block', 'early_dismissal', 'assembly', 'other' | Type of event                                                            |
+| `start_date`         | datetime | Required                                                                                                     | Start date (= end_date for single-day events)                            |
+| `end_date`           | datetime | Required                                                                                                     | End date (= start_date for single-day events)                            |
+| `is_school_day`      | boolean  | Required, default: false                                                                                     | false = school closed; true = school open but modified (early dismissal) |
+| `affected_class_ids` | string[] | Optional                                                                                                     | Empty/null = school-wide; populated = only these class IDs affected      |
+| `notes`              | string   | Optional, max 500                                                                                            | Additional notes                                                         |
+
+**Indexes:** `idx_calendar_events_start` on `(start_date ASC)`, `idx_calendar_events_type` on `(event_type ASC)`
+
+### school_period_slots
+
+Daily bell schedule per grade level and academic year (Story 4.4). Defines the ordered sequence of period slots (class periods, breaks, lunch, assembly, free periods) for each grade. Different grades may have different bell schedules.
+
+| Column            | Type     | Constraints                                                               | Description                                                                |
+| ----------------- | -------- | ------------------------------------------------------------------------- | -------------------------------------------------------------------------- |
+| `grade_level`     | enum     | Required: 'Early Childhood', 'Grade 1'–'Grade 12'                         | Grade this slot belongs to                                                 |
+| `academic_year`   | integer  | Required                                                                  | Numeric year (e.g. 2026)                                                   |
+| `slot_number`     | integer  | Required                                                                  | Display order within the day (1, 2, 3...)                                  |
+| `label`           | string   | Required, max 100                                                         | Display label (e.g. "Period 1", "Morning Break", "Lunch")                  |
+| `slot_type`       | enum     | Required, default: 'class': 'class', 'break', 'lunch', 'assembly', 'free' | Type of slot; only 'class' slots appear in the timetable subject grid      |
+| `start_time`      | string   | Required, max 5                                                           | Start time in HH:mm 24-hour format (e.g. "08:00")                          |
+| `end_time`        | string   | Required, max 5                                                           | End time in HH:mm 24-hour format (e.g. "08:45")                            |
+| `applies_to_days` | string[] | Optional                                                                  | Empty = all school days; populated = only on listed days (e.g. ['Friday']) |
+| `notes`           | string   | Optional, max 255                                                         | Additional notes                                                           |
+
+**Indexes:** `idx_period_slots_grade_year` on `(grade_level ASC, academic_year ASC)`, `idx_period_slots_grade_year_slot` on `(grade_level ASC, academic_year ASC, slot_number ASC)`
+
+### class_timetable_entries
+
+Weekly class timetable entries per day and period slot (Story 4.5). Replaces the original `school_timetable` stub. Stores both grade-level templates (`is_template = true`, `class_id = null`) and class-specific schedules (`is_template = false`). Date ranges (`valid_from`/`valid_to`) support mid-year timetable changes without destroying history.
+
+| Column          | Type     | Constraints                                                      | Description                                                                   |
+| --------------- | -------- | ---------------------------------------------------------------- | ----------------------------------------------------------------------------- |
+| `class_id`      | rel      | Optional, manyToOne → school_classes, onDelete: cascade          | Null when `is_template = true`; set for class-specific entries                |
+| `is_template`   | boolean  | Required, default: false                                         | true = grade-level template (class_id is null)                                |
+| `grade_level`   | enum     | Required: 'Early Childhood', 'Grade 1'–'Grade 12'                | Stored on both template and class entries for efficient querying              |
+| `slot_id`       | string   | Required, max 50                                                 | `school_period_slots.$id` stored as string (not a relationship — intentional) |
+| `day_of_week`   | enum     | Required: 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday' | Day this entry applies to                                                     |
+| `subject`       | string   | Optional, max 100                                                | Subject name — free string (not enum) to allow non-standard subjects          |
+| `teacher_id`    | rel      | Optional, manyToOne → residents, onDelete: setNull               | Teacher delivering this specific slot                                         |
+| `academic_year` | integer  | Required                                                         | Numeric year (e.g. 2026)                                                      |
+| `valid_from`    | datetime | Optional                                                         | Start of date range this entry is active; null = from start of year           |
+| `valid_to`      | datetime | Optional                                                         | End of date range; null = currently active                                    |
+| `notes`         | string   | Optional, max 255                                                | Additional notes                                                              |
+
+**Indexes:** `idx_timetable_grade_template` on `(grade_level ASC, is_template ASC, academic_year ASC)`
+
+### learner_attendance
+
+Daily attendance records for each learner (Story 4.6). One row per learner per school day. Used by the at-risk identification engine (Story 4.7) to compute attendance rates — `(Present + Late) / total records`. The attendance date is stored at UTC 00:00:00 to avoid timezone drift; display logic converts to the village timezone.
+
+| Column            | Type     | Constraints                                             | Description                                                  |
+| ----------------- | -------- | ------------------------------------------------------- | ------------------------------------------------------------ |
+| `learner_id`      | rel      | Required, manyToOne → learners, onDelete: cascade       | Linked learner record                                        |
+| `class_id`        | rel      | Required, manyToOne → school_classes, onDelete: cascade | Class context at attendance recording time                   |
+| `attendance_date` | datetime | Required                                                | The school day this roll applies to (stored at UTC 00:00:00) |
+| `status`          | enum     | Required: 'Present', 'Absent', 'Late', 'Excused'        | Attendance status                                            |
+| `absence_reason`  | string   | Optional, max 255                                       | Reason for absence/late (free text)                          |
+| `notes`           | string   | Optional, max 500                                       | Teacher notes                                                |
+
+**Indexes:** none (the table is small and queried by `class_id` + `attendance_date` or `learner_id` + date range client-side)
+
+### interventions
+
+Structured intervention plans for at-risk learners (Story 4.8). Persists the plan created by a Head Teacher or Teacher; closes the feedback loop from at-risk identification (Story 4.7). At-risk status is derived and NOT linked here — an intervention's `status` and a learner's live at-risk flag are independent.
+
+| Column                | Type     | Constraints                                                           | Description                                                              |
+| --------------------- | -------- | --------------------------------------------------------------------- | ------------------------------------------------------------------------ |
+| `learner_id`          | rel      | Required, manyToOne → learners, onDelete: cascade                     | The learner this plan is for                                             |
+| `assigned_teacher_id` | rel      | Optional, manyToOne → residents, onDelete: setNull                    | Teacher responsible for delivering the intervention                      |
+| `intervention_type`   | string   | Required, max 100                                                     | Controlled vocabulary (see `INTERVENTION_TYPES`), e.g. "Reading Support" |
+| `focus_areas`         | string[] | Optional                                                              | Free-text focus areas, e.g. ["Reading comprehension", "Mathematics"]     |
+| `frequency`           | string   | Optional, max 255                                                     | Free text, e.g. "3x per week - Mon/Wed/Fri"                              |
+| `success_criteria`    | string   | Optional, max 500                                                     | Free text, e.g. "Score above 60% in all subjects by end of term"         |
+| `start_date`          | datetime | Required                                                              | When the intervention begins                                             |
+| `end_date`            | datetime | Optional                                                              | When the intervention is expected to end (may be open-ended)             |
+| `term`                | string   | Optional, max 100                                                     | Academic term name the plan was created in                               |
+| `academic_year`       | integer  | Optional                                                              | Numeric year (e.g. 2026)                                                 |
+| `status`              | enum     | Required: 'Active', 'Paused', 'Resolved', 'Closed Without Resolution' | Current lifecycle state                                                  |
+| `outcome`             | string   | Optional, max 1000                                                    | Summary filled in when status is Resolved or Closed Without Resolution   |
+| `created_by`          | string   | Optional, max 255                                                     | Resident ID of the user who created the plan                             |
+| `notes`               | string   | Optional, max 500                                                     | General notes                                                            |
+
+**Indexes:** none — `learner_id` and `assigned_teacher_id` are relationship columns, and Appwrite does not support indexing relationship attributes (same constraint as `learner_attendance`). Filtering uses `Query.equal()` unindexed.
+
+### intervention_notes
+
+Append-only progress notes logged against an intervention (Story 4.8). Notes cannot be edited or deleted once saved, preserving an auditable timeline.
+
+| Column             | Type     | Constraints                                                 | Description                                                                                                             |
+| ------------------ | -------- | ----------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| `intervention_id`  | rel      | Required, manyToOne → interventions, onDelete: cascade      | The intervention this note belongs to                                                                                   |
+| `note_date`        | datetime | Required                                                    | When the note was logged                                                                                                |
+| `content`          | string   | Required, max 2000                                          | The note text                                                                                                           |
+| `author_id`        | string   | Optional, max 255                                           | Resident ID of who wrote the note (plain string, not a relationship, to avoid cascade issues when residents are edited) |
+| `learner_response` | enum     | Optional: 'Positive', 'Neutral', 'Negative', 'Not Observed' | Qualitative indicator of how the learner responded                                                                      |
+
+**Indexes:** none — `intervention_id` is a relationship column (same constraint as above).
+
+### school_long_term_goals
+
+Long-term educational goal configuration (Story 4.12). Holds one active goal by convention (selected via `is_active`). The benchmark score threshold models the target percentile in the absence of a national exam data feed.
+
+| Column                       | Type    | Constraints            | Description                                                              |
+| ---------------------------- | ------- | ---------------------- | ------------------------------------------------------------------------ |
+| `goal_name`                  | string  | Required, max 255      | Human-readable goal name                                                 |
+| `target_percent_of_learners` | double  | Required, default 90   | Target percentage of active learners meeting the benchmark               |
+| `target_percentile_score`    | double  | Required, default 90   | Benchmark score threshold representing the percentile target (e.g., 90%) |
+| `baseline_academic_year`     | integer | Required               | First academic year used for progress tracking                           |
+| `target_academic_year`       | integer | Required               | Target academic year to reach the goal (typically baseline + 10)         |
+| `is_active`                  | boolean | Required, default true | Whether this goal is the current active goal                             |
+| `notes`                      | string  | Optional, max 1000     | Additional notes                                                         |
+
+**Indexes:** `idx_school_long_term_goals_active` on `(is_active ASC)`
+
+### teacher_assignments
+
+Stores grade-level teacher assignments with optional subject specialization (Story 4.2). Grade teachers (EC–5) teach all subjects; subject teachers (Grade 6+) have specific subject assignments.
+
+| Column        | Type     | Constraints                                        | Description                            |
+| ------------- | -------- | -------------------------------------------------- | -------------------------------------- |
+| `teacher_id`  | rel      | Required, manyToOne → residents, onDelete: cascade | Linked resident profile of the Teacher |
+| `grade_level` | enum     | Required: 'Early Childhood', 'Grade 1'–'Grade 12'  | Assigned grade level                   |
+| `subjects`    | string[] | Optional array of subject names                    | Subjects taught (Grade 6+ only)        |
+| `notes`       | string   | Optional, max 500                                  | Assignment details                     |
+
+**Indexes:** `idx_teacher_assignments_teacher` on `(teacher_id ASC)`, `idx_teacher_assignments_grade` on `(grade_level ASC)`
+
 ## Relationships
 
 All relationships use Appwrite's native relationship columns (type `rel`). Key relationships:
@@ -438,6 +631,25 @@ All relationships use Appwrite's native relationship columns (type `rel`). Key r
 - **farm_sales → crops**: manyToOne via `farm_sales.crop_id` (denormalized, Story 3.9)
 - **inventory → plantings**: manyToOne via `inventory.planting_id` (farm produce only)
 - **inventory → crops**: manyToOne via `inventory.crop_id` (farm produce only)
+
+**School:**
+
+- **learners → residents**: manyToOne via `learners.resident_id` (onDelete: restrict — residents with learner records cannot be deleted)
+- **learners → school_classes**: manyToOne via `learners.class_id` (onDelete: setNull — learners become unassigned if a class is deleted)
+- **test_scores → learners**: manyToOne via `test_scores.learner_id` (onDelete: cascade)
+- **test_scores → school_classes**: manyToOne via `test_scores.class_id` (onDelete: cascade)
+- **teacher_assignments → residents**: manyToOne via `teacher_assignments.teacher_id` (onDelete: cascade)
+- **class_timetable_entries → school_classes**: manyToOne via `class_timetable_entries.class_id` (onDelete: cascade; null when `is_template = true`)
+- **class_timetable_entries → residents**: manyToOne via `class_timetable_entries.teacher_id` (onDelete: setNull)
+- **learner_attendance → school_classes**: manyToOne via `learner_attendance.class_id` (onDelete: cascade)
+- **learner_attendance → learners**: manyToOne via `learner_attendance.learner_id` (onDelete: cascade)
+- **interventions → learners**: manyToOne via `interventions.learner_id` (onDelete: cascade)
+- **interventions → residents**: manyToOne via `interventions.assigned_teacher_id` (onDelete: setNull)
+- **intervention_notes → interventions**: manyToOne via `intervention_notes.intervention_id` (onDelete: cascade)
+- **`school_academic_terms`**: standalone (no relationships — self-contained calendar data)
+- **`school_calendar_events`**: standalone (no relationships — `affected_class_ids` stored as string array, not relationship column, to support optional scoping without cascade complexity)
+- **`school_period_slots`**: standalone (no relationships — `slot_id` on `class_timetable_entries` references `school_period_slots.$id` as a string, intentionally avoiding cascade to allow slot reuse across grades)
+- **`school_long_term_goals`**: standalone (no relationships — single configuration row selected by `is_active`)
 
 **Finance:**
 
@@ -474,6 +686,7 @@ Live indexes as configured in Appwrite:
 | `plantings`  | `idx_plantings_status`       | key    | `status ASC`                    |
 | `farm_sales` | `idx_farm_sales_date`        | key    | `sale_date DESC`                |
 | `farm_sales` | `idx_farm_sales_buyer`       | key    | `buyer_type ASC, buyer_id ASC`  |
+| `learners`   | `idx_learners_status`        | key    | `enrollment_status ASC`         |
 
 ## Permissions
 

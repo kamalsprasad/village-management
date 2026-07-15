@@ -286,7 +286,6 @@ export const useResidentsStore = defineStore('residents', {
         const residentsCollectionId = import.meta.env.VITE_APPWRITE_TABLE_RESIDENTS;
 
         const residentId = ID.unique();
-        const now = new Date().toISOString();
 
         const newResident = await tables.createRow({
           databaseId: dbId,
@@ -303,8 +302,6 @@ export const useResidentsStore = defineStore('residents', {
             phone: residentData.phone || '',
             email: residentData.email ? residentData.email : null,
             notes: residentData.notes || '',
-            $createdAt: now,
-            $updatedAt: now,
           },
         });
 
@@ -365,7 +362,6 @@ export const useResidentsStore = defineStore('residents', {
             phone: residentData.phone || '',
             email: residentData.email ? residentData.email : null,
             notes: residentData.notes || '',
-            $updatedAt: new Date().toISOString(),
           },
         });
 

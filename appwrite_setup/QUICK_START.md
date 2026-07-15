@@ -53,7 +53,7 @@ In the function's **Settings** tab, add these environment variables:
 **Option B: Using CLI**
 
 ```bash
-npm install -g appwrite-cli
+npm install -g appwrite-cli@16.0.0
 appwrite login
 appwrite deploy function
 ```

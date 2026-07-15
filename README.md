@@ -56,12 +56,16 @@ Having a background in software development, I wanted to create a solution that 
 
 Install these required tools before proceeding:
 
-- **Docker Desktop** - For self-hosted Appwrite ([docker.com](https://www.docker.com/products/docker-desktop/))
 - **Node.js** (v20 LTS+) - JavaScript runtime ([nodejs.org](https://nodejs.org/))
 - **Git** - Version control ([git-scm.com](https://git-scm.com/downloads))
 - **Yarn** (recommended) or npm - `npm install -g yarn`
-- **Quasar CLI** - `npm install -g @quasar/cli`
-- **Appwrite CLI** - `npm install -g appwrite-cli`
+- **Docker Desktop** - Only required for self-hosted Appwrite ([docker.com](https://www.docker.com/products/docker-desktop/))
+
+The automated setup scripts below will install **Quasar CLI** and **Appwrite CLI** globally if they are not already present. If you prefer the manual route, install them with:
+
+```bash
+npm install -g @quasar/cli appwrite-cli@16.0.0
+```
 
 **Appwrite Account:** [cloud.appwrite.io](https://cloud.appwrite.io) (free tier) or self-hosted via Docker (instructions below).
 
@@ -80,6 +84,36 @@ Install these required tools before proceeding:
 A step-by-step video guide covering the complete setup process:
 
 [![Setup Walkthrough](https://img.youtube.com/vi/chT54P2n3b8/0.jpg)](https://youtu.be/chT54P2n3b8?si=jVTQt02akGSYxHOY)
+
+### Quick Start (Automated)
+
+The easiest way to get started is with the one-command launcher for your platform. On first run it will:
+
+- Check that Node.js, Git, and (for self-hosted) Docker are installed
+- Install Quasar CLI and Appwrite CLI if missing
+- Install project dependencies
+- Prompt you to choose **Appwrite Cloud** or **self-hosted**
+- Create `.env` and `server/.env` with your credentials
+- Run the database setup and seed default roles
+- Guide you through deploying Appwrite functions
+- Start the development server at `http://localhost:9100`
+
+**Run the launcher for your OS:**
+
+```bash
+# Linux
+./linux.sh
+
+# macOS
+./mac.sh
+```
+
+```batch
+# Windows (double-click or run in Command Prompt)
+windows.bat
+```
+
+For the manual step-by-step setup, continue with the sections below.
 
 ### 1. Set Up Appwrite
 

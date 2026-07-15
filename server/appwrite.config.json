@@ -1,6 +1,6 @@
 {
   "projectId": "village-project",
-  "projectName": "Village Project",
+  "projectName": "village-project",
   "settings": {
     "services": {
       "account": true,
@@ -46,7 +46,7 @@
       "enabled": true,
       "logging": true,
       "runtime": "node-16.0",
-      "scopes": ["users.read"],
+      "scopes": ["users.read", "teams.write"],
       "events": [],
       "schedule": "",
       "timeout": 15,
@@ -90,6 +90,29 @@
         "TABLE_ROLES": "roles",
         "TABLE_VILLAGE_SETTINGS": "village_settings"
       }
+    },
+    {
+      "$id": "seedAllData",
+      "execute": ["team:village_administrators"],
+      "name": "Seed All Data",
+      "enabled": true,
+      "logging": true,
+      "runtime": "node-16.0",
+      "scopes": [
+        "databases.read",
+        "databases.write",
+        "tables.read",
+        "tables.write",
+        "rows.read",
+        "rows.write"
+      ],
+      "events": [],
+      "schedule": "",
+      "timeout": 900,
+      "entrypoint": "src/main.js",
+      "commands": "npm install",
+      "specification": "s-1vcpu-512mb",
+      "path": "functions/seedAllData"
     }
   ],
   "tablesDB": [

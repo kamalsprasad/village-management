@@ -1,0 +1,243 @@
+/**
+ * School Module Routes (Story 4.1, updated Story 4.3, Story 4.13)
+ *
+ * Route definitions for the School module. Registered in src/router/routes.js
+ * via spread, same as the Farm and Finance modules.
+ *
+ * IMPORTANT: 'school/learners/enroll' must be defined BEFORE 'school/learners/:id'
+ * to prevent the :id param from capturing 'enroll' as an ID.
+ *
+ * Story 4.3 additions:
+ *   /school/calendar              — SchoolCalendarPage (school:read)
+ *   /school/settings              — SchoolSettingsPage hub (school:admin)
+ *   /school/settings/terms        — AcademicTermsSettingsPage (school:admin)
+ *   /school/settings/calendar-events — CalendarEventsSettingsPage (school:admin)
+ *
+ * Story 4.5 addition:
+ *   /school/settings/timetable-templates — TimetableTemplatesPage (school:admin)
+ *
+ * Story 4.13: learner progress reports (dialog-based, no new routes)
+ */
+
+const schoolRoutes = [
+  {
+    path: 'school',
+    redirect: '/school/dashboard',
+  },
+  {
+    path: 'school/dashboard',
+    name: 'school-dashboard',
+    component: () => import('./pages/SchoolDashboardPage.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresPermission: 'school:read',
+    },
+  },
+  {
+    path: 'school/learners',
+    name: 'school-learners',
+    component: () => import('./pages/LearnersListPage.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresPermission: 'school:read',
+    },
+  },
+  {
+    path: 'school/learners/enroll',
+    name: 'school-learner-enroll',
+    component: () => import('./pages/EnrollLearnerPage.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresPermission: 'school:write',
+    },
+  },
+  {
+    path: 'school/learners/:id',
+    name: 'school-learner-detail',
+    component: () => import('./pages/LearnerDetailPage.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresPermission: 'school:read',
+    },
+  },
+  {
+    path: 'school/learners/:id/edit',
+    name: 'school-learner-edit',
+    component: () => import('./pages/EnrollLearnerPage.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresPermission: 'school:admin',
+    },
+  },
+  {
+    path: 'school/classes',
+    name: 'school-classes',
+    component: () => import('./pages/ClassesListPage.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresPermission: 'school:read',
+    },
+  },
+  {
+    path: 'school/classes/:id',
+    name: 'school-class-detail',
+    component: () => import('./pages/ClassDetailPage.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresPermission: 'school:read',
+    },
+  },
+  {
+    path: 'school/classes/:id/record',
+    name: 'school-record-scores',
+    component: () => import('./pages/RecordScoresPage.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresPermission: 'school:write',
+    },
+  },
+  {
+    path: 'school/classes/:id/performance',
+    name: 'school-class-performance',
+    component: () => import('./pages/ClassPerformancePage.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresPermission: 'school:read',
+    },
+  },
+  {
+    path: 'school/teachers',
+    name: 'school-teachers',
+    component: () => import('./pages/TeachersListPage.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresPermission: 'school:read',
+    },
+  },
+
+  // ── Story 4.3: School Calendar & Settings ────────────────────
+  {
+    path: 'school/calendar',
+    name: 'school-calendar',
+    component: () => import('./pages/SchoolCalendarPage.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresPermission: 'school:read',
+    },
+  },
+  {
+    path: 'school/at-risk-learners',
+    name: 'school-at-risk-learners',
+    component: () => import('./pages/AtRiskLearnersPage.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresPermission: 'school:read',
+    },
+  },
+  // Story 4.8: Interventions
+  // IMPORTANT: 'school/interventions/create' must be defined BEFORE
+  // 'school/interventions/:id' to prevent :id from capturing 'create'.
+  {
+    path: 'school/interventions',
+    name: 'school-interventions',
+    component: () => import('./pages/InterventionsListPage.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresPermission: 'school:read',
+    },
+  },
+  {
+    path: 'school/interventions/create',
+    name: 'school-intervention-create',
+    component: () => import('./pages/CreateInterventionPage.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresPermission: 'school:write',
+    },
+  },
+  {
+    path: 'school/interventions/:id',
+    name: 'school-intervention-detail',
+    component: () => import('./pages/InterventionDetailPage.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresPermission: 'school:read',
+    },
+  },
+  {
+    path: 'school/interventions/:id/edit',
+    name: 'school-intervention-edit',
+    component: () => import('./pages/CreateInterventionPage.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresPermission: 'school:write',
+    },
+  },
+  {
+    path: 'school/settings',
+    name: 'school-settings',
+    component: () => import('./pages/SchoolSettingsPage.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresPermission: 'school:admin',
+    },
+  },
+  {
+    path: 'school/settings/terms',
+    name: 'school-settings-terms',
+    component: () => import('./pages/AcademicTermsSettingsPage.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresPermission: 'school:admin',
+    },
+  },
+  {
+    path: 'school/settings/calendar-events',
+    name: 'school-settings-calendar-events',
+    component: () => import('./pages/CalendarEventsSettingsPage.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresPermission: 'school:admin',
+    },
+  },
+  {
+    path: 'school/settings/bell-schedules',
+    name: 'school-settings-bell-schedules',
+    component: () => import('./pages/BellSchedulesSettingsPage.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresPermission: 'school:read',
+    },
+  },
+  {
+    path: 'school/settings/timetable-templates',
+    name: 'school-settings-timetable-templates',
+    component: () => import('./pages/TimetableTemplatesPage.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresPermission: 'school:admin',
+    },
+  },
+
+  // Story 4.12: Educational Goals & Long-Term Goal Settings
+  {
+    path: 'school/educational-goals',
+    name: 'school-educational-goals',
+    component: () => import('./pages/EducationalGoalsPage.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresPermission: 'school:read',
+    },
+  },
+  {
+    path: 'school/settings/long-term-goals',
+    name: 'school-settings-long-term-goals',
+    component: () => import('./pages/LongTermGoalsSettingsPage.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresPermission: 'school:admin',
+    },
+  },
+];
+
+export default schoolRoutes;
