@@ -138,11 +138,16 @@ async function main() {
     name = await ask('Enter Admin Display Name', 'System Administrator');
 
     while (true) {
-      password = await ask('Enter Admin Password (min 8 characters)');
-      if (password.length >= 8) {
+      password = await ask('Enter Admin Password (min 8 characters, UPPERCASE, lowercase, and a number)');
+      const hasUppercase = /[A-Z]/.test(password);
+      const hasLowercase = /[a-z]/.test(password);
+      const hasNumber = /[0-9]/.test(password);
+      const hasMinLength = password.length >= 8;
+
+      if (hasMinLength && hasUppercase && hasLowercase && hasNumber) {
         break;
       }
-      console.log('❌ Password must be at least 8 characters long. Please try again.');
+      console.log('❌ Password must be at least 8 characters long, and contain at least one UPPERCASE letter, one lowercase letter, and one number. Please try again.');
     }
 
     console.log('\nCreating account...');
