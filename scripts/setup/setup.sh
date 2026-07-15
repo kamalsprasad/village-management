@@ -671,7 +671,18 @@ log_info "Creating required team: village_administrators..."
 appwrite teams create --team-id village_administrators --name "Administrators" 2>/dev/null || true
 
 if [[ "$SELF_HOSTED" == "1" ]]; then
-  ENDPOINT_VALUE="http://host.docker.internal/v1"
+  if [[ "$PLATFORM" == "Darwin" ]]; then
+    ENDPOINT_VALUE="http://host.docker.internal/v1"
+  else
+    # On Linux, host.docker.internal is not available by default.
+    # Try to find the appwrite network gateway, otherwise fallback to the default docker0 bridge IP.
+    GATEWAY_IP=$(docker network inspect appwrite --format '{{range .IPAM.Config}}{{.Gateway}}{{end}}' 2>/dev/null || true)
+    if [[ -n "$GATEWAY_IP" ]]; then
+      ENDPOINT_VALUE="http://${GATEWAY_IP}/v1"
+    else
+      ENDPOINT_VALUE="http://172.17.0.1/v1"
+    fi
+  fi
 else
   ENDPOINT_VALUE="https://cloud.appwrite.io/v1"
 fi
