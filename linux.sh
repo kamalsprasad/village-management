@@ -55,6 +55,18 @@ if [[ ! -d "node_modules" || ! -f ".env" || ! -f "server/.env" ]]; then
   echo ""
   echo "First-time setup detected. Running setup wizard..."
   echo ""
+
+  # Setup requires elevated privileges for installing system packages (Docker, Node.js, etc.)
+  if [[ "$EUID" -ne 0 ]]; then
+    echo "[ERROR] The setup wizard requires root privileges to install dependencies."
+    echo ""
+    echo "  Please re-run with sudo:"
+    echo ""
+    echo "    sudo ./linux.sh"
+    echo ""
+    exit 1
+  fi
+
   if [[ ! -f "$SCRIPT_DIR/scripts/setup/setup.sh" ]]; then
     echo "[ERROR] Setup script not found: scripts/setup/setup.sh"
     echo "Please ensure the repository was cloned completely."

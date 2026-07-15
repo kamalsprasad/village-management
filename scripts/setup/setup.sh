@@ -62,6 +62,10 @@ refresh_brew_path() {
     eval "$(/opt/homebrew/bin/brew shellenv)"
   elif [[ -f "/usr/local/bin/brew" ]]; then
     eval "$(/usr/local/bin/brew shellenv)"
+  elif [[ -d "/home/linuxbrew/.linuxbrew" ]]; then
+    eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
+  elif [[ -f "$HOME/.linuxbrew/bin/brew" ]]; then
+    eval "$("$HOME/.linuxbrew/bin/brew" shellenv)"
   fi
 }
 
@@ -89,12 +93,42 @@ install_npm_global() {
     return 0
   fi
   log_info "Installing $pkg globally..."
-  if has_command yarn; then
-    yarn global add "$pkg" || npm install -g "$pkg"
+  if npm install -g "$pkg" 2>/dev/null; then
+    log_success "$pkg installed."
   else
-    npm install -g "$pkg"
+    log_info "Elevated privileges required. Retrying with sudo..."
+    sudo npm install -g "$pkg"
+    log_success "$pkg installed."
   fi
-  log_success "$pkg installed."
+}
+
+safe_timeout() {
+  local seconds="$1"
+  shift
+  if has_command timeout; then
+    timeout "$seconds" "$@"
+  elif has_command gtimeout; then
+    gtimeout "$seconds" "$@"
+  else
+    "$@"
+  fi
+}
+
+open_url() {
+  local url="$1"
+  if [[ "${PLATFORM:-}" == "Darwin" ]]; then
+    open "$url" >/dev/null 2>&1 || true
+  elif [[ "${PLATFORM:-}" == "Linux" ]]; then
+    if has_command xdg-open; then
+      xdg-open "$url" >/dev/null 2>&1 || true
+    elif has_command sensible-browser; then
+      sensible-browser "$url" >/dev/null 2>&1 || true
+    elif has_command x-www-browser; then
+      x-www-browser "$url" >/dev/null 2>&1 || true
+    else
+      log_info "Please open $url in your browser."
+    fi
+  fi
 }
 
 wait_for_url() {
@@ -148,8 +182,8 @@ install_node() {
       read -rp "Run sudo apt-get update and install nodejs? [Y/n]: " CONFIRM_APT
       CONFIRM_APT="${CONFIRM_APT:-y}"
       if [[ "$CONFIRM_APT" =~ ^[Yy]$ ]]; then
-        log_info "Adding NodeSource repository for Node.js v20..."
-        curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+        log_info "Adding NodeSource repository for Node.js v24 LTS..."
+        curl -fsSL https://deb.nodesource.com/setup_24.x | sudo -E bash -
         sudo apt-get install -y nodejs
         return 0
       fi
@@ -158,7 +192,7 @@ install_node() {
       read -rp "Run sudo dnf install nodejs? [Y/n]: " CONFIRM_DNF
       CONFIRM_DNF="${CONFIRM_DNF:-y}"
       if [[ "$CONFIRM_DNF" =~ ^[Yy]$ ]]; then
-        sudo dnf module enable nodejs:20 -y || true
+        sudo dnf module enable nodejs:24 -y || true
         sudo dnf install -y nodejs
         return 0
       fi
@@ -180,8 +214,8 @@ install_node_nvm() {
   curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash || return 1
   export NVM_DIR="$HOME/.nvm"
   [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
-  nvm install 20
-  nvm use 20
+  nvm install 24
+  nvm use 24
   return 0
 }
 
@@ -191,8 +225,8 @@ if ! has_command node; then
   NEEDS_NODE=1
 else
   NODE_VERSION="$(get_node_version)"
-  if ! version_ge "$NODE_VERSION" "20.0.0"; then
-    log_warn "Node.js v${NODE_VERSION} is too old. Node.js v20+ is required."
+  if ! version_ge "$NODE_VERSION" "24.0.0"; then
+    log_warn "Node.js v${NODE_VERSION} is too old. Node.js v24+ is required."
     NEEDS_NODE=1
   fi
 fi
@@ -201,14 +235,14 @@ if [[ "$NEEDS_NODE" == "1" ]]; then
   if install_node || install_node_nvm; then
     hash -r
     refresh_brew_path
-    if has_command node && version_ge "$(get_node_version)" "20.0.0"; then
+    if has_command node && version_ge "$(get_node_version)" "24.0.0"; then
       log_success "Node.js v$(get_node_version) found/installed."
     else
       log_error "Node.js was installed but is still not available or too old. Please restart your shell and try again."
       exit 1
     fi
   else
-    log_error "Failed to install Node.js. Please install Node.js v20+ manually."
+    log_error "Failed to install Node.js. Please install Node.js v24+ manually."
     exit 1
   fi
 fi
@@ -364,8 +398,19 @@ if [[ "$BACKEND_CHOICE" == "2" ]]; then
 
   # Check if Docker is running (with timeout to avoid hanging during "Docker starting" phase)
   docker_ready=0
-  if timeout 5 docker info >/dev/null 2>&1; then
+  docker_err=$(safe_timeout 5 docker info 2>&1 || true)
+  if echo "$docker_err" | grep -q "Server Version"; then
     docker_ready=1
+  elif [[ "$PLATFORM" == "Linux" ]] && echo "$docker_err" | grep -qi "permission denied"; then
+    log_error "Docker permission denied. Your user may not be in the 'docker' group."
+    log_warn "If you were recently added to the 'docker' group, the change hasn't taken effect in this shell."
+    action_required \
+      "Try one of the following:" \
+      "" \
+      "  Option 1: Run 'newgrp docker' then re-run ./linux.sh" \
+      "  Option 2: Log out and log back in, then re-run ./linux.sh" \
+      "  Option 3: Run the script with sudo: sudo ./linux.sh"
+    exit 1
   fi
 
   if [[ "$docker_ready" == "0" ]]; then
@@ -399,7 +444,7 @@ if [[ "$BACKEND_CHOICE" == "2" ]]; then
       elapsed=$((elapsed + interval))
       printf "\r  Waiting... %ds / %ds" "$elapsed" "$max_wait"
 
-      if timeout 10 docker info >/dev/null 2>&1; then
+      if safe_timeout 10 docker info >/dev/null 2>&1; then
         docker_ready=1
         break
       fi
@@ -426,19 +471,11 @@ if [[ "$BACKEND_CHOICE" == "2" ]]; then
   log_info "You can press enter for all the Appwrite questions to use default settings."
   read -rp "Press Enter to run the Appwrite Docker install command, or Ctrl+C to cancel..."
 
-  if [[ "$PLATFORM" == "Linux" ]]; then
-    docker run -it --rm \
-      --volume /var/run/docker.sock:/var/run/docker.sock \
-      --volume "$(pwd)"/appwrite:/usr/src/code/appwrite:rw \
-      --entrypoint="install" \
-      appwrite/appwrite:1.8.1
-  else
-    docker run -it --rm \
-      --volume /var/run/docker.sock:/var/run/docker.sock \
-      --volume "$(pwd)"/appwrite:/usr/src/code/appwrite:rw \
-      --entrypoint="install" \
-      appwrite/appwrite:1.8.1
-  fi
+  docker run -it --rm \
+    --volume /var/run/docker.sock:/var/run/docker.sock \
+    --volume "$(pwd)"/appwrite:/usr/src/code/appwrite:rw \
+    --entrypoint="install" \
+    appwrite/appwrite:1.8.1
 
   log_info "Waiting for Appwrite to start at http://localhost..."
   if wait_for_url "http://localhost" 30; then
@@ -446,6 +483,9 @@ if [[ "$BACKEND_CHOICE" == "2" ]]; then
   else
     log_warn "Appwrite may not be ready yet. You can continue and check manually."
   fi
+
+  log_info "Opening Appwrite Console at http://localhost in your browser..."
+  open_url "http://localhost"
 
   action_required \
     "Complete these steps in the Appwrite Console (http://localhost):" \
@@ -460,6 +500,9 @@ if [[ "$BACKEND_CHOICE" == "2" ]]; then
 else
   SELF_HOSTED=0
   log_info "Using Appwrite Cloud."
+
+  log_info "Opening Appwrite Cloud Console in your browser..."
+  open_url "https://cloud.appwrite.io"
 
   action_required \
     "Complete these steps at https://cloud.appwrite.io:" \
@@ -499,17 +542,33 @@ fi
 
 if [[ "$needs_appwrite" -eq 1 ]]; then
   log_info "Installing appwrite-cli@16.0.0 globally..."
-  if has_command yarn; then
-    yarn global add appwrite-cli@16.0.0 || npm install -g appwrite-cli@16.0.0
+  if npm install -g appwrite-cli@16.0.0 2>/dev/null; then
+    log_success "appwrite-cli@16.0.0 installed."
   else
-    npm install -g appwrite-cli@16.0.0
+    log_info "Elevated privileges required. Retrying with sudo..."
+    sudo npm install -g appwrite-cli@16.0.0
+    log_success "appwrite-cli@16.0.0 installed."
   fi
-  log_success "appwrite-cli@16.0.0 installed."
 fi
 
 log_step "Installing project dependencies"
-$PKG_INSTALL
-log_success "Project dependencies installed."
+if $PKG_INSTALL; then
+  log_success "Project dependencies installed."
+else
+  log_warn "Dependency installation failed. Retrying with --ignore-engines..."
+  if [[ "$PKG_MANAGER" == "yarn" ]]; then
+    yarn install --ignore-engines
+  else
+    npm install --engine-strict=false
+  fi
+  if [[ $? -eq 0 ]]; then
+    log_success "Project dependencies installed (with engine check relaxed)."
+  else
+    log_error "Dependency installation failed."
+    log_error "Please check the errors above and ensure your Node.js version meets the project requirements."
+    exit 1
+  fi
+fi
 
 # ── Phase 4: Environment configuration ────────────────────────────────────────
 
@@ -532,12 +591,22 @@ log_success "Environment files configured."
 # ── Phase 5: Database setup and seeding ───────────────────────────────────────
 
 log_step "Setting up Appwrite database"
-$PKG_RUN setup:appwrite
-log_success "Database setup complete."
+if $PKG_RUN setup:appwrite; then
+  log_success "Database setup complete."
+else
+  log_error "Database setup failed. Please check the errors above."
+  log_warn "You can retry manually later with: $PKG_RUN setup:appwrite"
+  exit 1
+fi
 
 log_step "Seeding default roles"
-$PKG_RUN seed:roles
-log_success "Roles seeded."
+if $PKG_RUN seed:roles; then
+  log_success "Roles seeded."
+else
+  log_error "Role seeding failed. Please check the errors above."
+  log_warn "You can retry manually later with: $PKG_RUN seed:roles"
+  exit 1
+fi
 
 
 
@@ -572,16 +641,16 @@ PROJECT_ID=$(grep -E '^VITE_APPWRITE_PROJECT_ID=' "$ROOT_DIR/.env" | cut -d= -f2
 # Check if project is already linked in appwrite.config.json
 CONFIG_LINKED=0
 if [[ -f "appwrite.config.json" ]]; then
-  if grep -q "\"projectId\": \"$PROJECT_ID\"" appwrite.config.json; then
+  if grep -q "\"projectId\":[[:space:]]*\"$PROJECT_ID\"" appwrite.config.json; then
     CONFIG_LINKED=1
   else
     log_info "Updating project ID in appwrite.config.json to: $PROJECT_ID"
-    if [[ "$OSTYPE" == "darwin"* ]]; then
-      sed -i '' -E "s/\"projectId\": \"[^\"]*\"/\"projectId\": \"$PROJECT_ID\"/g" appwrite.config.json
-      sed -i '' -E "s/\"projectName\": \"[^\"]*\"/\"projectName\": \"$PROJECT_ID\"/g" appwrite.config.json
+    if [[ "${OSTYPE:-}" == "darwin"* ]]; then
+      sed -i '' -E "s/\"projectId\":[[:space:]]*\"[^\"]*\"/\"projectId\": \"$PROJECT_ID\"/g" appwrite.config.json
+      sed -i '' -E "s/\"projectName\":[[:space:]]*\"[^\"]*\"/\"projectName\": \"$PROJECT_ID\"/g" appwrite.config.json
     else
-      sed -i -E "s/\"projectId\": \"[^\"]*\"/\"projectId\": \"$PROJECT_ID\"/g" appwrite.config.json
-      sed -i -E "s/\"projectName\": \"[^\"]*\"/\"projectName\": \"$PROJECT_ID\"/g" appwrite.config.json
+      sed -i -E "s/\"projectId\":[[:space:]]*\"[^\"]*\"/\"projectId\": \"$PROJECT_ID\"/g" appwrite.config.json
+      sed -i -E "s/\"projectName\":[[:space:]]*\"[^\"]*\"/\"projectName\": \"$PROJECT_ID\"/g" appwrite.config.json
     fi
     CONFIG_LINKED=1
   fi
@@ -591,8 +660,10 @@ if [[ "$CONFIG_LINKED" -eq 1 ]]; then
   log_success "Project already initialized and linked in appwrite.config.json."
 else
   log_info "Initializing project with ID: $PROJECT_ID"
-  if appwrite init project --project-id "$PROJECT_ID" 2>/dev/null || true; then
-    log_info "Project initialized."
+  if appwrite init project --project-id "$PROJECT_ID" 2>/dev/null; then
+    log_success "Project initialized."
+  else
+    log_warn "Project init step skipped or failed; continuing..."
   fi
 fi
 
