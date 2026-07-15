@@ -637,6 +637,8 @@ if [[ "$LOGIN_SUCCESS" -ne 1 ]]; then
 fi
 
 PROJECT_ID=$(grep -E '^VITE_APPWRITE_PROJECT_ID=' "$ROOT_DIR/.env" | cut -d= -f2- | head -n1)
+DATABASE_ID=$(grep -E '^VITE_APPWRITE_DATABASE_ID=' "$ROOT_DIR/.env" | cut -d= -f2- | head -n1)
+DATABASE_ID="${DATABASE_ID:-villageDB}"
 
 # Check if project is already linked in appwrite.config.json
 CONFIG_LINKED=0
@@ -698,7 +700,7 @@ action_required \
   "    APPWRITE_ENDPOINT=$ENDPOINT_VALUE" \
   "    APPWRITE_PROJECT_ID=$PROJECT_ID" \
   "    APPWRITE_API_KEY=<your-api-key>" \
-  "    APPWRITE_DATABASE_ID=villageDB"
+  "    APPWRITE_DATABASE_ID=$DATABASE_ID"
 
 read -rp "Press Enter after you have set the Global Variables in the Appwrite Console..."
 

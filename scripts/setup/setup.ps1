@@ -569,6 +569,8 @@ if (-not $loginSuccess) {
 }
 
 $projectId = (Get-Content "$RootDir\.env" | Where-Object { $_ -match '^VITE_APPWRITE_PROJECT_ID=' }) -replace '^VITE_APPWRITE_PROJECT_ID=', '' | Select-Object -First 1
+$databaseId = (Get-Content "$RootDir\.env" | Where-Object { $_ -match '^VITE_APPWRITE_DATABASE_ID=' }) -replace '^VITE_APPWRITE_DATABASE_ID=', '' | Select-Object -First 1
+if ([string]::IsNullOrEmpty($databaseId)) { $databaseId = "villageDB" }
 
 $configExists = $false
 $configPath = "appwrite.config.json"
@@ -612,7 +614,7 @@ Write-ActionRequired @(
   "    APPWRITE_ENDPOINT=$endpointValue",
   "    APPWRITE_PROJECT_ID=$projectId",
   "    APPWRITE_API_KEY=<your-api-key>",
-  "    APPWRITE_DATABASE_ID=villageDB",
+  "    APPWRITE_DATABASE_ID=$databaseId",
   ""
 )
 
