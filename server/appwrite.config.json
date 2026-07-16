@@ -1,6 +1,6 @@
 {
   "projectId": "village-project",
-  "projectName": "Village Project",
+  "projectName": "village-project",
   "settings": {
     "services": {
       "account": true,
@@ -46,7 +46,7 @@
       "enabled": true,
       "logging": true,
       "runtime": "node-16.0",
-      "scopes": ["users.read"],
+      "scopes": ["users.read", "teams.write"],
       "events": [],
       "schedule": "",
       "timeout": 15,

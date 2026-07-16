@@ -1,4 +1,4 @@
-import { Client, RelationshipType, TablesDB, ID } from 'node-appwrite';
+import { Client, RelationshipType, TablesDB } from 'node-appwrite';
 import dotenv from 'dotenv';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
@@ -19,7 +19,7 @@ const config = {
   endpoint: stripQuotes(process.env.APPWRITE_ENDPOINT) || 'https://cloud.appwrite.io/v1',
   projectId: stripQuotes(process.env.APPWRITE_PROJECT_ID),
   apiKey: stripQuotes(process.env.APPWRITE_API_KEY),
-  databaseId: 'villageDB',
+  databaseId: stripQuotes(process.env.APPWRITE_DATABASE_ID) || 'villageDB',
 };
 
 // Validate Config

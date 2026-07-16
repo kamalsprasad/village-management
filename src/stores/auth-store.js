@@ -196,6 +196,31 @@ export const useAuthStore = defineStore('auth', {
           },
         });
 
+        // 3.5. Add newly created user to village_administrators team via Appwrite function
+        try {
+          const checkUsersFunctionId = import.meta.env.VITE_APPWRITE_FUNCTION_CHECK_USERS;
+          if (checkUsersFunctionId) {
+            console.log('Adding first user to village_administrators team...');
+            const teamExecution = await functions.createExecution(
+              checkUsersFunctionId,
+              JSON.stringify({
+                action: 'addFirstUserToAdminTeam',
+                userId,
+                email,
+                name,
+              }),
+            );
+            const teamResult = JSON.parse(teamExecution.responseBody);
+            if (!teamResult.success) {
+              console.warn('Failed to add first user to admin team:', teamResult.error);
+            } else {
+              console.log('Successfully added first user to village_administrators team.');
+            }
+          }
+        } catch (teamError) {
+          console.error('Failed to add first user to admin team via function:', teamError);
+        }
+
         // 4. Update store state
         const user = await account.get();
         this.user = user;

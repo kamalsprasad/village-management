@@ -1,10 +1,8 @@
-import { Client, Users } from 'node-appwrite';
+import { Client, Users, Teams } from 'node-appwrite';
 
 // This Appwrite function will be executed every time your function is triggered
 /* eslint-disable no-unused-vars */
 export default async ({ req, res, log, error }) => {
-  // You can use the Appwrite SDK to interact with other services
-  // For this example, we're using the Users service
   const endpoint =
     process.env.APPWRITE_ENDPOINT || 'https://cloud.appwrite.io/v1';
   const projectId = process.env.APPWRITE_PROJECT_ID || '';
@@ -17,8 +15,53 @@ export default async ({ req, res, log, error }) => {
     .setEndpoint(endpoint)
     .setProject(projectId)
     .setKey(req.headers['x-appwrite-key'] || apiKey);
-  const users = new Users(client);
 
+  const users = new Users(client);
+  const teams = new Teams(client);
+
+  let body = {};
+  if (req.body) {
+    try {
+      body = typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
+    } catch (e) {
+      log('Failed to parse request body: ' + e.message);
+    }
+  }
+
+  // Handle action to add the first user to the admin team
+  if (body.action === 'addFirstUserToAdminTeam') {
+    const { userId, email, name } = body;
+    if (!userId || !email) {
+      return res.json({ success: false, error: 'Missing userId or email' }, 400);
+    }
+
+    try {
+      const userList = await users.list();
+      log(`Total users when adding to team: ${userList.total}`);
+
+      // We only allow adding the user to the admin team if they are the first user
+      if (userList.total === 1 && userList.users[0].$id === userId) {
+        log(`Adding first user ${userId} to village_administrators team`);
+        await teams.createMembership({
+          teamId: 'village_administrators',
+          roles: ['admin'],
+          email,
+          userId,
+          name: name || 'System Administrator',
+        });
+        log('Successfully added user to team.');
+        return res.json({ success: true, message: 'Added first user to village_administrators team' });
+      } else {
+        log(`Refusing to add user ${userId} to team. Users total: ${userList.total}`);
+        return res.json({ success: false, error: 'Not authorized or not the first user' }, 403);
+      }
+    } catch (err) {
+      error('Error adding user to team: ' + err.message);
+      return res.json({ success: false, error: err.message }, 500);
+    }
+  }
+
+  // Default: check if users exist
   try {
     const response = await users.list();
     log(`Total users: ${response.total}`);
