@@ -2,7 +2,9 @@
 
 This roadmap tracks the implementation status of all MVP features organized by epic. Features marked with ✅ are complete, while ☐ indicates work remaining.
 
-**Progress Summary:** 35 of 50 MVP features completed (70%)
+**Progress Summary:** 40 of 50 MVP features completed (80%)
+
+**Legend:** ✅ Complete · ☐ Remaining · ⏸️ Deferred to post-MVP
 
 ---
 
@@ -59,18 +61,21 @@ This roadmap tracks the implementation status of all MVP features organized by e
 
 ## Epic 4: School Management and Educational Accountability
 
-**Goal:** Enable systematic tracking of learner performance and teacher effectiveness.
+**Goal:** Enable systematic tracking of learner performance and teacher effectiveness to support early intervention for struggling learners and meaningful teacher accountability. Includes a fully configurable school calendar (academic terms, bell schedules, class timetables) that underpins attendance tracking and at-risk identification.
 
-- ☐ 4.1 - School Module: Student Registration and Grade Tracking
-- ☐ 4.2 - School Module: Class Scheduling and Attendance
-- ☐ 4.3 - School Module: Assessment and Reporting
-- ☐ 4.4 - School Module: Parent Engagement Portal
-- ☐ 4.5 - School Module: Teacher Performance and Development
-- ☐ 4.6 - School Module: Student Support and Intervention Tracking
-- ☐ 4.7 - School Module: Extracurricular Program Management
-- ☐ 4.8 - School Module: Resource Library and Document Management
-- ☐ 4.9 - School Module: Community Service Tracking
-- ☐ 4.10 - School Module: Education Analytics Dashboard
+- ✅ 4.1 - School Module: Learner Enrollment from Residents
+- ✅ 4.2 - School Module: Test Score Recording (Bulk Entry by Grade)
+- ✅ 4.3 - School Calendar: Academic Terms and School Holidays
+- ✅ 4.4 - School Calendar: Grade Bell Schedules (Period Slots)
+- ✅ 4.5 - School Calendar: Class Timetable Weekly Schedule Builder
+- ✅ 4.6 - School Module: Attendance Tracking (Bulk Entry by Grade)
+- ✅ 4.7 - School Module: At-Risk Learner Identification (90% Attendance Threshold)
+- ✅ 4.8 - School Module: Intervention Planning and Progress Tracking
+- ⏸️ 4.9 - School Module: Peer Review with Enhanced Categories and Checked Status
+- ⏸️ 4.10 - School Module: Self-Evaluation and Head Teacher Evaluation
+- ⏸️ 4.11 - School Module: Collaborative Teaching Practices Documentation
+- ✅ 4.12 - School Module: Progress Toward Long-Term Educational Goal (90% in 90th Percentile)
+- ✅ 4.13 - School Module: Learner Progress Reports and School Dashboard Completion
 
 ---
 
