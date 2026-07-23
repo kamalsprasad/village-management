@@ -222,3 +222,43 @@ This document tracks deferred improvements, upgrades, and refactoring items that
 - **Benefits**: Support professional growth and team-based teaching alignment.
 - **Effort**: Medium
 - **Added**: Course Correction (2026-06-12)
+
+---
+
+## Optional Modules (Epic 5)
+
+The following Epic 5 optional modules were deferred from MVP to post-MVP on 2026-07-23 to reduce MVP scope. See `docs/planning-artifacts/sprint-change-proposal-2026-07-23.md` for the full Sprint Change Proposal and dependency analysis.
+
+### Guests Management Module (Story 5.5)
+
+- **Current State**: Deferred from Epic 5 MVP to POST-MVP.
+- **Improvement**: Build the full Guests module — guest types (Paying Guest, Trainees, Volunteers, Researchers), arrival/departure tracking with housing assignment, payment status for paying guests, training program tracking for trainees, automatic 90-day stay alerts for resident conversion, and guest-to-resident conversion workflow.
+- **Existing MVP plumbing that will integrate when built**:
+  - Finance income source-module dropdown (Story 2.1) already includes "Guest House" as an example category; wire this to the Guests module's payment integration so guest payments flow into Finance automatically.
+  - "Guest" role is already seeded in RBAC (Story 1.4); the module will use this role for guest-specific access.
+  - Calendar "Guests" color-coding category (Story 5.1 AC2) is already in place; the module will start generating arrival/departure events (Story 5.5 AC5).
+- **Benefits**: Full guest lifecycle tracking, automated payment/finance integration, conversion workflow for long-term guests.
+- **Effort**: Medium
+- **Added**: Course Correction (2026-07-23)
+
+### Equipment Management Module (Story 5.6)
+
+- **Current State**: Deferred from Epic 5 MVP to POST-MVP.
+- **Improvement**: Build the full Equipment module — village-wide asset tracking (farm tools, vehicles, solar equipment, computers), procurement details and warranty tracking, maintenance schedules with automatic reminders, equipment condition/location/assignment tracking, and Finance integration for procurement and maintenance costs.
+- **Existing MVP plumbing that will integrate when built**:
+  - Finance expense → Inventory auto-creation (Story 2.7) already supports an "Equipment" inventory-eligible category that creates inventory items of `item_type: 'equipment'`. The Equipment asset-tracking module will build on top of this with maintenance schedules, location/assignment tracking, and richer equipment records.
+  - Calendar "Equipment" color-coding category (Story 5.1 AC2) is already in place; the Equipment maintenance-reminder auto-event (removed from Story 5.1 AC5 for MVP) will be restored when this module is built.
+- **Benefits**: Centralized equipment registry, maintenance scheduling with reminders, procurement/maintenance cost tracking, prevents asset duplication.
+- **Effort**: Medium
+- **Added**: Course Correction (2026-07-23)
+
+### Energy Management Module (Story 5.8)
+
+- **Current State**: Deferred from Epic 5 MVP to POST-MVP.
+- **Improvement**: Build the full Energy (Solar Microgrid Monitoring) module — real-time production/consumption metrics with battery status and net balance, 30-day rolling historical data with line chart and peak-time analysis, IoT integration or manual data entry, energy alerts (low battery, high consumption, system offline), daily/monthly summary reports with PDF/Excel export, and calendar integration for maintenance events.
+- **Existing MVP plumbing that will integrate when built**:
+  - Calendar "Energy" color-coding category (Story 5.1 AC2) is already in place; the module will start generating energy maintenance events (Story 5.8 AC7).
+  - No other MVP plumbing exists for this module — it is fully post-MVP.
+- **Benefits**: Real-time visibility into solar microgrid performance, historical trend analysis, proactive alerts, sustainability reporting.
+- **Effort**: Medium-High (IoT integration adds complexity)
+- **Added**: Course Correction (2026-07-23)

@@ -34,10 +34,14 @@ Each epic includes:
 - **Epic 1:** 11 stories (Project Foundation & Core Infrastructure)
 - **Epic 2:** 9 stories (Financial Management and Inventory Tracking)
 - **Epic 3:** 10 stories (Farm Management and Agricultural Tracking)
-- **Epic 4:** 13 stories (School Management and Educational Accountability)
-- **Epic 5:** 10 stories (Village Calendar, Storage, and Optional Modules)
+- **Epic 4:** 13 stories — 10 MVP, 3 deferred to post-MVP (School Management and Educational Accountability)
+- **Epic 5:** 10 stories — 7 MVP, 3 deferred to post-MVP (Village Calendar, Storage, and Optional Modules)
 
 > **Epic 4 updated 2026-06-20:** 3 new stories (4.3–4.5) added for School Calendar (academic terms, bell schedules, class timetable). The original stories 4.3–4.10 have been renumbered to 4.6–4.13.
+
+> **Epic 4 updated 2026-06-24:** Stories 4.9–4.11 (Peer Review, Self/Head Teacher Evaluation, Collaborative Teaching Practices) deferred to post-MVP. Epic 4 MVP scope is now 10 stories.
+
+> **Epic 5 updated 2026-07-23:** Stories 5.5 (Guests Management), 5.6 (Equipment Management), and 5.8 (Energy Management) deferred to post-MVP. Epic 5 MVP scope is now 7 stories. See `docs/planning-artifacts/sprint-change-proposal-2026-07-23.md`.
 
 ---
 
@@ -853,7 +857,9 @@ As a **Head Teacher**, I want to generate comprehensive learner progress reports
 
 As a **village user**, I want to see all village events in a single calendar with filtering.
 
-**Acceptance Criteria:** 1. Calendar views: month, week, day, agenda 2. Events color-coded by category: School, Farm, Village, Guests, Equipment, Energy, Other 3. Filter UI with checkboxes, "Show All" / "Hide All" toggles 4. Event detail popup 5. Automatic event creation: Farm (expected harvests), Equipment (maintenance reminders) 6. Calendar dashboard widget: "Upcoming Events"
+**Acceptance Criteria:** 1. Calendar views: month, week, day, agenda 2. Events color-coded by category: School, Farm, Village, Guests, Equipment, Energy, Other 3. Filter UI with checkboxes, "Show All" / "Hide All" toggles 4. Event detail popup 5. Automatic event creation: Farm (expected harvests) 6. Calendar dashboard widget: "Upcoming Events"
+
+**Post-MVP note (2026-07-23):** The "Equipment (maintenance reminders)" automatic event source was removed from AC5 because the Equipment Management module (Story 5.6) has been deferred to post-MVP. The Guests, Equipment, and Energy color-coding categories remain in AC2 as labels — they will start receiving events when the corresponding modules (Stories 5.5, 5.6, 5.8) are built post-MVP. The Equipment maintenance-reminder auto-event will be restored at that time.
 
 **Prerequisites:** Epic 1
 
@@ -895,6 +901,10 @@ As a **Village Head**, I want to track guests staying in the village.
 
 **Acceptance Criteria:** 1. Guests module enabled via module settings 2. Guests list, "Add Guest" form: name, guest type, arrival/departure dates, housing, payment details, training details 3. Guest detail page: basic info, housing, payment history, training progress, duration, status 4. Guest payments integration with Finance 5. Calendar integration: arrival/departure events
 
+**Status:** Deferred to post-MVP
+
+**Post-MVP note (2026-07-23):** The Guests Management module is deferred to post-MVP to reduce MVP scope. The existing MVP plumbing — the "Guest House" income source example in the Finance income source-module dropdown (Story 2.1) and the "Guest" role in RBAC (Story 1.4) — remains in place and will integrate naturally when this module is built. See `docs/POST-MVP.md` for the deferred-module entry.
+
 **Prerequisites:** Epic 1 Story 1.6, Epic 2 Story 2.1
 
 ---
@@ -904,6 +914,10 @@ As a **Village Head**, I want to track guests staying in the village.
 As a **Village Head**, I want to track village-wide equipment and assets.
 
 **Acceptance Criteria:** 1. Equipment module enabled via settings 2. Equipment list, "Add Equipment" form: name, type, serial number, procurement details, location, assigned to, condition, maintenance schedule 3. Equipment detail page: maintenance history, "Record Maintenance" button 4. Maintenance reminders: alerts 7 days before, calendar events 5. Equipment dashboard widget 6. Finance integration: procurement and maintenance costs
+
+**Status:** Deferred to post-MVP
+
+**Post-MVP note (2026-07-23):** The Equipment Management module is deferred to post-MVP to reduce MVP scope. The existing MVP plumbing — the "Equipment" inventory-eligible category in the Finance expense → Inventory auto-creation workflow (Story 2.7), which creates inventory items of `item_type: 'equipment'` — remains in place and will integrate naturally when this module is built. The Equipment maintenance-reminder calendar auto-event (referenced by Story 5.1 AC5) will be restored when this module is built. See `docs/POST-MVP.md` for the deferred-module entry.
 
 **Prerequisites:** Epic 2 Story 2.2
 
@@ -925,6 +939,10 @@ As a **Village Head**, I want to monitor solar microgrid production and consumpt
 
 **Acceptance Criteria:** 1. Energy module enabled via settings 2. Energy dashboard: real-time metrics (production, consumption, battery status, net balance), visual indicators 3. 30-day rolling historical data: line chart, daily balance, peak times 4. Energy data collection: IoT integration or manual entry 5. Energy alerts: low battery, high consumption, system offline 6. Energy reports: daily/monthly summaries, export to PDF/Excel 7. Calendar integration: maintenance events
 
+**Status:** Deferred to post-MVP
+
+**Post-MVP note (2026-07-23):** The Energy Management (Solar Microgrid Monitoring) module is deferred to post-MVP to reduce MVP scope. There is no existing MVP plumbing for this module. The "Energy" calendar color-coding category (Story 5.1 AC2) remains as a label and will start receiving events when this module is built. See `docs/POST-MVP.md` for the deferred-module entry.
+
 **Prerequisites:** Epic 1
 
 ---
@@ -935,7 +953,9 @@ As a **System Administrator**, I want to enable/disable optional modules.
 
 **Acceptance Criteria:** 1. Admin menu: "Module Management" 2. Module Management page: Core Modules (always enabled), Optional Modules (can be enabled/disabled) 3. For each module: name, description, status, toggle switch, "Configure" button 4. Enabling module: navigation appears, widgets visible 5. Disabling module: confirmation, navigation hidden, data preserved 6. Module dependencies: warning if disabling module that others depend on 7. First-time setup wizard updated: "Select Modules" step
 
-**Prerequisites:** All previous stories
+**Post-MVP note (2026-07-23):** For MVP, the Optional Modules toggle list is limited to: Farm, School, and Vendors (Story 5.7). The Guests (5.5), Equipment (5.6), and Energy (5.8) optional modules have been deferred to post-MVP and must NOT appear in the MVP module toggle list. They will be added to the toggle list when each is implemented post-MVP.
+
+**Prerequisites:** All MVP previous stories
 
 ---
 
@@ -945,11 +965,13 @@ As a **village user**, I want a polished, cohesive system with all modules integ
 
 **Acceptance Criteria:** 1. Main dashboard completion: role-based widgets, all functional, loads within 2 seconds 2. Navigation polish: clean menu, active page highlighted, breadcrumbs, quick search 3. Notifications system: bell icon, count badge, notification panel, filter by type, mark as read 4. UX polish: consistent UI, loading states, error handling, success confirmations, accessibility 5. Performance optimization: <3 seconds on 3G, lazy loading, caching 6. Mobile responsiveness: all pages functional on mobile (320px+), touch-friendly (44px minimum) 7. Help and documentation: help icon, contextual tooltips, user guide, FAQ 8. System health monitoring (Admin): database size, storage usage, active users, error logs 9. Final testing checklist: all user journeys tested, RBAC enforced, data integrity validated, all integrations working, sample data mode functional 10. Production setup wizard: "Start Fresh with Real Data" option, guides through village config, first household, admin user, Village Head user, module selection, initial data entry, sets is_using_sample_data = false
 
-**Prerequisites:** All previous stories in all epics
+**Prerequisites:** All MVP previous stories in all epics (excludes Stories 4.9–4.11 and 5.5, 5.6, 5.8 which are deferred to post-MVP)
+
+**Post-MVP note (2026-07-23):** The "all modules integrated" wording in the user story refers to MVP modules only. The deferred optional modules (Guests 5.5, Equipment 5.6, Energy 5.8) and deferred school stories (4.9–4.11) are not part of MVP system completion. The production setup wizard's "module selection" step (AC10) offers only MVP optional modules: Farm, School, Vendors.
 
 ---
 
-**Epic 5 Summary:** 10 stories, 20-30 hours. Deliverables: Village calendar, cloud storage with shared folders, Guests Management (no 90-day alert/conversion), Equipment Management, Vendors Management, Energy Management, module management system, polished production-ready system, production setup wizard.
+**Epic 5 Summary:** 10 stories, 7 MVP + 3 deferred to post-MVP. Deliverables: Village calendar, cloud storage with shared folders, Vendors Management, module management system, polished production-ready system, production setup wizard. Guests Management (5.5), Equipment Management (5.6), and Energy Management (5.8) are deferred to post-MVP — see `docs/POST-MVP.md` and `docs/planning-artifacts/sprint-change-proposal-2026-07-23.md`.
 
 ---
 

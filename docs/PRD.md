@@ -216,7 +216,7 @@ Enable knowledge transfer from external facilitators → local power users → p
 - Attendance tracking uses the school calendar to determine valid school days and correctly exclude holidays from attendance percentage calculations
 - At-risk attendance alerts respect the school calendar — the "first 5 school days" grace period is counted from the term start date in `school_academic_terms`, not from the calendar year start
 
-**FR-12: Guests Management**
+**FR-12: Guests Management** _(Post-MVP — see `docs/planning-artifacts/sprint-change-proposal-2026-07-23.md`; corresponds to Epic 5 Story 5.5, deferred)_
 
 - Track guest types: Paying Guest, Education Trainee, Farm Trainee, Village Management Trainee, Volunteer, Researcher, Other
 - Record arrival/departure dates with duration calculation
@@ -227,7 +227,7 @@ Enable knowledge transfer from external facilitators → local power users → p
 - Support dismissed alerts that re-appear weekly until resolved (convert to resident or extend stay)
 - Provide guest-to-resident conversion workflow pre-filling registration form with guest data
 
-**FR-13: Equipment Management**
+**FR-13: Equipment Management** _(Post-MVP — see `docs/planning-artifacts/sprint-change-proposal-2026-07-23.md`; corresponds to Epic 5 Story 5.6, deferred)_
 
 - Track village-wide assets across all operations: farm tools, school bus, admin vehicles, solar equipment, computers, furniture
 - Record procurement details: date, vendor/dealer, warranty information, purchase cost
@@ -247,7 +247,7 @@ Enable knowledge transfer from external facilitators → local power users → p
 - Calculate vendor performance metrics (on-time delivery, quality scores, payment reliability)
 - Enable vendor selection during farm sales and finance expense recording
 
-**FR-15: Energy Management**
+**FR-15: Energy Management** _(Post-MVP — see `docs/planning-artifacts/sprint-change-proposal-2026-07-23.md`; corresponds to Epic 5 Story 5.8, deferred)_
 
 - Monitor solar microgrid production and consumption in real-time
 - Track 30-day rolling historical data for trend analysis
@@ -262,6 +262,7 @@ Enable knowledge transfer from external facilitators → local power users → p
 
 - Present choice: "Explore with Sample Data" or "Start Fresh with Real Data"
 - For sample data: Load Katete Model Village with 2 years historical data (15-20 residents, 5-6 households, 3 farm plots, school with 10 learners, equipment, vendors, 2 guests, financial records, calendar events, 30 days energy data)
+  - _(Post-MVP note 2026-07-23: MVP sample data excludes equipment, guests, and energy data because the Equipment (5.6), Guests (5.5), and Energy (5.8) modules are deferred to post-MVP. Vendors sample data is included since 5.7 remains in MVP.)_
 - For production: Guide through village setup, first household creation, admin user creation, village head user creation (or same user), module selection
 - Set is_using_sample_data flag in village configuration
 - Display persistent banner in sample mode: "🏷️ SAMPLE DATA MODE" with "Start Fresh - Wipe All Data" button
@@ -563,7 +564,7 @@ The modular architecture must support future plugin development for custom modul
      - Progress toward goal: 20% of learners in 90th percentile (target: 90% by year 10)
      - Decision point: Approve budget for additional learning materials
 
-   - **Guests Module:**
+   - **Guests Module:** _(Post-MVP — Story 5.5 deferred; this scenario step will not be available in MVP)_
      - Clicks "Guest Revenue Summary"
      - Views: 2 current guests, 3,000 ZMW income (down from 3,750 ZMW last month)
      - Alert: "1 guest stay >90 days - conversion to resident recommended"
@@ -816,9 +817,11 @@ Break complex multi-step processes into guided workflows with clear progress ind
 
 ### Epic 5: Village Calendar, Storage, and Optional Modules (6-8 stories)
 
-**Goal:** Complete the integrated village management platform with shared calendar, cloud storage, and optional modules (Guests, Equipment, Vendors, Energy) that extend core functionality.
+> **Updated 2026-07-23:** Stories 5.5 (Guests), 5.6 (Equipment), and 5.8 (Energy) deferred to post-MVP. Epic 5 MVP scope is now 7 stories: 5.1, 5.2, 5.3, 5.4, 5.7, 5.9, 5.10. See `docs/planning-artifacts/sprint-change-proposal-2026-07-23.md`.
 
-**Value Delivered:** Village has complete operational visibility with shared calendar, document management, guest tracking, equipment maintenance, vendor relationships, and energy monitoring. All modules integrated with Finance and Inventory.
+**Goal:** Complete the integrated village management platform with shared calendar, cloud storage, and optional modules (Vendors in MVP; Guests, Equipment, Energy post-MVP) that extend core functionality.
+
+**Value Delivered:** Village has complete operational visibility with shared calendar, document management, and vendor relationships. Guest tracking, equipment maintenance, and energy monitoring are deferred to post-MVP. All MVP modules integrated with Finance and Inventory.
 
 **Key Capabilities:**
 
@@ -834,7 +837,7 @@ Break complex multi-step processes into guided workflows with clear progress ind
   - File upload/download/delete via Appwrite Storage
   - Storage usage indicators and quota warnings
 
-- **Guests Management:**
+- **Guests Management:** _(Post-MVP — Story 5.5 deferred)_
   - Guest type tracking (Paying Guest, Trainees, Volunteers, Researchers)
   - Arrival/departure tracking with housing assignment
   - Payment status for paying guests
@@ -842,7 +845,7 @@ Break complex multi-step processes into guided workflows with clear progress ind
   - Automatic 90-day stay alerts for resident conversion
   - Guest-to-resident conversion workflow
 
-- **Equipment Management:**
+- **Equipment Management:** _(Post-MVP — Story 5.6 deferred)_
   - Village-wide asset tracking (farm tools, vehicles, solar equipment, computers)
   - Procurement details and warranty tracking
   - Maintenance schedules with automatic reminders
@@ -855,7 +858,7 @@ Break complex multi-step processes into guided workflows with clear progress ind
   - Transaction history linking to Finance and Farm modules
   - Contract management with expiration tracking
 
-- **Energy Management:**
+- **Energy Management:** _(Post-MVP — Story 5.8 deferred)_
   - Solar microgrid monitoring (production/consumption)
   - 30-day rolling historical data
   - Energy dashboard with alerts
@@ -865,10 +868,10 @@ Break complex multi-step processes into guided workflows with clear progress ind
 
 - Calendar shows all village events with role-appropriate filtering
 - Users can upload/download files within storage quotas
-- Guest stay >90 days triggers automatic alert to Village Management Team
-- Equipment maintenance reminders prevent missed schedules
+- ~~Guest stay >90 days triggers automatic alert to Village Management Team~~ _(post-MVP — Story 5.5 deferred)_
+- ~~Equipment maintenance reminders prevent missed schedules~~ _(post-MVP — Story 5.6 deferred)_
 - Vendor selection integrated into farm sales and finance expense workflows
-- Energy dashboard shows real-time solar production/consumption
+- ~~Energy dashboard shows real-time solar production/consumption~~ _(post-MVP — Story 5.8 deferred)_
 
 **Dependencies:**
 
@@ -1046,6 +1049,21 @@ The following features and capabilities are explicitly excluded from the MVP to 
 - Automated workflow triggers
 - Approval routing
 - **Rationale:** Requires significant development effort; predefined workflows sufficient for MVP
+
+**Guests Management Module** _(Deferred from MVP 2026-07-23 — was FR-12 / Epic 5 Story 5.5)_
+
+- Full guests module: guest types, arrival/departure, housing, payments, training, 90-day alerts, conversion workflow
+- **Rationale:** Optional module deferred to reduce MVP scope. Existing MVP plumbing (Finance "Guest House" income source category, Guest role in RBAC) integrates when built. See `docs/POST-MVP.md`.
+
+**Equipment Management Module** _(Deferred from MVP 2026-07-23 — was FR-13 / Epic 5 Story 5.6)_
+
+- Village-wide asset tracking, procurement/warranty, maintenance schedules with reminders, condition/location, Finance integration
+- **Rationale:** Optional module deferred to reduce MVP scope. Existing MVP plumbing (Finance expense → Inventory "Equipment" category creating `item_type: 'equipment'` items) integrates when built. Calendar maintenance-reminder auto-event (Story 5.1 AC5) restored when built. See `docs/POST-MVP.md`.
+
+**Energy Management Module** _(Deferred from MVP 2026-07-23 — was FR-15 / Epic 5 Story 5.8)_
+
+- Solar microgrid monitoring (production/consumption), 30-day rolling history, alerts, IoT integration, reports
+- **Rationale:** Optional module deferred to reduce MVP scope. No existing MVP plumbing. Calendar "Energy" color-coding category (Story 5.1 AC2) starts receiving events when built. See `docs/POST-MVP.md`.
 
 ### Technical and Platform Features (Post-MVP)
 

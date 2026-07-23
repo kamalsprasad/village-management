@@ -20,7 +20,12 @@
 # stories (terms/holidays, bell schedules, timetable builder). Original stories
 # 4.3-4.10 are now 4.6-4.13.
 
-generated: 2026-06-25
+# NOTE: Epic 5 story slugs resynced 2026-07-23 to match docs/epics.md (previous
+# slugs were stale titles from the outdated ROADMAP.md). Stories 5.5 (Guests),
+# 5.6 (Equipment), and 5.8 (Energy) deferred to post-MVP — see
+# docs/planning-artifacts/sprint-change-proposal-2026-07-23.md.
+
+generated: 2026-07-23
 project: Sustainable Model Village Management System
 project_key: Sustainable Model Village Management System
 tracking_system: file-system
@@ -79,14 +84,14 @@ development_status:
   4-13-school-module-learner-progress-reports-and-school-dashboard-completion: done
   epic-4-retrospective: optional
   epic-5: backlog
-  5-1-calendar-module-community-events-scheduling: backlog
-  5-2-calendar-module-resource-bookings-and-availability: backlog
-  5-3-storage-module-document-versioning-and-access-control: backlog
-  5-4-storage-module-photo-and-media-archive: backlog
-  5-5-storage-module-forms-and-template-management: backlog
-  5-6-communications-module-announcements-and-alerts: backlog
-  5-7-communications-module-feedback-and-surveys: backlog
-  5-8-analytics-module-impact-metrics-dashboard: backlog
-  5-9-optional-module-village-marketplace: backlog
-  5-10-optional-module-external-integrations-and-open-apis: backlog
+  5-1-village-calendar-global-calendar-with-category-filtering: backlog
+  5-2-village-calendar-role-based-event-creation-and-editing: backlog
+  5-3-cloud-storage-role-based-storage-quotas-and-personal-folders: backlog
+  5-4-cloud-storage-shared-folders-and-module-based-access: backlog
+  5-5-guests-management-module: deferred
+  5-6-equipment-management-module: deferred
+  5-7-vendors-suppliers-management-module: backlog
+  5-8-energy-management-module: deferred
+  5-9-module-management-and-configuration: backlog
+  5-10-system-completion-final-dashboard-integration-and-production-setup: backlog
   epic-5-retrospective: optional
