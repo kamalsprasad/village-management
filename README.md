@@ -330,8 +330,8 @@ See [DATABASE_SCHEMA.md](DATABASE_SCHEMA.md) for table definitions, relationship
 | ✅ Complete | Finance    | Income/expense tracking, lending, reports                               |
 | ✅ Complete | Inventory  | Core inventory, auto-stock from purchases                               |
 | ✅ Complete | Farm       | Plot management, planting→harvest→sales, profitability & yield analysis |
-| 🔄 Next     | School     | Student registration, grades, attendance _(not started)_                |
-| ⏳ Planned  | Calendar   | Events, resource bookings                                               |
+| ✅ Complete | School     | Student registration, grades, attendance                                |
+| 🔄 Next     | Calendar   | Events, resource bookings _(not started)_                               |
 | ⏳ Planned  | Storage    | Documents, media, forms                                                 |
 
 **Recently shipped:** Farm sales recording with finance integration, ROI/profitability reports, yield trends & agronomic alerts.
