@@ -859,6 +859,8 @@ As a **village user**, I want to see all village events in a single calendar wit
 
 **Acceptance Criteria:** 1. Calendar views: month, week, day, agenda 2. Events color-coded by category: School, Farm, Village, Guests, Equipment, Energy, Other 3. Filter UI with checkboxes, "Show All" / "Hide All" toggles 4. Event detail popup 5. Automatic event creation: Farm (expected harvests) 6. Calendar dashboard widget: "Upcoming Events"
 
+**Status:** Done
+
 **Post-MVP note (2026-07-23):** The "Equipment (maintenance reminders)" automatic event source was removed from AC5 because the Equipment Management module (Story 5.6) has been deferred to post-MVP. The Guests, Equipment, and Energy color-coding categories remain in AC2 as labels — they will start receiving events when the corresponding modules (Stories 5.5, 5.6, 5.8) are built post-MVP. The Equipment maintenance-reminder auto-event will be restored at that time.
 
 **Prerequisites:** Epic 1

@@ -41,6 +41,16 @@ Items deferred during code reviews. Revisit before closing their parent story or
 - computeScorePercent null/string handling -- pre-existing function used across the school module; null score_value -> 0 is acceptable. [school-utils.js:13-16]
 - Module-level useErrorHandler() call -- works because Notify.create is callable outside setup, but unconventional; matches pattern in other stores. [school-goals-store.js:40]
 
+## Deferred from: code review of spec-5-1-village-calendar-global-calendar (2026-07-28)
+
+- source_spec: `spec-5-1-village-calendar-global-calendar.md`
+  summary: Calendar page and agenda list have no keyboard/arrow-key navigation for events.
+  evidence: ux-specification.md rates arrow-key navigation of tables/lists/calendar as High priority, but no existing module implements it and vue-cal provides none out of the box — a project-wide accessibility gap, not specific to this story. Owning story: post-MVP accessibility pass.
+
+## Deferred from: Epic 5 planning (2026-07-28) — user decision
+
+- **Project-wide i18n deferred to post-MVP.** PRD NFR-4 / architecture.md §12 require externalized strings via `vue-i18n@9`, but no i18n setup exists (`vue-i18n` not in package.json, no `src/i18n/`, all Epics 1–4 UI hardcoded English). User decision on 2026-07-28: Epic 5 stories follow the existing hardcoded-English codebase style; i18n bootstrap (boot file, `src/i18n/en-US/`, string extraction across all modules) is a post-MVP effort. Owning story: post-MVP (no MVP story owns it).
+
 ## Deferred from: code review of story-4.13 (2026-07-03)
 
 - Ephemeral teacher comments -- comments are intentionally NOT persisted in the database. This keeps the MVP schema clean and avoids database bloating. [LearnerDetailPage.vue:830-845, LearnersListPage.vue:260-275]

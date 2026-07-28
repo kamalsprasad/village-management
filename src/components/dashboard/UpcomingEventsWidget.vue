@@ -18,7 +18,11 @@
     <q-list v-else-if="events && events.length > 0" separator>
       <q-item v-for="event in displayEvents" :key="event.id" clickable>
         <q-item-section avatar>
-          <q-avatar :color="getEventColor(event.type)" text-color="white" :icon="getEventIcon(event.type)" />
+          <q-avatar
+            :color="getEventColor(event.type)"
+            text-color="white"
+            :icon="getEventIcon(event.type)"
+          />
         </q-item-section>
 
         <q-item-section>
@@ -33,7 +37,7 @@
           </q-item-label>
         </q-item-section>
 
-        <q-item-section side>
+        <q-item-section v-if="event.attendees != null" side>
           <q-chip size="sm" :color="getEventColor(event.type)" text-color="white" dense>
             {{ event.attendees }} attending
           </q-chip>
@@ -50,15 +54,33 @@
     <!-- View All Footer -->
     <q-separator v-if="events && events.length > maxDisplay" />
     <q-card-actions v-if="events && events.length > maxDisplay" align="center">
-      <q-btn flat color="primary" label="View All Events" icon-right="arrow_forward" size="sm" />
+      <q-btn
+        flat
+        color="primary"
+        label="View All Events"
+        icon-right="arrow_forward"
+        size="sm"
+        :to="{ name: 'village-calendar' }"
+      />
     </q-card-actions>
   </q-card>
 </template>
 
 <script setup>
 import { computed } from 'vue';
-import { format, isToday, isTomorrow, differenceInDays } from 'date-fns';
-import { getEventIcon, getEventColor } from 'src/utils/placeholder-data';
+import { format, parseISO, differenceInCalendarDays } from 'date-fns';
+import {
+  getEventIcon as getFallbackIcon,
+  getEventColor as getFallbackColor,
+} from 'src/utils/placeholder-data';
+import {
+  CALENDAR_CATEGORIES,
+  getCalendarCategory,
+} from 'src/modules/calendar/utils/calendar-categories';
+import { useSettingsStore } from 'src/stores/settings-store';
+import { toDateStrInTimezone, addDaysToDateStr } from 'src/utils/dateUtils';
+
+const settingsStore = useSettingsStore();
 
 const props = defineProps({
   events: {
@@ -79,15 +101,38 @@ const displayEvents = computed(() => {
   return props.events.slice(0, props.maxDisplay);
 });
 
+/**
+ * Resolve avatar icon/color from the shared CALENDAR_CATEGORIES map (Story 5.1).
+ * Falls back to the legacy placeholder lookup for unknown event types.
+ */
+function isCalendarCategory(type) {
+  return CALENDAR_CATEGORIES.some((c) => c.value === type);
+}
+
+function getEventIcon(type) {
+  return isCalendarCategory(type) ? getCalendarCategory(type).icon : getFallbackIcon(type);
+}
+
+function getEventColor(type) {
+  return isCalendarCategory(type) ? getCalendarCategory(type).color : getFallbackColor(type);
+}
+
+/**
+ * Relative date label in the village timezone (not the browser timezone).
+ * Events arrive as 'YYYY-MM-DD' village-tz date strings from the calendar store.
+ */
 function formatEventDate(date) {
-  const eventDate = new Date(date);
-  if (isToday(eventDate)) return 'Today';
-  if (isTomorrow(eventDate)) return 'Tomorrow';
-  
-  const daysUntil = differenceInDays(eventDate, new Date());
-  if (daysUntil <= 7) return `In ${daysUntil} days`;
-  
-  return format(eventDate, 'MMM dd, yyyy');
+  const tz = settingsStore.timezone;
+  const dateStr = String(date).includes('T') ? toDateStrInTimezone(date, tz) : String(date);
+  const todayStr = toDateStrInTimezone(new Date().toISOString(), tz);
+
+  if (dateStr === todayStr) return 'Today';
+  if (dateStr === addDaysToDateStr(todayStr, 1)) return 'Tomorrow';
+
+  const daysUntil = differenceInCalendarDays(parseISO(dateStr), parseISO(todayStr));
+  if (daysUntil > 1 && daysUntil <= 7) return `In ${daysUntil} days`;
+
+  return format(parseISO(dateStr), 'MMM dd, yyyy');
 }
 </script>
 

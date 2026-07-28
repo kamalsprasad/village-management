@@ -22,7 +22,7 @@
 
       <!-- Upcoming Events Widget -->
       <div class="col-12 col-md-6 col-lg-4">
-        <UpcomingEventsWidget :events="upcomingEvents" :loading="loading" :max-display="5" />
+        <UpcomingEventsWidget :events="upcomingEvents" :loading="eventsLoading" :max-display="5" />
       </div>
 
       <!-- Recent Activity Widget -->
@@ -47,6 +47,8 @@
 import { ref, computed, onMounted } from 'vue';
 import { useAuthStore } from 'src/stores/auth-store';
 import { useSettingsStore } from 'src/stores/settings-store';
+import { useCalendarStore } from 'src/modules/calendar/stores/calendar-store';
+import { getCalendarCategory } from 'src/modules/calendar/utils/calendar-categories';
 import UpcomingEventsWidget from 'src/components/dashboard/UpcomingEventsWidget.vue';
 import QuickStatsWidget from 'src/components/dashboard/QuickStatsWidget.vue';
 import RecentActivityWidget from 'src/components/dashboard/RecentActivityWidget.vue';
@@ -55,21 +57,34 @@ import CommunityOverviewWidget from 'src/components/dashboard/CommunityOverviewW
 import FinanceSummaryWidget from 'src/components/dashboard/FinanceSummaryWidget.vue';
 import { usePermissions } from 'src/composables/usePermissions';
 import {
-  upcomingEvents as placeholderEvents,
   quickStats as placeholderStats,
   recentActivity as placeholderActivity,
 } from 'src/utils/placeholder-data';
 
 const authStore = useAuthStore();
 const settingsStore = useSettingsStore();
+const calendarStore = useCalendarStore();
 const { hasPermission } = usePermissions();
 
 // Loading state for skeleton loaders
 const loading = ref(true);
 const isClient = ref(false); // Track client-side hydration for SSR
 
+// Upcoming Events widget — real data from the village calendar store (Story 5.1),
+// mapped to the widget's item shape { id, title, date, time, location, type }.
+const eventsLoading = computed(() => isClient.value && calendarStore.loading);
+const upcomingEvents = computed(() =>
+  calendarStore.upcomingEvents(5).map((evt) => ({
+    id: evt.id,
+    title: evt.title,
+    date: evt.start,
+    time: 'All day',
+    location: evt.location || getCalendarCategory(evt.category).label,
+    type: evt.category,
+  })),
+);
+
 // Widget data (using placeholder data for MVP)
-const upcomingEvents = ref([]);
 const quickStats = ref(null);
 const recentActivity = ref([]);
 
@@ -85,8 +100,10 @@ onMounted(async () => {
   // Defer data loading to avoid blocking initial render
   await new Promise((resolve) => setTimeout(resolve, 300));
 
+  // Fetch real calendar events (client-side only, guarded by isClient above)
+  calendarStore.fetchAllEvents();
+
   // Load placeholder data (will be replaced with real API calls in future stories)
-  upcomingEvents.value = placeholderEvents;
   quickStats.value = placeholderStats;
   recentActivity.value = placeholderActivity;
 

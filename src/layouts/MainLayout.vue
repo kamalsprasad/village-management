@@ -137,6 +137,16 @@
           </q-item-section>
         </q-item>
 
+        <!-- Calendar - Always visible (Story 5.1, all authenticated users) -->
+        <q-item clickable to="/calendar" class="nav-top-item" active-class="nav-top-item--active">
+          <q-item-section avatar class="nav-top-icon">
+            <q-icon name="event" size="22px" />
+          </q-item-section>
+          <q-item-section>
+            <q-item-label class="nav-top-label">Calendar</q-item-label>
+          </q-item-section>
+        </q-item>
+
         <q-separator spaced="sm" inset class="nav-separator" />
 
         <!-- Community Section -->
@@ -506,21 +516,6 @@
           header-class="nav-section-header"
           expand-icon-class="nav-expand-icon"
         >
-          <q-item
-            v-if="hasPermission('calendar:read')"
-            clickable
-            to="/calendar"
-            class="nav-sub-item"
-            active-class="nav-sub-item--active"
-          >
-            <q-item-section avatar class="nav-sub-icon">
-              <q-icon name="event" size="16px" />
-            </q-item-section>
-            <q-item-section>
-              <q-item-label class="nav-sub-label">Calendar</q-item-label>
-            </q-item-section>
-          </q-item>
-
           <q-item
             v-if="hasPermission('communications:read')"
             clickable
