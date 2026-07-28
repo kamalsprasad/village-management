@@ -176,6 +176,7 @@ async function main() {
   const tableRoles = 'roles';
   const tableVillageSettings = 'village_settings';
   const tableInventory = 'inventory';
+  const tableVillageEvents = 'village_events';
 
   const rootEntries = [
     ['VITE_APPWRITE_ENDPOINT', endpoint, 'Appwrite API endpoint'],
@@ -199,6 +200,7 @@ async function main() {
     ['VITE_APPWRITE_TABLE_ROLES', tableRoles],
     ['VITE_APPWRITE_TABLE_VILLAGE_SETTINGS', tableVillageSettings],
     ['VITE_APPWRITE_TABLE_INVENTORY', tableInventory],
+    ['VITE_APPWRITE_TABLE_VILLAGE_EVENTS', tableVillageEvents],
   ];
 
   const serverEntries = [
@@ -212,6 +214,7 @@ async function main() {
     ['APPWRITE_TABLE_ROLES', tableRoles],
     ['APPWRITE_TABLE_VILLAGE_SETTINGS', tableVillageSettings],
     ['APPWRITE_TABLE_INVENTORY', tableInventory],
+    ['APPWRITE_TABLE_VILLAGE_EVENTS', tableVillageEvents],
   ];
 
   fs.writeFileSync(rootEnvPath, buildEnvContent(rootEntries), { encoding: 'utf8' });

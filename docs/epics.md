@@ -873,6 +873,8 @@ As a **module manager**, I want to create and edit calendar events for my area.
 
 **Acceptance Criteria:** 1. "Create Event" button 2. Event form: title, category, date, time, recurring, location, description, notify users 3. Role-based permissions: Farm Manager (Farm), Head Teacher (School), Village Head (Village), Events Coordinator (ALL), Admin (all) 4. Event editing/deletion with confirmation 5. Automatic events marked as "System Generated"
 
+**Status:** Done
+
 **Prerequisites:** Story 5.1
 
 ---

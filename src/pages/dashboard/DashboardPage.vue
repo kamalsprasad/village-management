@@ -78,7 +78,7 @@ const upcomingEvents = computed(() =>
     id: evt.id,
     title: evt.title,
     date: evt.start,
-    time: 'All day',
+    time: evt.isAllDay ? null : evt.startTime,
     location: evt.location || getCalendarCategory(evt.category).label,
     type: evt.category,
   })),

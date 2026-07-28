@@ -1282,6 +1282,53 @@ const tableSchemas = {
     ],
   },
 
+  // Story 5.2: User-created village calendar events (role-scoped categories,
+  // optional times, simple daily/weekly/monthly recurrence).
+  village_events: {
+    name: 'Village Events',
+    permissions: permissions,
+    columns: [
+      { key: 'title', type: 'string', size: 255, required: true },
+      {
+        key: 'category',
+        type: 'enum',
+        elements: ['school', 'farm', 'village', 'guests', 'equipment', 'energy', 'other'],
+        required: true,
+      },
+      // start_date = end_date for single-day events (inclusive end)
+      { key: 'start_date', type: 'datetime', required: true },
+      { key: 'end_date', type: 'datetime', required: true },
+      // HH:mm 24-hour strings; only set when is_all_day=false
+      { key: 'start_time', type: 'string', size: 5, required: false },
+      { key: 'end_time', type: 'string', size: 5, required: false },
+      { key: 'is_all_day', type: 'boolean', required: true, default: true },
+      { key: 'is_recurring', type: 'boolean', required: true, default: false },
+      // Simple string rule only (no rrule) — required when is_recurring=true
+      {
+        key: 'recurrence_rule',
+        type: 'enum',
+        elements: ['daily', 'weekly', 'monthly'],
+        required: false,
+      },
+      { key: 'location', type: 'string', size: 255, required: false },
+      { key: 'description', type: 'string', size: 1000, required: false },
+      // Appwrite user $id of the creator (edit/delete permission anchor)
+      { key: 'created_by', type: 'string', size: 50, required: true },
+      // Capture-only in Story 5.2 — delivery belongs to the Story 5.10 notifications system
+      { key: 'notify_user_ids', type: 'string', size: 50, array: true, required: false },
+      // Always false for user-created rows (system badge is for Farm harvest auto-events)
+      { key: 'system_generated', type: 'boolean', required: true, default: false },
+    ],
+    indexes: [
+      {
+        key: 'idx_village_events_date',
+        type: 'key',
+        columns: ['start_date'],
+        orders: ['ASC'],
+      },
+    ],
+  },
+
   // Story 4.4: Per-grade daily bell schedule (replaces school_timetable stub)
   school_period_slots: {
     name: 'School Period Slots',

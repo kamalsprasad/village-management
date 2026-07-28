@@ -29,7 +29,8 @@
           <q-item-label class="text-weight-medium">{{ event.title }}</q-item-label>
           <q-item-label caption>
             <q-icon name="schedule" size="xs" class="q-mr-xs" />
-            {{ formatEventDate(event.date) }} at {{ event.time }}
+            {{ formatEventDate(event.date)
+            }}<template v-if="event.time"> at {{ event.time }}</template>
           </q-item-label>
           <q-item-label caption>
             <q-icon name="place" size="xs" class="q-mr-xs" />

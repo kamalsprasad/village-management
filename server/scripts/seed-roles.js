@@ -45,6 +45,11 @@ const rolesTableId = stripQuotes(process.env.APPWRITE_TABLE_ROLES) || 'roles';
 // DEFAULT ROLES
 // ============================================
 
+// NOTE (Story 5.2): Farm Manager, Head Teacher and Village Head now include
+// 'calendar:write' (Events Coordinator and System Administrator were already
+// covered). This seeder SKIPS roles that already exist, so existing deployments
+// must re-sync these three role rows manually (e.g. via the Appwrite console)
+// to receive the new permission — re-running this script will NOT update them.
 const defaultRoles = [
   {
     name: 'System Administrator',
@@ -61,7 +66,7 @@ const defaultRoles = [
   {
     name: 'Farm Manager',
     category: 'farm',
-    permissions: ['farm:read', 'farm:write', 'inventory:read', 'reports:read'],
+    permissions: ['farm:read', 'farm:write', 'inventory:read', 'reports:read', 'calendar:write'],
     storage_quota: 50,
   },
   {
@@ -79,7 +84,7 @@ const defaultRoles = [
   {
     name: 'Head Teacher',
     category: 'school',
-    permissions: ['school:read', 'school:write', 'school:admin', 'reports:read'],
+    permissions: ['school:read', 'school:write', 'school:admin', 'reports:read', 'calendar:write'],
     storage_quota: 50,
   },
   {
@@ -111,6 +116,7 @@ const defaultRoles = [
       'inventory:read',
       'farm:read',
       'reports:read',
+      'calendar:write',
     ],
     storage_quota: 200,
   },
