@@ -2,8 +2,9 @@
 title: 'Story 5.1 — Village Calendar: Global Calendar with Category Filtering'
 type: 'feature'
 created: '2026-07-28'
-status: 'in-review'
+status: 'done'
 baseline_revision: '30dde429d9923a57f4d08fc0cc961fe2a7a611d5'
+final_revision: 'cb606b5a34d198172010898747441aebea6b67e5'
 review_loop_iteration: 0
 followup_review_recommended: false
 context:
