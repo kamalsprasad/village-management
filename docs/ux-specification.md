@@ -238,6 +238,52 @@ Village Management System
     └── My Profile
 ```
 
+**User Management Screen (/admin/users) — Story 5.12 (added 2026-07-28):**
+
+**Access:** System Administrator only (requires `*` permission)
+
+**Layout:**
+
+- Header: "User Management" with "Add User" primary button
+- Filter bar: search by name/email; status filter (Active / Deactivated / All)
+- User table columns: Name, Email, Roles (chips), Resident Link, Status, Created, Actions
+- Row actions: Edit, Manage Roles (Story 5.13), Deactivate/Reactivate
+
+**Add/Edit User Dialog:**
+
+- Name (text, required), Email (text, required, validated)
+- Initial password (required on Add, hidden on Edit) — admin-set
+- Role assignment (multi-select chips from seeded roles)
+- Resident link (optional search/select from residents table — "Link to resident record")
+- Save / Cancel buttons
+
+**Deactivate confirmation:**
+
+- "Deactivate [Name]? They will no longer be able to log in. Their data is preserved."
+- Validation: cannot deactivate self; cannot deactivate last System Administrator
+
+**Roles & Permissions Screen (/admin/roles) — Story 5.13 (added 2026-07-28):**
+
+**Access:** System Administrator only
+
+**Layout:**
+
+- Header: "Roles & Permissions"
+- Role table: Name, Category, Permissions (count), Storage Quota, Assigned Users (count)
+- Row action: "View Permissions" (expandable)
+
+**Permission Matrix (expandable per role):**
+
+- Grid: rows = permissions (module:action), columns = roles, cells = checkmark if granted
+- Read-only for MVP (note: "Custom role creation is deferred to post-MVP")
+
+**Manage Roles Dialog (from UsersPage):**
+
+- Multi-select of all seeded roles
+- Shows current assignments
+- "View Effective Permissions" link shows union of selected roles' permissions
+- Save updates users.role_ids; audit-logged
+
 **Depth Guidelines:**
 
 - Maximum 3 levels deep for most workflows (Module → List → Detail)
@@ -597,7 +643,7 @@ graph TD
     D --> K[Step 1: Village<br/>Profile]
     K --> L[Enter: Name,<br/>Location, Size]
     L --> M[Step 2: Admin<br/>User]
-    M --> N[Create Admin<br/>Account]
+    M --> N[Confirm Admin<br/>Account]
     N --> O[Step 3: Village<br/>Head]
     O --> P{Same as Admin?}
     P -->|Yes| Q[Skip]
@@ -641,10 +687,8 @@ graph TD
    - Section: Optional Modules (interactive checkboxes)
      - Farm Management (checkbox + description)
      - School Management (checkbox + description)
-     - Guests Management (checkbox + description) _(post-MVP — Story 5.5 deferred; not in MVP setup wizard)_
-     - Equipment Tracking (checkbox + description) _(post-MVP — Story 5.6 deferred; not in MVP setup wizard)_
      - Vendors/Suppliers (checkbox + description)
-     - Energy Monitoring (checkbox + description) _(post-MVP — Story 5.8 deferred; not in MVP setup wizard)_
+     - _(Note 2026-07-28: Guests Management, Equipment Tracking, and Energy Monitoring are deferred to post-MVP and must NOT appear in the MVP setup wizard toggle list — see Story 5.9 post-MVP note.)_
    - Note: "You can enable/disable modules later in Settings"
    - Progress: 4 of 5 steps
    - Buttons: Next (primary), Back (secondary)
@@ -662,6 +706,51 @@ graph TD
 - Sample data loads in <30 seconds
 - Clear distinction between sample and production modes
 - Easy transition from sample to production
+
+**Start Fresh Path Detailed Steps (Story 5.11 — added 2026-07-28):**
+
+Step 1 — Village Profile (defaults pre-filled for Zambia):
+
+- Village name (text, required)
+- Location/address (text, required)
+- Established date (date picker, required)
+- Currency (dropdown, default: ZMW — Zambian Kwacha)
+- Timezone (dropdown, default: Africa/Lusaka)
+- Country code (dropdown, default: Zambia)
+- Note: "Defaults are set for Zambia. Adjust if your village is elsewhere."
+
+Step 2 — Admin User:
+
+- Confirm the already-logged-in first admin (name, email displayed read-only)
+- No second admin creation — first admin created via CreateAdminForm at /auth
+- "Next" button proceeds
+
+Step 3 — Village Head:
+
+- Choice: "I am the Village Head" (skip) OR "Create a different Village Head user"
+- If create: name, email, initial password, role auto-set to Village Head
+- Calls Story 5.12 user-creation flow
+
+Step 4 — Module Selection:
+
+- Core Modules (always enabled, greyed): Residents, Households, Finance, Inventory, Calendar, Storage
+- Optional Modules (toggleable): Farm Management, School Management, Vendors/Suppliers
+- Note: "You can enable/disable modules later in Settings"
+- Matches Story 5.9 AC7
+
+Step 5 — First Household:
+
+- Household name (required), type, construction date
+- On save: wizard completes, redirect to dashboard with empty-state CTAs
+
+Empty-state guidance (post-wizard — respects household-before-resident ordering, Story 1.7 AC4):
+
+- Dashboard (no households): "Welcome! Start by adding your first household."
+- Dashboard (household exists, no residents): "Add your first resident to your household."
+- Residents list (empty, no households): "Please create at least one household before adding residents." (primary CTA → Households page)
+- Residents list (empty, household exists): "No residents yet. Add your first resident." (primary CTA button)
+- Households list (empty): "No households yet. Add your first household." (primary CTA button)
+- Finance (empty): "No transactions recorded. Record your first income or expense."
 
 ---
 

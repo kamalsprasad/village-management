@@ -120,6 +120,37 @@ const defaultRoles = [
     permissions: ['profile:read', 'profile:write'],
     storage_quota: 10,
   },
+  {
+    name: 'Deputy Village Head',
+    category: 'council',
+    permissions: [
+      'residents:read',
+      'households:read',
+      'finance:read',
+      'inventory:read',
+      'farm:read',
+      'reports:read',
+    ],
+    storage_quota: 100,
+  },
+  {
+    name: 'Events Coordinator',
+    category: 'council',
+    permissions: ['calendar:read', 'calendar:write', 'residents:read', 'households:read'],
+    storage_quota: 20,
+  },
+  {
+    name: 'Learner',
+    category: 'school',
+    permissions: ['school:read', 'profile:read', 'profile:write'],
+    storage_quota: 1,
+  },
+  {
+    name: 'Guest',
+    category: 'resident',
+    permissions: ['profile:read'],
+    storage_quota: 0.5,
+  },
 ];
 
 // ============================================

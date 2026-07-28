@@ -264,6 +264,7 @@ Enable knowledge transfer from external facilitators → local power users → p
 - For sample data: Load Katete Model Village with 2 years historical data (15-20 residents, 5-6 households, 3 farm plots, school with 10 learners, equipment, vendors, 2 guests, financial records, calendar events, 30 days energy data)
   - _(Post-MVP note 2026-07-23: MVP sample data excludes equipment, guests, and energy data because the Equipment (5.6), Guests (5.5), and Energy (5.8) modules are deferred to post-MVP. Vendors sample data is included since 5.7 remains in MVP.)_
 - For production: Guide through village setup, first household creation, admin user creation, village head user creation (or same user), module selection
+- _(Note 2026-07-28: The "Start Fresh with Real Data" wizard path is delivered in Epic 5 (Story 5.11). Epic 1 delivers the "Explore with Sample Data" path only.)_
 - Set is_using_sample_data flag in village configuration
 - Display persistent banner in sample mode: "🏷️ SAMPLE DATA MODE" with "Start Fresh - Wipe All Data" button
 - Support data wipe with confirmation: "Type 'DELETE EVERYTHING' to confirm"
@@ -276,6 +277,18 @@ Enable knowledge transfer from external facilitators → local power users → p
 - Implement field-level permissions (e.g., Crop Manager can edit only assigned plots)
 - Support read-only access for Admin/Village Head to all modules by default
 - Allow role-based calendar event creation and editing
+
+**FR-19: User Management and Account Administration** _(Added 2026-07-28 — see `docs/planning-artifacts/sprint-change-proposal-2026-07-28.md`; corresponds to Epic 5 Stories 5.12-5.14)_
+
+- Admin can create user accounts (email, name, initial role(s)) from the User Management screen
+- Admin can edit user details (name, email, role assignments) and deactivate (not hard-delete) users
+- Admin can assign/reassign one or more roles per user via the User Management UI
+- Users are distinct from residents: a `users` record represents a login account; a `residents` record represents a person living in the village
+- A user account MAY optionally be linked to a resident record (resident_id on users table) — linking is not required
+- Self-service signup is NOT supported in MVP; all accounts are admin-created
+- Logged-in users can change their own password from My Profile
+- Forgot-password flow: unauthenticated user requests reset by email; Appwrite sends reset link; user sets new password
+- Email verification: deferred to post-MVP (admin-issued initial passwords trusted)
 
 **FR-18: Reporting and Analytics**
 
@@ -687,7 +700,7 @@ Break complex multi-step processes into guided workflows with clear progress ind
 
 - Admin can complete setup wizard and create first users within 30 minutes
 - Sample data mode loads Katete Model Village with 2 years historical data
-- Production mode guides through village setup, household creation, and admin user creation
+- _(Note 2026-07-28: Production mode onboarding is deferred to Epic 5 (Story 5.11); Epic 1 delivers sample-data onboarding only. User management CRUD (create/edit/deactivate users, assign roles) is delivered in Epic 5 (Stories 5.12-5.14).)_
 - Users can log in and see role-appropriate dashboard
 - RBAC enforces module-level and field-level permissions correctly
 

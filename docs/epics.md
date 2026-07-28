@@ -116,7 +116,7 @@ As a **system administrator**, I want a role-based permission system with multi-
 
 **Acceptance Criteria:**
 
-1. Roles collection seeded with 5 core roles: System Administrator, Village Head, Finance Manager, Resident, Guest
+1. Roles collection seeded with 14 roles matching PRD FR-17: System Administrator, Council Member, Village Head, Deputy Village Head, Farm Manager, Crop Manager, School Administrator, Head Teacher, Teacher, Finance Manager, Events Coordinator, Village Resident, Learner, Guest _(Note 2026-07-28: Updated from original "5 core roles" to reflect actual `seed-roles.js` implementation which seeds all PRD FR-17 roles.)_
 2. User profile includes role_ids[] array supporting multi-role assignment
 3. Permission checking utility function: hasPermission(user, permission)
 4. Permissions calculated as union of all assigned roles
@@ -225,7 +225,7 @@ As a **potential adopter**, I want to explore the system with realistic sample d
 5. Persistent banner displayed on all pages: "🏷️ SAMPLE DATA MODE - Exploring Katete Model Village"
 6. Banner includes "Start Fresh - Wipe All Data" button
 7. Clicking wipe button shows confirmation dialog: "Type 'DELETE EVERYTHING' to confirm"
-8. Successful wipe clears all data and returns to setup wizard
+8. Successful wipe clears all data and returns to setup wizard _(Note 2026-07-28: After Story 5.11 is implemented, the wipe path should route to the Story 5.11 Start Fresh wizard, not back to the sample-data-only wizard. See Story 5.11 AC11.)_
 9. Sample data includes realistic names, dates, and relationships
 
 **Prerequisites:** Story 1.6, Story 1.7, Story 1.8
@@ -845,11 +845,11 @@ As a **Head Teacher**, I want to generate comprehensive learner progress reports
 
 ---
 
-## Epic 5: Village Calendar, Storage, and Optional Modules (10 stories)
+## Epic 5: Village Calendar, Storage, Optional Modules, and User Management (13 stories)
 
-**Expanded Goal:** Complete the integrated village management platform with shared calendar, cloud storage, and optional modules.
+**Expanded Goal:** Complete the integrated village management platform with shared calendar, cloud storage, optional modules, production onboarding from scratch, and user management (CRUD, role assignment, auth completeness).
 
-**Value Delivered:** Village has complete operational visibility with shared calendar, document management, and optional modules (Guests, Equipment, Vendors, Energy).
+**Value Delivered:** Village has complete operational visibility with shared calendar, document management, optional modules (Vendors for MVP; Guests/Equipment/Energy post-MVP), production-ready onboarding from scratch, and full user management — admins can create/edit/deactivate users, assign roles from the UI, and users can change/reset passwords.
 
 ---
 
@@ -929,7 +929,7 @@ As a **Finance Manager**, I want to track vendors and suppliers.
 
 **Acceptance Criteria:** 1. Vendors module enabled via settings 2. Vendors list, "Add Vendor" form: name, vendor type (Supplier/Buyer/Both), business type, contact info, payment terms, quality rating 3. Vendor detail page: transaction history, performance metrics 4. Vendor selection integration: Farm sales buyer dropdown, Finance expenses vendor dropdown 5. Vendor transaction history automatically updated 6. Vendors dashboard widget
 
-**Prerequisites:** Epic 2 Story 2.2, Epic 3 Story 3.8
+**Prerequisites:** Epic 2 Story 2.2, Epic 2 Story 2.3 (admin-configurable categories — ensures expense form structure supports vendor selection), Epic 3 Story 3.8 _(Note 2026-07-28: Transitive deps via 3.8 → 3.7 → 2.6 → 2.2 → 2.1 are satisfied by listing 2.2 and 3.8 directly.)_
 
 ---
 
@@ -953,7 +953,7 @@ As a **System Administrator**, I want to enable/disable optional modules.
 
 **Acceptance Criteria:** 1. Admin menu: "Module Management" 2. Module Management page: Core Modules (always enabled), Optional Modules (can be enabled/disabled) 3. For each module: name, description, status, toggle switch, "Configure" button 4. Enabling module: navigation appears, widgets visible 5. Disabling module: confirmation, navigation hidden, data preserved 6. Module dependencies: warning if disabling module that others depend on 7. First-time setup wizard updated: "Select Modules" step
 
-**Post-MVP note (2026-07-23):** For MVP, the Optional Modules toggle list is limited to: Farm, School, and Vendors (Story 5.7). The Guests (5.5), Equipment (5.6), and Energy (5.8) optional modules have been deferred to post-MVP and must NOT appear in the MVP module toggle list. They will be added to the toggle list when each is implemented post-MVP.
+**Post-MVP note (2026-07-23):** For MVP, the Optional Modules toggle list is limited to: Farm, School, and Vendors. The Vendors module is delivered in Story 5.7 (MVP). The Guests (5.5), Equipment (5.6), and Energy (5.8) optional modules have been deferred to post-MVP and must NOT appear in the MVP module toggle list. They will be added to the toggle list when each is implemented post-MVP.
 
 **Prerequisites:** All MVP previous stories
 
@@ -963,15 +963,98 @@ As a **System Administrator**, I want to enable/disable optional modules.
 
 As a **village user**, I want a polished, cohesive system with all modules integrated.
 
-**Acceptance Criteria:** 1. Main dashboard completion: role-based widgets, all functional, loads within 2 seconds 2. Navigation polish: clean menu, active page highlighted, breadcrumbs, quick search 3. Notifications system: bell icon, count badge, notification panel, filter by type, mark as read 4. UX polish: consistent UI, loading states, error handling, success confirmations, accessibility 5. Performance optimization: <3 seconds on 3G, lazy loading, caching 6. Mobile responsiveness: all pages functional on mobile (320px+), touch-friendly (44px minimum) 7. Help and documentation: help icon, contextual tooltips, user guide, FAQ 8. System health monitoring (Admin): database size, storage usage, active users, error logs 9. Final testing checklist: all user journeys tested, RBAC enforced, data integrity validated, all integrations working, sample data mode functional 10. Production setup wizard: "Start Fresh with Real Data" option, guides through village config, first household, admin user, Village Head user, module selection, initial data entry, sets is_using_sample_data = false
+**Acceptance Criteria:** 1. Main dashboard completion: role-based widgets, all functional, loads within 2 seconds 2. Navigation polish: clean menu, active page highlighted, breadcrumbs, quick search 3. Notifications system: bell icon, count badge, notification panel, filter by type, mark as read 4. UX polish: consistent UI, loading states, error handling, success confirmations, accessibility 5. Performance optimization: <3 seconds on 3G, lazy loading, caching 6. Mobile responsiveness: all pages functional on mobile (320px+), touch-friendly (44px minimum) 7. Help and documentation: help icon, contextual tooltips, user guide, FAQ 8. System health monitoring (Admin): database size, storage usage, active users, error logs 9. Final testing checklist: all user journeys tested, RBAC enforced, data integrity validated, all integrations working, sample data mode functional
+
+_(Note 2026-07-28: AC10 "Production setup wizard" was extracted to dedicated Story 5.11 — see `docs/planning-artifacts/sprint-change-proposal-2026-07-28.md`.)_
 
 **Prerequisites:** All MVP previous stories in all epics (excludes Stories 4.9–4.11 and 5.5, 5.6, 5.8 which are deferred to post-MVP)
 
-**Post-MVP note (2026-07-23):** The "all modules integrated" wording in the user story refers to MVP modules only. The deferred optional modules (Guests 5.5, Equipment 5.6, Energy 5.8) and deferred school stories (4.9–4.11) are not part of MVP system completion. The production setup wizard's "module selection" step (AC10) offers only MVP optional modules: Farm, School, Vendors.
+**Post-MVP note (2026-07-23):** The "all modules integrated" wording in the user story refers to MVP modules only. The deferred optional modules (Guests 5.5, Equipment 5.6, Energy 5.8) and deferred school stories (4.9–4.11) are not part of MVP system completion. The production setup wizard's "module selection" step (now in Story 5.11) offers only MVP optional modules: Farm, School, Vendors.
 
 ---
 
-**Epic 5 Summary:** 10 stories, 7 MVP + 3 deferred to post-MVP. Deliverables: Village calendar, cloud storage with shared folders, Vendors Management, module management system, polished production-ready system, production setup wizard. Guests Management (5.5), Equipment Management (5.6), and Energy Management (5.8) are deferred to post-MVP — see `docs/POST-MVP.md` and `docs/planning-artifacts/sprint-change-proposal-2026-07-23.md`.
+### Story 5.11: Start Fresh Production Setup Wizard
+
+As a **village administrator**, I want to set up the system with my own real village data from scratch, so that I can use the platform for actual village operations rather than evaluation.
+
+**Acceptance Criteria:**
+
+1. SetupWizard "Start Fresh with Real Data" card is enabled (no longer disabled/"coming soon")
+2. Selecting "Start Fresh" launches a multi-step wizard: (1) Village Profile, (2) Admin User, (3) Village Head (or "same as admin" skip), (4) Module Selection, (5) First Household
+3. Step 1 Village Profile: name, location, established date, currency, timezone — saved to village_settings with is_using_sample_data = false. Defaults pre-filled for Zambia (currency: ZMW — Zambian Kwacha, timezone: Africa/Lusaka, country: Zambia); user can override.
+4. Step 2 Admin User: the already-logged-in first admin is confirmed/used; no second admin creation required (first admin created via CreateAdminForm at /auth)
+5. Step 3 Village Head: create a second user with Village Head role, or skip if same as admin
+6. Step 4 Module Selection: core modules always enabled; optional MVP modules (Farm, School, Vendors) toggleable — matches Story 5.9 AC7
+7. Step 5 First Household: create first household record so residents can be added next
+8. Wizard is skippable per step with "Back"/"Next"; progress indicator shows "Step X of 5"
+9. On completion: redirect to dashboard with empty-state guidance ("Add your first household", "Record your first transaction")
+10. Empty-state guidance: list pages show contextual CTAs when no records exist, respecting the household-before-resident ordering (Story 1.7 AC4) — dashboard prompts household creation first; once a household exists, prompts shift to adding residents
+11. "Start Fresh - Wipe All Data" path (from sample mode) returns to this wizard _(Cross-ref: Story 1.9 AC8 — the wipe action in sample-data mode should route here once this story is implemented.)_
+
+**Prerequisites:** Story 5.9, Story 5.12 (User CRUD — for Village Head creation in Step 3) _(Note: Must be implemented after Story 5.12. See `docs/planning-artifacts/sprint-change-proposal-2026-07-28.md` for recommended implementation order: 5.14 → 5.12 → 5.13 → 5.11.)_
+
+---
+
+### Story 5.12: User Management - CRUD Operations
+
+As a **System Administrator**, I want to create, edit, and deactivate user accounts, so that I can control who has access to the village management system.
+
+**Acceptance Criteria:**
+
+1. UsersPage (/admin/users) gains "Add User" button (visible to System Administrator only)
+2. Add User form: name, email, initial password (admin-set), role assignment (multi-select), optional resident_id link (search/select from residents)
+3. Creating user calls Appwrite Account creation (server-side function with admin scope) and inserts row in users table with role_ids
+4. New user automatically added to village_administrators team only if assigned System Administrator role
+5. Edit User: edit name, email, role assignments, resident_id link
+6. Deactivate User: soft-deactivate (sets active=false, blocks login) — no hard-delete to preserve audit history
+7. Reactivate deactivated user
+8. UsersPage shows active/deactivated status filter
+9. Cannot deactivate own account (validation prevents self-lockout)
+10. Cannot deactivate the last remaining System Administrator (validation prevents admin lockout)
+11. All operations audit-logged (who/when/what changed)
+
+**Prerequisites:** Story 1.4 (RBAC foundation), Story 1.11
+
+---
+
+### Story 5.13: Role Assignment and Permissions Management UI
+
+As a **System Administrator**, I want to assign and modify user roles from the UI, so that I can grant appropriate access without running seed scripts.
+
+**Acceptance Criteria:**
+
+1. UsersPage row action: "Manage Roles" opens role assignment dialog
+2. Role assignment dialog: multi-select of all seeded roles; shows current assignments; save updates users.role_ids
+3. UsersPage row action: "View Permissions" shows the effective permission set (union of assigned roles) read-only
+4. New admin page /admin/roles: lists all roles with name, category, permission count, storage quota, assigned user count
+5. Roles page is read-only for MVP (no create/edit/delete roles from UI — roles remain seeded via script); custom roles deferred to post-MVP
+6. Permission matrix view on /admin/roles: expandable grid showing role × permission mapping
+7. Role changes audit-logged
+
+**Prerequisites:** Story 5.12
+
+---
+
+### Story 5.14: Authentication Completeness - Password Change and Reset
+
+As a **village user**, I want to change my password and recover a forgotten one, so that I can maintain account security and regain access if I lose my password.
+
+**Acceptance Criteria:**
+
+1. ProfilePage "Change Password" button enabled: opens dialog (current password, new password, confirm new password)
+2. Change password calls Appwrite Account.updatePassword; validates current password; enforces minimum length
+3. On success: success notification, dialog closes, session preserved
+4. AuthPage login form: "Forgot password?" link
+5. Forgot password flow: user enters email → Appwrite Account.createRecovery sends reset email → user clicks email link → sets new password on a /auth/reset-password page
+6. /auth/reset-password page: validates token from URL, accepts new password + confirmation, calls Account.updateRecovery
+7. Email verification: deferred to post-MVP (admin-issued initial passwords trusted)
+8. Self-service signup: NOT in scope (admin-created accounts only) — confirmed by PRD FR-19
+
+**Prerequisites:** Story 1.3, Story 1.11
+
+---
+
+**Epic 5 Summary:** 13 stories, 10 MVP + 3 deferred to post-MVP. Deliverables: Village calendar, cloud storage with shared folders, Vendors Management, module management system, polished production-ready system, production setup wizard (Story 5.11), user management CRUD (Story 5.12), role assignment UI (Story 5.13), auth completeness — password change/reset (Story 5.14). Guests Management (5.5), Equipment Management (5.6), and Energy Management (5.8) are deferred to post-MVP — see `docs/POST-MVP.md` and `docs/planning-artifacts/sprint-change-proposal-2026-07-23.md`.
 
 ---
 
