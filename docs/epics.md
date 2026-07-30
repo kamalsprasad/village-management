@@ -885,7 +885,18 @@ As a **village user**, I want personal cloud storage with a quota based on my ro
 
 **Acceptance Criteria:** 1. Storage quotas: Admin (Unlimited), Village Head (20 GB), Deputy (10 GB), Finance/Farm/Head Teacher (5-10 GB), Crop Manager/Resident (2 GB), Learner (1 GB), Guest (500 MB) 2. Storage page: usage display, progress bar, warning if >90% 3. Personal folder: private, upload files, file operations (download, delete, rename, move), search 4. File upload: drag-and-drop, multiple files, progress indicator, quota validation
 
+**Status:** Done
+
 **Prerequisites:** Epic 1 Story 1.10
+
+**Handoff Notes:**
+
+- `personal_files` bucket created with `fileSecurity: true`; each file receives per-user `read/write/delete` permissions.
+- `file_metadata` table created with row-level security (owner-only `read/update/delete`) so metadata privacy is enforced server-side.
+- Role quota fallback map and seeded role rows updated per AC1; unmapped roles default to the Resident tier (2 GB).
+- Usage bar and 90% warning wired into both the drawer (`MainLayout`) and `/profile`.
+- Storage page supports drag-and-drop multi-file upload with per-file progress, client-side quota pre-check, rename, move (within personal root only), delete (with confirmation), and search.
+- Deferred: server-side quota hardening, pagination beyond 500 files, and migration path for existing deployments whose roles were already seeded.
 
 ---
 
