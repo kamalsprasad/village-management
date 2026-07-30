@@ -1,4 +1,4 @@
-import { Client, TablesDB, Query } from 'node-appwrite';
+import { Client, TablesDB, Storage, Query } from 'node-appwrite';
 
 /**
  * Appwrite Cloud Function: Wipe All Data
@@ -6,6 +6,10 @@ import { Client, TablesDB, Query } from 'node-appwrite';
  * Deletes all data tables in the database by dropping them entirely, then
  * loops until all targeted tables are gone (handles FK-blocked first-pass
  * deletions by retrying). Schema is recreated separately via `appwrite push`.
+ *
+ * Also deletes all files in the personal_files Storage bucket (Epic 5.3) so
+ * that re-seeding doesn't accumulate orphan files that still count against
+ * user quotas.
  *
  * Deletion uses deleteTable (drops schema + data) rather than deleteRow to
  * avoid per-row rate limits entirely.
@@ -48,6 +52,9 @@ const TABLES_TO_WIPE = [
   'residents',
   'households',
   'harvest_entries',
+  // Epic 5 tables
+  'village_events', // Story 5.1/5.2 — village calendar events
+  'file_metadata', // Story 5.3 — personal file metadata
 ];
 
 const MAX_PASSES = 5; // Safety cap on retry loop
@@ -64,10 +71,12 @@ export default async ({ req, res, log, error }) => {
 
   const client = new Client().setEndpoint(endpoint).setProject(projectId).setKey(apiKey);
   const tablesDB = new TablesDB(client);
+  const storage = new Storage(client);
 
   const databaseId = process.env.DATABASE_ID || 'villageDB';
   const usersTableId = process.env.TABLE_USERS || 'users';
   const rolesTableId = process.env.TABLE_ROLES || 'roles';
+  const personalFilesBucketId = process.env.BUCKET_PERSONAL_FILES || 'personal_files';
 
   log(`Using databaseId: ${databaseId}`);
 
@@ -130,6 +139,40 @@ export default async ({ req, res, log, error }) => {
     }
 
     log('Permission verified. Starting full data wipe...');
+
+    // ============================================
+    // STORAGE WIPE — delete all files in Epic 5 buckets
+    // ============================================
+
+    log(`Wiping files from bucket: ${personalFilesBucketId}`);
+    try {
+      let totalDeleted = 0;
+      // List and delete in batches of 100. Since we delete as we go, the
+      // next list call always returns the next batch (or empty when done).
+      while (true) {
+        const result = await storage.listFiles({
+          bucketId: personalFilesBucketId,
+          queries: [Query.limit(100)],
+        });
+        if (!result.files || result.files.length === 0) {
+          break;
+        }
+        for (const file of result.files) {
+          try {
+            await storage.deleteFile({ bucketId: personalFilesBucketId, fileId: file.$id });
+            totalDeleted++;
+          } catch (fileErr) {
+            log(`${personalFilesBucketId}/${file.$id}: could not delete — ${fileErr.message}`);
+          }
+        }
+      }
+      log(`${personalFilesBucketId}: wiped ${totalDeleted} file(s)`);
+    } catch (bucketErr) {
+      // Bucket may not exist yet on a fresh project — non-fatal.
+      log(
+        `${personalFilesBucketId}: could not list files — ${bucketErr.message} (non-fatal, continuing)`,
+      );
+    }
 
     // ============================================
     // DATA WIPE — delete tables, retry until all gone

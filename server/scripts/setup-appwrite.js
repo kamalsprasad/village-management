@@ -78,9 +78,12 @@ const storage = new Storage(client);
 const bucketSchemas = {
   personal_files: {
     name: 'Personal Files',
-    // fileSecurity: true + empty bucket-level permissions means each file's
-    // own permissions (set per-user at upload time) are the only access path.
-    permissions: [],
+    // fileSecurity: true means each file's own permissions (set per-user at
+    // upload time) govern read/write/delete on that file. The bucket-level
+    // `permissions` array still controls WHO can create files in the bucket,
+    // so we must grant `create` to authenticated users here; otherwise every
+    // upload (including by admins) returns 401 Unauthorized.
+    permissions: [Permission.create(Role.users())],
     fileSecurity: true,
   },
 };
@@ -1646,9 +1649,17 @@ const tableSchemas = {
   // filtering, so this table tracks that alongside the underlying Storage file.
   file_metadata: {
     name: 'File Metadata',
-    // Row-level permissions enforce privacy: any authenticated user can create
-    // a row, but only the owning user can read/update/delete it.
-    permissions: [Permission.create(Role.users())],
+    // Row-level permissions enforce privacy: each row is only readable/
+    // writable by its owner (set per-row at create time). The table-level
+    // permissions array still gates WHICH operations are allowed at all, so
+    // we must grant read/create/update/delete to authenticated users here;
+    // rowSecurity then restricts each operation to the owning user's rows.
+    permissions: [
+      Permission.read(Role.users()),
+      Permission.create(Role.users()),
+      Permission.update(Role.users()),
+      Permission.delete(Role.users()),
+    ],
     rowSecurity: true,
     columns: [
       { key: 'file_id', type: 'string', size: 50, required: true },
@@ -1705,9 +1716,19 @@ async function createTable(tableId, schema) {
   } catch (error) {
     if (error.code === 409) {
       console.log(`   ⚠️  Table already exists: ${schema.name}`);
-      // Sync permissions on existing tables so schema changes take effect
+      // Sync permissions/rowSecurity on existing tables via the TablesDB API
+      // (not the legacy Databases collections API) so re-running the script
+      // repairs misconfigured tables — e.g. file_metadata previously only
+      // granted `create`, which caused 401 on listRows.
       try {
-        await databases.updateCollection(config.databaseId, tableId, schema.name, permissions);
+        await tables.updateTable({
+          databaseId: config.databaseId,
+          tableId: tableId,
+          name: schema.name,
+          permissions: permissions,
+          rowSecurity: rowSecurity,
+          enabled: true,
+        });
         console.log(`   🔄 Permissions synced: ${schema.name}`);
       } catch (permErr) {
         console.warn(`   ⚠️  Could not sync permissions for ${schema.name}:`, permErr.message);
@@ -1906,6 +1927,21 @@ async function createBuckets() {
     } catch (error) {
       if (error.code === 409) {
         console.log(`   ⚠️  Bucket already exists: ${schema.name}`);
+        // Re-sync permissions/fileSecurity on existing buckets so re-running
+        // the script repairs misconfigured buckets (e.g. empty permissions
+        // that caused 401 on upload).
+        try {
+          await storage.updateBucket({
+            bucketId: bucketId,
+            name: schema.name,
+            permissions: schema.permissions || [],
+            fileSecurity: schema.fileSecurity ?? true,
+            enabled: true,
+          });
+          console.log(`   🔄 Bucket permissions synced: ${schema.name}`);
+        } catch (updateError) {
+          console.log(`   ⚠️  Could not sync bucket permissions: ${updateError.message}`);
+        }
       } else {
         throw error;
       }
