@@ -70,3 +70,18 @@ Items deferred during code reviews. Revisit before closing their parent story or
 
 - Ephemeral teacher comments -- comments are intentionally NOT persisted in the database. This keeps the MVP schema clean and avoids database bloating. [LearnerDetailPage.vue:830-845, LearnersListPage.vue:260-275]
 - JSZip dynamic import fallback -- if JSZip dynamic load fails, bulk generation gracefully falls back to sequential individual PDF downloads with a 350ms delay. [ReportExportService.js:1010-1035]
+
+## Deferred from: code review of spec-5-3-cloud-storage-role-based-storage-quotas-and-personal-folders (2026-07-30)
+
+- source_spec: `spec-5-3-cloud-storage-role-based-storage-quotas-and-personal-folders.md`
+  summary: `file_metadata` row-level permissions and owner_id filtering harden privacy, but Appwrite table-level permissions still default to `create("any")` for every other table; a project-wide server-side security review (Functions or per-table row security) is needed before multi-tenant deployment.
+  evidence: setup-appwrite.js:89 shared `permissions` variable still applies `read/create/update/delete("any")` to all other tables, matching the platform-wide TODO already present for every story. Fixing it here in isolation would not address the same issue on every other module.
+- source_spec: `spec-5-3-cloud-storage-role-based-storage-quotas-and-personal-folders.md`
+  summary: seed-roles.js skips existing roles, so existing deployments never receive Story 5.3 `storage_quota` updates or `storage:read`/`storage:write` grants.
+  evidence: seed-roles.js:274 `continue` on existing roles (same pre-existing pattern as Story 5.2); affected rows must be updated via the Appwrite console or an upsert migration. Owning story: Story 5.13 (Role Assignment and Permissions Management UI) or an ops runbook.
+- source_spec: `spec-5-3-cloud-storage-role-based-storage-quotas-and-personal-folders.md`
+  summary: `fetchFiles` is capped at `Query.limit(500)` with no pagination; beyond 500 personal files, newer files silently never load.
+  evidence: personal-files-store.js:90 `Query.limit(500)` with no cursor/offset follow-up; this mirrors the deferred 5.2 calendar-events-store pattern. Owning story: post-MVP storage hardening.
+- source_spec: `spec-5-3-cloud-storage-role-based-storage-quotas-and-personal-folders.md`
+  summary: No automated test coverage for `useFileUpload`, `personal-files-store`, or `format-storage`; quota arithmetic, batch-abort, rename/move guards, and path validation are only covered by lint/build and manual QA.
+  evidence: No `*.test.js`/`*.spec.js` files added under `src/`; the project has no existing unit-test infrastructure for stores/composables. Owning story: post-MVP testing initiative.

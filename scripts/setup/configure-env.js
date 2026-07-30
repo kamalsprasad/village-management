@@ -177,6 +177,8 @@ async function main() {
   const tableVillageSettings = 'village_settings';
   const tableInventory = 'inventory';
   const tableVillageEvents = 'village_events';
+  const tableFileMetadata = 'file_metadata';
+  const bucketPersonalFiles = 'personal_files';
 
   const rootEntries = [
     ['VITE_APPWRITE_ENDPOINT', endpoint, 'Appwrite API endpoint'],
@@ -201,6 +203,8 @@ async function main() {
     ['VITE_APPWRITE_TABLE_VILLAGE_SETTINGS', tableVillageSettings],
     ['VITE_APPWRITE_TABLE_INVENTORY', tableInventory],
     ['VITE_APPWRITE_TABLE_VILLAGE_EVENTS', tableVillageEvents],
+    ['VITE_APPWRITE_TABLE_FILE_METADATA', tableFileMetadata],
+    ['VITE_APPWRITE_BUCKET_PERSONAL_FILES', bucketPersonalFiles, 'Storage bucket IDs'],
   ];
 
   const serverEntries = [
@@ -215,6 +219,8 @@ async function main() {
     ['APPWRITE_TABLE_VILLAGE_SETTINGS', tableVillageSettings],
     ['APPWRITE_TABLE_INVENTORY', tableInventory],
     ['APPWRITE_TABLE_VILLAGE_EVENTS', tableVillageEvents],
+    ['APPWRITE_TABLE_FILE_METADATA', tableFileMetadata],
+    ['APPWRITE_BUCKET_PERSONAL_FILES', bucketPersonalFiles, 'Storage bucket IDs'],
   ];
 
   fs.writeFileSync(rootEnvPath, buildEnvContent(rootEntries), { encoding: 'utf8' });

@@ -4,6 +4,7 @@ import lendingRoutes from 'src/modules/lending/router';
 import farmRoutes from 'src/modules/farm/router';
 import schoolRoutes from 'src/modules/school/router';
 import calendarRoutes from 'src/modules/calendar/router';
+import storageRoutes from 'src/modules/storage/router';
 
 const routes = [
   // Auth page (no layout)
@@ -154,6 +155,8 @@ const routes = [
       ...schoolRoutes,
       // Village Calendar Module routes (Story 5.1)
       ...calendarRoutes,
+      // Cloud Storage Module routes (Story 5.3)
+      ...storageRoutes,
     ],
   },
 

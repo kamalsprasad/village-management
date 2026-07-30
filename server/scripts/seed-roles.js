@@ -47,51 +47,96 @@ const rolesTableId = stripQuotes(process.env.APPWRITE_TABLE_ROLES) || 'roles';
 
 // NOTE (Story 5.2): Farm Manager, Head Teacher and Village Head now include
 // 'calendar:write' (Events Coordinator and System Administrator were already
-// covered). This seeder SKIPS roles that already exist, so existing deployments
-// must re-sync these three role rows manually (e.g. via the Appwrite console)
-// to receive the new permission — re-running this script will NOT update them.
+// covered).
+// NOTE (Story 5.3): storage_quota values now match AC1 exactly (System
+// Administrator unlimited via -1; Village Head 20 GB; Deputy Village Head,
+// Finance Manager, Farm Manager, Head Teacher 10 GB; Crop Manager and
+// Village Resident 2 GB; Learner 1 GB; Guest 0.5 GB / 500 MB; unmapped roles
+// default to the Resident tier of 2 GB). 'storage:read' and 'storage:write'
+// were also added to every role (including Learner/Guest) since it is the
+// storage_quota value, not the permission, that gates upload volume.
+// This seeder SKIPS roles that already exist, so existing deployments must
+// re-sync ALL role rows manually (e.g. via the Appwrite console) to receive
+// these updated permissions/quotas — re-running this script will NOT update
+// existing rows.
 const defaultRoles = [
   {
     name: 'System Administrator',
     category: 'administration',
     permissions: ['*'],
-    storage_quota: 1000,
+    storage_quota: -1,
   },
   {
     name: 'Council Member',
     category: 'council',
-    permissions: ['residents:read', 'households:read', 'households:write', 'reports:read'],
-    storage_quota: 100,
+    permissions: [
+      'residents:read',
+      'households:read',
+      'households:write',
+      'reports:read',
+      'storage:read',
+      'storage:write',
+    ],
+    storage_quota: 2,
   },
   {
     name: 'Farm Manager',
     category: 'farm',
-    permissions: ['farm:read', 'farm:write', 'inventory:read', 'reports:read', 'calendar:write'],
-    storage_quota: 50,
+    permissions: [
+      'farm:read',
+      'farm:write',
+      'inventory:read',
+      'reports:read',
+      'calendar:write',
+      'storage:read',
+      'storage:write',
+    ],
+    storage_quota: 10,
   },
   {
     name: 'Crop Manager',
     category: 'farm',
-    permissions: ['farm:read', 'farm:planting:write', 'inventory:read'],
-    storage_quota: 20,
+    permissions: [
+      'farm:read',
+      'farm:planting:write',
+      'inventory:read',
+      'storage:read',
+      'storage:write',
+    ],
+    storage_quota: 2,
   },
   {
     name: 'School Administrator',
     category: 'school',
-    permissions: ['school:read', 'school:write', 'school:admin', 'reports:read'],
-    storage_quota: 100,
+    permissions: [
+      'school:read',
+      'school:write',
+      'school:admin',
+      'reports:read',
+      'storage:read',
+      'storage:write',
+    ],
+    storage_quota: 2,
   },
   {
     name: 'Head Teacher',
     category: 'school',
-    permissions: ['school:read', 'school:write', 'school:admin', 'reports:read', 'calendar:write'],
-    storage_quota: 50,
+    permissions: [
+      'school:read',
+      'school:write',
+      'school:admin',
+      'reports:read',
+      'calendar:write',
+      'storage:read',
+      'storage:write',
+    ],
+    storage_quota: 10,
   },
   {
     name: 'Teacher',
     category: 'school',
-    permissions: ['school:read', 'school:write'],
-    storage_quota: 20,
+    permissions: ['school:read', 'school:write', 'storage:read', 'storage:write'],
+    storage_quota: 2,
   },
   {
     name: 'Finance Manager',
@@ -103,8 +148,10 @@ const defaultRoles = [
       'inventory:write',
       'reports:read',
       'funding:write',
+      'storage:read',
+      'storage:write',
     ],
-    storage_quota: 50,
+    storage_quota: 10,
   },
   {
     name: 'Village Head',
@@ -117,14 +164,16 @@ const defaultRoles = [
       'farm:read',
       'reports:read',
       'calendar:write',
+      'storage:read',
+      'storage:write',
     ],
-    storage_quota: 200,
+    storage_quota: 20,
   },
   {
     name: 'Village Resident',
     category: 'resident',
-    permissions: ['profile:read', 'profile:write'],
-    storage_quota: 10,
+    permissions: ['profile:read', 'profile:write', 'storage:read', 'storage:write'],
+    storage_quota: 2,
   },
   {
     name: 'Deputy Village Head',
@@ -136,25 +185,34 @@ const defaultRoles = [
       'inventory:read',
       'farm:read',
       'reports:read',
+      'storage:read',
+      'storage:write',
     ],
-    storage_quota: 100,
+    storage_quota: 10,
   },
   {
     name: 'Events Coordinator',
     category: 'council',
-    permissions: ['calendar:read', 'calendar:write', 'residents:read', 'households:read'],
-    storage_quota: 20,
+    permissions: [
+      'calendar:read',
+      'calendar:write',
+      'residents:read',
+      'households:read',
+      'storage:read',
+      'storage:write',
+    ],
+    storage_quota: 2,
   },
   {
     name: 'Learner',
     category: 'school',
-    permissions: ['school:read', 'profile:read', 'profile:write'],
+    permissions: ['school:read', 'profile:read', 'profile:write', 'storage:read', 'storage:write'],
     storage_quota: 1,
   },
   {
     name: 'Guest',
     category: 'resident',
-    permissions: ['profile:read'],
+    permissions: ['profile:read', 'storage:read', 'storage:write'],
     storage_quota: 0.5,
   },
 ];

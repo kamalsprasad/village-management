@@ -19,7 +19,15 @@
  *   npm run setup:appwrite
  */
 
-import { Client, Databases, TablesDB, RelationshipType } from 'node-appwrite';
+import {
+  Client,
+  Databases,
+  TablesDB,
+  Storage,
+  Permission,
+  Role,
+  RelationshipType,
+} from 'node-appwrite';
 import dotenv from 'dotenv';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
@@ -64,6 +72,18 @@ const client = new Client()
 
 const databases = new Databases(client);
 const tables = new TablesDB(client);
+const storage = new Storage(client);
+
+// Story 5.3: Storage buckets (created after tables so metadata table exists first)
+const bucketSchemas = {
+  personal_files: {
+    name: 'Personal Files',
+    // fileSecurity: true + empty bucket-level permissions means each file's
+    // own permissions (set per-user at upload time) are the only access path.
+    permissions: [],
+    fileSecurity: true,
+  },
+};
 
 // TODO: Update these permissions to be more specific based on user roles and databases they to which they need access
 const permissions = ['read("any")', 'create("any")', 'update("any")', 'delete("any")'];
@@ -91,7 +111,8 @@ const tableSchemas = {
         twoWay: false,
         required: false,
       },
-      { key: 'storage_quota', type: 'integer', min: 0, max: 1000, default: 2, required: false },
+      // Story 5.3: decimal quotas (e.g. Guest 0.5 GB) require a floating-point type.
+      { key: 'storage_quota', type: 'double', min: -1, max: 1000, default: 2, required: false },
     ],
     indexes: [{ key: 'idx_users_email_unique', type: 'unique', columns: ['email'] }],
   },
@@ -197,7 +218,9 @@ const tableSchemas = {
         required: true,
       },
       { key: 'permissions', type: 'string', size: 100, array: true, required: false },
-      { key: 'storage_quota', type: 'integer', min: 0, max: 1000, default: 2, required: false },
+      // Story 5.3: min -1 so unlimited quota (-1, System Administrator) can be seeded.
+      // Decimal quotas (e.g. Guest 0.5 GB) require a floating-point type.
+      { key: 'storage_quota', type: 'double', min: -1, max: 1000, default: 2, required: false },
     ],
     indexes: [],
   },
@@ -1617,6 +1640,42 @@ const tableSchemas = {
       },
     ],
   },
+
+  // Story 5.3: Metadata for files uploaded to the personal_files bucket.
+  // Appwrite Storage's built-in file listing doesn't support owner_id/folder
+  // filtering, so this table tracks that alongside the underlying Storage file.
+  file_metadata: {
+    name: 'File Metadata',
+    // Row-level permissions enforce privacy: any authenticated user can create
+    // a row, but only the owning user can read/update/delete it.
+    permissions: [Permission.create(Role.users())],
+    rowSecurity: true,
+    columns: [
+      { key: 'file_id', type: 'string', size: 50, required: true },
+      { key: 'owner_id', type: 'string', size: 50, required: true },
+      { key: 'bucket_id', type: 'string', size: 50, required: true },
+      { key: 'name', type: 'string', size: 255, required: true },
+      { key: 'size', type: 'integer', required: true },
+      { key: 'mime_type', type: 'string', size: 100, required: false },
+      { key: 'folder_path', type: 'string', size: 500, required: false, default: '/' },
+      { key: 'uploaded_at', type: 'datetime', required: true },
+      { key: 'updated_at', type: 'datetime', required: false },
+    ],
+    indexes: [
+      {
+        key: 'idx_file_metadata_owner',
+        type: 'key',
+        columns: ['owner_id'],
+        orders: ['ASC'],
+      },
+      {
+        key: 'idx_file_metadata_name',
+        type: 'fulltext',
+        columns: ['name'],
+        orders: [],
+      },
+    ],
+  },
 };
 
 // Helper functions
@@ -1627,6 +1686,7 @@ async function createTable(tableId, schema) {
     'update("any")',
     'delete("any")',
   ];
+  const rowSecurity = schema.rowSecurity ?? false;
 
   try {
     console.log(`\n📦 Creating table: ${schema.name} (${tableId})`);
@@ -1637,7 +1697,7 @@ async function createTable(tableId, schema) {
       name: schema.name,
       permissions: permissions,
       enabled: true,
-      rowSecurity: false, // Document security (false = table-level permissions)
+      rowSecurity: rowSecurity, // true = document-level permissions
     });
 
     console.log(`   ✅ Table created: ${schema.name}`);
@@ -1830,6 +1890,29 @@ async function waitForColumnCreation(tableId, columnKey, maxAttempts = 10) {
   return false;
 }
 
+// Story 5.3: create Storage buckets (personal_files) with file-level security
+async function createBuckets() {
+  for (const [bucketId, schema] of Object.entries(bucketSchemas)) {
+    try {
+      console.log(`\n🪣  Creating bucket: ${schema.name} (${bucketId})`);
+      await storage.createBucket({
+        bucketId: bucketId,
+        name: schema.name,
+        permissions: schema.permissions || [],
+        fileSecurity: schema.fileSecurity ?? true,
+        enabled: true,
+      });
+      console.log(`   ✅ Bucket created: ${schema.name}`);
+    } catch (error) {
+      if (error.code === 409) {
+        console.log(`   ⚠️  Bucket already exists: ${schema.name}`);
+      } else {
+        throw error;
+      }
+    }
+  }
+}
+
 // Main setup function
 async function setupDatabase() {
   console.log('🚀 Starting Appwrite Database Setup');
@@ -1897,11 +1980,16 @@ async function setupDatabase() {
       }
     }
 
+    // Story 5.3: create Storage buckets after tables (file_metadata table exists first)
+    console.log('\n🪣  Creating Storage buckets...');
+    await createBuckets();
+
     console.log('\n✅ Database setup complete!');
     console.log('\n📋 Summary:');
-    console.log('   - 24 Tables created/verified');
+    console.log('   - 25 Tables created/verified');
     console.log('   - 150+ columns created/verified');
     console.log('   - 25+ indexes created/verified');
+    console.log('   - 1 Storage bucket created/verified (personal_files)');
     console.log('   - Permissions configured');
     console.log('\n🎉 You can now test the database connection at /appwrite-test');
     console.log('\n📦 Tables created:');
@@ -1920,6 +2008,8 @@ async function setupDatabase() {
     console.log(
       '           school_academic_terms, school_calendar_events, school_period_slots, class_timetable_entries',
     );
+    console.log('   Calendar: village_events');
+    console.log('   Storage: file_metadata (bucket: personal_files)');
   } catch (error) {
     console.error('\n❌ Setup failed:', error.message);
     if (error.response) {

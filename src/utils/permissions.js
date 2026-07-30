@@ -12,21 +12,27 @@
 /**
  * Role-based storage quota mapping (GB)
  * Used as fallback when database storage_quota field is not set
- * Values from Epic 1 Story 1.11 requirements
+ * Values from Story 5.3 AC1. -1 means unlimited.
+ * Roles not explicitly listed in AC1 (School Administrator, Council Member,
+ * Teacher, Events Coordinator) default to the Village Resident tier (2 GB).
  * @type {Object<string, number>}
  */
 const ROLE_QUOTA_FALLBACK = {
-  'System Administrator': 10,
-  'Village Head': 5,
-  'Finance Manager': 5,
-  'Farm Manager': 3,
-  'Head Teacher': 3,
-  Teacher: 2,
-  'Events Coordinator': 2,
-  'Crop Manager': 1,
-  Resident: 1,
+  'System Administrator': -1, // Unlimited
+  'Village Head': 20,
+  'Deputy Village Head': 10,
+  'Finance Manager': 10,
+  'Farm Manager': 10,
+  'Head Teacher': 10,
+  'Crop Manager': 2,
+  'Village Resident': 2,
   Learner: 1,
   Guest: 0.5, // 500 MB
+  // Unmapped roles default to Resident-tier (2 GB)
+  'School Administrator': 2,
+  'Council Member': 2,
+  Teacher: 2,
+  'Events Coordinator': 2,
 };
 
 /**
@@ -133,9 +139,15 @@ export function getUserStorageQuota(userRoles) {
       }
       quotaInGB = role.storage_quota;
     }
-    // Fallback to hardcoded mapping based on role name
-    else if (role && role.name && ROLE_QUOTA_FALLBACK[role.name]) {
-      quotaInGB = ROLE_QUOTA_FALLBACK[role.name];
+    // Fallback to hardcoded mapping based on role name.
+    // Unmapped roles default to the Village Resident tier (2 GB) so that a
+    // custom or future role is not accidentally left with zero quota.
+    else if (role && role.name) {
+      quotaInGB =
+        typeof ROLE_QUOTA_FALLBACK[role.name] === 'number' ? ROLE_QUOTA_FALLBACK[role.name] : 2;
+      if (quotaInGB === -1) {
+        return -1; // Unlimited storage
+      }
     }
 
     // Convert GB to bytes and track maximum

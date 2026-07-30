@@ -68,9 +68,21 @@
               <q-item v-if="storageQuota !== -1">
                 <q-item-section>
                   <q-item-label caption>Storage Quota</q-item-label>
-                  <q-linear-progress :value="storageUsagePercent" color="primary" class="q-mt-xs" />
+                  <q-linear-progress
+                    :value="personalFilesStore.usagePercent"
+                    :color="personalFilesStore.isOverQuota90 ? 'negative' : 'primary'"
+                    class="q-mt-xs"
+                  />
                   <q-item-label caption class="q-mt-xs">
-                    {{ formatStorageQuota(storageQuota) }} available
+                    {{ formatStorageQuota(storageQuota) }} total
+                  </q-item-label>
+                  <q-item-label
+                    v-if="personalFilesStore.isOverQuota90"
+                    caption
+                    class="text-negative"
+                  >
+                    <q-icon name="warning" size="xs" class="q-mr-xs" />
+                    Over 90% full
                   </q-item-label>
                 </q-item-section>
               </q-item>
@@ -611,12 +623,13 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, reactive } from 'vue';
+import { ref, computed, onMounted, onUnmounted, reactive, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { useQuasar } from 'quasar';
 import { useAuthStore } from 'src/stores/auth-store';
 import { useSettingsStore } from 'src/stores/settings-store';
 import { usePermissions } from 'src/composables/usePermissions';
+import { usePersonalFilesStore } from 'src/modules/storage/stores/personal-files-store';
 import SampleDataBanner from 'src/components/layout/SampleDataBanner.vue';
 import { version } from '../../package.json';
 
@@ -624,6 +637,7 @@ const router = useRouter();
 const $q = useQuasar();
 const authStore = useAuthStore();
 const settingsStore = useSettingsStore();
+const personalFilesStore = usePersonalFilesStore();
 const { hasPermission, hasAnyPermission, userStorageQuota } = usePermissions();
 
 const leftDrawerOpen = ref(false);
@@ -644,15 +658,28 @@ onMounted(() => {
   isClient.value = true; // Enable client-side rendering after hydration
 });
 
+// Fetch personal-file usage whenever auth roles become available or change.
+let unwatchRoles = null;
+onMounted(() => {
+  unwatchRoles = watch(
+    () => authStore.userRoles,
+    (roles) => {
+      if (isClient.value && roles?.length > 0 && hasPermission('storage:read')) {
+        personalFilesStore.fetchFiles();
+      }
+    },
+    { immediate: false },
+  );
+});
+onUnmounted(() => {
+  unwatchRoles?.();
+});
+
 // User info computed properties
 const userName = computed(() => authStore.user?.name || 'User');
 const userEmail = computed(() => authStore.user?.email || '');
 const userRoles = computed(() => authStore.userRoles || []);
 const storageQuota = computed(() => userStorageQuota.value);
-const storageUsagePercent = computed(() => {
-  // TODO(Story 1.11): Replace placeholder with actual storage usage once storage metrics are available
-  return 0.35; // 35% used
-});
 
 // User initials for avatar
 const userInitials = computed(() => {
