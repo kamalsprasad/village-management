@@ -1,0 +1,16 @@
+{
+  "name": "storage-usage-report",
+  "version": "1.0.0",
+  "description": "Appwrite Cloud Function to aggregate file_metadata storage usage by owner for the admin Storage Settings page",
+  "main": "src/main.js",
+  "type": "module",
+  "scripts": {
+    "format": "prettier --write ."
+  },
+  "dependencies": {
+    "node-appwrite": "^22.1.3"
+  },
+  "devDependencies": {
+    "prettier": "^3.8.2"
+  }
+}

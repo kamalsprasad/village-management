@@ -55,6 +55,12 @@ const rolesTableId = stripQuotes(process.env.APPWRITE_TABLE_ROLES) || 'roles';
 // default to the Resident tier of 2 GB). 'storage:read' and 'storage:write'
 // were also added to every role (including Learner/Guest) since it is the
 // storage_quota value, not the permission, that gates upload volume.
+// NOTE (Story 5.4): additive shared-folder grants were added to the roles
+// below (Finance Manager gets storage:finance:read/write; Council Member,
+// Village Head and Deputy Village Head get storage:finance:read,
+// storage:farm:read, storage:school:read and storage:village-docs:write;
+// Farm Manager and Crop Manager get storage:farm:read/write; School
+// Administrator, Head Teacher and Teacher get storage:school:read/write).
 // This seeder SKIPS roles that already exist, so existing deployments must
 // re-sync ALL role rows manually (e.g. via the Appwrite console) to receive
 // these updated permissions/quotas — re-running this script will NOT update
@@ -76,6 +82,10 @@ const defaultRoles = [
       'reports:read',
       'storage:read',
       'storage:write',
+      'storage:finance:read',
+      'storage:farm:read',
+      'storage:school:read',
+      'storage:village-docs:write',
     ],
     storage_quota: 2,
   },
@@ -90,6 +100,8 @@ const defaultRoles = [
       'calendar:write',
       'storage:read',
       'storage:write',
+      'storage:farm:read',
+      'storage:farm:write',
     ],
     storage_quota: 10,
   },
@@ -102,6 +114,8 @@ const defaultRoles = [
       'inventory:read',
       'storage:read',
       'storage:write',
+      'storage:farm:read',
+      'storage:farm:write',
     ],
     storage_quota: 2,
   },
@@ -115,6 +129,8 @@ const defaultRoles = [
       'reports:read',
       'storage:read',
       'storage:write',
+      'storage:school:read',
+      'storage:school:write',
     ],
     storage_quota: 2,
   },
@@ -129,13 +145,22 @@ const defaultRoles = [
       'calendar:write',
       'storage:read',
       'storage:write',
+      'storage:school:read',
+      'storage:school:write',
     ],
     storage_quota: 10,
   },
   {
     name: 'Teacher',
     category: 'school',
-    permissions: ['school:read', 'school:write', 'storage:read', 'storage:write'],
+    permissions: [
+      'school:read',
+      'school:write',
+      'storage:read',
+      'storage:write',
+      'storage:school:read',
+      'storage:school:write',
+    ],
     storage_quota: 2,
   },
   {
@@ -150,6 +175,8 @@ const defaultRoles = [
       'funding:write',
       'storage:read',
       'storage:write',
+      'storage:finance:read',
+      'storage:finance:write',
     ],
     storage_quota: 10,
   },
@@ -166,6 +193,10 @@ const defaultRoles = [
       'calendar:write',
       'storage:read',
       'storage:write',
+      'storage:finance:read',
+      'storage:farm:read',
+      'storage:school:read',
+      'storage:village-docs:write',
     ],
     storage_quota: 20,
   },
@@ -187,6 +218,10 @@ const defaultRoles = [
       'reports:read',
       'storage:read',
       'storage:write',
+      'storage:finance:read',
+      'storage:farm:read',
+      'storage:school:read',
+      'storage:village-docs:write',
     ],
     storage_quota: 10,
   },

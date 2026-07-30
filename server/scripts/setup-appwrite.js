@@ -75,6 +75,9 @@ const tables = new TablesDB(client);
 const storage = new Storage(client);
 
 // Story 5.3: Storage buckets (created after tables so metadata table exists first)
+// Story 5.4: added shared_files (same shape as personal_files) — per-file
+// permissions set at upload/share time (see personal-files-store.js /
+// shared-files-store.js) govern read/write/delete for each shared file.
 const bucketSchemas = {
   personal_files: {
     name: 'Personal Files',
@@ -83,6 +86,11 @@ const bucketSchemas = {
     // `permissions` array still controls WHO can create files in the bucket,
     // so we must grant `create` to authenticated users here; otherwise every
     // upload (including by admins) returns 401 Unauthorized.
+    permissions: [Permission.create(Role.users())],
+    fileSecurity: true,
+  },
+  shared_files: {
+    name: 'Shared Files',
     permissions: [Permission.create(Role.users())],
     fileSecurity: true,
   },
@@ -115,7 +123,14 @@ const tableSchemas = {
         required: false,
       },
       // Story 5.3: decimal quotas (e.g. Guest 0.5 GB) require a floating-point type.
-      { key: 'storage_quota', type: 'double', min: -1, max: 1000, default: 2, required: false },
+      // Story 5.4: default changed from 2 to 0. 0 (or unset) means "no
+      // override, fall back to role-based quota" (see getUserStorageQuota).
+      // The old default of 2 would have silently overridden every
+      // higher-tier role's quota the moment this column started being read;
+      // pre-existing rows already backfilled to 2 by the old default must
+      // be reset to 0 (or an explicit override) via the new Admin Storage
+      // Settings page (/admin/storage) to regain their role-based quota.
+      { key: 'storage_quota', type: 'double', min: -1, max: 1000, default: 0, required: false },
     ],
     indexes: [{ key: 'idx_users_email_unique', type: 'unique', columns: ['email'] }],
   },
@@ -1671,6 +1686,10 @@ const tableSchemas = {
       { key: 'folder_path', type: 'string', size: 500, required: false, default: '/' },
       { key: 'uploaded_at', type: 'datetime', required: true },
       { key: 'updated_at', type: 'datetime', required: false },
+      // Story 5.4: nullable — set to one of the SHARED_FOLDERS ids (e.g.
+      // 'finance_shared') when this row represents a file shared into a
+      // shared folder; null/unset for personal-only files.
+      { key: 'shared_folder', type: 'string', size: 30, required: false },
     ],
     indexes: [
       {
@@ -1684,6 +1703,12 @@ const tableSchemas = {
         type: 'fulltext',
         columns: ['name'],
         orders: [],
+      },
+      {
+        key: 'idx_file_metadata_shared_folder',
+        type: 'key',
+        columns: ['shared_folder'],
+        orders: ['ASC'],
       },
     ],
   },
@@ -2023,9 +2048,9 @@ async function setupDatabase() {
     console.log('\n✅ Database setup complete!');
     console.log('\n📋 Summary:');
     console.log('   - 25 Tables created/verified');
-    console.log('   - 150+ columns created/verified');
-    console.log('   - 25+ indexes created/verified');
-    console.log('   - 1 Storage bucket created/verified (personal_files)');
+    console.log('   - 150+ columns created/verified (incl. Story 5.4 shared_folder)');
+    console.log('   - 25+ indexes created/verified (incl. idx_file_metadata_shared_folder)');
+    console.log('   - 2 Storage buckets created/verified (personal_files, shared_files)');
     console.log('   - Permissions configured');
     console.log('\n🎉 You can now test the database connection at /appwrite-test');
     console.log('\n📦 Tables created:');
@@ -2045,7 +2070,7 @@ async function setupDatabase() {
       '           school_academic_terms, school_calendar_events, school_period_slots, class_timetable_entries',
     );
     console.log('   Calendar: village_events');
-    console.log('   Storage: file_metadata (bucket: personal_files)');
+    console.log('   Storage: file_metadata (buckets: personal_files, shared_files)');
   } catch (error) {
     console.error('\n❌ Setup failed:', error.message);
     if (error.response) {

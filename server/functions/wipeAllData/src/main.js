@@ -7,9 +7,9 @@ import { Client, TablesDB, Storage, Query } from 'node-appwrite';
  * loops until all targeted tables are gone (handles FK-blocked first-pass
  * deletions by retrying). Schema is recreated separately via `appwrite push`.
  *
- * Also deletes all files in the personal_files Storage bucket (Epic 5.3) so
- * that re-seeding doesn't accumulate orphan files that still count against
- * user quotas.
+ * Also deletes all files in the personal_files and shared_files Storage
+ * buckets (Epic 5.3/5.4) so that re-seeding doesn't accumulate orphan files
+ * that still count against user quotas.
  *
  * Deletion uses deleteTable (drops schema + data) rather than deleteRow to
  * avoid per-row rate limits entirely.
@@ -77,6 +77,7 @@ export default async ({ req, res, log, error }) => {
   const usersTableId = process.env.TABLE_USERS || 'users';
   const rolesTableId = process.env.TABLE_ROLES || 'roles';
   const personalFilesBucketId = process.env.BUCKET_PERSONAL_FILES || 'personal_files';
+  const sharedFilesBucketId = process.env.BUCKET_SHARED_FILES || 'shared_files';
 
   log(`Using databaseId: ${databaseId}`);
 
@@ -144,34 +145,35 @@ export default async ({ req, res, log, error }) => {
     // STORAGE WIPE — delete all files in Epic 5 buckets
     // ============================================
 
-    log(`Wiping files from bucket: ${personalFilesBucketId}`);
-    try {
-      let totalDeleted = 0;
-      // List and delete in batches of 100. Since we delete as we go, the
-      // next list call always returns the next batch (or empty when done).
-      while (true) {
-        const result = await storage.listFiles({
-          bucketId: personalFilesBucketId,
-          queries: [Query.limit(100)],
-        });
-        if (!result.files || result.files.length === 0) {
-          break;
-        }
-        for (const file of result.files) {
-          try {
-            await storage.deleteFile({ bucketId: personalFilesBucketId, fileId: file.$id });
-            totalDeleted++;
-          } catch (fileErr) {
-            log(`${personalFilesBucketId}/${file.$id}: could not delete — ${fileErr.message}`);
+    // Story 5.4: wipe both the personal_files and shared_files buckets.
+    for (const bucketId of [personalFilesBucketId, sharedFilesBucketId]) {
+      log(`Wiping files from bucket: ${bucketId}`);
+      try {
+        let totalDeleted = 0;
+        // List and delete in batches of 100. Since we delete as we go, the
+        // next list call always returns the next batch (or empty when done).
+        while (true) {
+          const result = await storage.listFiles({
+            bucketId,
+            queries: [Query.limit(100)],
+          });
+          if (!result.files || result.files.length === 0) {
+            break;
+          }
+          for (const file of result.files) {
+            try {
+              await storage.deleteFile({ bucketId, fileId: file.$id });
+              totalDeleted++;
+            } catch (fileErr) {
+              log(`${bucketId}/${file.$id}: could not delete — ${fileErr.message}`);
+            }
           }
         }
+        log(`${bucketId}: wiped ${totalDeleted} file(s)`);
+      } catch (bucketErr) {
+        // Bucket may not exist yet on a fresh project — non-fatal.
+        log(`${bucketId}: could not list files — ${bucketErr.message} (non-fatal, continuing)`);
       }
-      log(`${personalFilesBucketId}: wiped ${totalDeleted} file(s)`);
-    } catch (bucketErr) {
-      // Bucket may not exist yet on a fresh project — non-fatal.
-      log(
-        `${personalFilesBucketId}: could not list files — ${bucketErr.message} (non-fatal, continuing)`,
-      );
     }
 
     // ============================================

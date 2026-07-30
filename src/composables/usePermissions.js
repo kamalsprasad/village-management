@@ -46,11 +46,13 @@ export function usePermissions() {
   };
 
   /**
-   * Get current user's storage quota in bytes
+   * Get current user's storage quota in bytes.
+   * Story 5.4: passes the user's per-user quota override (0 = no override)
+   * so it takes precedence over the role-based fallback.
    * @returns {number} - Storage quota (-1 for unlimited)
    */
   const userStorageQuota = computed(() => {
-    return getStorageQuota(authStore.userRoles);
+    return getStorageQuota(authStore.userRoles, authStore.userStorageQuotaOverride);
   });
 
   /**

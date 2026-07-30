@@ -56,6 +56,14 @@ const routes = [
         },
       },
       {
+        path: 'admin/storage',
+        component: () => import('pages/admin/StorageSettingsPage.vue'),
+        meta: {
+          requiresAuth: true,
+          requiresPermission: '*', // System Administrator only (Story 5.4)
+        },
+      },
+      {
         path: 'households',
         component: () => import('pages/households/HouseholdsListPage.vue'),
         meta: {

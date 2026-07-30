@@ -10,6 +10,9 @@ export const useAuthStore = defineStore('auth', {
   state: () => ({
     user: null,
     userRoles: [], // Array of role objects with permissions
+    // Story 5.4: per-user storage quota override (GB) from users.storage_quota.
+    // 0 = no override (fall back to role-based quota); -1 = unlimited.
+    userStorageQuotaOverride: 0,
     isLoggedIn: false,
     isLoading: false,
     hasUsers: null, // null = not checked yet, true = users exist, false = no users
@@ -38,6 +41,7 @@ export const useAuthStore = defineStore('auth', {
         // No active session
         this.user = null;
         this.userRoles = [];
+        this.userStorageQuotaOverride = 0;
         this.isLoggedIn = false;
         return false;
       } finally {
@@ -299,6 +303,7 @@ export const useAuthStore = defineStore('auth', {
         await account.deleteSession({ sessionId: 'current' });
         this.user = null;
         this.userRoles = [];
+        this.userStorageQuotaOverride = 0;
         this.isLoggedIn = false;
         return { success: true };
       } catch (error) {
@@ -325,6 +330,7 @@ export const useAuthStore = defineStore('auth', {
       } catch (error) {
         this.user = null;
         this.userRoles = [];
+        this.userStorageQuotaOverride = 0;
         this.isLoggedIn = false;
         throw error;
       }
@@ -352,6 +358,10 @@ export const useAuthStore = defineStore('auth', {
           rowId: this.user.$id,
           queries: [Query.select(['*', 'role_ids.*'])],
         });
+
+        // Story 5.4: per-user quota override (0/unset = no override, use role quota).
+        this.userStorageQuotaOverride =
+          typeof userProfile.storage_quota === 'number' ? userProfile.storage_quota : 0;
 
         // With relationships, role_ids will be an array of role objects (not just IDs)
         if (

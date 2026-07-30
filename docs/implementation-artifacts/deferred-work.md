@@ -85,3 +85,18 @@ Items deferred during code reviews. Revisit before closing their parent story or
 - source_spec: `spec-5-3-cloud-storage-role-based-storage-quotas-and-personal-folders.md`
   summary: No automated test coverage for `useFileUpload`, `personal-files-store`, or `format-storage`; quota arithmetic, batch-abort, rename/move guards, and path validation are only covered by lint/build and manual QA.
   evidence: No `*.test.js`/`*.spec.js` files added under `src/`; the project has no existing unit-test infrastructure for stores/composables. Owning story: post-MVP testing initiative.
+
+## Deferred from: code review of spec-5-4-cloud-storage-shared-folders-and-module-based-access (2026-07-30)
+
+- source_spec: `spec-5-4-cloud-storage-shared-folders-and-module-based-access.md`
+  summary: Batch upload quota pre-checks (`personal-files-store.uploadFiles`, `shared-files-store.uploadFiles`) sum the whole batch against usage captured before the loop starts, so per-file usage increments earlier in the same batch are not re-subtracted from the remaining allowance if a later file in the batch is retried after a partial failure.
+  evidence: This is the pre-existing Story 5.3 `uploadFiles` pattern (`personal-files-store.js`), mirrored (not introduced) by the new `shared-files-store.uploadFiles` and `shareToFolder`; already-accepted behavior for personal uploads, now duplicated for shared uploads. Owning story: post-MVP storage hardening (fix both call sites together).
+- source_spec: `spec-5-4-cloud-storage-shared-folders-and-module-based-access.md`
+  summary: seed-roles.js skips existing roles, so existing deployments never receive the new Story 5.4 `storage:finance:*`/`storage:farm:*`/`storage:school:*`/`storage:village-docs:write` grants.
+  evidence: seed-roles.js `continue` on existing roles (same pre-existing pattern as Stories 5.2/5.3); affected role rows must be updated via the Appwrite console or an upsert migration. Owning story: Story 5.13 (Role Assignment and Permissions Management UI) or an ops runbook.
+- source_spec: `spec-5-4-cloud-storage-shared-folders-and-module-based-access.md`
+  summary: `storageUsageReport`'s `file_metadata` pagination loop has no timeout/rate-limit backoff; a very large table could approach the function's 60s timeout.
+  evidence: server/functions/storageUsageReport/src/main.js pages in batches of 100 with no elapsed-time guard; acceptable at current village-scale row counts. Owning story: post-MVP storage/scale hardening.
+- source_spec: `spec-5-4-cloud-storage-shared-folders-and-module-based-access.md`
+  summary: No automated test coverage for `shared-files-store`, `shareToFolder`, `getSharedFolderPermissions`, or `storageUsageReport`; covered only by lint/build and manual QA.
+  evidence: No `*.test.js`/`*.spec.js` files added under `src/` or `server/functions/`; the project has no existing unit-test infrastructure for stores/composables/functions. Owning story: post-MVP testing initiative.

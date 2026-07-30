@@ -170,6 +170,9 @@ async function main() {
   const functionCheckUsers = 'checkUsersExist';
   const functionWipeData = 'wipeAllData';
   const functionSeedData = 'seedAllData';
+  // Story 5.4: placeholder function ID for the storageUsageReport function,
+  // consistent with the other function IDs collected above.
+  const storageReportFunctionId = 'storageUsageReport';
   const tableUsers = 'users';
   const tableResidents = 'residents';
   const tableHouseholds = 'households';
@@ -179,6 +182,8 @@ async function main() {
   const tableVillageEvents = 'village_events';
   const tableFileMetadata = 'file_metadata';
   const bucketPersonalFiles = 'personal_files';
+  // Story 5.4: shared_files bucket for module-based shared folders.
+  const bucketSharedFiles = 'shared_files';
 
   const rootEntries = [
     ['VITE_APPWRITE_ENDPOINT', endpoint, 'Appwrite API endpoint'],
@@ -195,6 +200,11 @@ async function main() {
       functionSeedData,
       'Function ID for seeding all sample data',
     ],
+    [
+      'VITE_APPWRITE_FUNCTION_STORAGE_REPORT',
+      storageReportFunctionId,
+      'Function ID for the admin storage usage report',
+    ],
     ['VITE_APPWRITE_DATABASE_ID', databaseId, 'Database ID'],
     ['VITE_APPWRITE_TABLE_USERS', tableUsers, 'Table IDs'],
     ['VITE_APPWRITE_TABLE_RESIDENTS', tableResidents],
@@ -205,6 +215,7 @@ async function main() {
     ['VITE_APPWRITE_TABLE_VILLAGE_EVENTS', tableVillageEvents],
     ['VITE_APPWRITE_TABLE_FILE_METADATA', tableFileMetadata],
     ['VITE_APPWRITE_BUCKET_PERSONAL_FILES', bucketPersonalFiles, 'Storage bucket IDs'],
+    ['VITE_APPWRITE_BUCKET_SHARED_FILES', bucketSharedFiles],
   ];
 
   const serverEntries = [
@@ -221,6 +232,7 @@ async function main() {
     ['APPWRITE_TABLE_VILLAGE_EVENTS', tableVillageEvents],
     ['APPWRITE_TABLE_FILE_METADATA', tableFileMetadata],
     ['APPWRITE_BUCKET_PERSONAL_FILES', bucketPersonalFiles, 'Storage bucket IDs'],
+    ['APPWRITE_BUCKET_SHARED_FILES', bucketSharedFiles],
   ];
 
   fs.writeFileSync(rootEnvPath, buildEnvContent(rootEntries), { encoding: 'utf8' });

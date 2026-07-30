@@ -1,10 +1,16 @@
 /**
- * Personal Files Store (Story 5.3)
+ * Personal Files Store (Story 5.3; extended Story 5.4)
  *
  * Pinia store for the private "My Files" storage page: lists, uploads,
  * renames, moves, deletes and searches the current user's files in the
- * personal_files bucket, and tracks their storage usage.
+ * personal_files bucket, and tracks their storage usage. `usageBytes` sums
+ * across ALL of this owner's file_metadata rows (personal AND shared),
+ * since shared files still count against the uploader's personal quota;
+ * `personalOnlyFiles`/`filteredFiles` restrict the "My Files" LIST to the
+ * personal bucket only (Story 5.4 added `shareToFolder` for copying a
+ * personal file into a shared folder).
  *
+
  * A dedicated file_metadata table (rather than Storage's built-in file
  * listing) tracks owner_id and folder_path, since Storage listing does not
  * support either. Per-file Storage permissions (set at upload time via
@@ -13,7 +19,8 @@
  *
  * Quota enforcement is client-side only for Story 5.3 (server-side hardening
  * deferred to post-MVP). "Move" only updates folder_path within the same
- * personal bucket; shared-folder prefixes are rejected until Story 5.4.
+ * personal bucket; shared folders are reached exclusively via the Story 5.4
+ * copy-based `shareToFolder` action below, never by moving a folder_path.
  */
 
 import { defineStore } from 'pinia';
@@ -23,6 +30,7 @@ import { useErrorHandler } from 'src/composables/useErrorHandler';
 import { useFileUpload } from 'src/composables/useFileUpload';
 import { useAuthStore } from 'src/stores/auth-store';
 import { getUserStorageQuota } from 'src/utils/permissions';
+import { SHARED_FOLDERS, getSharedFolderPermissions } from '../constants/shared-folders';
 
 const errorHandler = useErrorHandler();
 
@@ -45,13 +53,16 @@ function isPersonalFolderPath(path) {
   // Normalize "//" and split into segments to detect the reserved /shared root.
   const segments = path.split('/').filter(Boolean);
   if (segments.length > 0 && segments[0].toLowerCase() === 'shared') {
-    errorHandler.notifyError('Cannot move files into shared folders yet.');
+    errorHandler.notifyError(
+      'Cannot move files into shared folders. Use "Share to Folder" instead.',
+    );
     return false;
   }
   return true;
 }
 
 const BUCKET_ID = import.meta.env.VITE_APPWRITE_BUCKET_PERSONAL_FILES || 'personal_files';
+const SHARED_BUCKET_ID = import.meta.env.VITE_APPWRITE_BUCKET_SHARED_FILES || 'shared_files';
 const FILE_METADATA_TABLE_ID = import.meta.env.VITE_APPWRITE_TABLE_FILE_METADATA || 'file_metadata';
 
 export const usePersonalFilesStore = defineStore('personalFiles', {
@@ -64,21 +75,37 @@ export const usePersonalFilesStore = defineStore('personalFiles', {
 
   getters: {
     /**
-     * Client-side, case-insensitive filter of files by name.
+     * Story 5.4: rows belonging to the personal bucket only (excludes any
+     * shared-bucket rows the owner might also see via other queries), for
+     * the "My Files" list. `usageBytes` is intentionally NOT restricted to
+     * this getter — shared files still count against the uploader's
+     * personal quota.
+     * @returns {Array}
+     */
+    personalOnlyFiles: (state) => state.files.filter((f) => f.bucket_id === BUCKET_ID),
+
+    /**
+     * Client-side, case-insensitive filter of personal files by name.
      * @returns {(search: string) => Array}
      */
-    filteredFiles: (state) => (search) => {
-      if (!search || !search.trim()) {
-        return state.files;
-      }
-      const needle = search.trim().toLowerCase();
-      return state.files.filter((file) => (file.name || '').toLowerCase().includes(needle));
+    filteredFiles() {
+      return (search) => {
+        const source = this.personalOnlyFiles;
+        if (!search || !search.trim()) {
+          return source;
+        }
+        const needle = search.trim().toLowerCase();
+        return source.filter((file) => (file.name || '').toLowerCase().includes(needle));
+      };
     },
 
     /** Fraction (0-1) of quota used; 0 when quota is unlimited or unknown. */
     usagePercent() {
       const authStore = useAuthStore();
-      const quotaBytes = getUserStorageQuota(authStore.userRoles);
+      const quotaBytes = getUserStorageQuota(
+        authStore.userRoles,
+        authStore.userStorageQuotaOverride,
+      );
       if (quotaBytes === -1 || Number.isNaN(quotaBytes)) {
         return 0;
       }
@@ -147,7 +174,10 @@ export const usePersonalFilesStore = defineStore('personalFiles', {
       }
 
       const { onProgress } = options;
-      const quotaBytes = getUserStorageQuota(authStore.userRoles);
+      const quotaBytes = getUserStorageQuota(
+        authStore.userRoles,
+        authStore.userStorageQuotaOverride,
+      );
       if (Number.isNaN(quotaBytes)) {
         errorHandler.notifyError('Storage quota is not configured — upload blocked.');
         return;
@@ -159,9 +189,10 @@ export const usePersonalFilesStore = defineStore('personalFiles', {
         return;
       }
 
-      // Reject duplicate names in the destination folder before uploading.
+      // Reject duplicate names in the destination folder before uploading
+      // (personal-bucket rows only — shared files live in a different bucket).
       const duplicate = fileArray.find((file) =>
-        this.files.some(
+        this.personalOnlyFiles.some(
           (f) => f.folder_path === '/' && (f.name || '').toLowerCase() === file.name.toLowerCase(),
         ),
       );
@@ -231,6 +262,97 @@ export const usePersonalFilesStore = defineStore('personalFiles', {
           );
           break;
         }
+      }
+    },
+
+    /**
+     * Story 5.4: copies a personal file into a shared folder. The original
+     * personal file/row is left untouched — sharing is copy, not move.
+     * Re-validates the quota check (the caller is responsible for gating
+     * the "Share to Folder" action on the target folder's write permission
+     * via usePermissions before calling this).
+     * @param {object} file - file_metadata row (from this.files/personalOnlyFiles)
+     * @param {string} folderId - one of SHARED_FOLDERS[].id
+     */
+    async shareToFolder(file, folderId) {
+      const folder = SHARED_FOLDERS.find((f) => f.id === folderId);
+      if (!folder) {
+        errorHandler.notifyError('Unknown shared folder.');
+        return;
+      }
+
+      const authStore = useAuthStore();
+      const userId = authStore.user?.$id;
+      if (!userId) {
+        return;
+      }
+
+      const quotaBytes = getUserStorageQuota(
+        authStore.userRoles,
+        authStore.userStorageQuotaOverride,
+      );
+      if (quotaBytes !== -1 && this.usageBytes + (file.size || 0) > quotaBytes) {
+        errorHandler.notifyError('Storage quota exceeded — file was not shared.');
+        return;
+      }
+
+      try {
+        const downloadUrl = storage.getFileDownload({ bucketId: BUCKET_ID, fileId: file.file_id });
+        const response = await fetch(downloadUrl);
+        if (!response.ok) {
+          throw new Error('Could not fetch the original file for sharing.');
+        }
+        const blob = await response.blob();
+        const sharedFile = new File([blob], file.name, { type: file.mime_type || blob.type });
+
+        const { createUpload } = useFileUpload();
+        const { promise } = createUpload(SHARED_BUCKET_ID, sharedFile, {
+          userId,
+          currentUsageBytes: this.usageBytes,
+          quotaBytes,
+          permissions: getSharedFolderPermissions(folderId, 'file'),
+        });
+
+        const uploadedFile = await promise;
+        if (!uploadedFile) {
+          // Upload failed or was blocked; useFileUpload already notified.
+          return;
+        }
+
+        try {
+          const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
+          const now = new Date().toISOString();
+          const metadataRow = await tables.createRow({
+            databaseId: dbId,
+            tableId: FILE_METADATA_TABLE_ID,
+            rowId: ID.unique(),
+            data: {
+              file_id: uploadedFile.$id,
+              owner_id: userId,
+              bucket_id: SHARED_BUCKET_ID,
+              name: file.name,
+              size: file.size,
+              mime_type: file.mime_type || '',
+              folder_path: '/',
+              shared_folder: folderId,
+              uploaded_at: now,
+              updated_at: now,
+            },
+            permissions: getSharedFolderPermissions(folderId, 'row'),
+          });
+          this.files.unshift(metadataRow);
+          this.usageBytes += file.size || 0;
+          errorHandler.notifySuccess(`Shared "${file.name}" to ${folder.label}.`);
+        } catch (error) {
+          try {
+            await storage.deleteFile({ bucketId: SHARED_BUCKET_ID, fileId: uploadedFile.$id });
+          } catch {
+            // Best-effort cleanup; ignore secondary failure.
+          }
+          errorHandler.notifyError(error.message || `Failed to share "${file.name}".`);
+        }
+      } catch (error) {
+        errorHandler.notifyError(error.message || `Failed to share "${file.name}".`);
       }
     },
 

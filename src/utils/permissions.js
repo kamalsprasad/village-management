@@ -119,10 +119,23 @@ export function hasAllPermissions(user, userRoles, permissions) {
  * 1. Tries to read storage_quota from database role object
  * 2. Falls back to ROLE_QUOTA_FALLBACK mapping if database value not set
  *
+ * Story 5.4: an optional per-user quota override (in GB, from
+ * users.storage_quota) takes precedence over the role-based quota when set.
+ * `quotaOverrideGB <= 0` means "no override, use role quota"; `-1` means
+ * unlimited override; any positive value is a GB override.
+ *
  * @param {Array} userRoles - Array of role objects
+ * @param {number} [quotaOverrideGB=0] - Per-user override in GB (-1 = unlimited, 0/unset = no override)
  * @returns {number} - Storage quota in bytes (-1 for unlimited)
  */
-export function getUserStorageQuota(userRoles) {
+export function getUserStorageQuota(userRoles, quotaOverrideGB = 0) {
+  if (quotaOverrideGB === -1) {
+    return -1; // Unlimited override
+  }
+  if (quotaOverrideGB > 0) {
+    return quotaOverrideGB * 1024 * 1024 * 1024;
+  }
+
   if (!userRoles || userRoles.length === 0) {
     return 0;
   }

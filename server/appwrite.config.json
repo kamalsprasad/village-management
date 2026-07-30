@@ -92,6 +92,27 @@
       }
     },
     {
+      "$id": "storageUsageReport",
+      "execute": ["team:village_administrators"],
+      "name": "Storage Usage Report",
+      "enabled": true,
+      "logging": true,
+      "runtime": "node-16.0",
+      "scopes": ["users.read", "databases.read", "tables.read", "rows.read"],
+      "events": [],
+      "schedule": "",
+      "timeout": 60,
+      "entrypoint": "src/main.js",
+      "commands": "npm install",
+      "specification": "s-0.5vcpu-512mb",
+      "path": "functions/storageUsageReport",
+      "vars": {
+        "DATABASE_ID": "villageDB",
+        "TABLE_USERS": "users",
+        "TABLE_FILE_METADATA": "file_metadata"
+      }
+    },
+    {
       "$id": "seedAllData",
       "execute": ["team:village_administrators"],
       "name": "Seed All Data",

@@ -557,6 +557,21 @@
               <q-item-label class="nav-sub-label">Storage</q-item-label>
             </q-item-section>
           </q-item>
+
+          <q-item
+            v-if="hasPermission('storage:read')"
+            clickable
+            to="/storage/shared"
+            class="nav-sub-item"
+            active-class="nav-sub-item--active"
+          >
+            <q-item-section avatar class="nav-sub-icon">
+              <q-icon name="folder_shared" size="16px" />
+            </q-item-section>
+            <q-item-section>
+              <q-item-label class="nav-sub-label">Shared Folders</q-item-label>
+            </q-item-section>
+          </q-item>
         </q-expansion-item>
 
         <q-separator spaced="sm" inset class="nav-separator" />
@@ -610,6 +625,20 @@
             </q-item-section>
             <q-item-section>
               <q-item-label class="nav-sub-label">Finance Settings</q-item-label>
+            </q-item-section>
+          </q-item>
+
+          <q-item
+            clickable
+            to="/admin/storage"
+            class="nav-sub-item"
+            active-class="nav-sub-item--active"
+          >
+            <q-item-section avatar class="nav-sub-icon">
+              <q-icon name="storage" size="16px" />
+            </q-item-section>
+            <q-item-section>
+              <q-item-label class="nav-sub-label">Storage Settings</q-item-label>
             </q-item-section>
           </q-item>
         </q-expansion-item>

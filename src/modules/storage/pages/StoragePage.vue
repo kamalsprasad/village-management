@@ -125,6 +125,16 @@
                 <q-tooltip>Move</q-tooltip>
               </q-btn>
               <q-btn
+                v-if="shareableFolders.length > 0"
+                flat
+                round
+                dense
+                icon="ios_share"
+                @click="openShareDialog(file)"
+              >
+                <q-tooltip>Share to Folder</q-tooltip>
+              </q-btn>
+              <q-btn
                 v-if="canWrite"
                 flat
                 round
@@ -186,6 +196,29 @@
         </q-card-actions>
       </q-card>
     </q-dialog>
+
+    <!-- Share to Folder dialog -->
+    <q-dialog v-model="showShareDialog">
+      <q-card style="min-width: 320px">
+        <q-card-section class="text-h6">Share to Folder</q-card-section>
+        <q-card-section>
+          <q-select
+            v-model="shareFolderId"
+            outlined
+            dense
+            emit-value
+            map-options
+            :options="shareableFolderOptions"
+            label="Shared folder"
+            autofocus
+          />
+        </q-card-section>
+        <q-card-actions align="right">
+          <q-btn flat label="Cancel" @click="showShareDialog = false" />
+          <q-btn color="primary" label="Share" :disable="!shareFolderId" @click="submitShare" />
+        </q-card-actions>
+      </q-card>
+    </q-dialog>
   </q-page>
 </template>
 
@@ -195,6 +228,7 @@ import { useQuasar } from 'quasar';
 import { usePersonalFilesStore } from '../stores/personal-files-store';
 import { usePermissions } from 'src/composables/usePermissions';
 import { formatBytes, formatPercent, formatQuota } from '../utils/format-storage';
+import { SHARED_FOLDERS } from '../constants/shared-folders';
 
 const $q = useQuasar();
 const store = usePersonalFilesStore();
@@ -214,9 +248,21 @@ const showMoveDialog = ref(false);
 const moveValue = ref('');
 const movingFile = ref(null);
 
+const showShareDialog = ref(false);
+const shareFolderId = ref(null);
+const sharingFile = ref(null);
+
 const canWrite = computed(() => hasPermission('storage:write'));
 const quotaBytes = computed(() => userStorageQuota.value);
 const visibleFiles = computed(() => store.filteredFiles(search.value));
+
+// Story 5.4: shared folders the current user may share a personal file into.
+const shareableFolders = computed(() =>
+  SHARED_FOLDERS.filter((f) => hasPermission(f.writePermission)),
+);
+const shareableFolderOptions = computed(() =>
+  shareableFolders.value.map((f) => ({ label: f.label, value: f.id })),
+);
 
 onMounted(() => {
   isClient.value = true;
@@ -283,6 +329,20 @@ async function submitMove() {
   await store.moveFile(movingFile.value.$id, moveValue.value);
   showMoveDialog.value = false;
   movingFile.value = null;
+}
+
+function openShareDialog(file) {
+  sharingFile.value = file;
+  shareFolderId.value = shareableFolders.value[0]?.id || null;
+  showShareDialog.value = true;
+}
+
+async function submitShare() {
+  if (!sharingFile.value || !shareFolderId.value) return;
+  await store.shareToFolder(sharingFile.value, shareFolderId.value);
+  showShareDialog.value = false;
+  sharingFile.value = null;
+  shareFolderId.value = null;
 }
 
 function confirmDelete(file) {
