@@ -24,6 +24,7 @@ import {
   Databases,
   TablesDB,
   Storage,
+  Teams,
   Permission,
   Role,
   RelationshipType,
@@ -73,6 +74,19 @@ const client = new Client()
 const databases = new Databases(client);
 const tables = new TablesDB(client);
 const storage = new Storage(client);
+const teams = new Teams(client);
+
+// Teams that must exist for function execute permissions (e.g.
+// `team:village_administrators` used by seedAllData / wipeAllData /
+// storageUsageReport). appwrite.config.json declares these declaratively,
+// but that file is only applied by the Appwrite CLI (`appwrite deploy`),
+// which this script does NOT run. Without creating the team here, the first
+// admin can never be added to it (the checkUsersExist function's
+// `addFirstUserToAdminTeam` action calls teams.createMembership, which 404s
+// if the team doesn't exist), and every function gated on
+// `team:village_administrators` returns 401 "No permissions provided for
+// action 'execute'".
+const teamSchemas = [{ id: 'village_administrators', name: 'Village Administrators' }];
 
 // Story 5.3: Storage buckets (created after tables so metadata table exists first)
 // Story 5.4: added shared_files (same shape as personal_files) — per-file
@@ -1810,12 +1824,89 @@ async function createTable(tableId, schema) {
   }
 }
 
-async function createColumn(tableId, column) {
+// Story 5.7: Helper to fetch the current status of an existing column.
+// Returns the column object (with .status, .type, .elements, etc.) or null.
+async function getColumn(tableId, columnKey) {
   try {
-    const { key, type, size, required, array, elements, default: defaultValue, min, max } = column;
+    const table = await tables.getTable({
+      databaseId: config.databaseId,
+      tableId: tableId,
+    });
+    return (table.columns || []).find((attr) => attr.key === columnKey) || null;
+  } catch (error) {
+    return null;
+  }
+}
 
-    console.log(`   📝 Creating column: ${key} (${type})`);
+// Story 5.7: Delete a column and wait for the deletion to settle.
+// Used to clear `failed` relationship columns so they can be recreated.
+async function deleteColumnAndWait(tableId, columnKey) {
+  try {
+    await tables.deleteColumn({
+      databaseId: config.databaseId,
+      tableId: tableId,
+      key: columnKey,
+    });
+    console.log(`      🗑️  Deleted stale column: ${columnKey}`);
+    // Give Appwrite time to process the deletion before recreating.
+    await new Promise((resolve) => setTimeout(resolve, 3000));
+    return true;
+  } catch (error) {
+    if (error.code === 404) {
+      return true; // already gone — fine
+    }
+    console.log(`      ⚠️  Could not delete column ${columnKey}: ${error.message}`);
+    return false;
+  }
+}
 
+// Story 5.7: Update an existing enum column's elements via updateEnumColumn.
+// Appwrite's createEnumColumn cannot modify an existing column (409), so when
+// the schema adds new enum values (e.g. 'vendor' in buyer_type) we must use
+// the update API to sync the elements.
+async function updateEnumColumn(tableId, column) {
+  const { key, elements, required, default: defaultValue, array } = column;
+  await tables.updateEnumColumn({
+    databaseId: config.databaseId,
+    tableId: tableId,
+    key: key,
+    elements: elements,
+    required: required,
+    xdefault: defaultValue,
+    array: array || false,
+  });
+  console.log(`      🔄 Enum column updated: ${key} (${elements.length} elements)`);
+}
+
+// Story 5.7: Create a single relationship column (extracted from createColumn
+// so it can be reused when recreating a failed column).
+async function createRelationshipColumn(tableId, column) {
+  const { key } = column;
+  await tables.createRelationshipColumn({
+    databaseId: config.databaseId,
+    tableId: tableId,
+    relatedTableId: column.relatedTable,
+    type:
+      column.relationType === 'oneToOne'
+        ? RelationshipType.OneToOne
+        : column.relationType === 'oneToMany'
+          ? RelationshipType.OneToMany
+          : column.relationType === 'manyToOne'
+            ? RelationshipType.ManyToOne
+            : RelationshipType.ManyToMany,
+    twoWay: column.twoWay || false,
+    key: key,
+    twoWayKey: column.twoWayKey,
+    onDelete: column.onDelete,
+  });
+}
+
+async function createColumn(tableId, column) {
+  const { key, type, size, required, array, elements, default: defaultValue, min, max } = column;
+
+  console.log(`   📝 Creating column: ${key} (${type})`);
+
+  try {
     switch (type) {
       case 'string':
         await tables.createStringColumn({
@@ -1890,23 +1981,7 @@ async function createColumn(tableId, column) {
         break;
 
       case 'relationship':
-        await tables.createRelationshipColumn({
-          databaseId: config.databaseId,
-          tableId: tableId,
-          relatedTableId: column.relatedTable,
-          type:
-            column.relationType === 'oneToOne'
-              ? RelationshipType.OneToOne
-              : column.relationType === 'oneToMany'
-                ? RelationshipType.OneToMany
-                : column.relationType === 'manyToOne'
-                  ? RelationshipType.ManyToOne
-                  : RelationshipType.ManyToMany,
-          twoWay: column.twoWay || false,
-          key: key,
-          twoWayKey: column.twoWayKey,
-          onDelete: column.onDelete,
-        });
+        await createRelationshipColumn(tableId, column);
         break;
 
       case 'email':
@@ -1927,11 +2002,66 @@ async function createColumn(tableId, column) {
 
     console.log(`      ✅ Column created: ${key}`);
   } catch (error) {
-    if (error.code === 409) {
-      console.log(`      ⚠️  Column already exists: ${column.key}`);
-    } else {
+    if (error.code !== 409) {
       throw error;
     }
+
+    // Column already exists — check if it's healthy or needs repair.
+    const existing = await getColumn(tableId, key);
+
+    // Story 5.7: Repair `failed` relationship columns by deleting and
+    // recreating them. A failed column is invisible to createRow, causing
+    // "Unknown attribute" errors during seeding.
+    if (type === 'relationship' && existing && existing.status === 'failed') {
+      console.log(`      ⚠️  Column exists but status=failed, repairing: ${key}`);
+      const deleted = await deleteColumnAndWait(tableId, key);
+      if (deleted) {
+        try {
+          await createRelationshipColumn(tableId, column);
+          // Wait for the recreated column to settle and check if it's healthy.
+          await waitForColumnCreation(tableId, key);
+          const repaired = await getColumn(tableId, key);
+          if (repaired && repaired.status === 'available') {
+            console.log(`      ✅ Column recreated: ${key}`);
+          } else {
+            console.log(
+              `      ❌ Column ${key} is still ${repaired?.status || 'missing'} after repair.`,
+            );
+            console.log(
+              `         ⚠️  Appwrite may be blocking the key "${key}" on table "${tableId}".`,
+            );
+            console.log(
+              `         Run: node scripts/rebuild-inventory-table.js (if inventory) or drop/recreate the table manually.`,
+            );
+          }
+        } catch (retryErr) {
+          console.log(`      ❌ Failed to recreate column ${key}: ${retryErr.message}`);
+        }
+      }
+      return;
+    }
+
+    // Story 5.7: Sync enum elements on existing enum columns. Appwrite's
+    // createEnumColumn cannot modify an existing column, so we use
+    // updateEnumColumn to add new values (e.g. 'vendor' in buyer_type).
+    if (type === 'enum' && existing) {
+      const existingElements = existing.elements || [];
+      const schemaElements = elements || [];
+      const hasNew = schemaElements.some((e) => !existingElements.includes(e));
+      if (hasNew) {
+        console.log(`      ⚠️  Column exists, syncing enum elements: ${key}`);
+        try {
+          await updateEnumColumn(tableId, column);
+        } catch (updateErr) {
+          console.log(`      ⚠️  Could not update enum column ${key}: ${updateErr.message}`);
+        }
+      } else {
+        console.log(`      ⚠️  Column already exists: ${key}`);
+      }
+      return;
+    }
+
+    console.log(`      ⚠️  Column already exists: ${key}`);
   }
 }
 
@@ -2021,6 +2151,41 @@ async function createBuckets() {
 }
 
 // Main setup function
+// Create teams required by function execute permissions. Idempotent: skips
+// teams that already exist. Must run before any user is created, because the
+// first admin's onboarding calls checkUsersExist -> teams.createMembership
+// against `village_administrators`, which 404s if the team is missing.
+async function createTeams() {
+  console.log('\n👥 Creating teams...');
+  for (const team of teamSchemas) {
+    try {
+      await teams.get(team.id);
+      console.log(`   ⚠️  Team already exists: ${team.name} (${team.id})`);
+    } catch (error) {
+      if (error.code === 404) {
+        try {
+          await teams.create(team.id, team.name);
+          console.log(`   ✅ Team created: ${team.name} (${team.id})`);
+        } catch (createErr) {
+          // Some Appwrite deployments reject client-supplied team IDs; retry
+          // without one and report the generated ID.
+          if (createErr.message && /teamId/i.test(createErr.message)) {
+            const created = await teams.create(undefined, team.name);
+            console.log(`   ✅ Team created (generated id ${created.$id}): ${team.name}`);
+            console.log(
+              `      ⚠️  Expected id "${team.id}". Update function execute perms to match.`,
+            );
+          } else {
+            throw createErr;
+          }
+        }
+      } else {
+        throw error;
+      }
+    }
+  }
+}
+
 async function setupDatabase() {
   console.log('🚀 Starting Appwrite Database Setup');
   console.log(`   Endpoint: ${config.endpoint}`);
@@ -2041,6 +2206,11 @@ async function setupDatabase() {
       }
       throw error;
     }
+
+    // Create teams required by function execute permissions (e.g.
+    // team:village_administrators). Must exist before the first admin is
+    // onboarded, otherwise checkUsersExist -> teams.createMembership 404s.
+    await createTeams();
 
     // Create all tables first
     console.log('\n📦 Creating all tables...');
@@ -2072,6 +2242,14 @@ async function setupDatabase() {
       for (const column of schema.columns) {
         if (column.type === 'relationship') {
           await createColumn(tableId, column);
+          // Story 5.7: Wait for newly created/recreated relationship columns
+          // to reach `available` status before proceeding. A column in
+          // `creating` or `failed` state is invisible to createRow and causes
+          // "Unknown attribute" errors during seeding.
+          const existing = await getColumn(tableId, column.key);
+          if (existing && existing.status !== 'available') {
+            await waitForColumnCreation(tableId, column.key);
+          }
         }
       }
     }
@@ -2097,6 +2275,7 @@ async function setupDatabase() {
     console.log('   - 150+ columns created/verified (incl. Story 5.4 shared_folder)');
     console.log('   - 25+ indexes created/verified (incl. idx_file_metadata_shared_folder)');
     console.log('   - 2 Storage buckets created/verified (personal_files, shared_files)');
+    console.log('   - Teams created/verified (village_administrators)');
     console.log('   - Permissions configured');
     console.log('\n🎉 You can now test the database connection at /appwrite-test');
     console.log('\n📦 Tables created:');

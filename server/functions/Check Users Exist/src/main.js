@@ -32,7 +32,10 @@ export default async ({ req, res, log, error }) => {
   if (body.action === 'addFirstUserToAdminTeam') {
     const { userId, email, name } = body;
     if (!userId || !email) {
-      return res.json({ success: false, error: 'Missing userId or email' }, 400);
+      return res.json(
+        { success: false, error: 'Missing userId or email' },
+        400
+      );
     }
 
     try {
@@ -41,19 +44,69 @@ export default async ({ req, res, log, error }) => {
 
       // We only allow adding the user to the admin team if they are the first user
       if (userList.total === 1 && userList.users[0].$id === userId) {
+        const teamId = 'village_administrators';
+
+        // Self-heal: ensure the admin team exists before adding membership.
+        // setup-appwrite.js normally creates it, but if the function is run
+        // against a project where `appwrite deploy` was never executed (so
+        // appwrite.config.json's `teams:` block was never applied),
+        // createMembership would 404 here and the admin would silently end up
+        // with no team membership — breaking every function gated on
+        // `team:village_administrators` with 401 "No permissions provided
+        // for action 'execute'".
+        try {
+          await teams.get(teamId);
+        } catch (teamErr) {
+          if (teamErr.code === 404) {
+            log(`Admin team "${teamId}" missing — creating it.`);
+            try {
+              await teams.create(teamId, 'Village Administrators');
+              log(`Created team "${teamId}".`);
+            } catch (createErr) {
+              error(`Failed to create team "${teamId}": ${createErr.message}`);
+              return res.json(
+                {
+                  success: false,
+                  error: `Failed to create admin team: ${createErr.message}`,
+                },
+                500
+              );
+            }
+          } else {
+            error(
+              `Could not verify admin team "${teamId}": ${teamErr.message}`
+            );
+            return res.json(
+              {
+                success: false,
+                error: `Failed to verify admin team: ${teamErr.message}`,
+              },
+              500
+            );
+          }
+        }
+
         log(`Adding first user ${userId} to village_administrators team`);
         await teams.createMembership({
-          teamId: 'village_administrators',
+          teamId,
           roles: ['admin'],
           email,
           userId,
           name: name || 'System Administrator',
         });
         log('Successfully added user to team.');
-        return res.json({ success: true, message: 'Added first user to village_administrators team' });
+        return res.json({
+          success: true,
+          message: 'Added first user to village_administrators team',
+        });
       } else {
-        log(`Refusing to add user ${userId} to team. Users total: ${userList.total}`);
-        return res.json({ success: false, error: 'Not authorized or not the first user' }, 403);
+        log(
+          `Refusing to add user ${userId} to team. Users total: ${userList.total}`
+        );
+        return res.json(
+          { success: false, error: 'Not authorized or not the first user' },
+          403
+        );
       }
     } catch (err) {
       error('Error adding user to team: ' + err.message);

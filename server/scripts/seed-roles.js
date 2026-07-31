@@ -251,12 +251,12 @@ const defaultRoles = [
     permissions: ['school:read', 'profile:read', 'profile:write', 'storage:read', 'storage:write'],
     storage_quota: 1,
   },
-  {
-    name: 'Guest',
-    category: 'resident',
-    permissions: ['profile:read', 'storage:read', 'storage:write'],
-    storage_quota: 0.5,
-  },
+  // {
+  //   name: 'Guest',
+  //   category: 'resident',
+  //   permissions: ['profile:read', 'storage:read', 'storage:write'],
+  //   storage_quota: 0.5,
+  // },
 ];
 
 // ============================================
