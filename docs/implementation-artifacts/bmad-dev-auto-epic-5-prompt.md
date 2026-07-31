@@ -1,4 +1,4 @@
-# /bmad-dev-auto Prompt — Epic 5 Remaining Stories (5.4 → 5.14)
+# /bmad-dev-auto Prompt — Epic 5 Remaining Stories (5.7 → 5.14)
 
 > **Usage:** Copy everything below the `---` line into a fresh `/bmad-dev-auto` invocation.
 > **Adapting for subsequent iterations:** Change ONLY the three sections marked
@@ -15,9 +15,9 @@ You are running bmad-dev-auto for the Sustainable Model Village Management Syste
 ## Current Iteration Target <<< CHANGE PER ITERATION >>>
 
 Epic: 5 — "Village Calendar, Storage, Optional Modules, and User Management"
-Story to implement THIS iteration: 5.4 — Cloud Storage - Shared Folders and Module-Based Access
+Story to implement THIS iteration: 5.7 — Vendors/Suppliers Management Module
 Epic context file to load/compile: {implementation_artifacts}/epic-5-context.md
-Spec file to produce: {implementation_artifacts}/spec-5-4-cloud-storage-shared-folders-and-module-based-access.md
+Spec file to produce: {implementation_artifacts}/spec-5-7-vendors-suppliers-management-module.md
 
 If the spec file already exists with status `draft`, resume it. If it exists with any other status, do NOT overwrite — HALT with blocking condition `spec already in progress/done; user decision required`.
 
@@ -28,8 +28,8 @@ MVP stories, in dependency order (stories marked ✅ are done; ← THIS ITERATIO
 1. ✅ 5.1 Village Calendar - Global Calendar with Category Filtering (deps: Epic 1) — DONE 2026-07-28
 2. ✅ 5.2 Village Calendar - Role-Based Event Creation and Editing (deps: 5.1) — DONE 2026-07-29
 3. ✅ 5.3 Cloud Storage - Role-Based Storage Quotas and Personal Folders (deps: 1.10) — DONE 2026-07-30
-4. 5.4 Cloud Storage - Shared Folders and Module-Based Access (deps: 5.3) ← THIS ITERATION
-5. 5.7 Vendors/Suppliers Management Module (deps: 2.2, 2.3, 3.8 — all done)
+4. ✅ 5.4 Cloud Storage - Shared Folders and Module-Based Access (deps: 5.3) — DONE 2026-07-31
+5. 5.7 Vendors/Suppliers Management Module (deps: 2.2, 2.3, 3.8 — all done) ← THIS ITERATION
 6. 5.9 Module Management and Configuration (deps: all MVP previous)
 7. 5.14 Authentication Completeness - Password Change and Reset (deps: 1.3, 1.11)
 8. 5.12 User Management - CRUD Operations (deps: 1.4, 1.11)
@@ -39,60 +39,75 @@ MVP stories, in dependency order (stories marked ✅ are done; ← THIS ITERATIO
 
 DEFERRED (post-MVP — out of scope, do NOT implement, do NOT add toggles for them): 5.5 Guests, 5.6 Equipment, 5.8 Energy, 4.9–4.11.
 
-## Story 5.4 Specifics <<< CHANGE PER ITERATION >>>
+## Story 5.7 Specifics <<< CHANGE PER ITERATION >>>
 
-Intent: A module manager gets shared storage folders for their team (Finance Shared, Farm Shared, School Shared, Village Documents, Admin Only) with role-based read-only/read-write access, a "Share to Folder" workflow from personal files, and an admin storage-settings page for viewing all users' usage, adjusting quotas, and running storage reports. This is the second and final storage story — it builds directly on the personal-files infrastructure from Story 5.3.
+Intent: A Finance Manager can track vendors and suppliers (buyers and sellers) with a full CRUD vendors module — vendor list, add/edit vendor form (name, type, business type, contact info, payment terms, quality rating), vendor detail page with transaction history and performance metrics, vendor selection integration into farm sales (buyer dropdown) and finance expenses (vendor dropdown), automatic vendor transaction history updates, and a vendors dashboard widget. This is a new top-level module (`src/modules/vendors/`) with its own nav section, routes, store, and RBAC permissions.
 
-ACs (from docs/epics.md Story 5.4 — treat as authoritative):
+ACs (from docs/epics.md Story 5.7 — treat as authoritative):
 
-1. Shared folders: Finance Shared, Farm Shared, School Shared, Village Documents, Admin Only.
-2. Shared folder permissions: read-only, read-write, role-based access.
-3. File sharing workflow: "Share to Folder" from personal folder.
-4. Storage settings (Admin): view all users' usage, adjust quotas, storage reports.
+1. Vendors module enabled via settings.
+2. Vendors list, "Add Vendor" form: name, vendor type (Supplier/Buyer/Both), business type, contact info, payment terms, quality rating.
+3. Vendor detail page: transaction history, performance metrics.
+4. Vendor selection integration: Farm sales buyer dropdown, Finance expenses vendor dropdown.
+5. Vendor transaction history automatically updated.
+6. Vendors dashboard widget.
 
-Prerequisites confirmed done: Story 5.3 (status `done` per docs/sprint-status.yaml — personal storage, quotas, `personal_files` bucket, `file_metadata` table, `StoragePage`, `useFileUpload`, `personal-files-store`). No spec file exists yet for 5.4.
+Prerequisites confirmed done: Story 2.2 (expense recording — `done`), Story 2.3 (admin-configurable categories — `done`), Story 3.8 (farm sales with finance+inventory integration — `done`). All confirmed via docs/sprint-status.yaml. No spec file exists yet for 5.7.
 
-Continuity context from prior work (load the 5.3 spec's Auto Run Result and Design Notes for established patterns):
+**AC1 — "enabled via settings" interpretation (user-confirmed 2026-07-31):** 5.7 implements a basic settings flag that gates the Vendors module nav/routes. This is a simple boolean toggle in `village_settings` (e.g. `vendors_enabled` column, default `true`) checked by `settingsStore` and used in `MainLayout.vue` / route guards. Story 5.9 (Module Management) will later generalize this into the full Module Management page with toggle UI for all optional modules (Farm, School, Vendors). 5.7 does NOT build the `/admin/modules` page — that is 5.9 scope. The toggle for Vendors in 5.7 is a settings-store flag only, not a UI page.
 
-- `src/modules/storage/` — the storage module already exists with `pages/StoragePage.vue`, `stores/personal-files-store.js`, `router.js`, `utils/format-storage.js`. 5.4 extends this module — add shared-folders pages/components/stores alongside the existing personal-files code, do not replace it.
-- `src/composables/useFileUpload.js` — `createUpload(bucketId, file, options)` already handles per-user file permissions, quota pre-check, and progress. 5.4 reuses this for shared-folder uploads; the bucket ID and permission model differ (shared bucket + role-based permissions instead of per-user).
-- `src/modules/storage/stores/personal-files-store.js` — Pinia options-store pattern with `fetchFiles`, `uploadFiles`, `renameFile`, `moveFile`, `deleteFile`, `getDownloadUrl`, getters `filteredFiles`/`usagePercent`/`isOverQuota90`. 5.4 follows the same pattern for a new `shared-files-store.js`. The existing `moveFile` already blocks `/shared*` paths — 5.4 lifts that restriction and implements the actual shared-folder move.
-- `server/scripts/setup-appwrite.js` — `personal_files` bucket created with `fileSecurity: true` and empty bucket-level permissions; `file_metadata` table created with row-level security (`rowSecurity: true`, `Permission.create(Role.users())` table-level, per-user `read/update/delete` row permissions). 5.4 adds a `shared_files` bucket (or reuses `personal_files` with a `folder_path` convention — choose and document) and extends `file_metadata` with a `shared_folder` column or a separate `shared_file_metadata` table. Follow the existing `bucketSchemas`/`createBuckets` and `tableSchemas`/`createTable` patterns.
-- `server/scripts/seed-roles.js` — all roles already have `storage:read` and `storage:write`. 5.4 may need new permissions like `storage:admin` (for the admin storage-settings page) or `storage:share` (for the Share-to-Folder workflow) — add them to appropriate roles and document the decision. The existing role categories (`administration`, `council`, `farm`, `school`, `resident`) map naturally to the shared-folder access tiers.
-- `src/utils/permissions.js` / `src/composables/usePermissions.js` — `hasPermission`, `hasAnyPermission`, `getUserStorageQuota` already exist. 5.4 reuses these for shared-folder access checks (e.g., `hasPermission('storage:finance:write')` or a role-category-based check — choose and document).
-- `src/layouts/MainLayout.vue` — the Services section already has a `/storage` nav item. 5.4 adds a `/storage/shared` nav item (or a sub-route) and an `/admin/storage` nav item for the admin settings page, both gated on appropriate permissions.
-- `src/modules/storage/router.js` — currently defines only the `/storage` route. 5.4 adds `/storage/shared` and `/admin/storage` routes with appropriate `requiresAuth` + `requiresPermission` guards.
-- `src/modules/storage/utils/format-storage.js` — `formatBytes`, `formatPercent`, `formatQuota` already exist. 5.4 reuses these for the admin usage reports.
-- `src/modules/storage/pages/StoragePage.vue` — the personal-files page. 5.4 adds a "Share to Folder" action to each file row (opens a dialog to pick a shared folder) and may add a tab/section for shared folders. Do not break the existing personal-files UX.
-- `wipeAllData` function (`server/functions/wipeAllData/src/main.js`) — already wipes the `personal_files` bucket and `file_metadata` table. 5.4 MUST add the `shared_files` bucket (if a separate bucket is used) to the bucket-wipe list and any new tables to `TABLES_TO_WIPE`.
+**Data model — user-confirmed 2026-07-31:** This is a fresh install / greenfield project. No data migration is needed. Replace the free-text `vendor` field on `finance_transactions` with a `vendor_id` FK relationship to the new `vendors` table. Wire the existing `farm_sales.buyer_id` and `buyer_type` columns to the vendors table (buyer_type becomes `'vendor'` when a vendor is selected, `'external'` for ad-hoc buyers). The existing `buyer_name` on `farm_sales` remains as a denormalized display field. Old sample-data rows that used the free-text `vendor` field will be re-seeded (sample data composables will be updated to use vendor IDs).
 
-New data model required: 5.4 introduces shared folders. Key design decisions for the spec to resolve:
+Continuity context from prior work (load the 5.4 spec's Auto Run Result and Design Notes for established patterns):
 
-- **Shared folder representation:** A separate `shared_files` bucket with role-based permissions, OR the same `personal_files` bucket with a `folder_path` convention (e.g. `/shared/finance/...`). A separate bucket is cleaner for permissions; a shared bucket is simpler for move operations. Document the choice and its trade-offs.
-- **Shared folder permissions:** Map the 5 shared folders to role-based access. Suggested mapping (confirm against AC2 and PRD FR-6): Finance Shared → Finance Manager (write), Council Member/Village Head/Deputy (read); Farm Shared → Farm Manager/Crop Manager (write), Council (read); School Shared → School Administrator/Head Teacher/Teacher (write), Council (read); Village Documents → Council Member/Village Head/Deputy (write), all residents (read); Admin Only → System Administrator (read+write). Use Appwrite `Role.role(<role-name>)` or a custom permission scheme — document the approach.
-- **Share-to-Folder workflow:** From a personal file row, user clicks "Share to Folder", picks a target shared folder, the file is copied (or moved) to the shared bucket/folder with the shared-folder's permissions. Decide copy-vs-move and document.
-- **Admin storage settings page:** `/admin/storage` — System Administrator only (`storage:admin` permission or `*` wildcard). Lists all users with their usage (sum of `file_metadata.size` grouped by `owner_id`), their quota, and an inline quota-override field (updates `users.storage_quota` — the column already exists in the schema). Storage reports: a simple table or CSV export of per-user usage. No charts required for MVP unless trivially available.
-- **Quota overrides:** The `users.storage_quota` column already exists (double, min -1, default 2). 5.4 wires it into `getUserStorageQuota` as a per-user override that takes precedence over the role-based quota. Document the precedence: per-user override > role-based quota > fallback map.
+- `src/modules/farm/` — the Farm module is the most recent full-module example (Epics 3 + 5.4). It has `pages/`, `components/`, `stores/farm-store.js`, `router.js`, `utils/`. 5.7 follows the same structure under `src/modules/vendors/`.
+- `src/modules/farm/stores/farm-store.js` — large Pinia options-store with `useErrorHandler`, CRUD actions, getters, cross-module integration (calls `useFinanceStore`). 5.7's `vendors-store.js` follows the same pattern but is simpler (no three-way integration). The store should have `fetchVendors`, `fetchVendorById`, `createVendor`, `updateVendor`, `deleteVendor`, `fetchVendorTransactions` (aggregates finance transactions + farm sales by vendor_id).
+- `src/modules/farm/router.js` — route definitions with `requiresAuth` + `requiresPermission` guards. 5.7 adds `/vendors`, `/vendors/add`, `/vendors/:id`, `/vendors/:id/edit` routes with `vendors:read` / `vendors:write` permissions.
+- `src/modules/finance/components/TransactionForm.vue` — the expense form currently has a free-text `vendor` q-input (lines 338-345, formData.vendor at line 492, submitData.vendor at line 839). 5.7 replaces this with a vendor picker (q-select with filterable dropdown of vendors, plus an "ad-hoc" free-text fallback option). The form submits `vendor_id` (FK to vendors table) instead of `vendor` (free-text string).
+- `src/modules/finance/stores/finance-store.js` — `createTransaction`/`updateTransaction` currently set `data.vendor = transactionData.vendor || null` (lines 1076, 1199). 5.7 changes these to set `data.vendor_id = transactionData.vendor_id || null` and removes the `data.vendor` line.
+- `src/modules/farm/components/RecordSaleDialog.vue` — the farm sale form has a `buyer_name` q-input (line 49-55). 5.7 adds an optional vendor picker (q-select) alongside or replacing the buyer_name field. When a vendor is selected, `buyer_id` is set to the vendor's `$id`, `buyer_type` to `'vendor'`, and `buyer_name` is auto-populated from the vendor's name. When no vendor is selected (ad-hoc buyer), `buyer_type` stays `'external'`, `buyer_id` stays empty, and `buyer_name` is the free-text input.
+- `src/modules/farm/stores/farm-store.js` — `recordSale` (around line 2798-2805) currently hard-codes `buyer_type: 'external'`, `buyer_id: ''`. 5.7 updates this to use the form's `buyer_id` and `buyer_type` values from the vendor picker.
+- `server/scripts/setup-appwrite.js` — `finance_transactions` table has a `vendor` string column (line 744). 5.7 replaces this with a `vendor_id` relationship column (manyToOne → `vendors`). `farm_sales` table already has `buyer_type` (enum) and `buyer_id` (string) columns (lines 941-945). 5.7 changes `buyer_id` to a relationship column (manyToOne → `vendors`) or keeps it as a string and sets it to the vendor `$id` — choose and document. A new `vendors` table is created following the existing `tableSchemas`/`createTable` pattern.
+- `server/scripts/seed-roles.js` — all roles are defined with `permissions` arrays and `storage_quota`. 5.7 adds new `vendors:read` and `vendors:write` permissions to appropriate roles: Finance Manager (read+write), System Administrator (\*), Village Head (read), Deputy Village Head (read), Council Member (read). Farm Manager gets `vendors:read` (can select buyers in farm sales). Other roles do not get vendor access by default.
+- `src/layouts/MainLayout.vue` — nav sections for Farm, School, Finance, Storage, Calendar already exist. 5.7 adds a top-level "Vendors" nav section with "Vendor List" (`/vendors`) entry, gated on `vendors:read` permission AND `settingsStore.vendorsEnabled` flag.
+- `src/router/routes.js` — spreads module route arrays. 5.7 adds `...vendorRoutes`.
+- `src/composables/useSampleData.js` — the main sample data composable. 5.7 adds vendor sample data (3-5 vendors: a cooperative buyer, an agro-dealer supplier, a local market buyer, a transport supplier) and updates existing finance/farm sample data to reference vendor IDs instead of free-text vendor names. The `useFinanceSampleData.js` composable's expense rows that currently set `vendor: 'Some Supplier'` must be updated to set `vendor_id: <vendor-$id>`.
+- `src/composables/useFarmSampleData.js` — farm sample data. The `additional_sale` flow (maize sample sale) currently uses `buyer_name: 'Local Market'` — 5.7 updates it to use a vendor_id from the seeded vendors.
+- `src/stores/settings-store.js` — Pinia options-store for `village_settings`. 5.7 adds a `vendorsEnabled` getter (reads `settings.vendors_enabled`, default `true`) and may add a `setVendorsEnabled` action if an admin toggle is needed before 5.9.
+- `wipeAllData` function (`server/functions/wipeAllData/src/main.js`) — 5.7 MUST add the `vendors` table to `TABLES_TO_WIPE`.
+- `docs/DATABASE_SCHEMA.md` — 5.7 adds a Vendors table section documenting the table, columns, relationships, and indexes.
+- `docs/POST-MVP.md` — the "Vendor Module Integration for Farm Sales (Story 3.8)" entry (lines 129-139) is now being implemented — remove or mark it as resolved.
+
+New data model required: 5.7 introduces a `vendors` table. Key schema:
+
+- `vendors` table: `name` (string, required), `vendor_type` (enum: 'Supplier' | 'Buyer' | 'Both', required), `business_type` (string, optional — e.g. 'Agro-dealer', 'Transport', 'Cooperative', 'Market'), `contact_person` (string, optional), `phone` (string, optional), `email` (string, optional), `address` (string, optional), `payment_terms` (string, optional — e.g. 'Cash on delivery', 'Net 30', 'Prepaid'), `quality_rating` (integer 1-5, optional — 0 or null means unrated), `notes` (string, optional), `is_active` (boolean, default true), `created_at`/`updated_at` (datetime, auto-managed). Indexes on `vendor_type` and `is_active`.
+- `finance_transactions.vendor_id` — relationship (manyToOne → `vendors`, onDelete: setNull). Replaces the existing free-text `vendor` string column. Since this is a fresh install, no migration — just re-run setup-appwrite.
+- `farm_sales.buyer_id` — change from string to relationship (manyToOne → `vendors`, onDelete: setNull) OR keep as string and store the vendor `$id` — the spec should choose and document. `buyer_type` enum should add `'vendor'` as a value (currently only `'external'`).
 
 Key design decisions for the spec to resolve:
 
-- Separate `shared_files` bucket vs. shared-folder paths in `personal_files`.
-- Permission model for shared folders: Appwrite `Role.role()` vs. custom `storage:<folder>:<read|write>` permissions in `seed-roles.js`.
-- Share-to-Folder: copy vs. move semantics.
-- Admin quota override precedence and UI.
-- Whether shared-folder files count against the uploader's personal quota or a separate shared quota (recommend: shared files count against the uploader's personal quota to keep MVP simple — document this).
+- Vendor picker UX in TransactionForm: q-select with filterable list + "ad-hoc" free-text fallback option (so users can still type a one-off vendor name without creating a vendor record), OR require a vendor record to exist first (q-select only, with an inline "Add Vendor" shortcut). Recommend: q-select with filterable list + an "ad-hoc" option that falls back to a free-text input — document the choice.
+- Vendor picker UX in RecordSaleDialog: same pattern as TransactionForm — vendor q-select + ad-hoc buyer_name fallback. When a vendor is selected, buyer_name auto-populates from vendor.name.
+- Vendor transaction history: the vendor detail page aggregates (a) finance_transactions where `vendor_id = this vendor` (expenses) and (b) farm_sales where `buyer_id = this vendor` (sales). Display as a combined chronological list with type indicators. No separate transaction table — history is computed on-the-fly from existing tables.
+- Vendor performance metrics: for MVP, keep it simple — total transaction count, total transaction value (sum of expenses + sales), average quality rating (if rated), last transaction date. No complex on-time-delivery or payment-reliability metrics for MVP (those require additional data points not available yet — document as deferred to POST-MVP).
+- Vendors dashboard widget: follows `dashboard-widget-pattern.md`. Shows vendor count, active vendors, recent transactions (top 5), and a link to the full vendors list. Place on the main Dashboard page or the Finance dashboard — the spec should decide and document.
+- Whether to add a `vendors` sample data composable or inline the vendor seeding into `useSampleData.js` — follow the existing pattern (useSampleData.js coordinates, useFinanceSampleData.js handles finance-specific seeding; 5.7 may create `useVendorsSampleData.js` or inline into `useSampleData.js`).
+- Module toggle: `village_settings.vendors_enabled` boolean column (default `true`). `settingsStore` exposes `vendorsEnabled` getter. `MainLayout.vue` gates the Vendors nav section on both `vendors:read` permission AND `vendorsEnabled`. Route guards also check `vendorsEnabled`. No admin UI for toggling — that is 5.9 scope. Document that 5.9 will generalize this into the full Module Management page.
 
 ## Planning Artifacts to Load
 
 Authoritative sources (load via compile-epic-context subagent for epic-5-context.md if not already compiled, plus selectively for story-specific constraints):
 
-- docs/epics.md — Story 5.4 ACs and Epic 5 story list
-- docs/PRD.md — FR-6 (Cloud Storage: role-based quotas, personal/shared folders, file operations, usage indicators, admin quota adjustments)
-- docs/architecture.md — Appwrite patterns, RBAC, data model conventions (note: architecture.md has no storage-specific section — use epic-5-context.md Technical Decisions for storage guidance)
-- docs/ux-specification.md — no storage-specific screen specs exist; follow general UX patterns and the storage interaction notes in epic-5-context.md UX & Interaction Patterns section
-- docs/implementation-artifacts/spec-5-3-cloud-storage-role-based-storage-quotas-and-personal-folders.md — 5.3 spec (continuity context: Auto Run Result, Design Notes, deferred items — 5.4 builds directly on the personal-files infrastructure)
-- docs/implementation-artifacts/epic-5-context.md — compiled epic context (reuse if valid; see step-01 rules; contains Storage requirements and Technical Decisions for bucket/composable approach)
-- docs/implementation-artifacts/deferred-work.md — carry-forward items including the i18n deferral decision and 5.3 deferred items (server-side quota hardening, 500-row pagination cap, seed-role migration)
+- docs/epics.md — Story 5.7 ACs and Epic 5 story list
+- docs/PRD.md — FR-14 (Vendors/Suppliers Management: bidirectional relationships, contact info, payment terms, quality ratings, transaction history linking Finance and Farm, vendor selection during farm sales and finance expense recording), FR-9 (Farm Sales: buyer selection from Vendors module, vendor transaction history update), FR-16 (sample data includes vendors)
+- docs/architecture.md — Appwrite patterns, RBAC, data model conventions, module structure conventions
+- docs/ux-specification.md — no vendor-specific screen specs exist; follow general UX patterns and the module structure of existing modules (Farm, School, Finance)
+- docs/implementation-artifacts/spec-5-4-cloud-storage-shared-folders-and-module-based-access.md — 5.4 spec (continuity context: Auto Run Result, Design Notes, deferred items — most recent Epic 5 story, shows established patterns for new module creation, seed-roles.js updates, setup-appwrite.js table creation, wipeAllData updates)
+- docs/implementation-artifacts/epic-5-context.md — compiled epic context (reuse if valid; see step-01 rules)
+- docs/implementation-artifacts/deferred-work.md — carry-forward items including the i18n deferral decision and prior story deferred items
+- docs/implementation-artifacts/dashboard-widget-pattern.md — mandatory pattern for the Vendors dashboard widget (AC6)
+- docs/DATABASE_SCHEMA.md — existing schema documentation; 5.7 adds a Vendors table section following the existing pattern
+- docs/POST-MVP.md — contains the "Vendor Module Integration for Farm Sales (Story 3.8)" deferred item that 5.7 now implements — remove or mark as resolved
 
 Do NOT load POST-MVP.md as a primary source — it lists deferred modules only. Use it only to confirm a feature is deferred when in doubt.
 
@@ -102,7 +117,7 @@ Do NOT load POST-MVP.md as a primary source — it lists deferred modules only. 
 - Backend: Appwrite v21.2.1 (Database, Auth, Storage, Functions).
 - State: Pinia. Date/Time: date-fns + date-fns-tz (village timezone from `settingsStore.timezone`, default `Africa/Lusaka`). Charts: Chart.js v4.5.1. Calendar: vue-cal v5 (`^5.0.1-rc.33`).
 - Normalized ID-based relationships; composable error handling (useErrorHandler); custom form validation integrated with error handler.
-- RBAC: `src/utils/permissions.js`, `src/composables/usePermissions.js` (`hasPermission('storage:read')`, `hasPermission('storage:write')`), route guards, PermissionGuard — reuse, do not reinvent. 5.4 may add new `storage:admin` / `storage:share` permissions to `seed-roles.js` — document the decision.
+- RBAC: `src/utils/permissions.js`, `src/composables/usePermissions.js` (`hasPermission('vendors:read')`, `hasPermission('vendors:write')`), route guards, PermissionGuard — reuse, do not reinvent. 5.7 adds new `vendors:read` / `vendors:write` permissions to `seed-roles.js` — document the decision.
 - Dashboard widgets: follow docs/implementation-artifacts/dashboard-widget-pattern.md exactly.
 - No new dependencies without verifying they're already in package.json. If a new dep is truly required, HALT with blocking condition `new dependency required: <name> — user approval needed`.
 - Match existing code style in src/pages/, src/stores/, src/composables/, src/services/, src/modules/. Read neighboring modules (e.g. src/modules/school/, src/modules/farm/, src/modules/calendar/, src/modules/storage/) before scaffolding.
@@ -136,14 +151,13 @@ Do NOT invent requirements. Do NOT pull scope from other stories into this itera
 - Follow the spec's task list in order. Do not reorder.
 - Reuse existing composables, stores, services, and RBAC utilities. Do not duplicate.
 - Vue 3 `<script setup>` only. No Options API. No `this`.
-- SSR-safe: any Appwrite Storage/TablesDB access must be guarded for SSR; follow the `isClient` pattern used in existing pages (e.g. StoragePage.vue, CalendarPage.vue, SchoolCalendarPage.vue).
-- Quasar components for all UI primitives (q-btn, q-input, q-uploader, q-file, q-dialog, q-linear-progress, q-chip, q-table, q-select, q-banner, etc.). No raw HTML controls.
-- New Appwrite table definitions go in `server/scripts/setup-appwrite.js` following the existing pattern (attributes, permissions, indexes). New Appwrite Storage bucket definitions also go in `server/scripts/setup-appwrite.js` using the Storage API (createBucket with appropriate permissions) and the existing `bucketSchemas`/`createBuckets` pattern.
-- Pinia stores follow the existing options-store pattern (state, getters, actions) with `useErrorHandler` for error handling. Follow `personal-files-store.js` as the template for a new `shared-files-store.js`. Storage file operations use `storage.createFile`/`storage.getFileDownload`/`storage.deleteFile`/`storage.updateFile` from the Appwrite Storage API (imported from `src/boot/appwrite.js`). Metadata table operations use `tables.listRows`/`tables.createRow`/`tables.updateRow`/`tables.deleteRow` from the Appwrite TablesDB API.
+- SSR-safe: any Appwrite TablesDB access must be guarded for SSR; follow the `isClient` pattern used in existing pages (e.g. FarmDashboardPage.vue, LearnersListPage.vue, FinanceDashboardPage.vue).
+- Quasar components for all UI primitives (q-btn, q-input, q-select, q-dialog, q-chip, q-table, q-banner, q-rating, etc.). No raw HTML controls.
+- New Appwrite table definitions go in `server/scripts/setup-appwrite.js` following the existing pattern (attributes, permissions, indexes). The `vendors` table follows the same `tableSchemas`/`createTable` pattern used for all existing tables.
+- Pinia stores follow the existing options-store pattern (state, getters, actions) with `useErrorHandler` for error handling. Follow `farm-store.js` or `school-store.js` as the template for a new `vendors-store.js`. Table operations use `tables.listRows`/`tables.createRow`/`tables.updateRow`/`tables.deleteRow` from the Appwrite TablesDB API (imported from `src/boot/appwrite.js`).
 - Date handling: all dates stored as ISO 8601 in Appwrite; display via `src/utils/dateUtils.js` (`toDateStrInTimezone`, `formatDateInTimezone`, `addDaysToDateStr`) with `settingsStore.timezone`.
-- Quota validation: reuse the client-side pre-check pattern from `personal-files-store.js` for shared-folder uploads. If shared files count against the uploader's personal quota (recommended for MVP), the same `getUserStorageQuota` check applies.
-- Permission checks in templates: use `hasPermission('storage:read')`, `hasPermission('storage:write')`, and any new permissions (e.g. `storage:admin`, `storage:share`) from `usePermissions` composable to gate UI. Use `PermissionGuard` component where appropriate.
-- `wipeAllData` function (`server/functions/wipeAllData/src/main.js`) — if 5.4 adds a new `shared_files` bucket, add it to the bucket-wipe section. If 5.4 adds new tables, add them to `TABLES_TO_WIPE`.
+- Permission checks in templates: use `hasPermission('vendors:read')`, `hasPermission('vendors:write')` from `usePermissions` composable to gate UI. Use `PermissionGuard` component where appropriate.
+- `wipeAllData` function (`server/functions/wipeAllData/src/main.js`) — 5.7 adds the `vendors` table to `TABLES_TO_WIPE`.
 - No emojis in code or UI unless an existing module already uses them.
 
 ## Review (step-04) — Full Adversarial
@@ -154,24 +168,26 @@ Run the full adversarial review pass per the skill's step-04:
 - Edge Case Hunter: walk every branching path and boundary.
 - Acceptance Auditor: map each AC to concrete code/test evidence; flag any AC with no evidence.
 
-### Review invariants for Story 5.4 <<< CHANGE PER ITERATION >>>
+### Review invariants for Story 5.7 <<< CHANGE PER ITERATION >>>
 
-Specific invariants the review MUST verify for 5.4:
+Specific invariants the review MUST verify for 5.7:
 
-- All 5 shared folders exist and are accessible to the correct roles: Finance Shared, Farm Shared, School Shared, Village Documents, Admin Only. Role-to-folder access matches the spec's documented mapping (read-only vs. read-write per role).
-- Shared folder permissions are enforced: a user without read access to a shared folder cannot list or download its files; a user without write access cannot upload to it. Enforcement is via Appwrite permissions (not just client-side guards) where feasible — document any client-side-only enforcement as deferred.
-- "Share to Folder" workflow works from a personal file: user can share a file from their personal folder to a shared folder they have write access to. The file becomes accessible to other users with read access to that shared folder.
-- Admin storage settings page (`/admin/storage`) shows all users with their current usage, quota, and quota-override field. Only System Administrator can access it. Quota overrides persist to `users.storage_quota` and take effect immediately (next `getUserStorageQuota` call respects the override).
-- Storage reports: admin can view a per-user usage report (table or CSV). No charts required for MVP.
-- The existing personal-files UX from 5.3 is not broken — personal files still upload, list, search, rename, move, delete, and download as before.
-- `wipeAllData` is updated to wipe any new buckets/tables added by 5.4.
-- No shared-folder file operations leak across users/roles (e.g., a Farm Manager cannot see Admin Only files).
-- Quota accounting is consistent: if shared files count against personal quota, the admin usage report reflects total usage (personal + shared). If shared files have a separate quota, document it.
-- The `moveFile` restriction in `personal-files-store.js` that blocks `/shared*` paths is lifted or replaced with the actual shared-folder move logic — no dead code left behind.
+- The `vendors` table exists in Appwrite with all required columns (name, vendor_type enum, business_type, contact info, payment terms, quality_rating, is_active) and indexes on vendor_type + is_active. The `finance_transactions.vendor` free-text column is replaced by `vendor_id` relationship → vendors. The `farm_sales.buyer_type` enum includes `'vendor'` and `buyer_id` is wired to vendors.
+- Vendors list page (`/vendors`) shows all vendors with search/filter by vendor_type. "Add Vendor" and "Edit Vendor" forms work with all AC2 fields. Form validation is integrated with `useErrorHandler`.
+- Vendor detail page (`/vendors/:id`) shows vendor info, transaction history (combined finance expenses + farm sales where vendor_id/buyer_id matches), and performance metrics (count, total value, avg rating, last transaction date).
+- Vendor selection integration: the Finance expense form (TransactionForm.vue) has a vendor picker (q-select) that populates `vendor_id` — the old free-text `vendor` field is gone. The Farm sales form (RecordSaleDialog.vue) has a vendor picker for the buyer — selecting a vendor sets `buyer_id`, `buyer_type='vendor'`, and auto-populates `buyer_name`. Ad-hoc/free-text entry still works for both forms (buyer_type stays 'external' for ad-hoc farm sales, vendor_id is null for ad-hoc finance expenses).
+- Vendor transaction history is automatically updated: when a new finance expense with a vendor_id is created, it appears in that vendor's transaction history. When a new farm sale with a buyer_id (vendor) is created, it appears in that vendor's transaction history. No manual sync needed — history is computed on-the-fly from existing tables.
+- Vendors dashboard widget follows `dashboard-widget-pattern.md` and shows vendor count + recent transactions. It is placed on the appropriate dashboard page (spec decides which).
+- `vendors:read` and `vendors:write` permissions are added to `seed-roles.js` for appropriate roles (Finance Manager: read+write, System Administrator: \*, Village Head/Deputy/Council Member: read, Farm Manager: read). Route guards and UI gating use these permissions.
+- The Vendors nav section in `MainLayout.vue` is gated on BOTH `vendors:read` permission AND `settingsStore.vendorsEnabled` flag. When `vendors_enabled` is false in village_settings, the nav section and routes are hidden/inaccessible.
+- `wipeAllData` is updated to wipe the `vendors` table.
+- Sample data: `useSampleData.js` (or a new `useVendorsSampleData.js`) seeds 3-5 realistic vendors. Existing finance/farm sample data is updated to reference vendor IDs instead of free-text vendor names. The sample data flow works end-to-end (SetupWizard → seed vendors → seed finance/farm with vendor IDs).
+- The existing finance expense and farm sales UX is not broken — expenses still create, list, edit, and delete correctly; farm sales still record, list, and show detail correctly. The only change is the vendor field is now a picker instead of free-text.
+- `DATABASE_SCHEMA.md` is updated with the Vendors table section.
+- `docs/POST-MVP.md` "Vendor Module Integration for Farm Sales (Story 3.8)" entry is removed or marked as resolved.
+- No vendor CRUD operations leak across permissions (e.g., a Teacher without `vendors:read` cannot see the Vendors nav or access `/vendors`).
 
-**5.7 (Vendors/Suppliers):** VendorsPage at `/vendors`. Vendor form: name, type (supplier/buyer/both), contact, phone, email, address, payment terms, notes. Vendor list with search/filter by type. Vendor detail page with transaction history (linked finance transactions + farm sales). Farm-sales buyer dropdown and finance-expense vendor dropdown integrate vendor selection. Dashboard widget: vendor count + recent transactions. Deps: 2.2, 2.3, 3.8 — all done.
-
-**5.9 (Module Management):** Admin page at `/admin/modules`. Core modules always enabled (Residents, Households, Finance, Inventory, Calendar, Storage). Optional MVP modules toggleable: Farm, School, Vendors ONLY (NOT Guests/Equipment/Energy — deferred). Toggle hides nav/widgets but preserves data. Dependency warning on disable. Updates `settingsStore.modulesEnabled`. Dep: all MVP previous stories.
+**5.9 (Module Management):** Admin page at `/admin/modules`. Core modules always enabled (Residents, Households, Finance, Inventory, Calendar, Storage). Optional MVP modules toggleable: Farm, School, Vendors ONLY (NOT Guests/Equipment/Energy — deferred). Toggle hides nav/widgets but preserves data. Dependency warning on disable. Updates `settingsStore.modulesEnabled`. Generalizes the basic `vendors_enabled` flag from 5.7 into the full module toggle system. Dep: all MVP previous stories.
 
 **5.14 (Auth Completeness):** ProfilePage "Change Password" dialog (current password, new password, confirm). Calls `Account.updatePassword`. AuthPage "Forgot password?" link → `Account.createRecovery` → email link → `/auth/reset-password` page → `Account.updateRecovery`. Email verification deferred. No self-service signup. Deps: 1.3, 1.11.
 
