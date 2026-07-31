@@ -29,8 +29,8 @@ MVP stories, in dependency order (stories marked ✅ are done; ← THIS ITERATIO
 2. ✅ 5.2 Village Calendar - Role-Based Event Creation and Editing (deps: 5.1) — DONE 2026-07-29
 3. ✅ 5.3 Cloud Storage - Role-Based Storage Quotas and Personal Folders (deps: 1.10) — DONE 2026-07-30
 4. ✅ 5.4 Cloud Storage - Shared Folders and Module-Based Access (deps: 5.3) — DONE 2026-07-31
-5. 5.7 Vendors/Suppliers Management Module (deps: 2.2, 2.3, 3.8 — all done) ← THIS ITERATION
-6. 5.9 Module Management and Configuration (deps: all MVP previous)
+5. ✅ 5.7 Vendors/Suppliers Management Module (deps: 2.2, 2.3, 3.8 — all done) — DONE 2026-08-01
+6. 5.9 Module Management and Configuration (deps: all MVP previous) ← THIS ITERATION
 7. 5.14 Authentication Completeness - Password Change and Reset (deps: 1.3, 1.11)
 8. 5.12 User Management - CRUD Operations (deps: 1.4, 1.11)
 9. 5.13 Role Assignment and Permissions Management UI (deps: 5.12)

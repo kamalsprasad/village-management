@@ -263,6 +263,8 @@ const tableSchemas = {
       },
       { key: 'is_using_sample_data', type: 'boolean', required: true, default: false },
       { key: 'modules_enabled', type: 'string', size: 500, array: true, required: false },
+      // Story 5.7: Vendors module toggle (defaults to enabled).
+      { key: 'vendors_enabled', type: 'boolean', required: false, default: true },
       {
         key: 'yield_unit',
         type: 'enum',
@@ -708,6 +710,40 @@ const tableSchemas = {
     ],
     indexes: [],
   },
+  // Story 5.7: Vendors/Suppliers Management Module
+  vendors: {
+    name: 'Vendors',
+    permissions: permissions,
+    columns: [
+      { key: 'name', type: 'string', size: 200, required: true },
+      {
+        key: 'vendor_type',
+        type: 'enum',
+        elements: ['Supplier', 'Buyer', 'Both'],
+        required: true,
+      },
+      {
+        key: 'business_type',
+        type: 'enum',
+        elements: ['Individual', 'Cooperative', 'Company', 'NGO', 'Government', 'Market'],
+        required: false,
+      },
+      { key: 'contact_person', type: 'string', size: 100, required: false },
+      { key: 'phone', type: 'string', size: 30, required: false },
+      { key: 'email', type: 'email', required: false },
+      { key: 'address', type: 'string', size: 500, required: false },
+      { key: 'payment_terms', type: 'string', size: 255, required: false },
+      { key: 'quality_rating', type: 'integer', min: 1, max: 5, required: false },
+      { key: 'is_preferred', type: 'boolean', required: false, default: false },
+      { key: 'is_active', type: 'boolean', required: false, default: true },
+      { key: 'notes', type: 'string', size: 1000, required: false },
+      { key: 'contract_expiry', type: 'datetime', required: false },
+    ],
+    indexes: [
+      { key: 'idx_vendors_name', type: 'key', columns: ['name'], orders: ['ASC'] },
+      { key: 'idx_vendors_type', type: 'key', columns: ['vendor_type'], orders: ['ASC'] },
+    ],
+  },
   finance_transactions: {
     name: 'Finance Transactions',
     permissions: permissions,
@@ -741,7 +777,16 @@ const tableSchemas = {
       { key: 'description', type: 'string', size: 500, required: true },
       { key: 'status', type: 'string', size: 20, required: true },
       { key: 'subcategory', type: 'string', size: 100, required: false },
-      { key: 'vendor', type: 'string', size: 255, required: false },
+      // Story 5.7: free-text `vendor` column replaced by `vendor_id` relationship.
+      {
+        key: 'vendor_id',
+        type: 'relationship',
+        relatedTable: 'vendors',
+        relationType: 'manyToOne',
+        twoWay: false,
+        onDelete: 'setNull',
+        required: false,
+      },
       { key: 'receipt_number', type: 'string', size: 100, required: false },
       {
         key: 'payment_status',
@@ -943,7 +988,8 @@ const tableSchemas = {
       {
         key: 'buyer_type',
         type: 'enum',
-        elements: ['household', 'external', 'market', 'cooperative'],
+        // Story 5.7: added 'vendor' for buyers/suppliers selected from the Vendors module.
+        elements: ['household', 'external', 'market', 'cooperative', 'vendor'],
         required: true,
       },
       { key: 'buyer_id', type: 'string', size: 50, required: false },

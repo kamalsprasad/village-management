@@ -335,18 +335,14 @@
 
         <!-- Expense-specific fields -->
         <template v-if="props.type === 'expense'">
-          <!-- Vendor/Supplier -->
-          <q-input
-            v-model="formData.vendor"
-            label="Vendor/Supplier (Optional)"
-            outlined
-            dense
-            class="q-mb-md"
-          >
-            <template #prepend>
-              <q-icon name="store" />
-            </template>
-          </q-input>
+          <!-- Vendor/Supplier (Story 5.7: VendorPicker replaces free-text input) -->
+          <div class="q-mb-md">
+            <VendorPicker
+              v-model="formData.vendor"
+              label="Vendor/Supplier (Optional)"
+              :buyer-mode="false"
+            />
+          </div>
 
           <!-- Receipt/Invoice Number -->
           <q-input
@@ -429,6 +425,8 @@ import { useRouter } from 'vue-router';
 import { format } from 'date-fns';
 import { useFinanceStore } from '../stores/finance-store';
 import { useInventoryStore } from 'src/stores/inventory-store';
+import { useVendorsStore } from 'src/modules/vendors/stores/vendors-store';
+import VendorPicker from 'src/modules/vendors/components/VendorPicker.vue';
 import { isInventoryEligible, getInventoryTypeForCategory } from 'src/utils/inventory-categories';
 
 // Special value for "Other" option
@@ -452,6 +450,7 @@ const $q = useQuasar();
 const router = useRouter();
 const financeStore = useFinanceStore();
 const inventoryStore = useInventoryStore();
+const vendorsStore = useVendorsStore();
 
 // Story 2.7: Inventory integration state
 const addToInventory = ref(false);
@@ -489,7 +488,8 @@ const formData = ref({
   subcategory: '',
   customSubcategory: '', // For "Other" option
   // Expense-specific fields
-  vendor: '',
+  // Story 5.7: vendor is now a { id, name, type, adHocName? } object from VendorPicker
+  vendor: null,
   receipt_number: '',
   payment_status: 'paid',
 });
@@ -742,10 +742,21 @@ watch(
         subcategory: isCustomSubcategory ? OTHER_SUBCATEGORY_VALUE : newData.subcategory || '',
         customSubcategory: isCustomSubcategory ? newData.subcategory : '',
         // Expense-specific fields
-        vendor: newData.vendor || '',
+        vendor: null,
         receipt_number: newData.receipt_number || '',
         payment_status: newData.payment_status || 'paid',
       };
+
+      // Story 5.7: initialize the vendor picker from initialData.vendor_id (edit mode)
+      const vendorId =
+        typeof newData.vendor_id === 'object' ? newData.vendor_id?.$id : newData.vendor_id;
+      if (vendorId) {
+        await vendorsStore.fetchVendors();
+        const existingVendor = vendorsStore.getVendorById(vendorId);
+        formData.value.vendor = existingVendor
+          ? { id: existingVendor.$id, name: existingVendor.name, type: 'vendor' }
+          : null;
+      }
 
       // Story 2.7: Check for existing linked inventory item in edit mode
       if (newData.$id && props.type === 'expense') {
@@ -784,7 +795,7 @@ function resetForm() {
     subcategory: '',
     customSubcategory: '',
     // Expense-specific fields
-    vendor: '',
+    vendor: null,
     receipt_number: '',
     payment_status: 'paid',
   };
@@ -835,8 +846,19 @@ async function handleSubmit() {
   };
 
   // Add expense-specific fields only for expenses
+  // Story 5.7: vendor is now { id, name, type, adHocName? } from VendorPicker.
+  // A selected vendor sets vendor_id; an ad-hoc typed name is prepended to
+  // the description instead (no free-text vendor column).
   if (props.type === 'expense') {
-    submitData.vendor = formData.value.vendor || null;
+    const vendor = formData.value.vendor;
+    if (vendor?.type === 'vendor' && vendor.id) {
+      submitData.vendor_id = vendor.id;
+    } else {
+      submitData.vendor_id = null;
+      if (vendor?.adHocName) {
+        submitData.description = `Vendor: ${vendor.adHocName} — ${submitData.description}`;
+      }
+    }
     submitData.receipt_number = formData.value.receipt_number || null;
     submitData.payment_status = formData.value.payment_status;
   }

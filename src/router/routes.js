@@ -5,6 +5,7 @@ import farmRoutes from 'src/modules/farm/router';
 import schoolRoutes from 'src/modules/school/router';
 import calendarRoutes from 'src/modules/calendar/router';
 import storageRoutes from 'src/modules/storage/router';
+import vendorRoutes from 'src/modules/vendors/router';
 
 const routes = [
   // Auth page (no layout)
@@ -165,6 +166,8 @@ const routes = [
       ...calendarRoutes,
       // Cloud Storage Module routes (Story 5.3)
       ...storageRoutes,
+      // Vendors/Suppliers Management Module routes (Story 5.7)
+      ...vendorRoutes,
     ],
   },
 

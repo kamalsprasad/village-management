@@ -100,3 +100,21 @@ Items deferred during code reviews. Revisit before closing their parent story or
 - source_spec: `spec-5-4-cloud-storage-shared-folders-and-module-based-access.md`
   summary: No automated test coverage for `shared-files-store`, `shareToFolder`, `getSharedFolderPermissions`, or `storageUsageReport`; covered only by lint/build and manual QA.
   evidence: No `*.test.js`/`*.spec.js` files added under `src/` or `server/functions/`; the project has no existing unit-test infrastructure for stores/composables/functions. Owning story: post-MVP testing initiative.
+
+## Deferred from: code review of spec-5-7-vendors-suppliers-management-module (2026-08-02)
+
+- source_spec: `spec-5-7-vendors-suppliers-management-module.md`
+  summary: seed-roles.js skips existing roles, so existing deployments never receive the new `vendors:read`/`vendors:write` grants for Finance Manager, Village Head, Deputy Village Head, Council Member, Farm Manager, and Crop Manager.
+  evidence: seed-roles.js `continue` on existing roles (same pre-existing pattern as Stories 5.2/5.3/5.4); affected role rows must be updated via the Appwrite console or an upsert migration. Owning story: Story 5.13 (Role Assignment and Permissions Management UI) or an ops runbook.
+- source_spec: `spec-5-7-vendors-suppliers-management-module.md`
+  summary: `vendors` table uses the platform-wide shared `permissions` var (read/create/update/delete("any")), so vendor row-level security is not enforced server-side; any authenticated user can read/write all vendor rows regardless of role.
+  evidence: setup-appwrite.js `vendors` table reuses the shared `permissions` constant — same architectural debt acknowledged for every prior module. Owning story: post-MVP security hardening (or Story 5.10 system completion).
+- source_spec: `spec-5-7-vendors-suppliers-management-module.md`
+  summary: `fetchVendors` is capped at `Query.limit(200)` with no pagination; beyond 200 vendors, additional rows silently never load.
+  evidence: vendors-store.js:107 `Query.limit(200)` with no cursor/offset follow-up; mirrors the deferred 5.2/5.3 list-pagination pattern. Owning story: post-MVP pagination pass.
+- source_spec: `spec-5-7-vendors-suppliers-management-module.md`
+  summary: `fetchVendorHistory` caps each side (finance/farm_sales) at `Query.limit(100)` with no pagination; a vendor with >100 finance expenses or >100 farm sales will show an incomplete history and under-counted totals.
+  evidence: vendors-store.js:308/318 `Query.limit(100)` per source with no cursor follow-up; totals on VendorDetailPage are derived from this capped list. Owning story: post-MVP pagination pass.
+- source_spec: `spec-5-7-vendors-suppliers-management-module.md`
+  summary: No automated test coverage for `vendors-store`, `VendorPicker`, `vendor-utils`, or the finance/farm integration changes; covered only by lint/build and manual QA.
+  evidence: No `*.test.js`/`*.spec.js` files added under `src/`; the project has no existing unit-test infrastructure for stores/composables. Owning story: post-MVP testing initiative.

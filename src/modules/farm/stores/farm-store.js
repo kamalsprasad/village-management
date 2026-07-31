@@ -2798,10 +2798,11 @@ export const useFarmStore = defineStore('farm', {
         const saleData = {
           inventory_item_id: inventoryItem.$id,
           finance_transaction_id: financeTx.$id,
-          // Hard-coded buyer_type / buyer_id placeholders per Story 3.8 decision.
-          // See docs/POST-MVP.md for future Vendor Module integration.
-          buyer_type: 'external',
-          buyer_id: '',
+          // Story 5.7: buyer_type/buyer_id now come from the VendorPicker in
+          // RecordSaleDialog.vue (buyer_type='vendor' + buyer_id=<vendor.$id>
+          // when a vendor is selected; 'external' + '' for ad-hoc buyers).
+          buyer_type: saleFormData.buyer_type || 'external',
+          buyer_id: saleFormData.buyer_id || '',
           buyer_name: saleFormData.buyer_name,
           sale_date: saleDateIso,
           quantity_sold: qty,

@@ -90,6 +90,7 @@ Stores global village configuration. One row per village.
 | `yield_unit`           | string   | Required, Enum: 'kg_per_hectare','kg_per_acre','tonnes_per_hectare' | Default yield unit for farm module       |
 | `farm_alert_config`    | string   | Optional, max 2000 (JSON)                                           | Story 3.10: Serialized alert config JSON |
 | `council_member_ids`   | rel[]    | Optional, oneToMany → residents                                     | Village council members                  |
+| `vendors_enabled`      | boolean  | Optional, default true                                              | Story 5.7: Vendors module toggle         |
 
 ## Farm Tables
 
@@ -208,26 +209,26 @@ Individual harvest entries for multi-day and partial harvest recording. Each ent
 
 Records farm produce sales with three-way integration to harvests, inventory, and finance transactions (Story 3.8). A sale automatically decrements linked inventory and creates a linked income transaction in `finance_transactions`. Story 3.9 added `crop_id` as a denormalized FK to enable direct crop-grouping queries for profitability reports without the 3-hop chain (farm_sales → inventory → plantings → crops).
 
-**Buyer fields:** `buyer_name` is the primary field captured via the UI. `buyer_type` and `buyer_id` are reserved placeholders for future Vendor Module integration (Epic 5). For MVP, sales default to `buyer_type='external'` and `buyer_id=''`. See `docs/POST-MVP.md` for the migration plan.
+**Buyer fields (Story 5.7):** `buyer_name` is the primary user-facing field. `buyer_type` includes `'vendor'` for buyers selected from the Vendors module (Story 5.7); when set, `buyer_id` holds the `vendors.$id`. Ad-hoc (non-vendor) sales use `buyer_type='external'` and `buyer_id=''`. `buyer_id` remains a plain string column (not a relationship) to preserve polymorphism across buyer types (`vendor`, `external`, `market`, `cooperative`, `household`).
 
-| Column                   | Type     | Constraints                                                     | Description                                                                                   |
-| ------------------------ | -------- | --------------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
-| `id`                     | string   | Primary Key, Auto-generated                                     | Unique sale identifier                                                                        |
-| `harvest_id`             | rel      | Optional, manyToOne → harvests                                  | Source harvest                                                                                |
-| `inventory_item_id`      | rel      | Optional, manyToOne → inventory (onDelete: restrict)            | Sold inventory item (Story 3.8)                                                               |
-| `finance_transaction_id` | rel      | Optional, manyToOne → finance_transactions (onDelete: restrict) | Linked income transaction (Story 3.8)                                                         |
-| `crop_id`                | rel      | Optional, manyToOne → crops (onDelete: setNull)                 | Denormalized source crop for direct grouping queries (Story 3.9). Populated at sale creation. |
-| `buyer_type`             | string   | Required, Enum: 'household','external','market','cooperative'   | Type of buyer (MVP: hard-coded 'external')                                                    |
-| `buyer_id`               | string   | Optional, max 50                                                | ID of buyer for household/vendor lookup (MVP: empty string)                                   |
-| `buyer_name`             | string   | Required, max 200                                               | Name of buyer (primary user-facing field)                                                     |
-| `sale_date`              | datetime | Required                                                        | Date of sale                                                                                  |
-| `quantity_sold`          | float    | Required, min 0, max 1,000,000,000,000                          | Quantity sold (supports 2 decimal places)                                                     |
-| `unit`                   | string   | Required, max 20, default: 'kg'                                 | Unit of measurement (kg, pcs, etc.)                                                           |
-| `price_per_unit`         | float    | Required, min 0, max 1,000,000,000,000                          | Price per unit in ZMW (2 decimal places)                                                      |
-| `total_amount`           | float    | Required, min 0, max 1,000,000,000,000                          | Total sale amount in ZMW (2 decimal places)                                                   |
-| `payment_status`         | string   | Required, Enum: 'Pending','Completed'                           | Payment status                                                                                |
-| `payment_method`         | string   | Optional, max 50                                                | Cash, Mobile Money, Bank Transfer, Cheque, Credit, Other                                      |
-| `notes`                  | string   | Optional, max 1000                                              | Additional notes                                                                              |
+| Column                   | Type     | Constraints                                                            | Description                                                                                   |
+| ------------------------ | -------- | ---------------------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
+| `id`                     | string   | Primary Key, Auto-generated                                            | Unique sale identifier                                                                        |
+| `harvest_id`             | rel      | Optional, manyToOne → harvests                                         | Source harvest                                                                                |
+| `inventory_item_id`      | rel      | Optional, manyToOne → inventory (onDelete: restrict)                   | Sold inventory item (Story 3.8)                                                               |
+| `finance_transaction_id` | rel      | Optional, manyToOne → finance_transactions (onDelete: restrict)        | Linked income transaction (Story 3.8)                                                         |
+| `crop_id`                | rel      | Optional, manyToOne → crops (onDelete: setNull)                        | Denormalized source crop for direct grouping queries (Story 3.9). Populated at sale creation. |
+| `buyer_type`             | string   | Required, Enum: 'household','external','market','cooperative','vendor' | Type of buyer; 'vendor' when selected via the Vendors module (Story 5.7)                      |
+| `buyer_id`               | string   | Optional, max 50                                                       | Vendor `$id` when `buyer_type='vendor'`; empty string otherwise (Story 5.7)                   |
+| `buyer_name`             | string   | Required, max 200                                                      | Name of buyer (primary user-facing field)                                                     |
+| `sale_date`              | datetime | Required                                                               | Date of sale                                                                                  |
+| `quantity_sold`          | float    | Required, min 0, max 1,000,000,000,000                                 | Quantity sold (supports 2 decimal places)                                                     |
+| `unit`                   | string   | Required, max 20, default: 'kg'                                        | Unit of measurement (kg, pcs, etc.)                                                           |
+| `price_per_unit`         | float    | Required, min 0, max 1,000,000,000,000                                 | Price per unit in ZMW (2 decimal places)                                                      |
+| `total_amount`           | float    | Required, min 0, max 1,000,000,000,000                                 | Total sale amount in ZMW (2 decimal places)                                                   |
+| `payment_status`         | string   | Required, Enum: 'Pending','Completed'                                  | Payment status                                                                                |
+| `payment_method`         | string   | Optional, max 50                                                       | Cash, Mobile Money, Bank Transfer, Cheque, Credit, Other                                      |
+| `notes`                  | string   | Optional, max 1000                                                     | Additional notes                                                                              |
 
 **Indexes:** `idx_farm_sales_date` on `(sale_date DESC)`, `idx_farm_sales_buyer` on `(buyer_type ASC, buyer_id ASC)`
 
@@ -249,34 +250,61 @@ Reserved for future persistent alert storage (Story 3.10 POST-MVP). Not used in 
 
 **Indexes:** `idx_farm_alerts_user` on `(user_id ASC)`, `idx_farm_alerts_type` on `(alert_type ASC)`, `idx_farm_alerts_triggered` on `(triggered_at DESC)`
 
+## Vendors Tables (Story 5.7)
+
+### vendors
+
+Stores vendor/supplier master data used across the Finance and Farm modules. A vendor can be a `Supplier` (sells goods/services to the village), a `Buyer` (purchases farm produce), or `Both`. Referenced by `finance_transactions.vendor_id` (expenses) and `farm_sales.buyer_id` (sales, when `buyer_type='vendor'`).
+
+| Column            | Type     | Constraints                                                                      | Description                         |
+| ----------------- | -------- | -------------------------------------------------------------------------------- | ----------------------------------- |
+| `id`              | string   | Primary Key, Auto-generated                                                      | Unique vendor identifier            |
+| `name`            | string   | Required, max 200                                                                | Vendor/business name                |
+| `vendor_type`     | string   | Required, Enum: 'Supplier','Buyer','Both'                                        | Relationship type with the village  |
+| `business_type`   | string   | Optional, Enum: 'Individual','Cooperative','Company','NGO','Government','Market' | Nature of the vendor's business     |
+| `contact_person`  | string   | Optional, max 100                                                                | Primary contact name                |
+| `phone`           | string   | Optional, max 30                                                                 | Contact phone number                |
+| `email`           | email    | Optional                                                                         | Contact email address               |
+| `address`         | string   | Optional, max 500                                                                | Physical address                    |
+| `payment_terms`   | string   | Optional, max 255                                                                | e.g. "Net 30", "Cash on delivery"   |
+| `quality_rating`  | integer  | Optional, min 1, max 5                                                           | Subjective quality rating           |
+| `is_preferred`    | boolean  | Optional, default false                                                          | Marks a preferred vendor            |
+| `is_active`       | boolean  | Optional, default true                                                           | Active/inactive status              |
+| `notes`           | string   | Optional, max 1000                                                               | Free-text notes                     |
+| `contract_expiry` | datetime | Optional                                                                         | Contract expiry date, if applicable |
+
+**Indexes:** `idx_vendors_name` on `(name ASC)`, `idx_vendors_type` on `(vendor_type ASC)`
+
+**Relationships:** `finance_transactions.vendor_id` (manyToOne, onDelete: setNull); `farm_sales.buyer_id` (plain string FK, not a relationship column — set to the vendor `$id` when `buyer_type='vendor'`).
+
 ## Finance Tables
 
 ### finance_transactions
 
 Stores all financial transactions for income and expense tracking.
 
-| Column                   | Type     | Constraints                                                            | Description                                                  |
-| ------------------------ | -------- | ---------------------------------------------------------------------- | ------------------------------------------------------------ |
-| `id`                     | string   | Primary Key, Auto-generated                                            | Unique transaction identifier                                |
-| `type`                   | string   | Required, Enum: 'expense','income','transfer'                          | Transaction type                                             |
-| `amount_needed`          | double   | Required                                                               | Required amount for the transaction                          |
-| `amount_funded`          | double   | Required                                                               | Funded amount for the transaction                            |
-| `payment_method`         | string   | Required, Enum: 'Bank Transfer','Cash','Cheque','Mobile Money','Other' | Payment method                                               |
-| `source_module`          | string   | Required, max 50                                                       | Source module (e.g., 'Farm', 'School')                       |
-| `date`                   | datetime | Required                                                               | Transaction date                                             |
-| `description`            | string   | Required, max 500                                                      | Transaction description                                      |
-| `status`                 | string   | Required, max 20                                                       | Transaction status (e.g., 'pending','completed','cancelled') |
-| `subcategory`            | string   | Optional, max 100                                                      | Transaction subcategory                                      |
-| `vendor`                 | string   | Optional, max 255                                                      | Vendor name                                                  |
-| `receipt_number`         | string   | Optional, max 100                                                      | Receipt number                                               |
-| `payment_status`         | string   | Optional, Enum: 'paid','unpaid','partial'                              | Payment status                                               |
-| `inventory_items`        | rel[]    | Optional, child of inventory.transaction_id (twoWay)                   | Inventory item linked to this transaction                    |
-| `category_id`            | rel      | Optional, manyToOne → finance_categories (twoWay: transaction_ids)     | Transaction category                                         |
-| `funding_source_id`      | rel      | Optional, manyToOne → funding_sources (twoWay: transaction_ids)        | Linked funding source                                        |
-| `loan_id`                | rel      | Optional, manyToOne → loans (twoWay: transaction_ids)                  | Related loan (if applicable)                                 |
-| `inventory_ids`          | rel[]    | Optional, oneToMany → inventory                                        | Related inventory items                                      |
-| `funding_links_received` | rel[]    | Optional, child of transaction_links.parent_transaction_id             | Funding links where this is the expense                      |
-| `funding_links_provided` | rel[]    | Optional, child of transaction_links.child_transaction_id              | Funding links where this provides funds                      |
+| Column                   | Type     | Constraints                                                            | Description                                                                                                                    |
+| ------------------------ | -------- | ---------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| `id`                     | string   | Primary Key, Auto-generated                                            | Unique transaction identifier                                                                                                  |
+| `type`                   | string   | Required, Enum: 'expense','income','transfer'                          | Transaction type                                                                                                               |
+| `amount_needed`          | double   | Required                                                               | Required amount for the transaction                                                                                            |
+| `amount_funded`          | double   | Required                                                               | Funded amount for the transaction                                                                                              |
+| `payment_method`         | string   | Required, Enum: 'Bank Transfer','Cash','Cheque','Mobile Money','Other' | Payment method                                                                                                                 |
+| `source_module`          | string   | Required, max 50                                                       | Source module (e.g., 'Farm', 'School')                                                                                         |
+| `date`                   | datetime | Required                                                               | Transaction date                                                                                                               |
+| `description`            | string   | Required, max 500                                                      | Transaction description                                                                                                        |
+| `status`                 | string   | Required, max 20                                                       | Transaction status (e.g., 'pending','completed','cancelled')                                                                   |
+| `subcategory`            | string   | Optional, max 100                                                      | Transaction subcategory                                                                                                        |
+| `vendor_id`              | rel      | Optional, manyToOne → vendors (onDelete: setNull)                      | Story 5.7: replaces the old free-text `vendor` column. Ad-hoc (non-vendor) expense text is prepended to `description` instead. |
+| `receipt_number`         | string   | Optional, max 100                                                      | Receipt number                                                                                                                 |
+| `payment_status`         | string   | Optional, Enum: 'paid','unpaid','partial'                              | Payment status                                                                                                                 |
+| `inventory_items`        | rel[]    | Optional, child of inventory.transaction_id (twoWay)                   | Inventory item linked to this transaction                                                                                      |
+| `category_id`            | rel      | Optional, manyToOne → finance_categories (twoWay: transaction_ids)     | Transaction category                                                                                                           |
+| `funding_source_id`      | rel      | Optional, manyToOne → funding_sources (twoWay: transaction_ids)        | Linked funding source                                                                                                          |
+| `loan_id`                | rel      | Optional, manyToOne → loans (twoWay: transaction_ids)                  | Related loan (if applicable)                                                                                                   |
+| `inventory_ids`          | rel[]    | Optional, oneToMany → inventory                                        | Related inventory items                                                                                                        |
+| `funding_links_received` | rel[]    | Optional, child of transaction_links.parent_transaction_id             | Funding links where this is the expense                                                                                        |
+| `funding_links_provided` | rel[]    | Optional, child of transaction_links.child_transaction_id              | Funding links where this provides funds                                                                                        |
 
 ### funding_sources
 

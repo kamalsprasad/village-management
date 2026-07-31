@@ -224,6 +224,8 @@ export const useFinanceStore = defineStore('finance', {
 
         // Enrich with funding source names if needed
         await this.enrichTransactionsWithFundingSources();
+        // Story 5.7: resolve vendor names for display
+        await this.enrichTransactionsWithVendors();
 
         return { success: true, data: response.rows };
       } catch (error) {
@@ -400,6 +402,30 @@ export const useFinanceStore = defineStore('finance', {
         }));
       } catch (error) {
         console.error('Error enriching transactions with funding sources:', error);
+      }
+    },
+
+    /**
+     * Story 5.7: Resolve vendor_name for the currently loaded transactions from
+     * the vendors store's local cache (dynamic import avoids a hard circular
+     * dependency between finance-store and vendors-store).
+     */
+    async enrichTransactionsWithVendors() {
+      try {
+        const { useVendorsStore } = await import('src/modules/vendors/stores/vendors-store');
+        const vendorsStore = useVendorsStore();
+        if (!vendorsStore.vendorsLoaded) {
+          await vendorsStore.fetchVendors();
+        }
+
+        this.transactions = this.transactions.map((transaction) => ({
+          ...transaction,
+          vendor_name: transaction.vendor_id
+            ? vendorsStore.getVendorNameById(transaction.vendor_id)
+            : null,
+        }));
+      } catch (error) {
+        console.error('Error enriching transactions with vendors:', error);
       }
     },
 
@@ -1071,9 +1097,10 @@ export const useFinanceStore = defineStore('finance', {
         };
 
         // Add expense-specific fields if present
+        // Story 5.7: `vendor` free-text column replaced by `vendor_id` relationship.
         if (transactionData.type === 'expense') {
           data.subcategory = transactionData.subcategory || null;
-          data.vendor = transactionData.vendor || null;
+          data.vendor_id = transactionData.vendor_id || null;
           data.receipt_number = transactionData.receipt_number || null;
           data.payment_status = transactionData.payment_status || 'paid';
         }
@@ -1194,9 +1221,10 @@ export const useFinanceStore = defineStore('finance', {
         };
 
         // Add expense-specific fields if present
+        // Story 5.7: `vendor` free-text column replaced by `vendor_id` relationship.
         if (transactionData.type === 'expense') {
           data.subcategory = transactionData.subcategory || null;
-          data.vendor = transactionData.vendor || null;
+          data.vendor_id = transactionData.vendor_id || null;
           data.receipt_number = transactionData.receipt_number || null;
           data.payment_status = transactionData.payment_status || 'paid';
         }

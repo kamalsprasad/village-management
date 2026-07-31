@@ -113,6 +113,11 @@ export const useSettingsStore = defineStore('settings', {
     lendingEnabled: (state) => state.settings?.lending_enabled ?? true,
 
     /**
+     * Check if vendors module is enabled (Story 5.7)
+     */
+    vendorsEnabled: (state) => state.settings?.vendors_enabled ?? true,
+
+    /**
      * Get council members (parsed from JSON string)
      */
     councilMembers: (state) => {

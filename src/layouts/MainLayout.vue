@@ -287,6 +287,41 @@
           </q-item>
         </q-expansion-item>
 
+        <!-- Vendors Section (Story 5.7) -->
+        <q-expansion-item
+          v-if="isClient && hasPermission('vendors:read') && settingsStore.vendorsEnabled"
+          v-model="expandedSections.vendors"
+          icon="storefront"
+          label="Vendors"
+          class="nav-section"
+          header-class="nav-section-header"
+          expand-icon-class="nav-expand-icon"
+        >
+          <q-item clickable to="/vendors" class="nav-sub-item" active-class="nav-sub-item--active">
+            <q-item-section avatar class="nav-sub-icon">
+              <q-icon name="list" size="16px" />
+            </q-item-section>
+            <q-item-section>
+              <q-item-label class="nav-sub-label">Vendors</q-item-label>
+            </q-item-section>
+          </q-item>
+
+          <q-item
+            v-if="hasPermission('vendors:write')"
+            clickable
+            to="/vendors/add"
+            class="nav-sub-item"
+            active-class="nav-sub-item--active"
+          >
+            <q-item-section avatar class="nav-sub-icon">
+              <q-icon name="add" size="16px" />
+            </q-item-section>
+            <q-item-section>
+              <q-item-label class="nav-sub-label">Add Vendor</q-item-label>
+            </q-item-section>
+          </q-item>
+        </q-expansion-item>
+
         <!-- Agriculture Section -->
         <q-expansion-item
           v-if="isClient && hasPermission('farm:read')"
@@ -677,6 +712,7 @@ const isClient = ref(false); // Track client-side hydration for SSR
 const expandedSections = reactive({
   community: false,
   finance: false,
+  vendors: false,
   agriculture: false,
   school: false,
   services: false,

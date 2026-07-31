@@ -39,6 +39,14 @@
       <div v-if="isClient && hasPermission('finance:read')" class="col-12 col-md-6 col-lg-4">
         <FinanceSummaryWidget />
       </div>
+
+      <!-- Vendors Summary Widget (Story 5.7; only when module enabled + vendors:read) -->
+      <div
+        v-if="isClient && hasPermission('vendors:read') && settingsStore.vendorsEnabled"
+        class="col-12 col-md-6 col-lg-4"
+      >
+        <VendorsSummaryWidget />
+      </div>
     </div>
   </q-page>
 </template>
@@ -55,6 +63,7 @@ import RecentActivityWidget from 'src/components/dashboard/RecentActivityWidget.
 import HouseholdsWidget from 'src/components/dashboard/HouseholdsWidget.vue';
 import CommunityOverviewWidget from 'src/components/dashboard/CommunityOverviewWidget.vue';
 import FinanceSummaryWidget from 'src/components/dashboard/FinanceSummaryWidget.vue';
+import VendorsSummaryWidget from 'src/modules/vendors/components/VendorsSummaryWidget.vue';
 import { usePermissions } from 'src/composables/usePermissions';
 import {
   quickStats as placeholderStats,

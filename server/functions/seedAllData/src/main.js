@@ -131,10 +131,113 @@ async function seedHouseholdsAndResidents(tablesDB, dbId, log) {
 }
 
 // =============================================================================
+// PHASE 1.5 — VENDORS (Story 5.7)
+// =============================================================================
+
+async function seedVendors(tablesDB, dbId, log) {
+  log('Phase 1.5: Vendors...');
+  const VENDOR_DEFS = [
+    {
+      name: 'Zambia Food Reserve Agency',
+      vendor_type: 'Buyer',
+      business_type: 'Government',
+      contact_person: 'Mwansa Chileshe',
+      phone: '+260211234001',
+      email: 'procurement@zfra.example.zm',
+      address: 'Lusaka, Zambia',
+      payment_terms: 'Net 30',
+      quality_rating: 4,
+      is_preferred: true,
+      is_active: true,
+      notes: 'Bulk maize buyer; reliable bank transfer payments.',
+    },
+    {
+      name: 'Katete Local Miller',
+      vendor_type: 'Buyer',
+      business_type: 'Individual',
+      contact_person: 'Bwalya Mumba',
+      phone: '+260977234002',
+      address: 'Katete, Eastern Province',
+      payment_terms: 'Cash on delivery',
+      quality_rating: 3,
+      is_preferred: false,
+      is_active: true,
+      notes: 'Small-scale local miller buying surplus maize.',
+    },
+    {
+      name: 'Katete Market Vendors',
+      vendor_type: 'Buyer',
+      business_type: 'Market',
+      contact_person: 'Chanda Phiri',
+      phone: '+260966234003',
+      address: 'Katete Main Market',
+      payment_terms: 'Cash',
+      quality_rating: 3,
+      is_preferred: false,
+      is_active: true,
+      notes: 'Association of market vendors buying vegetables.',
+    },
+    {
+      name: 'Chipata Urban Wholesaler',
+      vendor_type: 'Buyer',
+      business_type: 'Company',
+      contact_person: 'Tamara Banda',
+      phone: '+260955234004',
+      email: 'sales@chipatawholesale.example.zm',
+      address: 'Chipata, Eastern Province',
+      payment_terms: 'Net 15',
+      quality_rating: 4,
+      is_preferred: true,
+      is_active: true,
+      notes: 'Wholesale buyer for sweet potato and vegetable produce.',
+    },
+    {
+      name: 'Benga Agro Supplies',
+      vendor_type: 'Supplier',
+      business_type: 'Company',
+      contact_person: 'Joseph Zulu',
+      phone: '+260977345001',
+      email: 'orders@bengaagro.example.zm',
+      address: 'Katete, Eastern Province',
+      payment_terms: 'Net 30',
+      quality_rating: 5,
+      is_preferred: true,
+      is_active: true,
+      notes: 'Primary supplier of office and farm consumables.',
+    },
+    {
+      name: 'Munali Inputs Cooperative',
+      vendor_type: 'Supplier',
+      business_type: 'Cooperative',
+      contact_person: 'Grace Tembo',
+      phone: '+260966345002',
+      address: 'Munali, Eastern Province',
+      payment_terms: 'Cash on delivery',
+      quality_rating: 4,
+      is_preferred: false,
+      is_active: true,
+      notes: 'Cooperative supplying irrigation and pump maintenance parts.',
+    },
+  ];
+
+  const vendorRows = await batchRun(
+    VENDOR_DEFS.map((v) => () => createRow(tablesDB, dbId, 'vendors', v)),
+  );
+
+  const vendorIds = {};
+  vendorRows.forEach((row, i) => {
+    vendorIds[VENDOR_DEFS[i].name.toLowerCase()] = row.$id;
+  });
+
+  log(`  Vendors done: ${vendorRows.length} vendors`);
+  return vendorIds;
+}
+
+// =============================================================================
 // PHASE 2 — FINANCE
 // =============================================================================
 
-async function seedFinance(tablesDB, dbId, residentIds, log) {
+async function seedFinance(tablesDB, dbId, residentIds, vendorIds, log) {
   log('Phase 2: Finance categories...');
   const catDefs = [
     {
@@ -245,6 +348,7 @@ async function seedFinance(tablesDB, dbId, residentIds, log) {
         category_id: getCatId('Administration'),
         source_module: 'Village',
         funding_source_id: getSrcId('Village General Fund'),
+        vendor_id: vendorIds?.['benga agro supplies'] || null,
         date: dt(15),
         description: 'Monthly office supplies',
         status: 'completed',
@@ -260,6 +364,7 @@ async function seedFinance(tablesDB, dbId, residentIds, log) {
           category_id: getCatId('Infrastructure Maintenance'),
           source_module: 'Village',
           funding_source_id: getSrcId('Water Sanitation Grant 2024'),
+          vendor_id: vendorIds?.['munali inputs cooperative'] || null,
           date: dt(20),
           description: 'Water pump maintenance',
           status: 'completed',
@@ -412,7 +517,7 @@ async function seedFinance(tablesDB, dbId, residentIds, log) {
 // PHASE 3 — FARM
 // =============================================================================
 
-async function seedFarm(tablesDB, dbId, residentIds, categories, fundingSources, log) {
+async function seedFarm(tablesDB, dbId, residentIds, categories, fundingSources, vendorIds, log) {
   log('Phase 3: Soil types...');
   const SOIL_TYPES = [
     { name: 'Sandy', description: 'Light, warm.', color_code: '#F4E4C1', is_system_default: true },
@@ -963,7 +1068,7 @@ async function seedFarm(tablesDB, dbId, residentIds, categories, fundingSources,
   const farmRevCat = categories.find((c) => c.name === 'Farming Revenue');
   const villageFund = fundingSources.find((s) => s.name === 'Village General Fund');
 
-  const harvestPlans = buildHarvestPlans(dAgo, pByK, cropId);
+  const harvestPlans = buildHarvestPlans(dAgo, pByK, cropId, vendorIds);
   await batchRun(
     harvestPlans.map((plan) => async () => {
       const hRow = await createRow(tablesDB, dbId, 'harvests', plan.harvest);
@@ -1004,7 +1109,7 @@ async function seedFarm(tablesDB, dbId, residentIds, categories, fundingSources,
         finance_transaction_id: tx.$id,
         ...(plan.crop_id ? { crop_id: plan.crop_id } : {}),
         buyer_type: plan.sale.buyer_type,
-        buyer_id: '',
+        buyer_id: plan.sale.buyer_id || '',
         buyer_name: plan.sale.buyer_name,
         sale_date: toISO(plan.sale.sale_date),
         quantity_sold: plan.sale.quantity_sold,
@@ -1036,7 +1141,7 @@ async function seedFarm(tablesDB, dbId, residentIds, categories, fundingSources,
           finance_transaction_id: aTx.$id,
           ...(plan.crop_id ? { crop_id: plan.crop_id } : {}),
           buyer_type: aS.buyer_type,
-          buyer_id: '',
+          buyer_id: aS.buyer_id || '',
           buyer_name: aS.buyer_name,
           sale_date: toISO(aS.sale_date),
           quantity_sold: aS.quantity_sold,
@@ -1066,8 +1171,18 @@ async function seedFarm(tablesDB, dbId, residentIds, categories, fundingSources,
   log('  Farm done');
 }
 
-function buildHarvestPlans(dAgo, pByK, cropId) {
+function buildHarvestPlans(dAgo, pByK, cropId, vendorIds = {}) {
   const plans = [];
+  // Story 5.7: resolve a buyer name to a seeded vendor when possible so
+  // sample farm sales reference vendor_id instead of pure free-text names.
+  // Unmatched buyers keep buyer_type 'external' and just the free-text name.
+  const resolveBuyer = (name, fallbackType) => {
+    const vendorId = vendorIds[name.toLowerCase()];
+    if (vendorId) {
+      return { buyer_type: 'vendor', buyer_id: vendorId, buyer_name: name };
+    }
+    return { buyer_type: fallbackType, buyer_id: '', buyer_name: name };
+  };
   const mCId = cropId('Maize');
   const maize = pByK('p_maize_completed');
   if (maize && mCId) {
@@ -1108,8 +1223,7 @@ function buildHarvestPlans(dAgo, pByK, cropId) {
         estimated_value: 14700,
       },
       sale: {
-        buyer_type: 'external',
-        buyer_name: 'Zambia Food Reserve Agency',
+        ...resolveBuyer('Zambia Food Reserve Agency', 'external'),
         quantity_sold: 3000,
         unit: 'kg',
         price_per_unit: 13,
@@ -1120,8 +1234,7 @@ function buildHarvestPlans(dAgo, pByK, cropId) {
         notes: 'Bulk sale to FRA.',
       },
       additional_sale: {
-        buyer_type: 'external',
-        buyer_name: 'Katete Local Miller',
+        ...resolveBuyer('Katete Local Miller', 'external'),
         quantity_sold: 800,
         unit: 'kg',
         price_per_unit: 15,
@@ -1191,8 +1304,7 @@ function buildHarvestPlans(dAgo, pByK, cropId) {
         estimated_value: 6800,
       },
       sale: {
-        buyer_type: 'market',
-        buyer_name: 'Katete Market Vendors',
+        ...resolveBuyer('Katete Market Vendors', 'market'),
         quantity_sold: 600,
         unit: 'kg',
         price_per_unit: 25,
@@ -1262,8 +1374,7 @@ function buildHarvestPlans(dAgo, pByK, cropId) {
         estimated_value: 9500,
       },
       sale: {
-        buyer_type: 'external',
-        buyer_name: 'Chipata Urban Wholesaler',
+        ...resolveBuyer('Chipata Urban Wholesaler', 'external'),
         quantity_sold: 2500,
         unit: 'kg',
         price_per_unit: 12,
@@ -2336,7 +2447,9 @@ async function seedVillageSettings(tablesDB, dbId, councilMemberIds, log) {
       'inventory',
       'farm',
       'school',
+      'vendors',
     ],
+    vendors_enabled: true,
     council_member_ids: councilResidentIds,
   };
   try {
@@ -3181,8 +3294,17 @@ export default async ({ req, res, log, error }) => {
     log('=== seedAllData: starting ===');
 
     const { residentIds, councilMemberIds } = await seedHouseholdsAndResidents(tablesDB, dbId, log);
-    const { categories, fundingSources } = await seedFinance(tablesDB, dbId, residentIds, log);
-    await seedFarm(tablesDB, dbId, residentIds, categories, fundingSources, log);
+    // Story 5.7: vendors must be seeded before finance/farm so their rows can
+    // reference vendor IDs instead of free-text names.
+    const vendorIds = await seedVendors(tablesDB, dbId, log);
+    const { categories, fundingSources } = await seedFinance(
+      tablesDB,
+      dbId,
+      residentIds,
+      vendorIds,
+      log,
+    );
+    await seedFarm(tablesDB, dbId, residentIds, categories, fundingSources, vendorIds, log);
     // Bell schedules must run before seedSchool so timetable entries can reference the slot IDs.
     const { slotIdsByGrade } = await seedBellSchedules(tablesDB, dbId, log);
     await seedSchool(tablesDB, dbId, residentIds, slotIdsByGrade, log);

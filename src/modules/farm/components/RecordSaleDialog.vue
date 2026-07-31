@@ -32,9 +32,7 @@
       <q-card-section class="scroll">
         <!-- Context banner -->
         <div class="text-body2 text-grey-8 q-mb-md">
-          <div>
-            <strong>Item:</strong> {{ inventoryItem?.item_name }}
-          </div>
+          <div><strong>Item:</strong> {{ inventoryItem?.item_name }}</div>
           <div>
             <strong>Available:</strong>
             {{ availableQty }} {{ inventoryItem?.unit || 'kg' }}
@@ -44,15 +42,12 @@
 
         <q-form ref="formRef" @submit.prevent="onSubmit" greedy>
           <div class="row q-col-gutter-md">
-            <!-- Buyer Name -->
+            <!-- Buyer (Story 5.7: VendorPicker replaces free-text buyer_name input) -->
             <div class="col-12 col-sm-6">
-              <q-input
-                v-model="formData.buyer_name"
-                label="Buyer Name *"
-                maxlength="200"
-                hint="Name of buyer (individual, market, or organization)"
-                :rules="[(val) => !!val?.trim() || 'Buyer name is required']"
-              />
+              <VendorPicker v-model="formData.buyer" label="Buyer *" :buyer-mode="true" />
+              <div v-if="buyerError" class="text-negative text-caption q-mt-xs q-ml-sm">
+                {{ buyerError }}
+              </div>
             </div>
 
             <!-- Sale Date -->
@@ -104,8 +99,7 @@
                     : 'Enter market price per unit'
                 "
                 :rules="[
-                  (val) =>
-                    (val !== null && val !== undefined && val !== '') || 'Price is required',
+                  (val) => (val !== null && val !== undefined && val !== '') || 'Price is required',
                   (val) => val >= 0 || 'Price cannot be negative',
                 ]"
               />
@@ -170,8 +164,8 @@
             <template #avatar>
               <q-icon name="warning" />
             </template>
-            You entered a price of ZMW 0. This will record a zero-revenue sale.
-            Please confirm this is intentional (e.g. donation in-kind) before submitting.
+            You entered a price of ZMW 0. This will record a zero-revenue sale. Please confirm this
+            is intentional (e.g. donation in-kind) before submitting.
           </q-banner>
         </q-form>
       </q-card-section>
@@ -194,6 +188,7 @@
 
 <script setup>
 import { ref, computed, watch } from 'vue';
+import VendorPicker from 'src/modules/vendors/components/VendorPicker.vue';
 
 const props = defineProps({
   modelValue: { type: Boolean, default: false },
@@ -233,12 +228,13 @@ const paymentStatusOptions = [
 ];
 
 const defaultFormData = () => ({
-  buyer_name: '',
+  // Story 5.7: buyer is a { id, name, type, adHocName? } object from VendorPicker.
+  // type: 'vendor' => selected from Vendors module; 'external' => ad-hoc typed name.
+  buyer: null,
   sale_date: todayStr,
   quantity_sold: null,
-  price_per_unit: Number(props.inventoryItem?.unit_cost) > 0
-    ? Number(props.inventoryItem.unit_cost)
-    : null,
+  price_per_unit:
+    Number(props.inventoryItem?.unit_cost) > 0 ? Number(props.inventoryItem.unit_cost) : null,
   payment_method: 'Cash',
   payment_status: 'Completed',
   notes: '',
@@ -254,12 +250,17 @@ const totalAmount = computed(() => {
 
 const totalAmountDisplay = computed(() => totalAmount.value.toFixed(2));
 
+// Story 5.7: VendorPicker manages its own validation UI; surface a simple
+// required-field message for the buyer since it isn't a q-input with :rules.
+const buyerError = ref('');
+
 // Reset form whenever dialog opens or inventory item changes
 watch(
   () => props.modelValue,
   (isOpen) => {
     if (isOpen) {
       formData.value = defaultFormData();
+      buyerError.value = '';
       formRef.value?.resetValidation?.();
     }
   },
@@ -267,10 +268,22 @@ watch(
 
 async function onSubmit() {
   const isValid = await formRef.value.validate();
+  const buyerName = formData.value.buyer?.name?.trim();
+  if (!buyerName) {
+    buyerError.value = 'Buyer is required';
+    return;
+  }
+  buyerError.value = '';
   if (!isValid) return;
 
+  // Story 5.7: map the VendorPicker result to buyer_type/buyer_id/buyer_name.
+  const buyer = formData.value.buyer;
+  const isVendor = buyer?.type === 'vendor' && buyer.id;
+
   emit('submit', {
-    buyer_name: formData.value.buyer_name.trim(),
+    buyer_type: isVendor ? 'vendor' : 'external',
+    buyer_id: isVendor ? buyer.id : '',
+    buyer_name: buyerName,
     sale_date: formData.value.sale_date,
     quantity_sold: Number(formData.value.quantity_sold),
     price_per_unit: Number(formData.value.price_per_unit),

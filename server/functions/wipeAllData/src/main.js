@@ -25,6 +25,7 @@ const TABLES_TO_WIPE = [
   'loan_payments',
   'farm_sales',
   'finance_transactions',
+  'vendors',
   'loans',
   'harvests',
   'farm_alerts',
