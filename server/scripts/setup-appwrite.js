@@ -1797,7 +1797,13 @@ const tableSchemas = {
       {
         key: 'action',
         type: 'enum',
-        elements: ['user_create', 'user_update', 'user_deactivate', 'user_reactivate'],
+        elements: [
+          'user_create',
+          'user_update',
+          'user_deactivate',
+          'user_reactivate',
+          'user_password_reset',
+        ],
         required: true,
       },
       {
@@ -2057,11 +2063,12 @@ async function createColumn(tableId, column) {
     // Column already exists — check if it's healthy or needs repair.
     const existing = await getColumn(tableId, key);
 
-    // Story 5.7: Repair `failed` relationship columns by deleting and
-    // recreating them. A failed column is invisible to createRow, causing
-    // "Unknown attribute" errors during seeding.
-    if (type === 'relationship' && existing && existing.status === 'failed') {
-      console.log(`      ⚠️  Column exists but status=failed, repairing: ${key}`);
+    // Story 5.7: Repair relationship columns that are not `available`. A
+    // relationship column in any non-available state (failed, stuck,
+    // processing, etc.) is invisible to createRow and causes "Unknown
+    // attribute" errors during seeding/writes. Delete and recreate it.
+    if (type === 'relationship' && existing && existing.status !== 'available') {
+      console.log(`      ⚠️  Column exists but status=${existing.status}, repairing: ${key}`);
       const deleted = await deleteColumnAndWait(tableId, key);
       if (deleted) {
         try {

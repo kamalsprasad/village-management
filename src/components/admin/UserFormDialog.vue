@@ -79,6 +79,55 @@
             hint="Optional: connect this account to an existing resident record"
           />
 
+          <!-- Admin-driven password reset (edit mode only) -->
+          <q-separator v-if="isEditMode" class="q-my-sm" />
+          <div v-if="isEditMode">
+            <div class="text-subtitle2 q-mb-xs">Reset Password</div>
+            <p class="text-caption text-grey-7 q-ma-none q-mb-sm">
+              Use this when a user cannot reset their own password. Their active sessions will be
+              invalidated and they must sign in with the new password.
+            </p>
+            <div class="row q-gutter-sm items-start">
+              <q-input
+                v-model="resetPasswordValue"
+                class="col"
+                :type="showResetPassword ? 'text' : 'password'"
+                label="New password"
+                outlined
+                maxlength="265"
+                hint="At least 8 characters"
+                :rules="resetPasswordRules"
+                lazy-rules
+              >
+                <template #prepend>
+                  <q-icon name="lock_reset" />
+                </template>
+                <template #append>
+                  <q-icon
+                    :name="showResetPassword ? 'visibility_off' : 'visibility'"
+                    class="cursor-pointer"
+                    @click="showResetPassword = !showResetPassword"
+                  />
+                </template>
+              </q-input>
+              <q-btn
+                type="button"
+                color="warning"
+                icon="vpn_key"
+                label="Reset"
+                outline
+                :loading="resetLoading"
+                :disable="resetLoading || !canResetPassword"
+                class="q-mt-sm"
+                @click="onResetPassword"
+              >
+                <q-tooltip v-if="!canResetPassword">
+                  Enter a valid new password (min 8 characters) to enable
+                </q-tooltip>
+              </q-btn>
+            </div>
+          </div>
+
           <div class="row justify-end q-gutter-sm">
             <q-btn
               type="button"
@@ -134,6 +183,18 @@ const formRef = ref(null);
 const loading = ref(false);
 const showPassword = ref(false);
 
+const resetPasswordValue = ref('');
+const showResetPassword = ref(false);
+const resetLoading = ref(false);
+
+const resetPasswordRules = [
+  (val) => !val || val.length >= 8 || 'Password must be at least 8 characters',
+];
+
+const canResetPassword = computed(
+  () => !!resetPasswordValue.value && resetPasswordValue.value.length >= 8,
+);
+
 const isEditMode = computed(() => !!props.user);
 
 const emptyForm = () => ({
@@ -181,6 +242,8 @@ watch(
 function resetForm() {
   form.value = emptyForm();
   showPassword.value = false;
+  resetPasswordValue.value = '';
+  showResetPassword.value = false;
   if (formRef.value) {
     formRef.value.resetValidation();
   }
@@ -189,6 +252,30 @@ function resetForm() {
 function onCancel() {
   resetForm();
   emit('update:modelValue', false);
+}
+
+async function onResetPassword() {
+  if (!props.user || !canResetPassword.value) {
+    return;
+  }
+  resetLoading.value = true;
+  try {
+    const result = await usersStore.resetUserPassword(props.user.$id, resetPasswordValue.value);
+    if (result.success) {
+      notifySuccess('Password reset successfully. The user must sign in again.');
+      resetPasswordValue.value = '';
+      showResetPassword.value = false;
+      if (formRef.value) {
+        formRef.value.resetValidation();
+      }
+    } else {
+      notifyError(result.error || 'Failed to reset password');
+    }
+  } catch {
+    notifyError('An unexpected error occurred. Please try again.');
+  } finally {
+    resetLoading.value = false;
+  }
 }
 
 async function onSubmit() {

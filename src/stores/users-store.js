@@ -165,5 +165,23 @@ export const useUsersStore = defineStore('users', {
         this.isLoading = false;
       }
     },
+
+    /**
+     * Reset a user's password on their behalf (admin-driven). Invalidates
+     * existing sessions server-side so the user must sign in with the new
+     * password.
+     */
+    async resetUserPassword(userId, password) {
+      this.isLoading = true;
+      try {
+        return await this._callUserManagementFunction({
+          action: 'resetUserPassword',
+          userId,
+          password,
+        });
+      } finally {
+        this.isLoading = false;
+      }
+    },
   },
 });

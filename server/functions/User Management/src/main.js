@@ -137,6 +137,8 @@ export default async ({ req, res, log, error }) => {
         return res.json(await deactivateUser(body, deps));
       case 'reactivateUser':
         return res.json(await reactivateUser(body, deps));
+      case 'resetUserPassword':
+        return res.json(await resetUserPassword(body, deps));
       default:
         return res.json(
           { success: false, error: `Unknown action: ${action}` },
@@ -476,6 +478,62 @@ async function reactivateUser(
     targetUserId: userId,
     before: { active: false },
     after: { active: true },
+  });
+
+  return { success: true, userId };
+}
+
+async function resetUserPassword(body, { users, tablesDB, log, actorUserId }) {
+  const { userId, password } = body;
+
+  if (!userId) {
+    return { success: false, error: 'Missing userId' };
+  }
+  if (!password || password.length < 8) {
+    return {
+      success: false,
+      error: 'Password must be at least 8 characters',
+    };
+  }
+
+  // Confirm the target exists. We don't need the row contents, but a 404
+  // here means the caller referenced a user that was deleted out-of-band.
+  try {
+    await tablesDB.getRow({
+      databaseId: DATABASE_ID,
+      tableId: TABLE_USERS,
+      rowId: userId,
+    });
+  } catch (err) {
+    return { success: false, error: 'User not found' };
+  }
+
+  try {
+    await users.updatePassword({ userId, password });
+  } catch (err) {
+    return {
+      success: false,
+      error: err.message || 'Failed to reset password',
+    };
+  }
+
+  // Invalidate existing sessions so the user must sign in with the new
+  // password. This matches the security posture of deactivation and prevents
+  // any stale session from remaining usable.
+  try {
+    await users.deleteSessions({ userId });
+  } catch (err) {
+    log(`Could not delete sessions for user ${userId}: ${err.message}`);
+  }
+
+  // Deliberately do NOT record the password (or any hash of it) in the audit
+  // log — only the fact that a reset occurred.
+  await writeAuditLog(tablesDB, {
+    actorUserId,
+    action: 'user_password_reset',
+    targetUserId: userId,
+    before: null,
+    after: { reset: true },
   });
 
   return { success: true, userId };
