@@ -1,4 +1,4 @@
-# /bmad-dev-auto Prompt — Epic 5 Remaining Stories (5.7 → 5.14)
+# /bmad-dev-auto Prompt — Epic 5 Remaining Stories (5.9 → 5.14)
 
 > **Usage:** Copy everything below the `---` line into a fresh `/bmad-dev-auto` invocation.
 > **Adapting for subsequent iterations:** Change ONLY the three sections marked
@@ -15,9 +15,9 @@ You are running bmad-dev-auto for the Sustainable Model Village Management Syste
 ## Current Iteration Target <<< CHANGE PER ITERATION >>>
 
 Epic: 5 — "Village Calendar, Storage, Optional Modules, and User Management"
-Story to implement THIS iteration: 5.7 — Vendors/Suppliers Management Module
+Story to implement THIS iteration: 5.9 — Module Management and Configuration
 Epic context file to load/compile: {implementation_artifacts}/epic-5-context.md
-Spec file to produce: {implementation_artifacts}/spec-5-7-vendors-suppliers-management-module.md
+Spec file to produce: {implementation_artifacts}/spec-5-9-module-management-and-configuration.md
 
 If the spec file already exists with status `draft`, resume it. If it exists with any other status, do NOT overwrite — HALT with blocking condition `spec already in progress/done; user decision required`.
 
@@ -39,75 +39,65 @@ MVP stories, in dependency order (stories marked ✅ are done; ← THIS ITERATIO
 
 DEFERRED (post-MVP — out of scope, do NOT implement, do NOT add toggles for them): 5.5 Guests, 5.6 Equipment, 5.8 Energy, 4.9–4.11.
 
-## Story 5.7 Specifics <<< CHANGE PER ITERATION >>>
+## Story 5.9 Specifics <<< CHANGE PER ITERATION >>>
 
-Intent: A Finance Manager can track vendors and suppliers (buyers and sellers) with a full CRUD vendors module — vendor list, add/edit vendor form (name, type, business type, contact info, payment terms, quality rating), vendor detail page with transaction history and performance metrics, vendor selection integration into farm sales (buyer dropdown) and finance expenses (vendor dropdown), automatic vendor transaction history updates, and a vendors dashboard widget. This is a new top-level module (`src/modules/vendors/`) with its own nav section, routes, store, and RBAC permissions.
+Intent: Deliver a Module Management and Configuration page that lets System Administrators enable or disable optional MVP modules (Farm, School, Vendors). Core modules (Residents, Households, Finance, Inventory, Calendar, Storage) are always enabled. Disabling an optional module hides its navigation section, routes, and dashboard widgets but preserves all underlying data. This story generalizes the basic `vendors_enabled` flag introduced in Story 5.7 into a single `modules_enabled` array in `village_settings`, and it produces a reusable module-selection component/composable that Story 5.11 will use in the Start Fresh wizard.
 
-ACs (from docs/epics.md Story 5.7 — treat as authoritative):
+ACs (from docs/epics.md Story 5.9 — treat as authoritative):
 
-1. Vendors module enabled via settings.
-2. Vendors list, "Add Vendor" form: name, vendor type (Supplier/Buyer/Both), business type, contact info, payment terms, quality rating.
-3. Vendor detail page: transaction history, performance metrics.
-4. Vendor selection integration: Farm sales buyer dropdown, Finance expenses vendor dropdown.
-5. Vendor transaction history automatically updated.
-6. Vendors dashboard widget.
+1. Admin menu: System Administrators see a "Module Management" item in the Administration navigation section, linking to `/admin/modules`.
+2. Module Management page (`/admin/modules`): Lists Core Modules (read-only, always enabled) and Optional Modules (toggleable). For each module show name, description, current status, toggle switch, and a "Configure" button where an existing settings page exists (e.g., Farm Settings, School Settings).
+3. Enabling an optional module: its main navigation section appears (if the user has the relevant permission), its routes become accessible, and its dashboard widgets become visible.
+4. Disabling an optional module: confirmation dialog explaining data is preserved; navigation section and routes are hidden/inaccessible, dashboard widgets hidden.
+5. Module dependencies: show an informational warning when disabling a module that other enabled modules depend on. For MVP: Farm provides auto-events to Calendar; Vendors are selectable in Farm sales and Finance expenses. Disabling does not block the action, only warns.
+6. First-time setup wizard updated with a "Select Modules" step — implementation of the wizard itself belongs to Story 5.11; 5.9 must produce a reusable module-selection UI piece (component or composable) that 5.11 can drop into the Start Fresh wizard without rework.
+7. Settings persistence: toggling updates `village_settings.modules_enabled` via `settingsStore.updateSettings`; changes are reflected immediately in the UI after the settings store reloads.
 
-Prerequisites confirmed done: Story 2.2 (expense recording — `done`), Story 2.3 (admin-configurable categories — `done`), Story 3.8 (farm sales with finance+inventory integration — `done`). All confirmed via docs/sprint-status.yaml. No spec file exists yet for 5.7.
+Prerequisites confirmed done: Story 5.7 (Vendors module — `done` per `spec-5-7-vendors-suppliers-management-module.md` status `done`), Stories 5.1–5.4 (Calendar/Storage — `done`), and all Epic 2/3/4 stories (`done`). All confirmed via `docs/sprint-status.yaml`. No spec file exists yet for 5.9.
 
-**AC1 — "enabled via settings" interpretation (user-confirmed 2026-07-31):** 5.7 implements a basic settings flag that gates the Vendors module nav/routes. This is a simple boolean toggle in `village_settings` (e.g. `vendors_enabled` column, default `true`) checked by `settingsStore` and used in `MainLayout.vue` / route guards. Story 5.9 (Module Management) will later generalize this into the full Module Management page with toggle UI for all optional modules (Farm, School, Vendors). 5.7 does NOT build the `/admin/modules` page — that is 5.9 scope. The toggle for Vendors in 5.7 is a settings-store flag only, not a UI page.
+**Data model — greenfield project, no migration needed:** `village_settings.modules_enabled` is a string-array column already present in `server/scripts/setup-appwrite.js`. Story 5.7 also added a `vendors_enabled` boolean. For 5.9:
 
-**Data model — user-confirmed 2026-07-31:** This is a fresh install / greenfield project. No data migration is needed. Replace the free-text `vendor` field on `finance_transactions` with a `vendor_id` FK relationship to the new `vendors` table. Wire the existing `farm_sales.buyer_id` and `buyer_type` columns to the vendors table (buyer_type becomes `'vendor'` when a vendor is selected, `'external'` for ad-hoc buyers). The existing `buyer_name` on `farm_sales` remains as a denormalized display field. Old sample-data rows that used the free-text `vendor` field will be re-seeded (sample data composables will be updated to use vendor IDs).
+- Make `modules_enabled` the canonical source of truth for module toggles.
+- Add `settingsStore` getters `farmEnabled`, `schoolEnabled`, and update `vendorsEnabled` to first check `modules_enabled`, falling back to legacy `vendors_enabled` for safety.
+- Update `server/scripts/seed-village-settings.js` so the default `modules_enabled` includes all core modules plus `farm`, `school`, and `vendors`.
+- Optionally deprecate `vendors_enabled` from new setups; the spec should document whether the column is removed from `setup-appwrite.js` or kept as a read-only fallback.
 
-Continuity context from prior work (load the 5.4 spec's Auto Run Result and Design Notes for established patterns):
+Continuity context from prior work (load the 5.7 spec's Auto Run Result and Design Notes for module conventions, plus 5.4 for route/store patterns):
 
-- `src/modules/farm/` — the Farm module is the most recent full-module example (Epics 3 + 5.4). It has `pages/`, `components/`, `stores/farm-store.js`, `router.js`, `utils/`. 5.7 follows the same structure under `src/modules/vendors/`.
-- `src/modules/farm/stores/farm-store.js` — large Pinia options-store with `useErrorHandler`, CRUD actions, getters, cross-module integration (calls `useFinanceStore`). 5.7's `vendors-store.js` follows the same pattern but is simpler (no three-way integration). The store should have `fetchVendors`, `fetchVendorById`, `createVendor`, `updateVendor`, `deleteVendor`, `fetchVendorTransactions` (aggregates finance transactions + farm sales by vendor_id).
-- `src/modules/farm/router.js` — route definitions with `requiresAuth` + `requiresPermission` guards. 5.7 adds `/vendors`, `/vendors/add`, `/vendors/:id`, `/vendors/:id/edit` routes with `vendors:read` / `vendors:write` permissions.
-- `src/modules/finance/components/TransactionForm.vue` — the expense form currently has a free-text `vendor` q-input (lines 338-345, formData.vendor at line 492, submitData.vendor at line 839). 5.7 replaces this with a vendor picker (q-select with filterable dropdown of vendors, plus an "ad-hoc" free-text fallback option). The form submits `vendor_id` (FK to vendors table) instead of `vendor` (free-text string).
-- `src/modules/finance/stores/finance-store.js` — `createTransaction`/`updateTransaction` currently set `data.vendor = transactionData.vendor || null` (lines 1076, 1199). 5.7 changes these to set `data.vendor_id = transactionData.vendor_id || null` and removes the `data.vendor` line.
-- `src/modules/farm/components/RecordSaleDialog.vue` — the farm sale form has a `buyer_name` q-input (line 49-55). 5.7 adds an optional vendor picker (q-select) alongside or replacing the buyer_name field. When a vendor is selected, `buyer_id` is set to the vendor's `$id`, `buyer_type` to `'vendor'`, and `buyer_name` is auto-populated from the vendor's name. When no vendor is selected (ad-hoc buyer), `buyer_type` stays `'external'`, `buyer_id` stays empty, and `buyer_name` is the free-text input.
-- `src/modules/farm/stores/farm-store.js` — `recordSale` (around line 2798-2805) currently hard-codes `buyer_type: 'external'`, `buyer_id: ''`. 5.7 updates this to use the form's `buyer_id` and `buyer_type` values from the vendor picker.
-- `server/scripts/setup-appwrite.js` — `finance_transactions` table has a `vendor` string column (line 744). 5.7 replaces this with a `vendor_id` relationship column (manyToOne → `vendors`). `farm_sales` table already has `buyer_type` (enum) and `buyer_id` (string) columns (lines 941-945). 5.7 changes `buyer_id` to a relationship column (manyToOne → `vendors`) or keeps it as a string and sets it to the vendor `$id` — choose and document. A new `vendors` table is created following the existing `tableSchemas`/`createTable` pattern.
-- `server/scripts/seed-roles.js` — all roles are defined with `permissions` arrays and `storage_quota`. 5.7 adds new `vendors:read` and `vendors:write` permissions to appropriate roles: Finance Manager (read+write), System Administrator (\*), Village Head (read), Deputy Village Head (read), Council Member (read). Farm Manager gets `vendors:read` (can select buyers in farm sales). Other roles do not get vendor access by default.
-- `src/layouts/MainLayout.vue` — nav sections for Farm, School, Finance, Storage, Calendar already exist. 5.7 adds a top-level "Vendors" nav section with "Vendor List" (`/vendors`) entry, gated on `vendors:read` permission AND `settingsStore.vendorsEnabled` flag.
-- `src/router/routes.js` — spreads module route arrays. 5.7 adds `...vendorRoutes`.
-- `src/composables/useSampleData.js` — the main sample data composable. 5.7 adds vendor sample data (3-5 vendors: a cooperative buyer, an agro-dealer supplier, a local market buyer, a transport supplier) and updates existing finance/farm sample data to reference vendor IDs instead of free-text vendor names. The `useFinanceSampleData.js` composable's expense rows that currently set `vendor: 'Some Supplier'` must be updated to set `vendor_id: <vendor-$id>`.
-- `src/composables/useFarmSampleData.js` — farm sample data. The `additional_sale` flow (maize sample sale) currently uses `buyer_name: 'Local Market'` — 5.7 updates it to use a vendor_id from the seeded vendors.
-- `src/stores/settings-store.js` — Pinia options-store for `village_settings`. 5.7 adds a `vendorsEnabled` getter (reads `settings.vendors_enabled`, default `true`) and may add a `setVendorsEnabled` action if an admin toggle is needed before 5.9.
-- `wipeAllData` function (`server/functions/wipeAllData/src/main.js`) — 5.7 MUST add the `vendors` table to `TABLES_TO_WIPE`.
-- `docs/DATABASE_SCHEMA.md` — 5.7 adds a Vendors table section documenting the table, columns, relationships, and indexes.
-- `docs/POST-MVP.md` — the "Vendor Module Integration for Farm Sales (Story 3.8)" entry (lines 129-139) is now being implemented — remove or mark it as resolved.
-
-New data model required: 5.7 introduces a `vendors` table. Key schema:
-
-- `vendors` table: `name` (string, required), `vendor_type` (enum: 'Supplier' | 'Buyer' | 'Both', required), `business_type` (string, optional — e.g. 'Agro-dealer', 'Transport', 'Cooperative', 'Market'), `contact_person` (string, optional), `phone` (string, optional), `email` (string, optional), `address` (string, optional), `payment_terms` (string, optional — e.g. 'Cash on delivery', 'Net 30', 'Prepaid'), `quality_rating` (integer 1-5, optional — 0 or null means unrated), `notes` (string, optional), `is_active` (boolean, default true), `created_at`/`updated_at` (datetime, auto-managed). Indexes on `vendor_type` and `is_active`.
-- `finance_transactions.vendor_id` — relationship (manyToOne → `vendors`, onDelete: setNull). Replaces the existing free-text `vendor` string column. Since this is a fresh install, no migration — just re-run setup-appwrite.
-- `farm_sales.buyer_id` — change from string to relationship (manyToOne → `vendors`, onDelete: setNull) OR keep as string and store the vendor `$id` — the spec should choose and document. `buyer_type` enum should add `'vendor'` as a value (currently only `'external'`).
+- `src/stores/settings-store.js` — already exposes `modulesEnabled` getter. 5.9 adds per-module boolean getters and a helper to add/remove a module key from `modules_enabled` before calling `updateSettings`.
+- `src/boot/router-guards.js` — already supports `requiresSetting: '<getterName>'` by checking `settingsStore[<getterName>]`. 5.9 adds `requiresSetting: 'farmEnabled'` / `'schoolEnabled'` / `'vendorsEnabled'` to the optional module routes.
+- `src/modules/farm/router.js`, `src/modules/school/router.js`, `src/modules/vendors/router.js` — update route `meta` on all optional module routes to include the appropriate `requiresSetting`. Keep existing `requiresPermission` checks unchanged.
+- `src/layouts/MainLayout.vue` — currently gates Vendors on `settingsStore.vendorsEnabled`. 5.9 gates the Agriculture, School, and Vendors expansion items on the corresponding module-enabled getter (in addition to existing permission checks). Core sections remain always visible.
+- `src/router/routes.js` — add the new `/admin/modules` route under the main layout, gated on System Administrator permission.
+- `src/pages/dashboard/DashboardPage.vue` — the Vendors widget is already gated on `vendorsEnabled`. 5.9 establishes the same gating pattern for any Farm/School dashboard widgets (hide when the module is disabled).
+- `src/pages/settings/VillageSettingsPage.vue` — currently has an editable "Enabled Modules" q-select. 5.9 should remove that editable control (or make it read-only with a link to `/admin/modules`) so there is a single source of truth for module toggles.
+- `server/scripts/setup-appwrite.js` — `village_settings.modules_enabled` already exists; no new table needed. Decide whether to keep or remove the `vendors_enabled` boolean column.
+- `server/scripts/seed-village-settings.js` — update default `modules_enabled` to `['residents','households','dashboard','finance','inventory','calendar','storage','farm','school','vendors']`.
+- Story 5.11 will reuse the module-selection UI, so build it as a reusable component (e.g., `src/components/admin/ModuleSelectionCard.vue`) or composable (`useModuleOptions`) that accepts a `v-model` array of enabled module keys.
 
 Key design decisions for the spec to resolve:
 
-- Vendor picker UX in TransactionForm: q-select with filterable list + "ad-hoc" free-text fallback option (so users can still type a one-off vendor name without creating a vendor record), OR require a vendor record to exist first (q-select only, with an inline "Add Vendor" shortcut). Recommend: q-select with filterable list + an "ad-hoc" option that falls back to a free-text input — document the choice.
-- Vendor picker UX in RecordSaleDialog: same pattern as TransactionForm — vendor q-select + ad-hoc buyer_name fallback. When a vendor is selected, buyer_name auto-populates from vendor.name.
-- Vendor transaction history: the vendor detail page aggregates (a) finance_transactions where `vendor_id = this vendor` (expenses) and (b) farm_sales where `buyer_id = this vendor` (sales). Display as a combined chronological list with type indicators. No separate transaction table — history is computed on-the-fly from existing tables.
-- Vendor performance metrics: for MVP, keep it simple — total transaction count, total transaction value (sum of expenses + sales), average quality rating (if rated), last transaction date. No complex on-time-delivery or payment-reliability metrics for MVP (those require additional data points not available yet — document as deferred to POST-MVP).
-- Vendors dashboard widget: follows `dashboard-widget-pattern.md`. Shows vendor count, active vendors, recent transactions (top 5), and a link to the full vendors list. Place on the main Dashboard page or the Finance dashboard — the spec should decide and document.
-- Whether to add a `vendors` sample data composable or inline the vendor seeding into `useSampleData.js` — follow the existing pattern (useSampleData.js coordinates, useFinanceSampleData.js handles finance-specific seeding; 5.7 may create `useVendorsSampleData.js` or inline into `useSampleData.js`).
-- Module toggle: `village_settings.vendors_enabled` boolean column (default `true`). `settingsStore` exposes `vendorsEnabled` getter. `MainLayout.vue` gates the Vendors nav section on both `vendors:read` permission AND `vendorsEnabled`. Route guards also check `vendorsEnabled`. No admin UI for toggling — that is 5.9 scope. Document that 5.9 will generalize this into the full Module Management page.
+- Module option registry: hardcoded array in a new `src/utils/module-registry.js` (or inline in settings-store) with core/optional flag, label, description, icon, route name for Configure, and dependencies. Only `farm`, `school`, and `vendors` are optional for MVP.
+- Dependency warning map: informational only. Example: `farm -> ['calendar']`, `vendors -> ['farm','finance']`. Warnings do not block disabling.
+- Toggle UX: q-toggle per optional module card, saved in batch via a "Save Changes" button on `/admin/modules` to avoid multiple settings writes.
+- Reusable selection component: `ModuleSelectionGrid` or `useModuleOptions` that Story 5.11 can import. It should depend only on a `v-model` array, not on route-level state.
+- Data preservation: disabling a module only hides UI; no data is deleted and foreign-key relationships remain valid.
+- No migration: greenfield; adjust seed script and setup defaults only.
 
 ## Planning Artifacts to Load
 
 Authoritative sources (load via compile-epic-context subagent for epic-5-context.md if not already compiled, plus selectively for story-specific constraints):
 
-- docs/epics.md — Story 5.7 ACs and Epic 5 story list
-- docs/PRD.md — FR-14 (Vendors/Suppliers Management: bidirectional relationships, contact info, payment terms, quality ratings, transaction history linking Finance and Farm, vendor selection during farm sales and finance expense recording), FR-9 (Farm Sales: buyer selection from Vendors module, vendor transaction history update), FR-16 (sample data includes vendors)
+- docs/epics.md — Story 5.9 ACs and Epic 5 story list
+- docs/PRD.md — module management / optional module requirements (village settings, module enable/disable behavior)
 - docs/architecture.md — Appwrite patterns, RBAC, data model conventions, module structure conventions
-- docs/ux-specification.md — no vendor-specific screen specs exist; follow general UX patterns and the module structure of existing modules (Farm, School, Finance)
-- docs/implementation-artifacts/spec-5-4-cloud-storage-shared-folders-and-module-based-access.md — 5.4 spec (continuity context: Auto Run Result, Design Notes, deferred items — most recent Epic 5 story, shows established patterns for new module creation, seed-roles.js updates, setup-appwrite.js table creation, wipeAllData updates)
+- docs/ux-specification.md — no module-management-specific screen specs exist; follow general UX patterns and existing module settings pages
+- docs/implementation-artifacts/spec-5-7-vendors-suppliers-management-module.md — 5.7 spec (continuity context: established module patterns, vendor nav/routable setting, reusable components)
+- docs/implementation-artifacts/spec-5-4-cloud-storage-shared-folders-and-module-based-access.md — 5.4 spec (route guards, store patterns, setup-appwrite.js conventions)
 - docs/implementation-artifacts/epic-5-context.md — compiled epic context (reuse if valid; see step-01 rules)
 - docs/implementation-artifacts/deferred-work.md — carry-forward items including the i18n deferral decision and prior story deferred items
-- docs/implementation-artifacts/dashboard-widget-pattern.md — mandatory pattern for the Vendors dashboard widget (AC6)
-- docs/DATABASE_SCHEMA.md — existing schema documentation; 5.7 adds a Vendors table section following the existing pattern
-- docs/POST-MVP.md — contains the "Vendor Module Integration for Farm Sales (Story 3.8)" deferred item that 5.7 now implements — remove or mark as resolved
+- docs/DATABASE_SCHEMA.md — existing schema documentation; 5.9 uses the existing `village_settings.modules_enabled` array (no new tables)
+- docs/POST-MVP.md — confirm Guests/Equipment/Energy modules remain deferred and are not added to the MVP module toggle list
 
 Do NOT load POST-MVP.md as a primary source — it lists deferred modules only. Use it only to confirm a feature is deferred when in doubt.
 
@@ -117,7 +107,7 @@ Do NOT load POST-MVP.md as a primary source — it lists deferred modules only. 
 - Backend: Appwrite v21.2.1 (Database, Auth, Storage, Functions).
 - State: Pinia. Date/Time: date-fns + date-fns-tz (village timezone from `settingsStore.timezone`, default `Africa/Lusaka`). Charts: Chart.js v4.5.1. Calendar: vue-cal v5 (`^5.0.1-rc.33`).
 - Normalized ID-based relationships; composable error handling (useErrorHandler); custom form validation integrated with error handler.
-- RBAC: `src/utils/permissions.js`, `src/composables/usePermissions.js` (`hasPermission('vendors:read')`, `hasPermission('vendors:write')`), route guards, PermissionGuard — reuse, do not reinvent. 5.7 adds new `vendors:read` / `vendors:write` permissions to `seed-roles.js` — document the decision.
+- RBAC: `src/utils/permissions.js`, `src/composables/usePermissions.js` (`hasPermission('<module>:read')`, `hasPermission('<module>:write')`), route guards, PermissionGuard — reuse, do not reinvent. 5.9 does not introduce new permissions; it gates existing module UI/routes on `modules_enabled` in addition to existing permission checks.
 - Dashboard widgets: follow docs/implementation-artifacts/dashboard-widget-pattern.md exactly.
 - No new dependencies without verifying they're already in package.json. If a new dep is truly required, HALT with blocking condition `new dependency required: <name> — user approval needed`.
 - Match existing code style in src/pages/, src/stores/, src/composables/, src/services/, src/modules/. Read neighboring modules (e.g. src/modules/school/, src/modules/farm/, src/modules/calendar/, src/modules/storage/) before scaffolding.
@@ -153,11 +143,11 @@ Do NOT invent requirements. Do NOT pull scope from other stories into this itera
 - Vue 3 `<script setup>` only. No Options API. No `this`.
 - SSR-safe: any Appwrite TablesDB access must be guarded for SSR; follow the `isClient` pattern used in existing pages (e.g. FarmDashboardPage.vue, LearnersListPage.vue, FinanceDashboardPage.vue).
 - Quasar components for all UI primitives (q-btn, q-input, q-select, q-dialog, q-chip, q-table, q-banner, q-rating, etc.). No raw HTML controls.
-- New Appwrite table definitions go in `server/scripts/setup-appwrite.js` following the existing pattern (attributes, permissions, indexes). The `vendors` table follows the same `tableSchemas`/`createTable` pattern used for all existing tables.
-- Pinia stores follow the existing options-store pattern (state, getters, actions) with `useErrorHandler` for error handling. Follow `farm-store.js` or `school-store.js` as the template for a new `vendors-store.js`. Table operations use `tables.listRows`/`tables.createRow`/`tables.updateRow`/`tables.deleteRow` from the Appwrite TablesDB API (imported from `src/boot/appwrite.js`).
+- 5.9 does not create new Appwrite tables; module toggles live in the existing `village_settings.modules_enabled` array.
+- Pinia stores follow the existing options-store pattern (state, getters, actions) with `useErrorHandler` for error handling. Modify `src/stores/settings-store.js` only; no new Pinia store is required for this story.
 - Date handling: all dates stored as ISO 8601 in Appwrite; display via `src/utils/dateUtils.js` (`toDateStrInTimezone`, `formatDateInTimezone`, `addDaysToDateStr`) with `settingsStore.timezone`.
-- Permission checks in templates: use `hasPermission('vendors:read')`, `hasPermission('vendors:write')` from `usePermissions` composable to gate UI. Use `PermissionGuard` component where appropriate.
-- `wipeAllData` function (`server/functions/wipeAllData/src/main.js`) — 5.7 adds the `vendors` table to `TABLES_TO_WIPE`.
+- Permission checks in templates: use existing module permissions from `usePermissions` composable to gate UI, and `requiresPermission: '*'` for `/admin/modules`. Use `PermissionGuard` where appropriate.
+- `wipeAllData` function (`server/functions/wipeAllData/src/main.js`) — no changes required for 5.9; module toggle data lives in `village_settings`.
 - No emojis in code or UI unless an existing module already uses them.
 
 ## Review (step-04) — Full Adversarial
@@ -168,24 +158,22 @@ Run the full adversarial review pass per the skill's step-04:
 - Edge Case Hunter: walk every branching path and boundary.
 - Acceptance Auditor: map each AC to concrete code/test evidence; flag any AC with no evidence.
 
-### Review invariants for Story 5.7 <<< CHANGE PER ITERATION >>>
+### Review invariants for Story 5.9 <<< CHANGE PER ITERATION >>>
 
-Specific invariants the review MUST verify for 5.7:
+Specific invariants the review MUST verify for 5.9:
 
-- The `vendors` table exists in Appwrite with all required columns (name, vendor_type enum, business_type, contact info, payment terms, quality_rating, is_active) and indexes on vendor_type + is_active. The `finance_transactions.vendor` free-text column is replaced by `vendor_id` relationship → vendors. The `farm_sales.buyer_type` enum includes `'vendor'` and `buyer_id` is wired to vendors.
-- Vendors list page (`/vendors`) shows all vendors with search/filter by vendor_type. "Add Vendor" and "Edit Vendor" forms work with all AC2 fields. Form validation is integrated with `useErrorHandler`.
-- Vendor detail page (`/vendors/:id`) shows vendor info, transaction history (combined finance expenses + farm sales where vendor_id/buyer_id matches), and performance metrics (count, total value, avg rating, last transaction date).
-- Vendor selection integration: the Finance expense form (TransactionForm.vue) has a vendor picker (q-select) that populates `vendor_id` — the old free-text `vendor` field is gone. The Farm sales form (RecordSaleDialog.vue) has a vendor picker for the buyer — selecting a vendor sets `buyer_id`, `buyer_type='vendor'`, and auto-populates `buyer_name`. Ad-hoc/free-text entry still works for both forms (buyer_type stays 'external' for ad-hoc farm sales, vendor_id is null for ad-hoc finance expenses).
-- Vendor transaction history is automatically updated: when a new finance expense with a vendor_id is created, it appears in that vendor's transaction history. When a new farm sale with a buyer_id (vendor) is created, it appears in that vendor's transaction history. No manual sync needed — history is computed on-the-fly from existing tables.
-- Vendors dashboard widget follows `dashboard-widget-pattern.md` and shows vendor count + recent transactions. It is placed on the appropriate dashboard page (spec decides which).
-- `vendors:read` and `vendors:write` permissions are added to `seed-roles.js` for appropriate roles (Finance Manager: read+write, System Administrator: \*, Village Head/Deputy/Council Member: read, Farm Manager: read). Route guards and UI gating use these permissions.
-- The Vendors nav section in `MainLayout.vue` is gated on BOTH `vendors:read` permission AND `settingsStore.vendorsEnabled` flag. When `vendors_enabled` is false in village_settings, the nav section and routes are hidden/inaccessible.
-- `wipeAllData` is updated to wipe the `vendors` table.
-- Sample data: `useSampleData.js` (or a new `useVendorsSampleData.js`) seeds 3-5 realistic vendors. Existing finance/farm sample data is updated to reference vendor IDs instead of free-text vendor names. The sample data flow works end-to-end (SetupWizard → seed vendors → seed finance/farm with vendor IDs).
-- The existing finance expense and farm sales UX is not broken — expenses still create, list, edit, and delete correctly; farm sales still record, list, and show detail correctly. The only change is the vendor field is now a picker instead of free-text.
-- `DATABASE_SCHEMA.md` is updated with the Vendors table section.
-- `docs/POST-MVP.md` "Vendor Module Integration for Farm Sales (Story 3.8)" entry is removed or marked as resolved.
-- No vendor CRUD operations leak across permissions (e.g., a Teacher without `vendors:read` cannot see the Vendors nav or access `/vendors`).
+- `village_settings.modules_enabled` is the canonical module toggle list; `settingsStore.farmEnabled`, `schoolEnabled`, and `vendorsEnabled` return `true` when the module key is present in `modules_enabled` (with `vendorsEnabled` falling back to legacy `vendors_enabled` if needed).
+- `/admin/modules` route exists, gated on System Administrator permission (`requiresPermission: '*'`). The page lists Core Modules as non-interactive and Optional Modules as toggleable cards with name, description, status, and a "Configure" button linking to the module's settings page where one exists.
+- All optional module routes use `requiresSetting` meta: farm routes → `farmEnabled`, school routes → `schoolEnabled`, vendor routes → `vendorsEnabled`. Direct navigation to a disabled module route is redirected by `src/boot/router-guards.js`.
+- `MainLayout.vue` Agriculture, School, and Vendors sections are gated on both the module-enabled getter and the existing permission check. When a module is disabled, its nav section and sub-items disappear.
+- Disabling a module shows a confirmation dialog that explicitly states data is preserved. After saving, the navigation section hides immediately via reactive settings-store update.
+- Dependency warnings appear before disabling a module when another enabled module depends on it (e.g., disabling Farm warns Calendar auto-events; disabling Vendors warns Farm sales/Finance expenses). The action is informational and not blocked.
+- `server/scripts/seed-village-settings.js` default `modules_enabled` includes all core modules plus `farm`, `school`, and `vendors`.
+- Guests, Equipment, and Energy modules do not appear in the optional module toggle list or module registry.
+- A reusable module-selection component or composable is created and documented so Story 5.11 can reuse it in the Start Fresh wizard without changing its internals.
+- `src/pages/settings/VillageSettingsPage.vue` no longer offers a separate editable "Enabled Modules" control that conflicts with `/admin/modules`.
+- `DATABASE_SCHEMA.md` (repo root) documents `modules_enabled` already; confirm it is current. No new tables are required.
+- The existing functionality of Farm, School, and Vendors modules is unchanged when enabled; only visibility/routability changes when disabled.
 
 **5.9 (Module Management):** Admin page at `/admin/modules`. Core modules always enabled (Residents, Households, Finance, Inventory, Calendar, Storage). Optional MVP modules toggleable: Farm, School, Vendors ONLY (NOT Guests/Equipment/Energy — deferred). Toggle hides nav/widgets but preserves data. Dependency warning on disable. Updates `settingsStore.modulesEnabled`. Generalizes the basic `vendors_enabled` flag from 5.7 into the full module toggle system. Dep: all MVP previous stories.
 
