@@ -2,10 +2,11 @@
 title: 'Story 5.12: User Management - CRUD Operations'
 type: feature
 created: '2026-08-03'
-status: in-review
+status: done
 baseline_revision: '1e71a52e4e69d452d9264e9c041b8483341da231'
-review_loop_iteration: 0
-followup_review_recommended: false
+final_revision: '336a144b82ef8d4d1940a92af0be095009ba2e5c'
+review_loop_iteration: 1
+followup_review_recommended: true
 context:
   - '{project-root}/docs/implementation-artifacts/epic-5-context.md'
   - '{project-root}/docs/implementation-artifacts/spec-5-14-authentication-completeness-password-change-and-reset.md'
@@ -201,3 +202,35 @@ Apply the same check at the top of `checkSession()` after `account.get()`; on fa
 - Create a user with the System Administrator role and verify they appear in the `village_administrators` team in the Appwrite console.
 - Deactivate the user, then attempt to log in as that user; confirm the deactivation message and that no session persists.
 - Check the `audit_logs` collection in the Appwrite console; confirm rows exist for create/update/deactivate/reactivate with actor/target/changes.
+
+## Auto Run Result
+
+**Status:** done
+
+**Summary:** Implemented Story 5.12 (User Management CRUD Operations) end-to-end. Added the `users.active` boolean column and the `audit_logs` table to `setup-appwrite.js`, created a new server-side Appwrite Function at `server/functions/User Management/src/main.js` for admin-scope user create/update/deactivate/reactivate with team sync and audit logging, added `src/stores/users-store.js`, wired `src/pages/admin/UsersPage.vue` with Add/Edit/Deactivate/Reactivate UI, added defense-in-depth `active` checks in `src/stores/auth-store.js`, and updated deployment docs and `.env.example`.
+
+**Files changed:**
+
+- `server/scripts/setup-appwrite.js` — `users.active` column and new `audit_logs` table.
+- `.env.example` — `VITE_APPWRITE_FUNCTION_USER_MANAGEMENT`.
+- `appwrite_setup/FUNCTION_DEPLOYMENT.md` — User Management function deployment guide with correct scopes.
+- `server/functions/User Management/` — new function package, README, and `src/main.js`.
+- `server/functions/wipeAllData/src/main.js` — include `audit_logs` in wipe list.
+- `src/stores/users-store.js` — new Pinia store wrapping the User Management function.
+- `src/stores/auth-store.js` — `active` checks in `login`, `checkSession`, and `fetchUser`.
+- `src/pages/admin/UsersPage.vue` — Add User button, status/search filters, actions column, disabled Manage Roles placeholder.
+- `src/components/admin/UserFormDialog.vue` — Add/Edit user form.
+- `src/components/admin/DeactivateUserDialog.vue` — Deactivate/Reactivate confirmation with self/last-admin guards.
+
+**Review findings:** 13 patches applied (5 high, 4 medium, 4 low); 2 items deferred. See `## Review Triage Log` for details.
+
+**Verification:**
+
+- `npm run lint` — passed, no errors.
+- `npm run build` — passed, SPA build succeeded.
+
+**Residual risks:**
+
+- The new Appwrite Function and schema changes must be deployed against a live Appwrite project (`appwrite push function`, `node server/scripts/setup-appwrite.js`).
+- Two low-severity items were deferred: the `server/functions/User Management/` directory name contains a space, and `users-store.js` fetches up to 500 users without pagination.
+- A follow-up independent review is recommended because the pass included high-severity security and SDK-correctness fixes.
