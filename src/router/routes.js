@@ -14,6 +14,12 @@ const routes = [
     component: () => import('pages/AuthPage.vue'),
   },
 
+  // Password reset page reached from recovery email link (no layout, public)
+  {
+    path: '/auth/reset-password',
+    component: () => import('pages/auth/ResetPasswordPage.vue'),
+  },
+
   // Unauthorized page (no layout)
   {
     path: '/unauthorized',

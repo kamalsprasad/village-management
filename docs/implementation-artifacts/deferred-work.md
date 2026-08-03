@@ -108,7 +108,7 @@ Items deferred during code reviews. Revisit before closing their parent story or
   evidence: seed-roles.js `continue` on existing roles (same pre-existing pattern as Stories 5.2/5.3/5.4); affected role rows must be updated via the Appwrite console or an upsert migration. Owning story: Story 5.13 (Role Assignment and Permissions Management UI) or an ops runbook.
 - source_spec: `spec-5-7-vendors-suppliers-management-module.md`
   summary: `vendors` table uses the platform-wide shared `permissions` var (read/create/update/delete("any")), so vendor row-level security is not enforced server-side; any authenticated user can read/write all vendor rows regardless of role.
-  evidence: setup-appwrite.js `vendors` table reuses the shared `permissions` constant — same architectural debt acknowledged for every prior module. Owning story: post-MVP security hardening (or Story 5.10 system completion).
+  evidence: setup-appwrite.js `vendors` table reuses the shared `permissions` constant ï¿½ same architectural debt acknowledged for every prior module. Owning story: post-MVP security hardening (or Story 5.10 system completion).
 - source_spec: `spec-5-7-vendors-suppliers-management-module.md`
   summary: `fetchVendors` is capped at `Query.limit(200)` with no pagination; beyond 200 vendors, additional rows silently never load.
   evidence: vendors-store.js:107 `Query.limit(200)` with no cursor/offset follow-up; mirrors the deferred 5.2/5.3 list-pagination pattern. Owning story: post-MVP pagination pass.
@@ -118,3 +118,18 @@ Items deferred during code reviews. Revisit before closing their parent story or
 - source_spec: `spec-5-7-vendors-suppliers-management-module.md`
   summary: No automated test coverage for `vendors-store`, `VendorPicker`, `vendor-utils`, or the finance/farm integration changes; covered only by lint/build and manual QA.
   evidence: No `*.test.js`/`*.spec.js` files added under `src/`; the project has no existing unit-test infrastructure for stores/composables. Owning story: post-MVP testing initiative.
+
+## Deferred from: code review of spec-5-14-authentication-completeness-password-change-and-reset (2026-08-03)
+
+- source_spec: `spec-5-14-authentication-completeness-password-change-and-reset.md`
+  summary: `ChangePasswordDialog.vue` allows a user to "change" their password to the same value as their current password with no client-side warning.
+  evidence: No inline rule compares `form.newPassword` against `form.currentPassword`; behavior on a no-op change is left entirely to whatever Appwrite decides to do. Low impact â€” not a correctness or security issue, just a missed UX nicety. Owning story: post-MVP auth UX polish.
+- source_spec: `spec-5-14-authentication-completeness-password-change-and-reset.md`
+  summary: The single-use recovery `userId`/`secret` query params remain visible in the browser URL/history after `/auth/reset-password` is used (success or failure), instead of being cleared via `router.replace`.
+  evidence: `ResetPasswordPage.vue` never removes the query string after `resetPassword` resolves. Low impact since Appwrite invalidates the token server-side after first use, but still avoidable browser-history hygiene debt. Owning story: post-MVP auth hardening.
+- source_spec: `spec-5-14-authentication-completeness-password-change-and-reset.md`
+  summary: No client-side cooldown/throttle on repeated "Send Reset Link" or "Change Password" submissions beyond the existing loading-state button disable; rapid resubmission relies entirely on Appwrite's server-side rate limiting.
+  evidence: `ForgotPasswordDialog.vue`/`ChangePasswordDialog.vue` only guard against double-submit via the `loading` ref during an in-flight request, not a post-response cooldown. Minor UX/abuse-surface gap on an unauthenticated-reachable endpoint (`requestPasswordReset`). Owning story: post-MVP auth hardening.
+- source_spec: `spec-5-14-authentication-completeness-password-change-and-reset.md`
+  summary: Password-visibility toggle icons (`<q-icon class="cursor-pointer" @click="...">`) in `ChangePasswordDialog.vue` and `ResetPasswordPage.vue` have no `role`, `tabindex`, or `aria-label`, making them unreachable via keyboard and unannounced to screen readers.
+  evidence: This mirrors the pre-existing pattern already in `LoginForm.vue` prior to this story (not introduced here), now propagated to two more surfaces. A fix should address all instances of the pattern at once. Owning story: post-MVP accessibility pass.

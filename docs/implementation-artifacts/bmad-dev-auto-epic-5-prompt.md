@@ -1,4 +1,4 @@
-# /bmad-dev-auto Prompt — Epic 5 Remaining Stories (5.9 → 5.14)
+# /bmad-dev-auto Prompt — Epic 5 Remaining Stories (5.14 → 5.10)
 
 > **Usage:** Copy everything below the `---` line into a fresh `/bmad-dev-auto` invocation.
 > **Adapting for subsequent iterations:** Change ONLY the three sections marked
@@ -15,9 +15,9 @@ You are running bmad-dev-auto for the Sustainable Model Village Management Syste
 ## Current Iteration Target <<< CHANGE PER ITERATION >>>
 
 Epic: 5 — "Village Calendar, Storage, Optional Modules, and User Management"
-Story to implement THIS iteration: 5.9 — Module Management and Configuration
+Story to implement THIS iteration: 5.14 — Authentication Completeness - Password Change and Reset
 Epic context file to load/compile: {implementation_artifacts}/epic-5-context.md
-Spec file to produce: {implementation_artifacts}/spec-5-9-module-management-and-configuration.md
+Spec file to produce: {implementation_artifacts}/spec-5-14-authentication-completeness-password-change-and-reset.md
 
 If the spec file already exists with status `draft`, resume it. If it exists with any other status, do NOT overwrite — HALT with blocking condition `spec already in progress/done; user decision required`.
 
@@ -30,8 +30,8 @@ MVP stories, in dependency order (stories marked ✅ are done; ← THIS ITERATIO
 3. ✅ 5.3 Cloud Storage - Role-Based Storage Quotas and Personal Folders (deps: 1.10) — DONE 2026-07-30
 4. ✅ 5.4 Cloud Storage - Shared Folders and Module-Based Access (deps: 5.3) — DONE 2026-07-31
 5. ✅ 5.7 Vendors/Suppliers Management Module (deps: 2.2, 2.3, 3.8 — all done) — DONE 2026-08-01
-6. 5.9 Module Management and Configuration (deps: all MVP previous) ← THIS ITERATION
-7. 5.14 Authentication Completeness - Password Change and Reset (deps: 1.3, 1.11)
+6. ✅ 5.9 Module Management and Configuration (deps: all MVP previous) — DONE 2026-08-03
+7. 5.14 Authentication Completeness - Password Change and Reset (deps: 1.3, 1.11) ← THIS ITERATION
 8. 5.12 User Management - CRUD Operations (deps: 1.4, 1.11)
 9. 5.13 Role Assignment and Permissions Management UI (deps: 5.12)
 10. 5.11 Start Fresh Production Setup Wizard (deps: 5.9, 5.12)
@@ -39,65 +39,59 @@ MVP stories, in dependency order (stories marked ✅ are done; ← THIS ITERATIO
 
 DEFERRED (post-MVP — out of scope, do NOT implement, do NOT add toggles for them): 5.5 Guests, 5.6 Equipment, 5.8 Energy, 4.9–4.11.
 
-## Story 5.9 Specifics <<< CHANGE PER ITERATION >>>
+## Story 5.14 Specifics <<< CHANGE PER ITERATION >>>
 
-Intent: Deliver a Module Management and Configuration page that lets System Administrators enable or disable optional MVP modules (Farm, School, Vendors). Core modules (Residents, Households, Finance, Inventory, Calendar, Storage) are always enabled. Disabling an optional module hides its navigation section, routes, and dashboard widgets but preserves all underlying data. This story generalizes the basic `vendors_enabled` flag introduced in Story 5.7 into a single `modules_enabled` array in `village_settings`, and it produces a reusable module-selection component/composable that Story 5.11 will use in the Start Fresh wizard.
+Intent: Complete the authentication UX for MVP. Logged-in users can change their own password from the Profile page (current password, new password, confirm). Unauthenticated users who forgot their password can request a reset email from the login screen and set a new password via a dedicated `/auth/reset-password` page reached through the email link. All flows use the Appwrite Account SDK directly (`Account.updatePassword`, `Account.createRecovery`, `Account.updateRecovery`) — no new Appwrite Function, table, or server-side component is required. Email verification and self-service signup remain out of scope.
 
-ACs (from docs/epics.md Story 5.9 — treat as authoritative):
+ACs (from docs/epics.md Story 5.14 — treat as authoritative):
 
-1. Admin menu: System Administrators see a "Module Management" item in the Administration navigation section, linking to `/admin/modules`.
-2. Module Management page (`/admin/modules`): Lists Core Modules (read-only, always enabled) and Optional Modules (toggleable). For each module show name, description, current status, toggle switch, and a "Configure" button where an existing settings page exists (e.g., Farm Settings, School Settings).
-3. Enabling an optional module: its main navigation section appears (if the user has the relevant permission), its routes become accessible, and its dashboard widgets become visible.
-4. Disabling an optional module: confirmation dialog explaining data is preserved; navigation section and routes are hidden/inaccessible, dashboard widgets hidden.
-5. Module dependencies: show an informational warning when disabling a module that other enabled modules depend on. For MVP: Farm provides auto-events to Calendar; Vendors are selectable in Farm sales and Finance expenses. Disabling does not block the action, only warns.
-6. First-time setup wizard updated with a "Select Modules" step — implementation of the wizard itself belongs to Story 5.11; 5.9 must produce a reusable module-selection UI piece (component or composable) that 5.11 can drop into the Start Fresh wizard without rework.
-7. Settings persistence: toggling updates `village_settings.modules_enabled` via `settingsStore.updateSettings`; changes are reflected immediately in the UI after the settings store reloads.
+1. ProfilePage "Change Password" button enabled: opens a dialog (current password, new password, confirm new password).
+2. Change password calls Appwrite `Account.updatePassword`; validates current password; enforces a minimum length.
+3. On success: success notification, dialog closes, session preserved.
+4. AuthPage login form: "Forgot password?" link.
+5. Forgot password flow: user enters email → Appwrite `Account.createRecovery` sends reset email → user clicks email link → sets new password on a `/auth/reset-password` page.
+6. `/auth/reset-password` page: validates the token from the URL, accepts new password + confirmation, calls `Account.updateRecovery`.
+7. Email verification: deferred to post-MVP (admin-issued initial passwords trusted).
+8. Self-service signup: NOT in scope (admin-created accounts only) — confirmed by PRD FR-19.
 
-Prerequisites confirmed done: Story 5.7 (Vendors module — `done` per `spec-5-7-vendors-suppliers-management-module.md` status `done`), Stories 5.1–5.4 (Calendar/Storage — `done`), and all Epic 2/3/4 stories (`done`). All confirmed via `docs/sprint-status.yaml`. No spec file exists yet for 5.9.
+Prerequisites confirmed done: Story 1.3 (Authentication System with Email/Password — `done`), Story 1.11 (User Profile and Storage Quota Display — `done`). Both confirmed via `docs/sprint-status.yaml`. Story 5.14 has NO hard dependency on 5.9, 5.12, or any other unfinished Epic 5 story — it can be implemented independently (per `docs/planning-artifacts/sprint-change-proposal-2026-07-28.md` recommended order: 5.14 → 5.12 → 5.13 → 5.11). No spec file exists yet for 5.14.
 
-**Data model — greenfield project, no migration needed:** `village_settings.modules_enabled` is a string-array column already present in `server/scripts/setup-appwrite.js`. Story 5.7 also added a `vendors_enabled` boolean. For 5.9:
+**Data model — no schema change:** Passwords live in Appwrite Auth (the Account service), not in `village_settings` or any TablesDB collection. No new tables, columns, or migrations. No new Appwrite Function is required — `Account.updatePassword`, `Account.createRecovery`, and `Account.updateRecovery` are all client-side Account SDK calls available via `src/boot/appwrite.js` (`account`).
 
-- Make `modules_enabled` the canonical source of truth for module toggles.
-- Add `settingsStore` getters `farmEnabled`, `schoolEnabled`, and update `vendorsEnabled` to first check `modules_enabled`, falling back to legacy `vendors_enabled` for safety.
-- Update `server/scripts/seed-village-settings.js` so the default `modules_enabled` includes all core modules plus `farm`, `school`, and `vendors`.
-- Optionally deprecate `vendors_enabled` from new setups; the spec should document whether the column is removed from `setup-appwrite.js` or kept as a read-only fallback.
+Continuity context from prior work (load the 1.3/1.11 specs for auth patterns, plus the files below):
 
-Continuity context from prior work (load the 5.7 spec's Auto Run Result and Design Notes for module conventions, plus 5.4 for route/store patterns):
-
-- `src/stores/settings-store.js` — already exposes `modulesEnabled` getter. 5.9 adds per-module boolean getters and a helper to add/remove a module key from `modules_enabled` before calling `updateSettings`.
-- `src/boot/router-guards.js` — already supports `requiresSetting: '<getterName>'` by checking `settingsStore[<getterName>]`. 5.9 adds `requiresSetting: 'farmEnabled'` / `'schoolEnabled'` / `'vendorsEnabled'` to the optional module routes.
-- `src/modules/farm/router.js`, `src/modules/school/router.js`, `src/modules/vendors/router.js` — update route `meta` on all optional module routes to include the appropriate `requiresSetting`. Keep existing `requiresPermission` checks unchanged.
-- `src/layouts/MainLayout.vue` — currently gates Vendors on `settingsStore.vendorsEnabled`. 5.9 gates the Agriculture, School, and Vendors expansion items on the corresponding module-enabled getter (in addition to existing permission checks). Core sections remain always visible.
-- `src/router/routes.js` — add the new `/admin/modules` route under the main layout, gated on System Administrator permission.
-- `src/pages/dashboard/DashboardPage.vue` — the Vendors widget is already gated on `vendorsEnabled`. 5.9 establishes the same gating pattern for any Farm/School dashboard widgets (hide when the module is disabled).
-- `src/pages/settings/VillageSettingsPage.vue` — currently has an editable "Enabled Modules" q-select. 5.9 should remove that editable control (or make it read-only with a link to `/admin/modules`) so there is a single source of truth for module toggles.
-- `server/scripts/setup-appwrite.js` — `village_settings.modules_enabled` already exists; no new table needed. Decide whether to keep or remove the `vendors_enabled` boolean column.
-- `server/scripts/seed-village-settings.js` — update default `modules_enabled` to `['residents','households','dashboard','finance','inventory','calendar','storage','farm','school','vendors']`.
-- Story 5.11 will reuse the module-selection UI, so build it as a reusable component (e.g., `src/components/admin/ModuleSelectionCard.vue`) or composable (`useModuleOptions`) that accepts a `v-model` array of enabled module keys.
+- `src/pages/AuthPage.vue` — standalone auth layout (no MainLayout). Conditionally renders `CreateAdminForm` (no users) or `LoginForm` (users exist). 5.14 adds a "Forgot password?" affordance here (inside `LoginForm`).
+- `src/components/auth/LoginForm.vue` — email/password form, uses `authStore.login`, `useErrorHandler` for notifications. 5.14 adds a "Forgot password?" link that opens a recovery dialog (email input → `account.createRecovery`) OR navigates to a small recovery page. Spec decides: inline dialog vs. separate route.
+- `src/pages/profile/ProfilePage.vue` — already has a disabled "Change Password" button with a STALE tooltip ("Password change functionality will be available in Epic 2"). 5.14 enables this button, wires it to a change-password dialog, and removes/updates the stale tooltip.
+- `src/stores/auth-store.js` — options-store pattern with `useErrorHandler`. Exposes `user`, `isLoggedIn`, `login`, `logout`, `checkSession`. 5.14 adds `changePassword(oldPassword, newPassword)` and `requestPasswordReset(email, resetUrl)` and `resetPassword(userId, secret, newPassword)` actions wrapping the Appwrite Account calls, returning `{ success, error }` like existing actions.
+- `src/boot/appwrite.js` — exports `account` (Appwrite Account instance). All 5.14 SDK calls use this.
+- `src/router/routes.js` — `/auth` is a top-level no-layout route. 5.14 adds `/auth/reset-password` as a sibling no-layout route with NO `requiresAuth` (public). The router guard in `src/boot/router-guards.js` already passes through routes without `requiresAuth`.
+- `src/boot/router-guards.js` — no change needed; public routes (no `requiresAuth` meta) already pass through. Confirm the reset-password route is not caught by the first-run/setup redirect.
+- `src/composables/useErrorHandler.js` — reuse `notifyError`/`notifySuccess` for all notifications; integrate form validation with the error handler per project convention.
 
 Key design decisions for the spec to resolve:
 
-- Module option registry: hardcoded array in a new `src/utils/module-registry.js` (or inline in settings-store) with core/optional flag, label, description, icon, route name for Configure, and dependencies. Only `farm`, `school`, and `vendors` are optional for MVP.
-- Dependency warning map: informational only. Example: `farm -> ['calendar']`, `vendors -> ['farm','finance']`. Warnings do not block disabling.
-- Toggle UX: q-toggle per optional module card, saved in batch via a "Save Changes" button on `/admin/modules` to avoid multiple settings writes.
-- Reusable selection component: `ModuleSelectionGrid` or `useModuleOptions` that Story 5.11 can import. It should depend only on a `v-model` array, not on route-level state.
-- Data preservation: disabling a module only hides UI; no data is deleted and foreign-key relationships remain valid.
-- No migration: greenfield; adjust seed script and setup defaults only.
+- **Recovery redirect URL:** `Account.createRecovery` requires a `URL` argument — the page the user lands on after clicking the email link. Introduce a new `VITE_APP_PUBLIC_URL` env var holding the app's public base URL (e.g. `http://localhost:9000` for dev, `https://village.example.com` for prod) and derive the reset URL as `${VITE_APP_PUBLIC_URL}/auth/reset-password`. Add `VITE_APP_PUBLIC_URL` to `.env.example` with the dev default. This var is reusable for any future absolute-URL needs (e.g. email links in other stories).
+- **Forgot-password UX:** inline dialog on the login form vs. a separate `/auth/forgot-password` route. Recommend inline dialog (email only) for MVP simplicity, reusing the q-dialog pattern.
+- **Change-password validation:** enforce a minimum password length (Appwrite default is 8; confirm against existing `createAdmin` usage). Validate "new password === confirm". The "current password" field — Appwrite `Account.updatePassword` accepts an optional `oldPassword`; pass it so Appwrite validates the current password server-side. Do NOT re-implement current-password checking client-side.
+- **Session preservation:** after `updatePassword`, the existing session remains valid (Appwrite keeps the session). Do not force re-login. Confirm in the spec's verification steps.
+- **Reset-password page SSR safety:** `/auth/reset-password` is public and SSR-rendered. Read the `userId` and `secret` (token) from the route query. All `account.updateRecovery` calls must run on the client only (guard with `isClient` ref + `onMounted`, matching `AuthPage.vue`). Show a clear error if the token is missing/expired.
+- **No new permissions:** password change/reset are self-service (the logged-in user changes their OWN password; recovery is unauthenticated). No new RBAC permissions, no `requiresPermission` on any 5.14 route.
+- **Stale tooltip cleanup:** remove the "available in Epic 2" tooltip on the ProfilePage Change Password button when enabling it.
+- **i18n / emojis:** none (hardcoded English, no emojis) — consistent with project convention.
 
 ## Planning Artifacts to Load
 
 Authoritative sources (load via compile-epic-context subagent for epic-5-context.md if not already compiled, plus selectively for story-specific constraints):
 
-- docs/epics.md — Story 5.9 ACs and Epic 5 story list
-- docs/PRD.md — module management / optional module requirements (village settings, module enable/disable behavior)
-- docs/architecture.md — Appwrite patterns, RBAC, data model conventions, module structure conventions
-- docs/ux-specification.md — no module-management-specific screen specs exist; follow general UX patterns and existing module settings pages
-- docs/implementation-artifacts/spec-5-7-vendors-suppliers-management-module.md — 5.7 spec (continuity context: established module patterns, vendor nav/routable setting, reusable components)
-- docs/implementation-artifacts/spec-5-4-cloud-storage-shared-folders-and-module-based-access.md — 5.4 spec (route guards, store patterns, setup-appwrite.js conventions)
+- docs/epics.md — Story 5.14 ACs and Epic 5 story list
+- docs/PRD.md — FR-19 (User Management and Account Administration: self-service signup NOT supported; users can change own password; forgot-password flow; email verification deferred)
+- docs/architecture.md — Appwrite Account SDK patterns, RBAC, auth/session conventions
+- docs/ux-specification.md — no auth-specific screen specs exist; follow general UX patterns and the existing AuthPage/ProfilePage
+- docs/implementation-artifacts/spec-5-9-module-management-and-configuration.md — 5.9 spec (continuity context: most recent Epic 5 story, settings-store/router-guard patterns, SSR-safe page conventions)
 - docs/implementation-artifacts/epic-5-context.md — compiled epic context (reuse if valid; see step-01 rules)
 - docs/implementation-artifacts/deferred-work.md — carry-forward items including the i18n deferral decision and prior story deferred items
-- docs/DATABASE_SCHEMA.md — existing schema documentation; 5.9 uses the existing `village_settings.modules_enabled` array (no new tables)
-- docs/POST-MVP.md — confirm Guests/Equipment/Energy modules remain deferred and are not added to the MVP module toggle list
+- docs/planning-artifacts/sprint-change-proposal-2026-07-28.md — confirms recommended implementation order (5.14 → 5.12 → 5.13 → 5.11) and that 5.14 has no hard dependency on unfinished Epic 5 stories
 
 Do NOT load POST-MVP.md as a primary source — it lists deferred modules only. Use it only to confirm a feature is deferred when in doubt.
 
@@ -107,7 +101,7 @@ Do NOT load POST-MVP.md as a primary source — it lists deferred modules only. 
 - Backend: Appwrite v21.2.1 (Database, Auth, Storage, Functions).
 - State: Pinia. Date/Time: date-fns + date-fns-tz (village timezone from `settingsStore.timezone`, default `Africa/Lusaka`). Charts: Chart.js v4.5.1. Calendar: vue-cal v5 (`^5.0.1-rc.33`).
 - Normalized ID-based relationships; composable error handling (useErrorHandler); custom form validation integrated with error handler.
-- RBAC: `src/utils/permissions.js`, `src/composables/usePermissions.js` (`hasPermission('<module>:read')`, `hasPermission('<module>:write')`), route guards, PermissionGuard — reuse, do not reinvent. 5.9 does not introduce new permissions; it gates existing module UI/routes on `modules_enabled` in addition to existing permission checks.
+- RBAC: `src/utils/permissions.js`, `src/composables/usePermissions.js` (`hasPermission('<module>:read')`, `hasPermission('<module>:write')`), route guards, PermissionGuard — reuse, do not reinvent. 5.14 introduces NO new permissions; password change is self-service (logged-in user changes own password) and recovery is unauthenticated.
 - Dashboard widgets: follow docs/implementation-artifacts/dashboard-widget-pattern.md exactly.
 - No new dependencies without verifying they're already in package.json. If a new dep is truly required, HALT with blocking condition `new dependency required: <name> — user approval needed`.
 - Match existing code style in src/pages/, src/stores/, src/composables/, src/services/, src/modules/. Read neighboring modules (e.g. src/modules/school/, src/modules/farm/, src/modules/calendar/, src/modules/storage/) before scaffolding.
@@ -143,11 +137,11 @@ Do NOT invent requirements. Do NOT pull scope from other stories into this itera
 - Vue 3 `<script setup>` only. No Options API. No `this`.
 - SSR-safe: any Appwrite TablesDB access must be guarded for SSR; follow the `isClient` pattern used in existing pages (e.g. FarmDashboardPage.vue, LearnersListPage.vue, FinanceDashboardPage.vue).
 - Quasar components for all UI primitives (q-btn, q-input, q-select, q-dialog, q-chip, q-table, q-banner, q-rating, etc.). No raw HTML controls.
-- 5.9 does not create new Appwrite tables; module toggles live in the existing `village_settings.modules_enabled` array.
-- Pinia stores follow the existing options-store pattern (state, getters, actions) with `useErrorHandler` for error handling. Modify `src/stores/settings-store.js` only; no new Pinia store is required for this story.
+- 5.14 does not create new Appwrite tables or Functions; all password flows use the client-side Appwrite Account SDK (`account.updatePassword`, `account.createRecovery`, `account.updateRecovery`) from `src/boot/appwrite.js`.
+- Pinia stores follow the existing options-store pattern (state, getters, actions) with `useErrorHandler` for error handling. Add the new password actions to `src/stores/auth-store.js`; no new Pinia store is required for this story.
 - Date handling: all dates stored as ISO 8601 in Appwrite; display via `src/utils/dateUtils.js` (`toDateStrInTimezone`, `formatDateInTimezone`, `addDaysToDateStr`) with `settingsStore.timezone`.
-- Permission checks in templates: use existing module permissions from `usePermissions` composable to gate UI, and `requiresPermission: '*'` for `/admin/modules`. Use `PermissionGuard` where appropriate.
-- `wipeAllData` function (`server/functions/wipeAllData/src/main.js`) — no changes required for 5.9; module toggle data lives in `village_settings`.
+- Permission checks: 5.14 introduces NO new permissions. Password change is self-service (the logged-in user changes their own password); recovery is unauthenticated. The `/auth/reset-password` route must be PUBLIC (no `requiresAuth`).
+- `wipeAllData` function (`server/functions/wipeAllData/src/main.js`) — no changes required for 5.14; passwords live in Appwrite Auth, not in TablesDB.
 - No emojis in code or UI unless an existing module already uses them.
 
 ## Review (step-04) — Full Adversarial
@@ -158,22 +152,19 @@ Run the full adversarial review pass per the skill's step-04:
 - Edge Case Hunter: walk every branching path and boundary.
 - Acceptance Auditor: map each AC to concrete code/test evidence; flag any AC with no evidence.
 
-### Review invariants for Story 5.9 <<< CHANGE PER ITERATION >>>
+### Review invariants for Story 5.14 <<< CHANGE PER ITERATION >>>
 
-Specific invariants the review MUST verify for 5.9:
+Specific invariants the review MUST verify for 5.14:
 
-- `village_settings.modules_enabled` is the canonical module toggle list; `settingsStore.farmEnabled`, `schoolEnabled`, and `vendorsEnabled` return `true` when the module key is present in `modules_enabled` (with `vendorsEnabled` falling back to legacy `vendors_enabled` if needed).
-- `/admin/modules` route exists, gated on System Administrator permission (`requiresPermission: '*'`). The page lists Core Modules as non-interactive and Optional Modules as toggleable cards with name, description, status, and a "Configure" button linking to the module's settings page where one exists.
-- All optional module routes use `requiresSetting` meta: farm routes → `farmEnabled`, school routes → `schoolEnabled`, vendor routes → `vendorsEnabled`. Direct navigation to a disabled module route is redirected by `src/boot/router-guards.js`.
-- `MainLayout.vue` Agriculture, School, and Vendors sections are gated on both the module-enabled getter and the existing permission check. When a module is disabled, its nav section and sub-items disappear.
-- Disabling a module shows a confirmation dialog that explicitly states data is preserved. After saving, the navigation section hides immediately via reactive settings-store update.
-- Dependency warnings appear before disabling a module when another enabled module depends on it (e.g., disabling Farm warns Calendar auto-events; disabling Vendors warns Farm sales/Finance expenses). The action is informational and not blocked.
-- `server/scripts/seed-village-settings.js` default `modules_enabled` includes all core modules plus `farm`, `school`, and `vendors`.
-- Guests, Equipment, and Energy modules do not appear in the optional module toggle list or module registry.
-- A reusable module-selection component or composable is created and documented so Story 5.11 can reuse it in the Start Fresh wizard without changing its internals.
-- `src/pages/settings/VillageSettingsPage.vue` no longer offers a separate editable "Enabled Modules" control that conflicts with `/admin/modules`.
-- `DATABASE_SCHEMA.md` (repo root) documents `modules_enabled` already; confirm it is current. No new tables are required.
-- The existing functionality of Farm, School, and Vendors modules is unchanged when enabled; only visibility/routability changes when disabled.
+- The ProfilePage "Change Password" button is enabled and opens a dialog with current-password, new-password, and confirm-password fields. The stale "available in Epic 2" tooltip is removed.
+- Change-password calls `Account.updatePassword` with the old password (so Appwrite validates the current password server-side) and the new password; minimum length is enforced; on success a success notification shows, the dialog closes, and the user stays logged in (session preserved — no forced re-login).
+- The LoginForm shows a "Forgot password?" link. Clicking it lets the user enter an email and calls `Account.createRecovery` with an environment-configurable reset URL; a success notification tells the user to check their email.
+- A public `/auth/reset-password` route exists (no `requiresAuth`, no MainLayout). It reads `userId` and `secret` from the URL query, accepts a new password + confirmation, and calls `Account.updateRecovery`. Missing/expired tokens show a clear, user-friendly error.
+- No new Appwrite Function, table, column, or RBAC permission is introduced.
+- No self-service signup and no email verification are implemented (both confirmed out of scope per PRD FR-19).
+- All new pages/dialogs are SSR-safe (`isClient` guard before client-only `account` calls, matching `AuthPage.vue`) and use Quasar components + `<script setup>`.
+- The recovery redirect URL is derived from a `VITE_APP_PUBLIC_URL` env var (not hardcoded to localhost) and `VITE_APP_PUBLIC_URL` is documented in `.env.example` with the dev default.
+- The existing login, logout, create-admin, and session-check flows are not broken; the only AuthPage/LoginForm change is the added "Forgot password?" affordance.
 
 **5.9 (Module Management):** Admin page at `/admin/modules`. Core modules always enabled (Residents, Households, Finance, Inventory, Calendar, Storage). Optional MVP modules toggleable: Farm, School, Vendors ONLY (NOT Guests/Equipment/Energy — deferred). Toggle hides nav/widgets but preserves data. Dependency warning on disable. Updates `settingsStore.modulesEnabled`. Generalizes the basic `vendors_enabled` flag from 5.7 into the full module toggle system. Dep: all MVP previous stories.
 

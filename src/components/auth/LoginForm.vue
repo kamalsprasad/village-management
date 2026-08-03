@@ -44,6 +44,16 @@
 
         <q-checkbox v-model="form.rememberMe" label="Remember me" />
 
+        <div class="row justify-end">
+          <q-btn
+            flat
+            dense
+            color="primary"
+            label="Forgot password?"
+            @click="showForgotPasswordDialog = true"
+          />
+        </div>
+
         <div class="q-mt-md">
           <q-btn
             type="submit"
@@ -56,6 +66,8 @@
         </div>
       </q-form>
     </q-card-section>
+
+    <ForgotPasswordDialog v-model="showForgotPasswordDialog" />
   </q-card>
 </template>
 
@@ -64,6 +76,7 @@ import { ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { useAuthStore } from 'src/stores/auth-store';
 import { useErrorHandler } from 'src/composables/useErrorHandler';
+import ForgotPasswordDialog from 'src/components/auth/ForgotPasswordDialog.vue';
 
 const router = useRouter();
 const authStore = useAuthStore();
@@ -76,16 +89,14 @@ const form = ref({
 });
 
 const showPassword = ref(false);
+const showForgotPasswordDialog = ref(false);
 const loading = ref(false);
 
 const onSubmit = async () => {
   loading.value = true;
 
   try {
-    const result = await authStore.login(
-      form.value.email,
-      form.value.password
-    );
+    const result = await authStore.login(form.value.email, form.value.password);
 
     if (result.success) {
       notifySuccess('Login successful!');

@@ -399,5 +399,59 @@ export const useAuthStore = defineStore('auth', {
         this.userRoles = [];
       }
     },
+
+    /**
+     * Change the current user's password.
+     * The existing session remains valid after a successful update.
+     */
+    async changePassword(oldPassword, newPassword) {
+      try {
+        await account.updatePassword({ password: newPassword, oldPassword });
+        return { success: true };
+      } catch (error) {
+        console.error('Change password error:', error);
+        return {
+          success: false,
+          error: error?.message || 'Failed to change password',
+        };
+      }
+    },
+
+    /**
+     * Request a password reset email for the given email address.
+     */
+    async requestPasswordReset(email) {
+      try {
+        const publicUrl = (import.meta.env.VITE_APP_PUBLIC_URL || 'http://localhost:9000').replace(
+          /\/+$/,
+          '',
+        );
+        const url = `${publicUrl}/auth/reset-password`;
+        await account.createRecovery({ email, url });
+        return { success: true };
+      } catch (error) {
+        console.error('Request password reset error:', error);
+        return {
+          success: false,
+          error: error?.message || 'Failed to send password reset email',
+        };
+      }
+    },
+
+    /**
+     * Reset a user's password using the recovery token from the email link.
+     */
+    async resetPassword(userId, secret, newPassword) {
+      try {
+        await account.updateRecovery({ userId, secret, password: newPassword });
+        return { success: true };
+      } catch (error) {
+        console.error('Reset password error:', error);
+        return {
+          success: false,
+          error: error?.message || 'Failed to reset password',
+        };
+      }
+    },
   },
 });

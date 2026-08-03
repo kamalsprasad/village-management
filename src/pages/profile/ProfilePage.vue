@@ -85,15 +85,15 @@
               color="primary"
               icon="lock"
               label="Change Password"
-              disabled
               class="full-width"
-            >
-              <q-tooltip> Password change functionality will be available in Epic 2 </q-tooltip>
-            </q-btn>
+              @click="showChangePasswordDialog = true"
+            />
           </q-card-section>
         </q-card>
       </div>
     </div>
+
+    <ChangePasswordDialog v-if="isClient" v-model="showChangePasswordDialog" />
   </q-page>
 </template>
 
@@ -103,11 +103,13 @@ import { useAuthStore } from 'src/stores/auth-store';
 import { usePermissions } from 'src/composables/usePermissions';
 import { usePersonalFilesStore } from 'src/modules/storage/stores/personal-files-store';
 import { formatBytes } from 'src/modules/storage/utils/format-storage';
+import ChangePasswordDialog from 'src/components/profile/ChangePasswordDialog.vue';
 
 const authStore = useAuthStore();
 const { userStorageQuota } = usePermissions();
 const personalFilesStore = usePersonalFilesStore();
 const isClient = ref(false);
+const showChangePasswordDialog = ref(false);
 
 onMounted(() => {
   isClient.value = true;
