@@ -134,6 +134,39 @@
       "commands": "npm install",
       "specification": "s-1vcpu-512mb",
       "path": "functions/seedAllData"
+    },
+    {
+      "$id": "userManagement",
+      "execute": ["users"],
+      "name": "User Management",
+      "enabled": true,
+      "logging": true,
+      "runtime": "node-16.0",
+      "scopes": [
+        "users.read",
+        "users.write",
+        "teams.read",
+        "teams.write",
+        "databases.read",
+        "databases.write",
+        "tables.read",
+        "tables.write",
+        "rows.read",
+        "rows.write"
+      ],
+      "events": [],
+      "schedule": "",
+      "timeout": 30,
+      "entrypoint": "src/main.js",
+      "commands": "npm install",
+      "specification": "s-0.5vcpu-512mb",
+      "path": "functions/User Management",
+      "vars": {
+        "DATABASE_ID": "villageDB",
+        "TABLE_USERS": "users",
+        "TABLE_ROLES": "roles",
+        "TABLE_AUDIT_LOGS": "audit_logs"
+      }
     }
   ],
   "tablesDB": [
