@@ -348,6 +348,130 @@ This function atomically wipes all village data (residents, households, settings
 
 ---
 
+## Function: User Management
+
+This function performs all admin-driven user CRUD operations (Story 5.12)
+that the Appwrite client SDK cannot perform on behalf of another user:
+creating Auth accounts, updating Auth email/name, and soft
+deactivating/reactivating accounts. It keeps `village_administrators` team
+membership in sync with the System Administrator role and writes an
+`audit_logs` row for every mutation.
+
+### Security
+
+- Only authenticated users can call this function (`role:users`); the
+  System Administrator route guard on `/admin/users` is the primary access
+  control on the client, and every mutation is written to `audit_logs` for
+  traceability.
+- The function never hard-deletes a user; deactivation only flips
+  `users.active` to `false` and invalidates sessions.
+
+### Deployment Steps
+
+#### Step 1: Create an API Key with the Required Scopes
+
+1. Open your Appwrite Console → **Settings** → **API Keys** → **Add API Key**
+2. Configure the API key:
+   - **Name**: `User Management Function API Key` (or reuse an existing
+     admin-scope key)
+   - **Expiration**: Never (or a long expiration)
+   - **Scopes**: Check the following:
+     - ✅ `users.read`
+     - ✅ `users.write`
+     - ✅ `teams.read`
+     - ✅ `teams.write`
+     - ✅ `databases.read`
+     - ✅ `databases.write`
+     - ✅ `tables.read`
+     - ✅ `tables.write`
+     - ✅ `rows.read`
+     - ✅ `rows.write`
+3. Click **Create** and copy the key immediately.
+
+#### Step 2: Create the Function in Appwrite Console
+
+1. In Appwrite Console, navigate to **Functions** → **Add Function**
+2. Configure the function:
+   - **Name**: `User Management`
+   - **Function ID**: `userManagement` (or auto-generate; must match
+     `VITE_APPWRITE_FUNCTION_USER_MANAGEMENT` in `.env`)
+   - **Runtime**: `Node.js 18.0` (or latest available)
+   - **Execute Access**: Add `role:users` (only authenticated users can call
+     it — the client only exposes this to System Administrators via the
+     `/admin/users` route guard)
+   - **Events / Schedule**: Leave empty
+   - **Timeout**: 30 seconds
+3. Click **Create**
+
+#### Step 3: Configure Environment Variables
+
+> ⚠️ Configure these **in the Appwrite Console** under the function's
+> Settings tab, not in your local `.env` file.
+
+| Variable Name         | Value                                                         |
+| --------------------- | ------------------------------------------------------------- |
+| `APPWRITE_ENDPOINT`   | `https://cloud.appwrite.io/v1` (or your self-hosted endpoint) |
+| `APPWRITE_PROJECT_ID` | Your project ID                                               |
+| `APPWRITE_API_KEY`    | The API key created in Step 1                                 |
+| `DATABASE_ID`         | `villageDB` (or your database ID)                             |
+| `TABLE_USERS`         | `users`                                                       |
+| `TABLE_ROLES`         | `roles`                                                       |
+| `TABLE_AUDIT_LOGS`    | `audit_logs`                                                  |
+
+#### Step 4: Deploy the Function Code
+
+##### Option A: Using Appwrite CLI (Recommended)
+
+```bash
+cd "server/functions/User Management"
+npm install
+appwrite push function
+```
+
+Select the `userManagement` function and confirm the entrypoint is
+`src/main.js`.
+
+##### Option B: Manual Upload via Console
+
+1. In the function details page, go to the **Deployments** tab
+2. Click **Create Deployment**
+3. Configure the deployment:
+   - **Entrypoint**: `src/main.js`
+   - **Code**: Upload the entire `server/functions/User Management` folder
+     as a zip
+   - **Activate deployment after build**: ✅ Check this
+4. Click **Create** and wait for the build to complete
+
+#### Step 5: Set Execute Permissions
+
+1. In the function details page, go to the **Settings** tab
+2. Scroll to **Execute Access** → **Add Role** → select `role:users` →
+   **Update**
+
+#### Step 6: Update Client-Side Code
+
+1. Add the Function ID to your `.env` file:
+
+   ```env
+   VITE_APPWRITE_FUNCTION_USER_MANAGEMENT=your-function-id-here
+   ```
+
+2. `src/stores/users-store.js` will use this function for all
+   create/update/deactivate/reactivate actions.
+
+### Testing the Function
+
+1. Log in as a System Administrator and open `/admin/users`
+2. Click **Add User**, fill in the form, and submit
+3. Confirm the new user appears in the table and, if given the System
+   Administrator role, in the `village_administrators` team in the Appwrite
+   console
+4. Deactivate the user and confirm they cannot log in
+5. Check the `audit_logs` table in the Appwrite console for a row per
+   action
+
+---
+
 **Last Updated**: 2025-11-25  
 **Function Version**: 1.0.0  
 **Compatible with**: Appwrite 1.4+

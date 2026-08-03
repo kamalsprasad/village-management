@@ -56,6 +56,7 @@ const TABLES_TO_WIPE = [
   // Epic 5 tables
   'village_events', // Story 5.1/5.2 — village calendar events
   'file_metadata', // Story 5.3 — personal file metadata
+  'audit_logs', // Story 5.12 — user-management audit trail
 ];
 
 const MAX_PASSES = 5; // Safety cap on retry loop

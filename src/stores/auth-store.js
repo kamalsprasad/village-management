@@ -32,6 +32,25 @@ export const useAuthStore = defineStore('auth', {
       this.isLoading = true;
       try {
         const user = await account.get();
+
+        // Story 5.12: defense-in-depth check — block a session for a user
+        // whose account has since been deactivated. A missing `users` row
+        // is treated as active (with a console warning) so a data
+        // inconsistency never blocks a legitimate session.
+        const isActive = await this.isUserProfileActive(user.$id);
+        if (isActive === false) {
+          try {
+            await account.deleteSession({ sessionId: 'current' });
+          } catch {
+            // Session may already be invalid - safe to ignore
+          }
+          this.user = null;
+          this.userRoles = [];
+          this.userStorageQuotaOverride = 0;
+          this.isLoggedIn = false;
+          return false;
+        }
+
         this.user = user;
         this.isLoggedIn = true;
         // Fetch user roles
@@ -270,6 +289,29 @@ export const useAuthStore = defineStore('auth', {
 
         // Fetch user data
         const user = await account.get();
+
+        // Story 5.12: defense-in-depth check — reject login for a
+        // deactivated account even if the client somehow bypasses other UI
+        // guards. A missing `users` row is treated as active (with a
+        // console warning) to avoid blocking login on a data
+        // inconsistency.
+        const isActive = await this.isUserProfileActive(user.$id);
+        if (isActive === false) {
+          try {
+            await account.deleteSession({ sessionId: 'current' });
+          } catch {
+            // Session may already be invalid - safe to ignore
+          }
+          this.user = null;
+          this.userRoles = [];
+          this.userStorageQuotaOverride = 0;
+          this.isLoggedIn = false;
+          return {
+            success: false,
+            error: 'Your account has been deactivated. Please contact a System Administrator.',
+          };
+        }
+
         this.user = user;
         this.isLoggedIn = true;
         this.hasUsers = true;
@@ -323,6 +365,25 @@ export const useAuthStore = defineStore('auth', {
     async fetchUser() {
       try {
         const user = await account.get();
+
+        // Story 5.12: defense-in-depth check — block a fetch for a user
+        // whose account has since been deactivated.
+        const isActive = await this.isUserProfileActive(user.$id);
+        if (isActive === false) {
+          try {
+            await account.deleteSession({ sessionId: 'current' });
+          } catch {
+            // Session may already be invalid - safe to ignore
+          }
+          this.user = null;
+          this.userRoles = [];
+          this.userStorageQuotaOverride = 0;
+          this.isLoggedIn = false;
+          throw new Error(
+            'Your account has been deactivated. Please contact a System Administrator.',
+          );
+        }
+
         this.user = user;
         this.isLoggedIn = true;
         await this.fetchUserRoles();
@@ -333,6 +394,40 @@ export const useAuthStore = defineStore('auth', {
         this.userStorageQuotaOverride = 0;
         this.isLoggedIn = false;
         throw error;
+      }
+    },
+
+    /**
+     * Story 5.12: check whether a user's `users` table row has
+     * `active === false`. Returns true if active or if the profile row is
+     * missing (treated as active, with a console warning, so a data
+     * inconsistency never blocks login/session). Returns false only when
+     * the profile row exists and is explicitly deactivated.
+     *
+     * Non-404 read failures fail closed (return false) so a transient
+     * Appwrite error does not let a deactivated user log in.
+     */
+    async isUserProfileActive(userId) {
+      try {
+        const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
+        const usersCollectionId = import.meta.env.VITE_APPWRITE_TABLE_USERS;
+
+        const profile = await tables.getRow({
+          databaseId: dbId,
+          tableId: usersCollectionId,
+          rowId: userId,
+        });
+
+        return profile?.active !== false;
+      } catch (error) {
+        if (error?.code === 404) {
+          console.warn(
+            `No users table row found for auth user ${userId}. Allowing login (treated as active).`,
+          );
+          return true;
+        }
+        console.error('Error checking user active status:', error);
+        return false;
       }
     },
 

@@ -1,0 +1,16 @@
+{
+  "name": "user-management",
+  "version": "1.0.0",
+  "description": "Appwrite Function: admin-driven user CRUD (create/update/deactivate/reactivate), village_administrators team sync, and audit logging.",
+  "main": "src/main.js",
+  "type": "module",
+  "scripts": {
+    "format": "prettier --write ."
+  },
+  "dependencies": {
+    "node-appwrite": "^21.1.0"
+  },
+  "devDependencies": {
+    "prettier": "^3.2.5"
+  }
+}

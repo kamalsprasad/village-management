@@ -145,6 +145,9 @@ const tableSchemas = {
       // be reset to 0 (or an explicit override) via the new Admin Storage
       // Settings page (/admin/storage) to regain their role-based quota.
       { key: 'storage_quota', type: 'double', min: -1, max: 1000, default: 0, required: false },
+      // Story 5.12: soft-deactivation flag. false blocks login (session is
+      // invalidated server-side) while preserving all associated data.
+      { key: 'active', type: 'boolean', default: true, required: true },
     ],
     indexes: [{ key: 'idx_users_email_unique', type: 'unique', columns: ['email'] }],
   },
@@ -1772,6 +1775,51 @@ const tableSchemas = {
       },
     ],
   },
+
+  // Story 5.12: Tamper-resistant audit trail for admin-driven user
+  // management actions (create/update/deactivate/reactivate). Read-only for
+  // System Administrators via the console/UI; all writes happen exclusively
+  // from the server-side "User Management" Appwrite Function using an
+  // admin-scope API key, so no client role is granted create/update/delete.
+  audit_logs: {
+    name: 'Audit Logs',
+    permissions: [Permission.read(Role.team('village_administrators'))],
+    rowSecurity: false,
+    columns: [
+      {
+        key: 'actor_user_id',
+        type: 'relationship',
+        relatedTable: 'users',
+        relationType: 'manyToOne',
+        twoWay: false,
+        required: false,
+      },
+      {
+        key: 'action',
+        type: 'enum',
+        elements: ['user_create', 'user_update', 'user_deactivate', 'user_reactivate'],
+        required: true,
+      },
+      {
+        key: 'target_user_id',
+        type: 'relationship',
+        relatedTable: 'users',
+        relationType: 'manyToOne',
+        twoWay: false,
+        required: false,
+      },
+      { key: 'changes_json', type: 'string', size: 2000, required: false },
+      { key: 'created_at', type: 'datetime', required: true },
+    ],
+    indexes: [
+      {
+        key: 'idx_audit_logs_created_at',
+        type: 'key',
+        columns: ['created_at'],
+        orders: ['DESC'],
+      },
+    ],
+  },
 };
 
 // Helper functions
@@ -2271,7 +2319,7 @@ async function setupDatabase() {
 
     console.log('\n✅ Database setup complete!');
     console.log('\n📋 Summary:');
-    console.log('   - 25 Tables created/verified');
+    console.log('   - 26 Tables created/verified');
     console.log('   - 150+ columns created/verified (incl. Story 5.4 shared_folder)');
     console.log('   - 25+ indexes created/verified (incl. idx_file_metadata_shared_folder)');
     console.log('   - 2 Storage buckets created/verified (personal_files, shared_files)');
