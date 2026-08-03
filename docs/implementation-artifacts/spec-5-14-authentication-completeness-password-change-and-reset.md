@@ -137,3 +137,28 @@ warnings:
 - Log out, on `/auth` click "Forgot password?", submit an email, confirm a success notification appears (email delivery itself is outside local dev scope unless SMTP is configured in Appwrite).
 - Manually visit `/auth/reset-password` with no query params -- expect the invalid-link banner, not a broken form.
 - Manually visit `/auth/reset-password?userId=x&secret=y` with a bogus secret, submit a valid new password -- expect an error notification (Appwrite rejects the invalid token) and the form to remain usable.
+
+## Auto Run Result
+
+Status: done
+
+**Summary:** Implemented Story 5.14 (Authentication Completeness — Password Change and Reset). Logged-in users can now change their own password from the Profile page; unauthenticated users can request a recovery email from the login form and complete the reset on a new public `/auth/reset-password` page. All flows use the Appwrite Account SDK directly — no new Appwrite Function, table, column, or RBAC permission.
+
+**Files changed:**
+
+- `.env.example` — documented new `VITE_APP_PUBLIC_URL` env var (dev default `http://localhost:9000`).
+- `src/stores/auth-store.js` — added `changePassword`, `requestPasswordReset`, `resetPassword` actions.
+- `src/pages/profile/ProfilePage.vue` — enabled the Change Password button, removed the stale "Epic 2" tooltip, wired the new dialog.
+- `src/components/profile/ChangePasswordDialog.vue` (new) — current/new/confirm password dialog.
+- `src/components/auth/LoginForm.vue` — added a "Forgot password?" link.
+- `src/components/auth/ForgotPasswordDialog.vue` (new) — email-only recovery request dialog.
+- `src/pages/auth/ResetPasswordPage.vue` (new) — public page completing the recovery flow from the emailed link.
+- `src/router/routes.js` — added the public `/auth/reset-password` route.
+- `docs/sprint-status.yaml` — marked `5-14-authentication-completeness-password-change-and-reset: done`.
+- `docs/implementation-artifacts/deferred-work.md` — recorded 4 deferred low-severity findings.
+
+**Review findings breakdown:** 8 patches applied (1 high, 2 medium, 5 low — dialog form-state reset on ESC/backdrop dismiss, recovery URL trailing-slash handling, password field max length, array query-param coercion on the reset page, defensive `error?.message` access in all three new store actions, and reverting unrelated formatting churn in `LoginForm.vue`); 4 items deferred (no-op same-password change, lingering recovery token in browser history, no resubmission throttle, password-toggle accessibility — all low severity); 3 rejected as noise (duplicated email-regex convention already present elsewhere in the codebase, lack of automated tests consistent with the rest of the project, and a speculative Appwrite account-existence-leak concern with no supporting evidence). No intent gaps or bad-spec loopbacks occurred.
+
+**Verification performed:** `npm run lint` passed with zero errors both after initial implementation and after the review patches. Manually traced all Appwrite SDK call shapes (`updatePassword`, `createRecovery`, `updateRecovery`) against the installed `appwrite` package source to confirm the object-parameter signatures. Confirmed route placement (`/auth/reset-password` sits outside `MainLayout`'s children, has no `requiresAuth` meta, and is unaffected by the `router-guards.js` first-run/permission checks). No automated test suite exists in this repo (`npm test` is a no-op), consistent with every other Epic 5 story.
+
+**Residual risks:** The four deferred low-severity items above remain open (tracked in `deferred-work.md`). The `VITE_APP_PUBLIC_URL=http://localhost:9000` dev default assumes the standard Quasar CLI dev-server port, which is not explicitly pinned in `quasar.config.js`; if a developer's local Quasar dev server binds a different port, recovery links in local testing will point at the wrong host until `.env` is corrected — self-evident in local testing, not a production risk since production deployments must set their own `VITE_APP_PUBLIC_URL`.
