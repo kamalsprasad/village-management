@@ -23,6 +23,10 @@ const schoolRoutes = [
   {
     path: 'school',
     redirect: '/school/dashboard',
+    meta: {
+      requiresAuth: true,
+      requiresSetting: 'schoolEnabled',
+    },
   },
   {
     path: 'school/dashboard',
@@ -30,6 +34,7 @@ const schoolRoutes = [
     component: () => import('./pages/SchoolDashboardPage.vue'),
     meta: {
       requiresAuth: true,
+      requiresSetting: 'schoolEnabled',
       requiresPermission: 'school:read',
     },
   },
@@ -39,6 +44,7 @@ const schoolRoutes = [
     component: () => import('./pages/LearnersListPage.vue'),
     meta: {
       requiresAuth: true,
+      requiresSetting: 'schoolEnabled',
       requiresPermission: 'school:read',
     },
   },
@@ -48,6 +54,7 @@ const schoolRoutes = [
     component: () => import('./pages/EnrollLearnerPage.vue'),
     meta: {
       requiresAuth: true,
+      requiresSetting: 'schoolEnabled',
       requiresPermission: 'school:write',
     },
   },
@@ -57,6 +64,7 @@ const schoolRoutes = [
     component: () => import('./pages/LearnerDetailPage.vue'),
     meta: {
       requiresAuth: true,
+      requiresSetting: 'schoolEnabled',
       requiresPermission: 'school:read',
     },
   },
@@ -66,6 +74,7 @@ const schoolRoutes = [
     component: () => import('./pages/EnrollLearnerPage.vue'),
     meta: {
       requiresAuth: true,
+      requiresSetting: 'schoolEnabled',
       requiresPermission: 'school:admin',
     },
   },
@@ -75,6 +84,7 @@ const schoolRoutes = [
     component: () => import('./pages/ClassesListPage.vue'),
     meta: {
       requiresAuth: true,
+      requiresSetting: 'schoolEnabled',
       requiresPermission: 'school:read',
     },
   },
@@ -84,6 +94,7 @@ const schoolRoutes = [
     component: () => import('./pages/ClassDetailPage.vue'),
     meta: {
       requiresAuth: true,
+      requiresSetting: 'schoolEnabled',
       requiresPermission: 'school:read',
     },
   },
@@ -93,6 +104,7 @@ const schoolRoutes = [
     component: () => import('./pages/RecordScoresPage.vue'),
     meta: {
       requiresAuth: true,
+      requiresSetting: 'schoolEnabled',
       requiresPermission: 'school:write',
     },
   },
@@ -102,6 +114,7 @@ const schoolRoutes = [
     component: () => import('./pages/ClassPerformancePage.vue'),
     meta: {
       requiresAuth: true,
+      requiresSetting: 'schoolEnabled',
       requiresPermission: 'school:read',
     },
   },
@@ -111,6 +124,7 @@ const schoolRoutes = [
     component: () => import('./pages/TeachersListPage.vue'),
     meta: {
       requiresAuth: true,
+      requiresSetting: 'schoolEnabled',
       requiresPermission: 'school:read',
     },
   },
@@ -122,6 +136,7 @@ const schoolRoutes = [
     component: () => import('./pages/SchoolCalendarPage.vue'),
     meta: {
       requiresAuth: true,
+      requiresSetting: 'schoolEnabled',
       requiresPermission: 'school:read',
     },
   },
@@ -131,6 +146,7 @@ const schoolRoutes = [
     component: () => import('./pages/AtRiskLearnersPage.vue'),
     meta: {
       requiresAuth: true,
+      requiresSetting: 'schoolEnabled',
       requiresPermission: 'school:read',
     },
   },
@@ -143,6 +159,7 @@ const schoolRoutes = [
     component: () => import('./pages/InterventionsListPage.vue'),
     meta: {
       requiresAuth: true,
+      requiresSetting: 'schoolEnabled',
       requiresPermission: 'school:read',
     },
   },
@@ -152,6 +169,7 @@ const schoolRoutes = [
     component: () => import('./pages/CreateInterventionPage.vue'),
     meta: {
       requiresAuth: true,
+      requiresSetting: 'schoolEnabled',
       requiresPermission: 'school:write',
     },
   },
@@ -161,6 +179,7 @@ const schoolRoutes = [
     component: () => import('./pages/InterventionDetailPage.vue'),
     meta: {
       requiresAuth: true,
+      requiresSetting: 'schoolEnabled',
       requiresPermission: 'school:read',
     },
   },
@@ -170,6 +189,7 @@ const schoolRoutes = [
     component: () => import('./pages/CreateInterventionPage.vue'),
     meta: {
       requiresAuth: true,
+      requiresSetting: 'schoolEnabled',
       requiresPermission: 'school:write',
     },
   },
@@ -179,6 +199,7 @@ const schoolRoutes = [
     component: () => import('./pages/SchoolSettingsPage.vue'),
     meta: {
       requiresAuth: true,
+      requiresSetting: 'schoolEnabled',
       requiresPermission: 'school:admin',
     },
   },
@@ -188,6 +209,7 @@ const schoolRoutes = [
     component: () => import('./pages/AcademicTermsSettingsPage.vue'),
     meta: {
       requiresAuth: true,
+      requiresSetting: 'schoolEnabled',
       requiresPermission: 'school:admin',
     },
   },
@@ -197,6 +219,7 @@ const schoolRoutes = [
     component: () => import('./pages/CalendarEventsSettingsPage.vue'),
     meta: {
       requiresAuth: true,
+      requiresSetting: 'schoolEnabled',
       requiresPermission: 'school:admin',
     },
   },
@@ -206,6 +229,7 @@ const schoolRoutes = [
     component: () => import('./pages/BellSchedulesSettingsPage.vue'),
     meta: {
       requiresAuth: true,
+      requiresSetting: 'schoolEnabled',
       requiresPermission: 'school:read',
     },
   },
@@ -215,6 +239,7 @@ const schoolRoutes = [
     component: () => import('./pages/TimetableTemplatesPage.vue'),
     meta: {
       requiresAuth: true,
+      requiresSetting: 'schoolEnabled',
       requiresPermission: 'school:admin',
     },
   },
@@ -226,6 +251,7 @@ const schoolRoutes = [
     component: () => import('./pages/EducationalGoalsPage.vue'),
     meta: {
       requiresAuth: true,
+      requiresSetting: 'schoolEnabled',
       requiresPermission: 'school:read',
     },
   },
@@ -235,6 +261,7 @@ const schoolRoutes = [
     component: () => import('./pages/LongTermGoalsSettingsPage.vue'),
     meta: {
       requiresAuth: true,
+      requiresSetting: 'schoolEnabled',
       requiresPermission: 'school:admin',
     },
   },

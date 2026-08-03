@@ -90,9 +90,9 @@ development_status:
   5-4-cloud-storage-shared-folders-and-module-based-access: done
   5-5-guests-management-module: deferred
   5-6-equipment-management-module: deferred
-  5-7-vendors-suppliers-management-module: backlog
+  5-7-vendors-suppliers-management-module: done
   5-8-energy-management-module: deferred
-  5-9-module-management-and-configuration: backlog
+  5-9-module-management-and-configuration: done
   5-10-system-completion-final-dashboard-integration-and-production-setup: backlog
   5-11-start-fresh-production-setup-wizard: backlog
   5-12-user-management-crud-operations: backlog

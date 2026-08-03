@@ -5,6 +5,10 @@ const farmRoutes = [
   {
     path: 'farm',
     redirect: '/farm/dashboard',
+    meta: {
+      requiresAuth: true,
+      requiresSetting: 'farmEnabled',
+    },
   },
   {
     path: 'farm/dashboard',
@@ -12,6 +16,7 @@ const farmRoutes = [
     component: () => import('./pages/FarmDashboardPage.vue'),
     meta: {
       requiresAuth: true,
+      requiresSetting: 'farmEnabled',
       requiresPermission: 'farm:read',
     },
   },
@@ -21,6 +26,7 @@ const farmRoutes = [
     component: () => import('./pages/PlotsListPage.vue'),
     meta: {
       requiresAuth: true,
+      requiresSetting: 'farmEnabled',
       requiresPermission: 'farm:read',
     },
   },
@@ -30,6 +36,7 @@ const farmRoutes = [
     component: () => import('./pages/PlotFormPage.vue'),
     meta: {
       requiresAuth: true,
+      requiresSetting: 'farmEnabled',
       requiresPermission: 'farm:write',
     },
   },
@@ -39,6 +46,7 @@ const farmRoutes = [
     component: () => import('./pages/PlotDetailPage.vue'),
     meta: {
       requiresAuth: true,
+      requiresSetting: 'farmEnabled',
       requiresPermission: 'farm:read',
     },
   },
@@ -48,6 +56,7 @@ const farmRoutes = [
     component: () => import('./pages/PlotFormPage.vue'),
     meta: {
       requiresAuth: true,
+      requiresSetting: 'farmEnabled',
       requiresPermission: 'farm:write',
     },
   },
@@ -58,6 +67,7 @@ const farmRoutes = [
     component: () => import('./pages/CropsListPage.vue'),
     meta: {
       requiresAuth: true,
+      requiresSetting: 'farmEnabled',
       requiresPermission: 'farm:read',
     },
   },
@@ -67,6 +77,7 @@ const farmRoutes = [
     component: () => import('./pages/CropFormPage.vue'),
     meta: {
       requiresAuth: true,
+      requiresSetting: 'farmEnabled',
       requiresPermission: 'farm:admin',
     },
   },
@@ -76,6 +87,7 @@ const farmRoutes = [
     component: () => import('./pages/CropDetailPage.vue'),
     meta: {
       requiresAuth: true,
+      requiresSetting: 'farmEnabled',
       requiresPermission: 'farm:read',
     },
   },
@@ -85,6 +97,7 @@ const farmRoutes = [
     component: () => import('./pages/CropFormPage.vue'),
     meta: {
       requiresAuth: true,
+      requiresSetting: 'farmEnabled',
       requiresPermission: 'farm:admin',
     },
   },
@@ -96,6 +109,7 @@ const farmRoutes = [
     component: () => import('./pages/PlantingsListPage.vue'),
     meta: {
       requiresAuth: true,
+      requiresSetting: 'farmEnabled',
       requiresPermission: 'farm:read',
     },
   },
@@ -105,6 +119,7 @@ const farmRoutes = [
     component: () => import('./pages/PlantingDetailPage.vue'),
     meta: {
       requiresAuth: true,
+      requiresSetting: 'farmEnabled',
       requiresPermission: 'farm:read',
     },
   },
@@ -114,6 +129,7 @@ const farmRoutes = [
     component: () => import('./pages/CreatePlantingPage.vue'),
     meta: {
       requiresAuth: true,
+      requiresSetting: 'farmEnabled',
       requiresPermission: 'farm:write',
     },
   },
@@ -125,6 +141,7 @@ const farmRoutes = [
     component: () => import('./pages/PlantingEditPage.vue'),
     meta: {
       requiresAuth: true,
+      requiresSetting: 'farmEnabled',
       requiresPermission: 'farm:write',
     },
   },
@@ -139,6 +156,7 @@ const farmRoutes = [
     component: () => import('./pages/HarvestsListPage.vue'),
     meta: {
       requiresAuth: true,
+      requiresSetting: 'farmEnabled',
       requiresPermission: 'farm:read',
     },
   },
@@ -161,6 +179,7 @@ const farmRoutes = [
     component: () => import('./pages/SalesListPage.vue'),
     meta: {
       requiresAuth: true,
+      requiresSetting: 'farmEnabled',
       requiresPermission: 'farm:read',
     },
   },
@@ -170,6 +189,7 @@ const farmRoutes = [
     component: () => import('./pages/SaleDetailPage.vue'),
     meta: {
       requiresAuth: true,
+      requiresSetting: 'farmEnabled',
       requiresPermission: 'farm:read',
     },
   },
@@ -181,6 +201,7 @@ const farmRoutes = [
     component: () => import('./pages/FarmReportsPage.vue'),
     meta: {
       requiresAuth: true,
+      requiresSetting: 'farmEnabled',
       requiresPermission: 'farm:read',
     },
   },
@@ -192,6 +213,7 @@ const farmRoutes = [
     component: () => import('./pages/FarmAlertsPage.vue'),
     meta: {
       requiresAuth: true,
+      requiresSetting: 'farmEnabled',
       requiresPermission: 'farm:read',
     },
   },
@@ -203,6 +225,7 @@ const farmRoutes = [
     component: () => import('./pages/FarmSettingsPage.vue'),
     meta: {
       requiresAuth: true,
+      requiresSetting: 'farmEnabled',
       requiresPermission: 'farm:write',
     },
   },

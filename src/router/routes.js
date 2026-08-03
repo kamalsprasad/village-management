@@ -65,6 +65,14 @@ const routes = [
         },
       },
       {
+        path: 'admin/modules',
+        component: () => import('pages/admin/ModulesPage.vue'),
+        meta: {
+          requiresAuth: true,
+          requiresPermission: '*', // System Administrator only (Story 5.9)
+        },
+      },
+      {
         path: 'households',
         component: () => import('pages/households/HouseholdsListPage.vue'),
         meta: {

@@ -324,7 +324,7 @@
 
         <!-- Agriculture Section -->
         <q-expansion-item
-          v-if="isClient && hasPermission('farm:read')"
+          v-if="isClient && hasPermission('farm:read') && settingsStore.farmEnabled"
           v-model="expandedSections.agriculture"
           icon="agriculture"
           label="Agriculture"
@@ -429,7 +429,7 @@
 
         <!-- School Section -->
         <q-expansion-item
-          v-if="isClient && hasPermission('school:read')"
+          v-if="isClient && hasPermission('school:read') && settingsStore.schoolEnabled"
           v-model="expandedSections.school"
           icon="school"
           label="School"
@@ -632,6 +632,20 @@
             </q-item-section>
             <q-item-section>
               <q-item-label class="nav-sub-label">User Management</q-item-label>
+            </q-item-section>
+          </q-item>
+
+          <q-item
+            clickable
+            to="/admin/modules"
+            class="nav-sub-item"
+            active-class="nav-sub-item--active"
+          >
+            <q-item-section avatar class="nav-sub-icon">
+              <q-icon name="view_module" size="16px" />
+            </q-item-section>
+            <q-item-section>
+              <q-item-label class="nav-sub-label">Module Management</q-item-label>
             </q-item-section>
           </q-item>
 

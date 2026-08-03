@@ -67,6 +67,21 @@ export default defineBoot(({ router, store }) => {
     // Check if route requires a specific setting to be truthy
     if (to.meta.requiresSetting) {
       const settingKey = to.meta.requiresSetting;
+
+      // SSR guard: server cannot reliably evaluate client-side settings.
+      // Allow navigation on server and let the client handle the redirect after hydration.
+      if (process.env.SERVER) {
+        next();
+        return;
+      }
+
+      // Ensure settings are loaded before evaluating the module toggle.
+      // The settings boot runs before this guard, but a direct deep link may
+      // trigger navigation before the store has finished loading.
+      if (!settingsStore.isLoaded && !settingsStore.isLoading) {
+        await settingsStore.loadSettings();
+      }
+
       // Evaluate setting as truthy
       if (!settingsStore[settingKey]) {
         next('/');

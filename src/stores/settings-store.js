@@ -4,6 +4,7 @@ import { formatInTimeZone } from 'date-fns-tz';
 import { tables, functions } from 'src/boot/appwrite';
 import { useErrorHandler } from 'src/composables/useErrorHandler';
 import { useAuthStore } from 'src/stores/auth-store';
+import { CORE_MODULE_KEYS, OPTIONAL_MODULE_KEYS } from 'src/utils/module-registry';
 
 const errorHandler = useErrorHandler();
 
@@ -113,9 +114,26 @@ export const useSettingsStore = defineStore('settings', {
     lendingEnabled: (state) => state.settings?.lending_enabled ?? true,
 
     /**
-     * Check if vendors module is enabled (Story 5.7)
+     * Check if farm module is enabled (Story 5.9)
      */
-    vendorsEnabled: (state) => state.settings?.vendors_enabled ?? true,
+    farmEnabled: (state) => state.settings?.modules_enabled?.includes('farm') ?? false,
+
+    /**
+     * Check if school module is enabled (Story 5.9)
+     */
+    schoolEnabled: (state) => state.settings?.modules_enabled?.includes('school') ?? false,
+
+    /**
+     * Check if vendors module is enabled (Story 5.7/5.9)
+     * Uses modules_enabled as the canonical source, falling back to the legacy vendors_enabled flag.
+     */
+    vendorsEnabled: (state) => {
+      const modules = state.settings?.modules_enabled;
+      if (Array.isArray(modules)) {
+        return modules.includes('vendors');
+      }
+      return state.settings?.vendors_enabled ?? true;
+    },
 
     /**
      * Get council members (parsed from JSON string)
@@ -267,22 +285,29 @@ export const useSettingsStore = defineStore('settings', {
         const processedUpdates = { ...updates };
 
         // Normalize established_date to ISO string for Appwrite datetime attribute
-        if (processedUpdates.established_date === '') {
-          processedUpdates.established_date = null;
-        } else if (typeof processedUpdates.established_date === 'string') {
-          const dateOnlyMatch = processedUpdates.established_date.match(/^(\d{4}-\d{2}-\d{2})$/);
-          const isoString = dateOnlyMatch
-            ? new Date(`${processedUpdates.established_date}T00:00:00Z`).toISOString()
-            : new Date(processedUpdates.established_date).toISOString();
-          if (!Number.isNaN(new Date(isoString).getTime())) {
-            processedUpdates.established_date = isoString;
-          } else {
+        // Only normalize when the field is present in the update payload.
+        if ('established_date' in processedUpdates) {
+          if (processedUpdates.established_date === '') {
             processedUpdates.established_date = null;
+          } else if (typeof processedUpdates.established_date === 'string') {
+            const dateOnlyMatch = processedUpdates.established_date.match(/^(\d{4}-\d{2}-\d{2})$/);
+            const isoString = dateOnlyMatch
+              ? new Date(`${processedUpdates.established_date}T00:00:00Z`).toISOString()
+              : new Date(processedUpdates.established_date).toISOString();
+            if (!Number.isNaN(new Date(isoString).getTime())) {
+              processedUpdates.established_date = isoString;
+            } else {
+              processedUpdates.established_date = null;
+            }
           }
         }
 
-        //processedUpdates.council_member_ids.map((member) => member.residentId);
-        if (Array.isArray(processedUpdates.council_member_ids)) {
+        // Only process council_member_ids when the field is present in the update payload.
+        // Story 5.9: module-only updates must not re-process existing relationship data.
+        if (
+          'council_member_ids' in processedUpdates &&
+          Array.isArray(processedUpdates.council_member_ids)
+        ) {
           processedUpdates.council_member_ids = processedUpdates.council_member_ids.map((member) =>
             typeof member === 'string' ? member : member.residentId,
           );
@@ -388,6 +413,67 @@ export const useSettingsStore = defineStore('settings', {
       this.isLoading = false;
       this.isFirstRun = false;
       this.lastFetched = null;
+    },
+
+    /**
+     * Build a new modules_enabled array by adding or removing a single key.
+     * @param {string} moduleKey - Module key to toggle
+     * @returns {string[]} The updated modules_enabled array
+     */
+    toggleModule(moduleKey) {
+      const current = this.settings?.modules_enabled || [];
+      const index = current.indexOf(moduleKey);
+      if (index >= 0) {
+        return current.filter((key) => key !== moduleKey);
+      }
+      return [...current, moduleKey];
+    },
+
+    /**
+     * Persist the modules_enabled array to Appwrite.
+     * Only sends the module field plus the required scalar validation fields;
+     * relationship/datetime fields are left untouched.
+     * @param {string[]} enabledKeys - Full list of enabled module keys
+     * @returns {Promise<Object>} Result object with success flag
+     */
+    async updateModulesEnabled(enabledKeys) {
+      if (!this.settings) {
+        const loadResult = await this.loadSettings();
+        if (!loadResult.success) {
+          return { success: false, error: 'Settings not loaded' };
+        }
+      }
+
+      const knownValid = new Set([...CORE_MODULE_KEYS, ...OPTIONAL_MODULE_KEYS]);
+      const currentEnabled = new Set(this.settings?.modules_enabled || []);
+
+      // Reject brand-new unknown keys (the UI can only toggle known optional modules),
+      // but allow keys that already exist in the database (e.g. deferred modules).
+      const invalidKeys = enabledKeys.filter(
+        (key) => !knownValid.has(key) && !currentEnabled.has(key),
+      );
+      if (invalidKeys.length > 0) {
+        return { success: false, error: `Invalid module keys: ${invalidKeys.join(', ')}` };
+      }
+
+      // Core modules are always enabled and cannot be removed.
+      const finalKeys = [...new Set([...CORE_MODULE_KEYS, ...enabledKeys])];
+
+      const base = this.settings;
+      const updates = {
+        village_name: base.village_name,
+        address: base.address,
+        default_currency: base.default_currency,
+        currency_symbol: base.currency_symbol,
+        timezone: base.timezone,
+        country_code: base.country_code,
+        country_phone_code: base.country_phone_code,
+        is_using_sample_data: base.is_using_sample_data,
+        lending_enabled: base.lending_enabled,
+        modules_enabled: finalKeys,
+      };
+
+      return await this.updateSettings(updates);
     },
 
     /**

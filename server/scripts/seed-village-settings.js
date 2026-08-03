@@ -74,7 +74,18 @@ const defaultSettings = {
   country_code: 'ZM',
   is_using_sample_data: false,
   council_member_ids: null,
-  modules_enabled: ['residents', 'households', 'dashboard', 'vendors'],
+  modules_enabled: [
+    'residents',
+    'households',
+    'dashboard',
+    'finance',
+    'inventory',
+    'calendar',
+    'storage',
+    'farm',
+    'school',
+    'vendors',
+  ],
   vendors_enabled: true,
 };
 

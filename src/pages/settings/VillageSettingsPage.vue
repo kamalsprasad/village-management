@@ -188,23 +188,30 @@
                 </q-select>
               </div>
               <div class="col-12 col-md-6">
-                <q-select
-                  v-model="formData.modules_enabled"
-                  :options="moduleOptions"
-                  label="Enabled Modules"
-                  outlined
-                  multiple
-                  :readonly="!isEditMode"
-                  option-value="value"
-                  option-label="label"
-                  emit-value
-                  map-options
-                  hint="Select which modules are active in your village"
-                >
-                  <template #prepend>
-                    <q-icon name="apps" />
-                  </template>
-                </q-select>
+                <div class="text-caption text-grey-7 q-mb-sm">Enabled Modules</div>
+                <div class="row q-gutter-xs q-mb-sm">
+                  <q-chip
+                    v-for="key in settingsStore.modulesEnabled"
+                    :key="key"
+                    color="primary"
+                    text-color="white"
+                    dense
+                  >
+                    {{ getModuleLabel(key) }}
+                  </q-chip>
+                  <span v-if="settingsStore.modulesEnabled.length === 0" class="text-grey-6">
+                    No modules enabled
+                  </span>
+                </div>
+                <q-btn
+                  v-if="isClient && hasPermission('*')"
+                  flat
+                  dense
+                  color="primary"
+                  icon="settings"
+                  label="Manage Modules"
+                  to="/admin/modules"
+                />
               </div>
               <div class="col-12 col-md-12">
                 <q-toggle
@@ -384,6 +391,7 @@ import { ref, computed, onMounted } from 'vue';
 import { useQuasar } from 'quasar';
 import { usePermissions } from 'src/composables/usePermissions';
 import { useSettingsStore } from 'src/stores/settings-store';
+import { getModuleLabel } from 'src/utils/module-registry';
 import ResidentSearchInput from 'src/components/inputs/ResidentSearchInput.vue';
 import { tables } from 'src/boot/appwrite';
 import { Query } from 'appwrite';
@@ -411,7 +419,6 @@ const formData = ref({
   is_using_sample_data: false,
   lending_enabled: true,
   council_member_ids: null,
-  modules_enabled: [],
 });
 
 const emptyMemberFormState = () => ({
@@ -445,18 +452,6 @@ const timezoneOptions = [
   { label: 'Africa/Lagos (+01:00)', value: 'Africa/Lagos' },
   { label: 'Africa/Cairo (+02:00)', value: 'Africa/Cairo' },
   { label: 'UTC (+00:00)', value: 'UTC' },
-];
-
-// Module options
-const moduleOptions = [
-  { label: 'Dashboard', value: 'dashboard' },
-  { label: 'Residents', value: 'residents' },
-  { label: 'Households', value: 'households' },
-  { label: 'Finance', value: 'finance' },
-  { label: 'Farm Management', value: 'farm' },
-  { label: 'School', value: 'school' },
-  { label: 'Calendar', value: 'calendar' },
-  { label: 'Storage', value: 'storage' },
 ];
 
 // Council roles
@@ -538,7 +533,6 @@ function loadFormData() {
       council_member_ids: settingsStore.councilMembers.map((member) =>
         normalizeCouncilMember(member),
       ),
-      modules_enabled: [...(settingsStore.settings.modules_enabled || [])],
     };
   }
 }
