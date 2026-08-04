@@ -5,7 +5,7 @@ created: '2026-08-04'
 status: done
 review_loop_iteration: 0
 baseline_revision: '84a43e569fd9f6a209581f600c39ff3fdce18f88'
-final_revision: '937d423c4a814b80572865c9c2b76d015394ab94'
+final_revision: '6faacb02eea96b75ba1e0e552f092a821f87074f'
 followup_review_recommended: false
 context:
   - '{project-root}/docs/implementation-artifacts/epic-5-context.md'
