@@ -83,7 +83,7 @@ development_status:
   4-12-school-module-progress-toward-long-term-educational-goal-90-percent-in-90th-percentile: done
   4-13-school-module-learner-progress-reports-and-school-dashboard-completion: done
   epic-4-retrospective: optional
-  epic-5: backlog
+  epic-5: in-progress
   5-1-village-calendar-global-calendar-with-category-filtering: done
   5-2-village-calendar-role-based-event-creation-and-editing: done
   5-3-cloud-storage-role-based-storage-quotas-and-personal-folders: done
@@ -94,7 +94,7 @@ development_status:
   5-8-energy-management-module: deferred
   5-9-module-management-and-configuration: done
   5-10-system-completion-final-dashboard-integration-and-production-setup: backlog
-  5-11-start-fresh-production-setup-wizard: backlog
+  5-11-start-fresh-production-setup-wizard: done
   5-12-user-management-crud-operations: done
   5-13-role-assignment-and-permissions-management-ui: done
   5-14-authentication-completeness-password-change-and-reset: done

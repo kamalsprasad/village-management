@@ -75,6 +75,41 @@
         <q-skeleton type="rect" height="60px" class="q-mb-sm" />
       </div>
 
+      <!-- Empty-State Banner (Story 5.11) -->
+      <q-banner
+        v-else-if="residentsStore.pagination.total === 0 && householdsStore.pagination.total === 0"
+        class="bg-info text-white q-mb-md"
+        rounded
+      >
+        <template #avatar>
+          <q-icon name="info" color="white" />
+        </template>
+        Please create at least one household before adding residents.
+        <template #action>
+          <q-btn flat color="white" label="Go to Households" to="/households" />
+        </template>
+      </q-banner>
+
+      <q-banner
+        v-else-if="residentsStore.pagination.total === 0"
+        class="bg-info text-white q-mb-md"
+        rounded
+      >
+        <template #avatar>
+          <q-icon name="info" color="white" />
+        </template>
+        No residents yet. Add your first resident.
+        <template #action>
+          <q-btn
+            v-if="isClient && hasPermission('residents:write')"
+            flat
+            color="white"
+            label="Add Resident"
+            @click="showAddDialog = true"
+          />
+        </template>
+      </q-banner>
+
       <!-- Residents Table (AC1) -->
       <q-card v-else flat bordered>
         <q-table

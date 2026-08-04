@@ -270,6 +270,27 @@ async function updateUser(body, { users, teams, tablesDB, log, actorUserId }) {
     beforeRoleIds
   );
 
+  // Story 5.11: last-System-Administrator guard on role_ids changes.
+  // Mirrors the guard shape in deactivateUser — reuses the same helpers.
+  if (Array.isArray(roleIds) && wasSystemAdmin) {
+    const isSystemAdminAfter = await roleIdsIncludeSystemAdmin(
+      tablesDB,
+      roleIds
+    );
+    if (!isSystemAdminAfter) {
+      const otherActiveAdmins = await countOtherActiveSystemAdmins(
+        tablesDB,
+        userId
+      );
+      if (otherActiveAdmins === 0) {
+        return {
+          success: false,
+          error: 'Cannot remove the last System Administrator',
+        };
+      }
+    }
+  }
+
   try {
     if (email && email !== before.email) {
       await users.updateEmail({ userId, email });

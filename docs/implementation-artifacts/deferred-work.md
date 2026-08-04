@@ -29,7 +29,7 @@ Items deferred during code reviews. Revisit before closing their parent story or
 - InterventionSummaryCard "Duration" shows end date, not "days since start or days until end" — minor UX deviation from AC7. Information is present, just formatted differently. [`InterventionSummaryCard.vue:108-111`]
 - MyInterventionsWidget not immediately below At-Risk widget — minor layout deviation from AC13. Widget is still below the At-Risk widget, just not immediately after it. [`SchoolDashboardPage.vue:76-79`]
 
----`n
+---
 
 ## Deferred from: code review of story-4.12 (2026-07-03)
 
@@ -150,4 +150,19 @@ Items deferred during code reviews. Revisit before closing their parent story or
 
 - source_spec: `docs/implementation-artifacts/spec-5-13-role-assignment-and-permissions-management-ui.md`
   summary: The 5.12 `updateUser` server function has no last-System-Administrator guard for `role_ids` changes — an admin can remove the System Administrator role from the only remaining admin (via ManageRolesDialog or the pre-existing UserFormDialog edit-mode role multi-select), locking the system out of the admin UI. The 5.12 `deactivateUser` action has this guard, but `updateUser` does not.
-  evidence: `server/functions/User Management/src/main.js:243-346` (`updateUser` — no last-admin check on role changes; `deactivateUser` at lines 379-390 does check). Both `src/components/admin/ManageRolesDialog.vue:178` (5.13) and `src/components/admin/UserFormDialog.vue:286` (5.12 edit mode) call `usersStore.updateUser` with `role_ids` and can trigger this. Pre-existing from 5.12, surfaced incidentally by 5.13's new UI. Owning story: post-MVP hardening pass (add a last-active-System-Admin check to the `updateUser` server function when `role_ids` changes remove the System Admin role, mirroring the `deactivateUser` guard).
+  evidence: `server/functions/User Management/src/main.js:243-346` (`updateUser` — no last-admin check on role changes; `deactivateUser` at lines 379-390 does check). Both `src/components/admin/ManageRolesDialog.vue:178` (5.13) and `src/components/admin/UserFormDialog.vue:286` (5.12 edit mode) call `usersStore.updateUser` with `role_ids` and can trigger this. Pre-existing from 5.12, surfaced incidentally by 5.13's new UI. User decision 2026-08-04: pick up in Story 5.11 (Start Fresh Production Setup Wizard) — add a last-active-System-Admin check to the `updateUser` server function when `role_ids` changes remove the System Admin role, mirroring the `deactivateUser` guard. Owning story: Story 5.11. RESOLVED in Story 5.11 — see `server/functions/User Management/src/main.js:273-292`.
+
+## Deferred from: code review of story-5.11 (2026-08-04)
+
+- source_spec: `docs/implementation-artifacts/spec-5-11-start-fresh-production-setup-wizard.md`
+  summary: `village_settings.country_phone_code` has `maxLength: 4` (`src/stores/settings-store.js` validation, `server/scripts/setup-appwrite.js` schema), which rejects valid international dialing codes longer than 4 characters (e.g. `+1242`).
+  evidence: `src/stores/settings-store.js:273`, `server/scripts/setup-appwrite.js:272`. Pre-existing constraint predating 5.11, surfaced incidentally by the Start Fresh Wizard's Step 1 form. Owning story: post-MVP i18n/localization hardening pass.
+- source_spec: `docs/implementation-artifacts/spec-5-11-start-fresh-production-setup-wizard.md`
+  summary: `StartFreshWizard.vue` Step 1's currency code and country phone code inputs only validate presence, not ISO 4217 / dialing-code format.
+  evidence: `src/components/setup/StartFreshWizard.vue` (currency/phone code `q-input` `:rules`). Matches the equally lenient validation already in `VillageSettingsPage.vue`/`settings-store.js`. Owning story: post-MVP input-validation hardening pass (fix alongside the settings page's equivalent fields).
+- source_spec: `docs/implementation-artifacts/spec-5-11-start-fresh-production-setup-wizard.md`
+  summary: The Story 5.11 last-System-Administrator guard added to `updateUser` (and the pre-existing one in `deactivateUser`) has a theoretical TOCTOU race: two concurrent role-removal requests against the last two System Administrators could both pass the `countOtherActiveSystemAdmins` check before either write commits, leaving zero admins.
+  evidence: `server/functions/User Management/src/main.js:273-292` (new guard) and `:379-390` (`deactivateUser`, pre-existing, same shape). Appwrite's TablesDB has no row-level locking exposed to functions; fixing this would require a redesign (e.g. a dedicated admin-count counter row with optimistic locking). Owning story: post-MVP concurrency-hardening pass.
+- source_spec: `docs/implementation-artifacts/spec-5-11-start-fresh-production-setup-wizard.md`
+  summary: The `/setup` route (`src/router/routes.js`) requires only `requiresAuth: true`, with no `requiresPermission` check — any authenticated user, not just a System Administrator, can navigate to `/setup` and launch the Start Fresh Wizard.
+  evidence: `src/router/routes.js:31-38`. Pre-existing behavior from the original `SetupWizard.vue` (the "Load Sample Data" card had the same exposure); not introduced by 5.11. Owning story: post-MVP RBAC hardening pass.

@@ -121,6 +121,27 @@
         <q-skeleton type="rect" height="60px" class="q-mb-sm" />
       </div>
 
+      <!-- Empty-State Banner (Story 5.11) -->
+      <q-banner
+        v-else-if="financeStore.pagination.total === 0"
+        class="bg-info text-white q-mb-md"
+        rounded
+      >
+        <template #avatar>
+          <q-icon name="info" color="white" />
+        </template>
+        No transactions recorded. Record your first income or expense.
+        <template #action>
+          <q-btn
+            v-if="isClient && hasPermission('finance:write')"
+            flat
+            color="white"
+            label="Record Income"
+            @click="openAddDialog('income')"
+          />
+        </template>
+      </q-banner>
+
       <!-- Transactions Table -->
       <q-card v-else flat bordered>
         <q-table

@@ -8,6 +8,47 @@
       </p>
     </div>
 
+    <!-- Empty-State Guidance Banners (Story 5.11) -->
+    <q-banner
+      v-if="isClient && !guidanceLoading && householdCount === 0"
+      class="bg-info text-white q-mb-md"
+      rounded
+    >
+      <template #avatar>
+        <q-icon name="info" color="white" />
+      </template>
+      Welcome! Start by adding your first household.
+      <template #action>
+        <q-btn
+          v-if="isClient && hasPermission('households:write')"
+          flat
+          color="white"
+          label="Add Household"
+          to="/households"
+        />
+      </template>
+    </q-banner>
+
+    <q-banner
+      v-else-if="isClient && !guidanceLoading && householdCount > 0 && residentCount === 0"
+      class="bg-info text-white q-mb-md"
+      rounded
+    >
+      <template #avatar>
+        <q-icon name="info" color="white" />
+      </template>
+      Add your first resident to your household.
+      <template #action>
+        <q-btn
+          v-if="isClient && hasPermission('residents:write')"
+          flat
+          color="white"
+          label="Add Resident"
+          to="/residents"
+        />
+      </template>
+    </q-banner>
+
     <!-- Dashboard Widgets Grid -->
     <div class="row q-col-gutter-md">
       <!-- Quick Stats Widget (Full Width) -->
@@ -53,10 +94,12 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue';
+import { Query } from 'appwrite';
 import { useAuthStore } from 'src/stores/auth-store';
 import { useSettingsStore } from 'src/stores/settings-store';
 import { useCalendarStore } from 'src/modules/calendar/stores/calendar-store';
 import { getCalendarCategory } from 'src/modules/calendar/utils/calendar-categories';
+import { tables } from 'src/boot/appwrite';
 import UpcomingEventsWidget from 'src/components/dashboard/UpcomingEventsWidget.vue';
 import QuickStatsWidget from 'src/components/dashboard/QuickStatsWidget.vue';
 import RecentActivityWidget from 'src/components/dashboard/RecentActivityWidget.vue';
@@ -78,6 +121,11 @@ const { hasPermission } = usePermissions();
 // Loading state for skeleton loaders
 const loading = ref(true);
 const isClient = ref(false); // Track client-side hydration for SSR
+
+// Story 5.11: empty-state guidance banner counts
+const householdCount = ref(null);
+const residentCount = ref(null);
+const guidanceLoading = ref(true);
 
 // Upcoming Events widget — real data from the village calendar store (Story 5.1),
 // mapped to the widget's item shape { id, title, date, time, location, type }.
@@ -105,6 +153,30 @@ const userName = computed(() => {
 // Simulate data loading on mount
 onMounted(async () => {
   isClient.value = true; // Enable client-side rendering after hydration
+
+  // Story 5.11: Fetch household and resident counts for empty-state guidance
+  try {
+    const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
+    const householdsResponse = await tables.listRows({
+      databaseId: dbId,
+      tableId: import.meta.env.VITE_APPWRITE_TABLE_HOUSEHOLDS,
+      queries: [Query.limit(1)],
+    });
+    householdCount.value = householdsResponse.total;
+
+    if (householdCount.value > 0) {
+      const residentsResponse = await tables.listRows({
+        databaseId: dbId,
+        tableId: import.meta.env.VITE_APPWRITE_TABLE_RESIDENTS,
+        queries: [Query.limit(1)],
+      });
+      residentCount.value = residentsResponse.total;
+    }
+  } catch (err) {
+    console.error('Error fetching guidance counts:', err);
+  } finally {
+    guidanceLoading.value = false;
+  }
 
   // Defer data loading to avoid blocking initial render
   await new Promise((resolve) => setTimeout(resolve, 300));

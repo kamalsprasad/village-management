@@ -6,7 +6,10 @@
         style="background: linear-gradient(135deg, #f5f7fa 0%, #e4e8ec 100%)"
         key="setup-wizard-page"
       >
-        <div class="setup-container q-pa-lg" style="max-width: 900px; width: 100%">
+        <!-- Start Fresh Wizard (replaces option cards) -->
+        <StartFreshWizard v-if="showStartFresh" @cancel="showStartFresh = false" />
+
+        <div v-else class="setup-container q-pa-lg" style="max-width: 900px; width: 100%">
           <!-- Welcome Header -->
           <div class="text-center q-mb-xl">
             <q-icon name="home_work" size="64px" color="primary" class="q-mb-md" />
@@ -60,24 +63,27 @@
               </q-card>
             </div>
 
-            <!-- Start Fresh Card (Disabled) -->
+            <!-- Start Fresh Card -->
             <div class="col-12 col-md-5">
-              <q-card class="setup-card fresh-start-card disabled-card">
+              <q-card
+                class="setup-card fresh-start-card cursor-pointer"
+                @click="showStartFresh = true"
+              >
                 <q-card-section class="text-center q-pa-lg">
-                  <q-icon name="add_home_work" size="48px" color="grey-5" class="q-mb-md" />
-                  <div class="text-h6 text-weight-bold text-grey-6 q-mb-sm">
-                    Start Fresh with Real Data
-                  </div>
-                  <p class="text-body2 text-grey-5 q-mb-md">
+                  <q-icon name="add_home_work" size="48px" color="primary" class="q-mb-md" />
+                  <div class="text-h6 text-weight-bold q-mb-sm">Start Fresh with Real Data</div>
+                  <p class="text-body2 text-grey-7 q-mb-md">
                     Begin with an empty database and enter your own village information from
                     scratch.
                   </p>
-                  <q-chip color="grey-4" text-color="grey-7" icon="schedule" size="sm">
-                    Coming in future update
-                  </q-chip>
                 </q-card-section>
                 <q-card-actions class="justify-center q-pb-lg">
-                  <q-btn color="grey-5" label="Start Fresh" icon="add" disable flat />
+                  <q-btn
+                    color="primary"
+                    label="Start Fresh"
+                    icon="add"
+                    @click.stop="showStartFresh = true"
+                  />
                 </q-card-actions>
               </q-card>
             </div>
@@ -101,6 +107,7 @@ import { functions } from 'src/boot/appwrite';
 import { useAuthStore } from 'src/stores/auth-store';
 import { useSettingsStore } from 'src/stores/settings-store';
 import { useErrorHandler } from 'src/composables/useErrorHandler';
+import StartFreshWizard from 'src/components/setup/StartFreshWizard.vue';
 
 const router = useRouter();
 const authStore = useAuthStore();
@@ -110,12 +117,12 @@ const errorHandler = useErrorHandler();
 const selectedOption = ref(null);
 const isSeeding = ref(false);
 const seedingStatus = ref('');
+const showStartFresh = ref(false);
 
 const POLL_INTERVAL_MS = 2000;
 const MAX_POLL_TIME_MS = 15 * 60 * 1000; // 15 minutes
 
 function selectOption(option) {
-  if (option === 'fresh') return;
   selectedOption.value = option;
 }
 
@@ -238,9 +245,7 @@ async function pollExecutionStatus(functionId, executionId) {
   background: white;
 }
 
-.disabled-card {
-  background: #f5f5f5;
-  cursor: not-allowed;
-  opacity: 0.8;
+.fresh-start-card {
+  background: white;
 }
 </style>

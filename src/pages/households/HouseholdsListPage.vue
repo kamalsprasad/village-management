@@ -28,6 +28,27 @@
         <q-skeleton type="rect" height="60px" class="q-mb-sm" />
       </div>
 
+      <!-- Empty-State Banner (Story 5.11) -->
+      <q-banner
+        v-else-if="householdsStore.pagination.total === 0"
+        class="bg-info text-white q-mb-md"
+        rounded
+      >
+        <template #avatar>
+          <q-icon name="info" color="white" />
+        </template>
+        No households yet. Add your first household.
+        <template #action>
+          <q-btn
+            v-if="isClient && hasPermission('households:write')"
+            flat
+            color="white"
+            label="Add Household"
+            @click="showAddDialog = true"
+          />
+        </template>
+      </q-banner>
+
       <!-- Households Table -->
       <q-card v-else flat bordered>
         <q-table
