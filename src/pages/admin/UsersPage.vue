@@ -107,10 +107,27 @@
               <q-tooltip>Edit</q-tooltip>
             </q-btn>
 
-            <span>
-              <q-btn flat dense round icon="admin_panel_settings" color="grey" disable> </q-btn>
-              <q-tooltip>Available in a future update</q-tooltip>
-            </span>
+            <q-btn
+              flat
+              dense
+              round
+              icon="admin_panel_settings"
+              color="primary"
+              @click="openManageRolesDialog(props.row)"
+            >
+              <q-tooltip>Manage Roles</q-tooltip>
+            </q-btn>
+
+            <q-btn
+              flat
+              dense
+              round
+              icon="visibility"
+              color="info"
+              @click="openViewPermissionsDialog(props.row)"
+            >
+              <q-tooltip>View Permissions</q-tooltip>
+            </q-btn>
 
             <q-btn
               flat
@@ -141,6 +158,19 @@
       :system-admin-role-id="usersStore.systemAdministratorRole?.$id"
       @saved="fetchAll"
     />
+
+    <ManageRolesDialog
+      v-model="showManageRolesDialog"
+      :user="selectedUser"
+      :roles="usersStore.roles"
+      @saved="fetchAll"
+    />
+
+    <ViewPermissionsDialog
+      v-model="showViewPermissionsDialog"
+      :user="selectedUser"
+      :roles="usersStore.roles"
+    />
   </q-page>
 </template>
 
@@ -151,6 +181,8 @@ import { usePermissions } from 'src/composables/usePermissions';
 import { formatDate } from 'src/utils/dateUtils';
 import UserFormDialog from 'src/components/admin/UserFormDialog.vue';
 import DeactivateUserDialog from 'src/components/admin/DeactivateUserDialog.vue';
+import ManageRolesDialog from 'src/components/admin/ManageRolesDialog.vue';
+import ViewPermissionsDialog from 'src/components/admin/ViewPermissionsDialog.vue';
 
 const usersStore = useUsersStore();
 const { isAdmin } = usePermissions();
@@ -160,6 +192,8 @@ const searchTerm = ref('');
 const statusFilter = ref('active');
 const showFormDialog = ref(false);
 const showDeactivateDialog = ref(false);
+const showManageRolesDialog = ref(false);
+const showViewPermissionsDialog = ref(false);
 const selectedUser = ref(null);
 
 const isLoading = computed(() => usersStore.isLoading);
@@ -254,6 +288,16 @@ function openEditDialog(user) {
 function openDeactivateDialog(user) {
   selectedUser.value = user;
   showDeactivateDialog.value = true;
+}
+
+function openManageRolesDialog(user) {
+  selectedUser.value = user;
+  showManageRolesDialog.value = true;
+}
+
+function openViewPermissionsDialog(user) {
+  selectedUser.value = user;
+  showViewPermissionsDialog.value = true;
 }
 
 onMounted(async () => {

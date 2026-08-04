@@ -96,6 +96,6 @@ development_status:
   5-10-system-completion-final-dashboard-integration-and-production-setup: backlog
   5-11-start-fresh-production-setup-wizard: backlog
   5-12-user-management-crud-operations: done
-  5-13-role-assignment-and-permissions-management-ui: backlog
+  5-13-role-assignment-and-permissions-management-ui: done
   5-14-authentication-completeness-password-change-and-reset: done
   epic-5-retrospective: optional

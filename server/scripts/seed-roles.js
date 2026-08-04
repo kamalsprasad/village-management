@@ -61,10 +61,10 @@ const rolesTableId = stripQuotes(process.env.APPWRITE_TABLE_ROLES) || 'roles';
 // storage:farm:read, storage:school:read and storage:village-docs:write;
 // Farm Manager and Crop Manager get storage:farm:read/write; School
 // Administrator, Head Teacher and Teacher get storage:school:read/write).
-// This seeder SKIPS roles that already exist, so existing deployments must
-// re-sync ALL role rows manually (e.g. via the Appwrite console) to receive
-// these updated permissions/quotas — re-running this script will NOT update
-// existing rows.
+// This seeder is upsert-capable: when a role already exists by name, its
+// permissions/storage_quota/category are updated to match the canonical
+// definition below. Re-running this script keeps existing role rows in sync
+// with the codebase (idempotent).
 const defaultRoles = [
   {
     name: 'System Administrator',
@@ -308,15 +308,32 @@ async function seedRoles() {
 
     console.log(`   Found ${existingRoles.rows.length} existing roles`);
 
-    // Seed missing roles
+    // Seed / upsert roles
     console.log('\n📝 Seeding roles...');
     let seededCount = 0;
+    let updatedCount = 0;
 
     for (const role of defaultRoles) {
       const existingRole = existingRoles.rows.find((r) => r.name === role.name);
 
       if (existingRole) {
-        console.log(`   ⚠️  Role already exists: ${role.name}`);
+        try {
+          await tables.updateRow({
+            databaseId: databaseId,
+            tableId: rolesTableId,
+            rowId: existingRole.$id,
+            data: {
+              permissions: role.permissions,
+              storage_quota: role.storage_quota,
+              category: role.category,
+            },
+          });
+
+          console.log(`   ✅ Updated role: ${role.name}`);
+          updatedCount++;
+        } catch (error) {
+          console.error(`   ❌ Failed to update role ${role.name}:`, error.message);
+        }
         continue;
       }
 
@@ -337,6 +354,7 @@ async function seedRoles() {
 
     console.log('\n✅ Roles seeding complete!');
     console.log(`   📊 Seeded ${seededCount} new roles`);
+    console.log(`   📊 Updated ${updatedCount} existing roles`);
     console.log(`   📊 Total roles: ${existingRoles.rows.length + seededCount}`);
     console.log('\n🎉 You can now create the admin user');
   } catch (error) {

@@ -637,6 +637,20 @@
 
           <q-item
             clickable
+            to="/admin/roles"
+            class="nav-sub-item"
+            active-class="nav-sub-item--active"
+          >
+            <q-item-section avatar class="nav-sub-icon">
+              <q-icon name="verified_user" size="16px" />
+            </q-item-section>
+            <q-item-section>
+              <q-item-label class="nav-sub-label">Roles & Permissions</q-item-label>
+            </q-item-section>
+          </q-item>
+
+          <q-item
+            clickable
             to="/admin/modules"
             class="nav-sub-item"
             active-class="nav-sub-item--active"
