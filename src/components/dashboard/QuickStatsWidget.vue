@@ -63,13 +63,59 @@
           </q-card>
         </div>
 
+        <!-- Total Income -->
+        <div v-if="stats.finance" class="col-6 col-sm-6 col-md-4">
+          <q-card flat bordered class="stat-card">
+            <q-card-section class="q-pa-sm">
+              <div class="row items-center">
+                <div class="col">
+                  <div class="text-caption text-grey-7">Total Income</div>
+                  <div class="text-h6 text-weight-bold">
+                    {{ formatCurrency(stats.finance.totalIncome, stats.finance.currency) }}
+                  </div>
+                  <div class="text-caption text-positive">
+                    <q-icon name="trending_up" size="xs" />
+                    {{ stats.finance.change }}
+                  </div>
+                </div>
+                <div class="col-auto">
+                  <q-icon name="trending_up" size="2rem" color="positive" />
+                </div>
+              </div>
+            </q-card-section>
+          </q-card>
+        </div>
+
+        <!-- Total Expenses -->
+        <div v-if="stats.finance" class="col-6 col-sm-6 col-md-4">
+          <q-card flat bordered class="stat-card">
+            <q-card-section class="q-pa-sm">
+              <div class="row items-center">
+                <div class="col">
+                  <div class="text-caption text-grey-7">Total Expenses</div>
+                  <div class="text-h6 text-weight-bold">
+                    {{ formatCurrency(stats.finance.totalExpenses, stats.finance.currency) }}
+                  </div>
+                  <div class="text-caption text-negative">
+                    <q-icon name="trending_down" size="xs" />
+                    {{ stats.finance.change }}
+                  </div>
+                </div>
+                <div class="col-auto">
+                  <q-icon name="trending_down" size="2rem" color="negative" />
+                </div>
+              </div>
+            </q-card-section>
+          </q-card>
+        </div>
+
         <!-- Finance Balance -->
         <div v-if="stats.finance" class="col-6 col-sm-6 col-md-4">
           <q-card flat bordered class="stat-card">
             <q-card-section class="q-pa-sm">
               <div class="row items-center">
                 <div class="col">
-                  <div class="text-caption text-grey-7">Monthly Balance</div>
+                  <div class="text-caption text-grey-7">Balance</div>
                   <div class="text-h6 text-weight-bold">
                     {{ formatCurrency(stats.finance.balance, stats.finance.currency) }}
                   </div>
@@ -199,7 +245,9 @@ function getTrendClass(trend) {
 }
 
 .stat-card {
-  transition: transform 0.2s, box-shadow 0.2s;
+  transition:
+    transform 0.2s,
+    box-shadow 0.2s;
 }
 
 .stat-card:hover {

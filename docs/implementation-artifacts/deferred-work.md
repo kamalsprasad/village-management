@@ -166,3 +166,9 @@ Items deferred during code reviews. Revisit before closing their parent story or
 - source_spec: `docs/implementation-artifacts/spec-5-11-start-fresh-production-setup-wizard.md`
   summary: The `/setup` route (`src/router/routes.js`) requires only `requiresAuth: true`, with no `requiresPermission` check — any authenticated user, not just a System Administrator, can navigate to `/setup` and launch the Start Fresh Wizard.
   evidence: `src/router/routes.js:31-38`. Pre-existing behavior from the original `SetupWizard.vue` (the "Load Sample Data" card had the same exposure); not introduced by 5.11. Owning story: post-MVP RBAC hardening pass.
+
+## Deferred from: Story 5.10a planning (2026-08-04)
+
+- source_spec: `docs/implementation-artifacts/spec-5-10a-dashboard-completion-real-data-wiring.md`
+  summary: Story 5.10 AC8 (System Health Monitoring) is deferred to post-MVP. An admin page showing database size, storage usage, active user counts, and error logs would require a new server function (to query Appwrite project-level metrics not exposed to client SDKs) and is out of scope for MVP dashboard completion.
+  evidence: Story 5.10 acceptance criteria (AC8); no existing server function or store exposes this data. Owning story: post-MVP admin/observability epic.

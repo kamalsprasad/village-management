@@ -53,7 +53,7 @@
     <div class="row q-col-gutter-md">
       <!-- Quick Stats Widget (Full Width) -->
       <div class="col-12">
-        <QuickStatsWidget :stats="quickStats" :loading="loading" />
+        <QuickStatsWidget :stats="dashboard.quickStats.value" :loading="dashboard.loading.value" />
       </div>
 
       <!-- Community Overview Widget -->
@@ -68,7 +68,11 @@
 
       <!-- Recent Activity Widget -->
       <div class="col-12 col-md-6 col-lg-8">
-        <RecentActivityWidget :activities="recentActivity" :loading="loading" :max-display="8" />
+        <RecentActivityWidget
+          :activities="dashboard.recentActivity.value"
+          :loading="dashboard.loading.value"
+          :max-display="8"
+        />
       </div>
 
       <!-- Households Widget -->
@@ -108,18 +112,14 @@ import CommunityOverviewWidget from 'src/components/dashboard/CommunityOverviewW
 import FinanceSummaryWidget from 'src/components/dashboard/FinanceSummaryWidget.vue';
 import VendorsSummaryWidget from 'src/modules/vendors/components/VendorsSummaryWidget.vue';
 import { usePermissions } from 'src/composables/usePermissions';
-import {
-  quickStats as placeholderStats,
-  recentActivity as placeholderActivity,
-} from 'src/utils/placeholder-data';
+import { useDashboardData } from 'src/composables/useDashboardData';
 
 const authStore = useAuthStore();
 const settingsStore = useSettingsStore();
 const calendarStore = useCalendarStore();
 const { hasPermission } = usePermissions();
+const dashboard = useDashboardData();
 
-// Loading state for skeleton loaders
-const loading = ref(true);
 const isClient = ref(false); // Track client-side hydration for SSR
 
 // Story 5.11: empty-state guidance banner counts
@@ -140,10 +140,6 @@ const upcomingEvents = computed(() =>
     type: evt.category,
   })),
 );
-
-// Widget data (using placeholder data for MVP)
-const quickStats = ref(null);
-const recentActivity = ref([]);
 
 // User name from auth store
 const userName = computed(() => {
@@ -178,17 +174,8 @@ onMounted(async () => {
     guidanceLoading.value = false;
   }
 
-  // Defer data loading to avoid blocking initial render
-  await new Promise((resolve) => setTimeout(resolve, 300));
-
   // Fetch real calendar events (client-side only, guarded by isClient above)
   calendarStore.fetchAllEvents();
-
-  // Load placeholder data (will be replaced with real API calls in future stories)
-  quickStats.value = placeholderStats;
-  recentActivity.value = placeholderActivity;
-
-  loading.value = false;
 });
 </script>
 
