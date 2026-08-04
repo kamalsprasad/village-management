@@ -133,3 +133,15 @@ Items deferred during code reviews. Revisit before closing their parent story or
 - source_spec: `spec-5-14-authentication-completeness-password-change-and-reset.md`
   summary: Password-visibility toggle icons (`<q-icon class="cursor-pointer" @click="...">`) in `ChangePasswordDialog.vue` and `ResetPasswordPage.vue` have no `role`, `tabindex`, or `aria-label`, making them unreachable via keyboard and unannounced to screen readers.
   evidence: This mirrors the pre-existing pattern already in `LoginForm.vue` prior to this story (not introduced here), now propagated to two more surfaces. A fix should address all instances of the pattern at once. Owning story: post-MVP accessibility pass.
+
+## Deferred from: code review of spec-5-12-user-management-crud-operations (2026-08-03)
+
+- source_spec: `spec-5-12-user-management-crud-operations.md`
+  summary: The `server/functions/User Management/` directory name contains a space, which can complicate shell/CLI usage and some deployment tooling.
+  evidence: `server/functions/User Management/` — matches the `Check Users Exist` naming pattern but spaces in paths are friction-prone for `appwrite push function` and shell scripts. Owning story: post-MVP rename pass (rename alongside `Check Users Exist` for consistency).
+- source_spec: `spec-5-12-user-management-crud-operations.md`
+  summary: `users-store.js` fetches users with `Query.limit(500)` and no cursor/offset pagination; beyond 500 users, additional rows silently never load.
+  evidence: `users-store.js` `fetchUsers` mirrors the deferred 5.2/5.3/5.7 list-pagination pattern. Owning story: post-MVP pagination pass (fix all capped list stores together).
+- source_spec: `spec-5-12-user-management-crud-operations.md`
+  summary: An admin-initiated password reset feature (`resetUserPassword` action) was added in commit `f47fc6c` AFTER the 5.12 spec was marked done. It is wired into `UserFormDialog.vue` (edit mode) and the User Management function, with a 5th audit enum value `user_password_reset` in `setup-appwrite.js`. This is NOT in the 5.12 or 5.13 ACs in `epics.md` — it is an accepted scope addition.
+  evidence: `server/functions/User Management/src/main.js:486` (`resetUserPassword`), `src/stores/users-store.js:174`, `src/components/admin/UserFormDialog.vue:263`, `server/scripts/setup-appwrite.js:1805` (enum). The 5.12 spec's audit-enum list (4 values) is now out of sync with the code (5 values). User decision 2026-08-04: accept and document; do not revert. Owning story: none (delivered); spec drift noted for 5.13 continuity.

@@ -109,6 +109,17 @@ warnings:
 
 <!-- Append-only. Populated by step-04 during review loops. -->
 
+### 2026-08-04 — Post-completion drift note (admin password reset)
+
+Commit `f47fc6c "fix: admin reset user pwd"` (after this spec was marked `done`) added an admin-initiated password reset capability beyond the original 5.12 ACs:
+
+- New `resetUserPassword` action in `server/functions/User Management/src/main.js` (`users.updatePassword` + `users.deleteSessions` + audit log with `action: 'user_password_reset'`).
+- New `resetUserPassword(userId, password)` action in `src/stores/users-store.js`.
+- "Reset Password" section wired into `src/components/admin/UserFormDialog.vue` (edit mode only).
+- 5th audit enum value `user_password_reset` added to `audit_logs.action` in `server/scripts/setup-appwrite.js` (the spec above lists only 4 enum values — code now has 5).
+
+This is NOT in the 5.12 or 5.13 ACs in `docs/epics.md`. User decision 2026-08-04: accept as a delivered enhancement, do not revert. Recorded in `deferred-work.md` (5.12 section). Story 5.13 must not re-derive a conflicting password-reset design — treat this as established behavior.
+
 ## Review Triage Log
 
 <!-- Append-only. Populated by step-04 on EVERY review pass. -->
