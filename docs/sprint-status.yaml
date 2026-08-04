@@ -93,7 +93,15 @@ development_status:
   5-7-vendors-suppliers-management-module: done
   5-8-energy-management-module: deferred
   5-9-module-management-and-configuration: done
-  5-10-system-completion-final-dashboard-integration-and-production-setup: backlog
+  # Story 5.10 split into sub-stories 5.10a-5.10e (user decision 2026-08-04).
+  # AC8 (System Health Monitoring) deferred to post-MVP. Parent 5-10 stays
+  # in-progress until all MVP sub-stories (a-e) are done.
+  5-10-system-completion-final-dashboard-integration-and-production-setup: in-progress
+  5-10a-dashboard-completion-real-data-wiring: done
+  5-10b-navigation-polish-breadcrumbs-and-quick-search: backlog
+  5-10c-notifications-system: backlog
+  5-10d-help-and-documentation: backlog
+  5-10e-ux-polish-performance-mobile-and-final-testing-checklist: backlog
   5-11-start-fresh-production-setup-wizard: done
   5-12-user-management-crud-operations: done
   5-13-role-assignment-and-permissions-management-ui: done
