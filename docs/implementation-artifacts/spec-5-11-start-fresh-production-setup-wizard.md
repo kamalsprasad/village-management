@@ -2,8 +2,9 @@
 title: 'Story 5.11: Start Fresh Production Setup Wizard'
 type: feature
 created: '2026-08-04'
-status: in-review
+status: done
 baseline_revision: 'd1018561d154e0b4bb89dcb3bb36d5223b56846c'
+final_revision: '958e1aa851973286b63280a2590bff427e6b8b9b'
 review_loop_iteration: 0
 followup_review_recommended: false
 context:
@@ -148,3 +149,28 @@ warnings:
 - On a fresh/wiped database, walk through: `/setup` → Start Fresh → all 5 steps → confirm `village_settings.is_using_sample_data === false` in Appwrite console and dashboard shows no sample-data banner.
 - Confirm empty-state banners appear/disappear correctly by creating a household then a resident and observing the dashboard/lists update.
 - Attempt to remove the last System Administrator's role via `ManageRolesDialog` and confirm the blocked error message.
+
+## Auto Run Result
+
+**Summary:** Implemented Story 5.11 end-to-end: enabled the "Start Fresh with Real Data" card and built the new 5-step `StartFreshWizard.vue` (Village Profile, Admin User, Village Head, Module Selection, First Household), added a last-System-Administrator guard to the `updateUser` server function action, and added empty-state guidance banners to the dashboard and the Households/Residents/Finance list pages. One review pass found 3 real, medium-severity gaps, all auto-patched; the remaining ~24 raw reviewer findings were mostly false positives (reviewer misreading of already-correct code) or low-consequence items with no AC basis, triaged to 4 `deferred-work.md` entries and 21 rejects.
+
+**Files changed:**
+
+- `src/components/setup/StartFreshWizard.vue` (new) -- the 5-step wizard component.
+- `src/pages/setup/SetupWizard.vue` -- enabled the Start Fresh card; swaps in the wizard; listens for its `cancel` event.
+- `server/functions/User Management/src/main.js` -- last-System-Administrator guard added to `updateUser`.
+- `src/pages/dashboard/DashboardPage.vue` -- household/resident-count empty-state guidance banners.
+- `src/pages/households/HouseholdsListPage.vue`, `src/pages/residents/ResidentsListPage.vue`, `src/modules/finance/pages/FinanceTransactionsPage.vue` -- empty-state banners.
+- `docs/sprint-status.yaml` -- `5-11-start-fresh-production-setup-wizard` and `epic-5` status updates.
+- `docs/implementation-artifacts/deferred-work.md` -- closed the 5.13-owned last-admin-guard item; logged 4 new low-severity deferred items from this story's review.
+
+**Review findings breakdown:** 3 patches applied (all medium severity: missing Village-Head-role guard, missing `hasPermission` gating on dashboard CTAs, missing wizard Cancel path) — all fixed and re-verified with `npm run lint` and `npm run build`. 4 items deferred to `deferred-work.md` (all low severity, pre-existing or out-of-scope). 21 findings rejected as false positives or as matching intentional, spec-mandated, or pre-existing patterns.
+
+**Follow-up review recommendation:** `false` — the patched findings were 3 localized, mechanical, medium-severity fixes (a defensive guard, a permission-gating consistency fix, and a UX affordance), all independently re-verified via lint/build. No behavior-, security-, or data-model-level uncertainty remains that would benefit from a second independent pass.
+
+**Verification performed:** `npm run lint` (clean, both before and after the review-pass patches) and `npm run build` (SPA build succeeded, both before and after). No test suite exists in this project for this area; manual Appwrite-console verification steps are documented above for the next human/CI touchpoint, since they require a live Appwrite deployment.
+
+**Residual risks:**
+
+- `server/functions/User Management/src/main.js` must be redeployed to Appwrite before the last-System-Administrator guard takes effect in production — the code change alone is not live until deployed.
+- The 4 deferred items (phone-code length limit, lenient currency/phone format validation, TOCTOU race shared with the pre-existing `deactivateUser` guard, and `/setup` having no explicit permission check) are pre-existing or architectural limitations, not regressions from this story, but are now formally tracked for a future hardening pass.
