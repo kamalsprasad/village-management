@@ -5,10 +5,8 @@
 -->
 <template>
   <q-page padding>
+    <Breadcrumbs :items="breadcrumbItems" :current="currentLabel" class="q-mb-md" />
     <div class="row items-center q-mb-md">
-      <q-btn flat dense round icon="arrow_back" :to="backTarget" class="q-mr-sm">
-        <q-tooltip>Back</q-tooltip>
-      </q-btn>
       <div>
         <div class="text-h5">{{ isEditMode ? 'Edit Learner' : 'Enroll Learner' }}</div>
         <div class="text-caption text-grey-7">
@@ -42,6 +40,7 @@ import { ref, computed, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useQuasar } from 'quasar';
 import { useLearnerStore } from '../stores/learner-store';
+import Breadcrumbs from 'src/components/layout/Breadcrumbs.vue';
 import LearnerForm from '../components/LearnerForm.vue';
 
 const route = useRoute();
@@ -55,6 +54,9 @@ const isEditMode = computed(() => !!route.params.id);
 const backTarget = computed(() =>
   isEditMode.value ? `/school/learners/${route.params.id}` : '/school/learners',
 );
+
+const breadcrumbItems = computed(() => route.meta.breadcrumb || []);
+const currentLabel = computed(() => (isEditMode.value ? 'Edit Learner' : 'Enroll Learner'));
 
 async function onSubmit(payload) {
   isSubmitting.value = true;

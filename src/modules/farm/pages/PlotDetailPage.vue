@@ -16,7 +16,7 @@
       <!-- Header -->
       <div class="row items-center justify-between q-mb-lg">
         <div class="row items-center">
-          <q-btn icon="arrow_back" flat dense class="q-mr-md" @click="goBack" />
+          <Breadcrumbs :items="breadcrumbItems" :current="currentLabel" class="q-mr-md" />
           <div>
             <h5 class="q-my-none row items-center q-gutter-sm">
               {{ plot.name }}
@@ -419,6 +419,7 @@ import { useFarmStore } from '../stores/farm-store';
 import { usePermissions } from 'src/composables/usePermissions';
 import { useResidentsStore } from 'src/stores/residents-store';
 import { formatDate } from 'src/utils/dateUtils';
+import Breadcrumbs from 'src/components/layout/Breadcrumbs.vue';
 import PlotStatusBadge from '../components/PlotStatusBadge.vue';
 import PlotProfitabilityCard from '../components/PlotProfitabilityCard.vue';
 
@@ -477,6 +478,9 @@ const $q = useQuasar();
 const farmStore = useFarmStore();
 const residentsStore = useResidentsStore();
 const { hasPermission } = usePermissions();
+
+const breadcrumbItems = computed(() => route.meta.breadcrumb || []);
+const currentLabel = computed(() => plot.value?.name || 'Plot');
 
 const isLoading = ref(true);
 const isDeleting = ref(false);

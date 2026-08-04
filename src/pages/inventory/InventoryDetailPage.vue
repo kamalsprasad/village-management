@@ -4,7 +4,7 @@
       <!-- Header -->
       <div class="row items-center justify-between q-mb-md">
         <div class="row items-center">
-          <q-btn flat round icon="arrow_back" @click="goBack" class="q-mr-sm" />
+          <Breadcrumbs :items="breadcrumbItems" :current="currentLabel" class="q-mr-sm" />
           <div>
             <h1 class="text-h5 text-weight-bold q-my-none">{{ item?.item_name }}</h1>
             <p class="text-grey-7 q-mt-xs q-mb-none">
@@ -438,11 +438,15 @@ import RecordSaleDialog from 'src/modules/farm/components/RecordSaleDialog.vue';
 import { usePermissions } from 'src/composables/usePermissions';
 import { useQuasar } from 'quasar';
 import { date } from 'quasar';
+import Breadcrumbs from 'src/components/layout/Breadcrumbs.vue';
 
 const $q = useQuasar();
 const route = useRoute();
 const router = useRouter();
 const inventoryStore = useInventoryStore();
+
+const breadcrumbItems = computed(() => route.meta.breadcrumb || []);
+const currentLabel = computed(() => item.value?.item_name || 'Item');
 const financeStore = useFinanceStore();
 const farmStore = useFarmStore();
 
@@ -686,10 +690,6 @@ async function onDeleteConfirm({ reason }) {
       message: result.error || 'Failed to delete item',
     });
   }
-}
-
-function goBack() {
-  router.push('/inventory');
 }
 
 function getItemColor(type) {

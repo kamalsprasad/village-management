@@ -6,8 +6,8 @@
 <template>
   <q-page padding>
     <div class="vendor-form-page">
+      <Breadcrumbs :items="breadcrumbItems" :current="currentLabel" class="q-mb-md" />
       <div class="row items-center q-mb-md">
-        <q-btn flat round icon="arrow_back" @click="router.back()" />
         <h1 class="text-h5 text-weight-bold q-my-none q-ml-sm">
           {{ isEditMode ? 'Edit Vendor' : 'Add Vendor' }}
         </h1>
@@ -157,6 +157,7 @@
 import { ref, computed, onMounted } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { useVendorsStore } from '../stores/vendors-store';
+import Breadcrumbs from 'src/components/layout/Breadcrumbs.vue';
 import { VENDOR_TYPE_OPTIONS, BUSINESS_TYPE_OPTIONS } from '../utils/vendor-utils';
 
 const router = useRouter();
@@ -168,6 +169,9 @@ const isSubmitting = ref(false);
 
 const vendorId = computed(() => route.params.id || null);
 const isEditMode = computed(() => !!vendorId.value);
+
+const breadcrumbItems = computed(() => route.meta.breadcrumb || []);
+const currentLabel = computed(() => (isEditMode.value ? 'Edit Vendor' : 'Add Vendor'));
 
 const defaultFormData = () => ({
   name: '',

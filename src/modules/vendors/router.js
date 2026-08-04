@@ -28,6 +28,7 @@ const vendorRoutes = [
       requiresAuth: true,
       requiresPermission: 'vendors:write',
       requiresSetting: 'vendorsEnabled',
+      breadcrumb: [{ label: 'Vendors', to: '/vendors' }],
     },
   },
   {
@@ -38,6 +39,7 @@ const vendorRoutes = [
       requiresAuth: true,
       requiresPermission: 'vendors:read',
       requiresSetting: 'vendorsEnabled',
+      breadcrumb: [{ label: 'Vendors', to: '/vendors' }],
     },
   },
   {
@@ -48,6 +50,7 @@ const vendorRoutes = [
       requiresAuth: true,
       requiresPermission: 'vendors:write',
       requiresSetting: 'vendorsEnabled',
+      breadcrumb: [{ label: 'Vendors', to: '/vendors' }],
     },
   },
 ];

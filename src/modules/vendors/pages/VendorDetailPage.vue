@@ -16,7 +16,7 @@
         <!-- Header -->
         <div class="row items-start justify-between q-mb-md">
           <div class="row items-center">
-            <q-btn flat round icon="arrow_back" @click="router.back()" />
+            <Breadcrumbs :items="breadcrumbItems" :current="currentLabel" class="q-mr-sm" />
             <div class="q-ml-sm">
               <div class="row items-center q-gutter-sm">
                 <h1 class="text-h5 text-weight-bold q-my-none">{{ vendor.name }}</h1>
@@ -190,6 +190,7 @@ import { useRouter, useRoute } from 'vue-router';
 import { useVendorsStore } from '../stores/vendors-store';
 import { useSettingsStore } from 'src/stores/settings-store';
 import { usePermissions } from 'src/composables/usePermissions';
+import Breadcrumbs from 'src/components/layout/Breadcrumbs.vue';
 import { getVendorTypeColor } from '../utils/vendor-utils';
 
 const router = useRouter();
@@ -197,6 +198,9 @@ const route = useRoute();
 const vendorsStore = useVendorsStore();
 const settingsStore = useSettingsStore();
 const { hasPermission } = usePermissions();
+
+const breadcrumbItems = computed(() => route.meta.breadcrumb || []);
+const currentLabel = computed(() => vendor.value?.name || 'Vendor');
 
 const vendor = computed(() => vendorsStore.currentVendor);
 const totals = computed(() => vendorsStore.vendorTransactionTotals);

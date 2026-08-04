@@ -1,8 +1,7 @@
 <template>
   <q-page padding>
     <div class="q-pa-md">
-      <!-- Back Button -->
-      <q-btn flat icon="arrow_back" label="Back" @click="router.back()" class="q-mb-md" />
+      <Breadcrumbs :items="breadcrumbItems" :current="currentLabel" />
 
       <!-- Loading State -->
       <div v-if="householdsStore.isLoading && !householdsStore.currentHousehold" class="q-pa-md">
@@ -160,11 +159,12 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, computed } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { useHouseholdsStore } from 'src/stores/households-store';
 import { usePermissions } from 'src/composables/usePermissions';
 import { formatDate } from 'src/utils/dateUtils';
+import Breadcrumbs from 'src/components/layout/Breadcrumbs.vue';
 import HouseholdForm from 'src/components/households/HouseholdForm.vue';
 import HouseholdResidentsTable from 'src/components/households/HouseholdResidentsTable.vue';
 
@@ -172,6 +172,9 @@ const router = useRouter();
 const route = useRoute();
 const householdsStore = useHouseholdsStore();
 const { hasPermission } = usePermissions();
+
+const breadcrumbItems = computed(() => route.meta.breadcrumb || []);
+const currentLabel = computed(() => householdsStore.currentHousehold?.name || 'Household');
 
 const showEditDialog = ref(false);
 

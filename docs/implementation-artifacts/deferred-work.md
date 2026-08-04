@@ -172,3 +172,9 @@ Items deferred during code reviews. Revisit before closing their parent story or
 - source_spec: `docs/implementation-artifacts/spec-5-10a-dashboard-completion-real-data-wiring.md`
   summary: Story 5.10 AC8 (System Health Monitoring) is deferred to post-MVP. An admin page showing database size, storage usage, active user counts, and error logs would require a new server function (to query Appwrite project-level metrics not exposed to client SDKs) and is out of scope for MVP dashboard completion.
   evidence: Story 5.10 acceptance criteria (AC8); no existing server function or store exposes this data. Owning story: post-MVP admin/observability epic.
+
+## Deferred from: code review of spec-5-10b-navigation-polish-breadcrumbs-and-quick-search (2026-08-04)
+
+- source_spec: `docs/implementation-artifacts/spec-5-10b-navigation-polish-breadcrumbs-and-quick-search.md`
+  summary: Replacing ad-hoc Back buttons with the shared `Breadcrumbs.vue` component dropped several pages' descriptive back-button tooltips/aria-labels (e.g. `<q-tooltip>Back</q-tooltip>` naming the specific destination) in favor of a single generic `aria-label="Back"` on the component's mobile back button.
+  evidence: `EnrollLearnerPage.vue`, `CreateInterventionPage.vue`, and several detail pages previously had destination-specific tooltips on their Back buttons; `Breadcrumbs.vue`'s mobile `q-btn` only has a generic `aria-label="Back"`. Low-severity accessibility regression, not required by Story 5.10b's ACs. Owning story: 5.10e (UX Polish, Performance, Mobile Responsiveness, and Final Testing Checklist — accessibility audit / aria-labels).

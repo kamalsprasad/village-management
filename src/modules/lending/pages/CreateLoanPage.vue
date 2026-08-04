@@ -1,8 +1,8 @@
 <template>
   <q-page>
     <div class="q-pa-md max-width-800 q-mx-auto">
+      <Breadcrumbs :items="breadcrumbItems" :current="currentLabel" class="q-mb-md" />
       <div class="row items-center q-mb-md">
-        <q-btn flat round icon="arrow_back" to="/lending" class="q-mr-sm" />
         <h5 class="q-my-none">Create New Loan</h5>
       </div>
 
@@ -201,14 +201,16 @@
 
 <script setup>
 import { ref, computed } from 'vue';
-import { useRouter } from 'vue-router';
+import { useRouter, useRoute } from 'vue-router';
 import { useQuasar } from 'quasar';
 import ResidentSearchInput from 'src/components/inputs/ResidentSearchInput.vue';
 import { useSettingsStore } from 'src/stores/settings-store';
 import { useLendingStore } from '../stores/lendingStore';
 import { useLoanCalculations } from '../composables/useLoanCalculations';
+import Breadcrumbs from 'src/components/layout/Breadcrumbs.vue';
 
 const router = useRouter();
+const route = useRoute();
 const $q = useQuasar();
 const settingsStore = useSettingsStore();
 const lendingStore = useLendingStore();
@@ -218,6 +220,9 @@ const {
   calculateNumberOfPayments,
   generateRepaymentSchedule,
 } = useLoanCalculations();
+
+const breadcrumbItems = computed(() => route.meta.breadcrumb || []);
+const currentLabel = 'New Loan';
 
 const step = ref(1);
 const loanForm = ref(null);

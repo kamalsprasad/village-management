@@ -9,13 +9,7 @@
   <q-page class="q-pa-md">
     <!-- Header -->
     <div class="row items-center q-mb-lg">
-      <q-btn
-        icon="arrow_back"
-        flat
-        dense
-        class="q-mr-md"
-        @click="goBack"
-      />
+      <Breadcrumbs :items="breadcrumbItems" :current="currentLabel" class="q-mr-md" />
       <div>
         <h5 class="q-my-none">{{ pageTitle }}</h5>
         <p class="text-grey q-mt-xs q-mb-none">{{ pageSubtitle }}</p>
@@ -40,12 +34,16 @@ import { ref, computed, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useQuasar } from 'quasar';
 import { useFarmStore } from '../stores/farm-store';
+import Breadcrumbs from 'src/components/layout/Breadcrumbs.vue';
 import PlotForm from '../components/PlotForm.vue';
 
 const route = useRoute();
 const router = useRouter();
 const $q = useQuasar();
 const farmStore = useFarmStore();
+
+const breadcrumbItems = computed(() => route.meta.breadcrumb || []);
+const currentLabel = computed(() => (mode.value === 'create' ? 'Add Plot' : 'Edit Plot'));
 
 const isSubmitting = ref(false);
 
@@ -62,9 +60,7 @@ const pageTitle = computed(() => {
 });
 
 const pageSubtitle = computed(() => {
-  return mode.value === 'create'
-    ? 'Create a new farm plot'
-    : 'Update plot information';
+  return mode.value === 'create' ? 'Create a new farm plot' : 'Update plot information';
 });
 
 const plot = computed(() => {

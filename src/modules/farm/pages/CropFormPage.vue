@@ -8,7 +8,7 @@
   <q-page class="q-pa-md">
     <!-- Header -->
     <div class="row items-center q-mb-lg">
-      <q-btn flat round icon="arrow_back" @click="goBack" class="q-mr-sm" />
+      <Breadcrumbs :items="breadcrumbItems" :current="currentLabel" class="q-mr-sm" />
       <div>
         <h5 class="q-my-none">{{ pageTitle }}</h5>
         <p class="text-grey q-mt-xs q-mb-none">{{ pageSubtitle }}</p>
@@ -39,12 +39,16 @@ import { ref, computed, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useQuasar } from 'quasar';
 import { useFarmStore } from '../stores/farm-store';
+import Breadcrumbs from 'src/components/layout/Breadcrumbs.vue';
 import CropForm from '../components/CropForm.vue';
 
 const route = useRoute();
 const router = useRouter();
 const $q = useQuasar();
 const farmStore = useFarmStore();
+
+const breadcrumbItems = computed(() => route.meta.breadcrumb || []);
+const currentLabel = computed(() => (mode.value === 'create' ? 'Add Crop' : 'Edit Crop'));
 
 // Determine mode from route
 const mode = computed(() => {
@@ -58,9 +62,7 @@ const pageTitle = computed(() => {
 });
 
 const pageSubtitle = computed(() => {
-  return mode.value === 'create' 
-    ? 'Add a new crop to the database' 
-    : 'Update crop information';
+  return mode.value === 'create' ? 'Add a new crop to the database' : 'Update crop information';
 });
 
 // State

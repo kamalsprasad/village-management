@@ -100,6 +100,7 @@ const routes = [
         meta: {
           requiresAuth: true,
           requiresPermission: 'households:read',
+          breadcrumb: [{ label: 'Households', to: '/households' }],
         },
       },
       {
@@ -116,6 +117,7 @@ const routes = [
         meta: {
           requiresAuth: true,
           requiresPermission: 'residents:read',
+          breadcrumb: [{ label: 'Residents', to: '/residents' }],
         },
       },
       {
@@ -160,6 +162,7 @@ const routes = [
         meta: {
           requiresAuth: true,
           requiresPermission: 'inventory:write',
+          breadcrumb: [{ label: 'Inventory', to: '/inventory' }],
         },
       },
       {
@@ -168,6 +171,7 @@ const routes = [
         meta: {
           requiresAuth: true,
           requiresPermission: 'inventory:read',
+          breadcrumb: [{ label: 'Inventory', to: '/inventory' }],
         },
       },
       {
@@ -176,6 +180,7 @@ const routes = [
         meta: {
           requiresAuth: true,
           requiresPermission: 'inventory:write',
+          breadcrumb: [{ label: 'Inventory', to: '/inventory' }],
         },
       },
       // Finance Module routes

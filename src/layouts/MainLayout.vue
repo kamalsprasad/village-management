@@ -18,6 +18,68 @@
 
         <div class="text-caption q-mr-md">v{{ version }}</div>
 
+        <!-- Global Quick Search -->
+        <div class="gt-xs q-mr-md" style="min-width: 220px; max-width: 320px">
+          <q-input
+            v-model="searchTerm"
+            dense
+            outlined
+            clearable
+            debounce="300"
+            placeholder="Search..."
+            aria-label="Search"
+            @update:model-value="onSearchInput"
+            @focus="onSearchFocus"
+          >
+            <template #prepend>
+              <q-icon name="search" />
+            </template>
+          </q-input>
+          <q-menu v-model="searchMenuOpen" fit no-parent-event :offset="[0, 4]">
+            <q-list style="min-width: 260px">
+              <template v-if="(searchTerm || '').length < 2">
+                <q-item>
+                  <q-item-section class="text-grey"> Type at least 2 characters </q-item-section>
+                </q-item>
+              </template>
+              <template v-else-if="loading">
+                <q-item>
+                  <q-item-section class="flex flex-center">
+                    <q-spinner color="primary" size="2em" />
+                  </q-item-section>
+                </q-item>
+              </template>
+              <template v-else-if="Object.keys(groupedResults).length === 0">
+                <q-item>
+                  <q-item-section class="text-grey"> No results </q-item-section>
+                </q-item>
+              </template>
+              <template v-else>
+                <template v-for="(group, groupName) in groupedResults" :key="groupName">
+                  <q-item-label header class="text-uppercase text-grey-7">
+                    {{ groupName }}
+                  </q-item-label>
+                  <q-item
+                    v-for="result in group"
+                    :key="`${groupName}-${result.id}`"
+                    clickable
+                    v-close-popup
+                    @click="onResultClick(result)"
+                  >
+                    <q-item-section avatar>
+                      <q-icon :name="result.icon" />
+                    </q-item-section>
+                    <q-item-section>
+                      <q-item-label>{{ result.label }}</q-item-label>
+                      <q-item-label caption>{{ result.secondary }}</q-item-label>
+                    </q-item-section>
+                  </q-item>
+                </template>
+              </template>
+            </q-list>
+          </q-menu>
+        </div>
+
         <!-- User Profile Dropdown -->
         <q-btn
           flat
@@ -553,9 +615,7 @@
 
         <!-- Services Section -->
         <q-expansion-item
-          v-if="
-            isClient && hasAnyPermission(['calendar:read', 'communications:read', 'storage:read'])
-          "
+          v-if="isClient && hasAnyPermission(['calendar:read', 'storage:read'])"
           v-model="expandedSections.services"
           icon="miscellaneous_services"
           label="Services"
@@ -563,21 +623,6 @@
           header-class="nav-section-header"
           expand-icon-class="nav-expand-icon"
         >
-          <q-item
-            v-if="hasPermission('communications:read')"
-            clickable
-            to="/communications"
-            class="nav-sub-item"
-            active-class="nav-sub-item--active"
-          >
-            <q-item-section avatar class="nav-sub-icon">
-              <q-icon name="campaign" size="16px" />
-            </q-item-section>
-            <q-item-section>
-              <q-item-label class="nav-sub-label">Communications</q-item-label>
-            </q-item-section>
-          </q-item>
-
           <q-item
             v-if="hasPermission('storage:read')"
             clickable
@@ -716,21 +761,63 @@
 
 <script setup>
 import { ref, computed, onMounted, onUnmounted, reactive, watch } from 'vue';
-import { useRouter } from 'vue-router';
+import { useRouter, useRoute } from 'vue-router';
 import { useQuasar } from 'quasar';
 import { useAuthStore } from 'src/stores/auth-store';
 import { useSettingsStore } from 'src/stores/settings-store';
 import { usePermissions } from 'src/composables/usePermissions';
 import { usePersonalFilesStore } from 'src/modules/storage/stores/personal-files-store';
+import { useGlobalSearch } from 'src/composables/useGlobalSearch';
 import SampleDataBanner from 'src/components/layout/SampleDataBanner.vue';
 import { version } from '../../package.json';
 
 const router = useRouter();
+const route = useRoute();
 const $q = useQuasar();
 const authStore = useAuthStore();
 const settingsStore = useSettingsStore();
 const personalFilesStore = usePersonalFilesStore();
 const { hasPermission, hasAnyPermission, userStorageQuota } = usePermissions();
+const { searchTerm, groupedResults, loading, search } = useGlobalSearch();
+
+const searchMenuOpen = ref(false);
+
+const sectionPrefixMap = {
+  '/households': 'community',
+  '/residents': 'community',
+  '/finance': 'finance',
+  '/inventory': 'finance',
+  '/lending': 'finance',
+  '/vendors': 'vendors',
+  '/farm': 'agriculture',
+  '/school': 'school',
+  '/calendar': 'services',
+  '/storage': 'services',
+  '/admin': 'administration',
+  '/settings': 'administration',
+};
+
+function onResultClick(result) {
+  if (result?.to) {
+    router.push(result.to);
+    searchMenuOpen.value = false;
+  }
+}
+
+function onSearchInput(term) {
+  search(term);
+  const trimmed = typeof term === 'string' ? term.trim() : '';
+  // Open the menu for any non-empty input so the "type at least 2 characters"
+  // hint is reachable; it only closes once the field is fully cleared.
+  searchMenuOpen.value = trimmed.length >= 1;
+}
+
+function onSearchFocus() {
+  const trimmed = (searchTerm.value || '').trim();
+  if (trimmed.length >= 1) {
+    searchMenuOpen.value = true;
+  }
+}
 
 const leftDrawerOpen = ref(false);
 const userMenu = ref(null);
@@ -746,6 +833,19 @@ const expandedSections = reactive({
   services: false,
   administration: false,
 });
+
+watch(
+  () => route.path,
+  (path) => {
+    const match = Object.entries(sectionPrefixMap).find(
+      ([prefix]) => path === prefix || path.startsWith(`${prefix}/`),
+    );
+    if (match) {
+      expandedSections[match[1]] = true;
+    }
+  },
+  { immediate: true },
+);
 
 onMounted(() => {
   isClient.value = true; // Enable client-side rendering after hydration

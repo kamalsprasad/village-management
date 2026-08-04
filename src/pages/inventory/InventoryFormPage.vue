@@ -3,7 +3,7 @@
     <div class="inventory-form-page">
       <!-- Header -->
       <div class="row items-center q-mb-md">
-        <q-btn flat round icon="arrow_back" @click="goBack" class="q-mr-sm" />
+        <Breadcrumbs :items="breadcrumbItems" :current="currentLabel" class="q-mr-sm" />
         <div>
           <h1 class="text-h5 text-weight-bold q-my-none">
             {{ isEdit ? 'Edit Inventory Item' : 'Add Inventory Item' }}
@@ -167,11 +167,15 @@ import { ref, computed, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useInventoryStore } from 'src/stores/inventory-store';
 import { useQuasar } from 'quasar';
+import Breadcrumbs from 'src/components/layout/Breadcrumbs.vue';
 
 const $q = useQuasar();
 const route = useRoute();
 const router = useRouter();
 const inventoryStore = useInventoryStore();
+
+const breadcrumbItems = computed(() => route.meta.breadcrumb || []);
+const currentLabel = computed(() => (isEdit.value ? 'Edit Item' : 'Add Inventory Item'));
 
 const isLoading = ref(false);
 const form = ref({

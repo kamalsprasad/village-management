@@ -25,7 +25,7 @@
     <template v-else>
       <!-- Header -->
       <div class="row items-center q-mb-md">
-        <q-btn icon="arrow_back" flat dense class="q-mr-md" @click="cancel" />
+        <Breadcrumbs :items="breadcrumbItems" :current="currentLabel" class="q-mr-md" />
         <div>
           <h5 class="q-my-none">Edit Planting</h5>
           <p class="text-grey q-mt-xs q-mb-none">{{ cropName }} on {{ plotName }}</p>
@@ -178,11 +178,15 @@ import { useQuasar } from 'quasar';
 import { useFarmStore } from '../stores/farm-store';
 import { parseISO } from 'date-fns';
 import { formatDate } from 'src/utils/dateUtils';
+import Breadcrumbs from 'src/components/layout/Breadcrumbs.vue';
 
 const route = useRoute();
 const router = useRouter();
 const $q = useQuasar();
 const farmStore = useFarmStore();
+
+const breadcrumbItems = computed(() => route.meta.breadcrumb || []);
+const currentLabel = computed(() => 'Edit Planting');
 
 const isLoading = ref(true);
 const isSaving = ref(false);

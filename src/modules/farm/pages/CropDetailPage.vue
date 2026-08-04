@@ -9,7 +9,7 @@
     <!-- Header -->
     <div class="row items-center justify-between q-mb-lg">
       <div class="row items-center">
-        <q-btn flat round icon="arrow_back" @click="goBack" class="q-mr-sm" />
+        <Breadcrumbs :items="breadcrumbItems" :current="currentLabel" class="q-mr-sm" />
         <div>
           <div class="row items-center">
             <h5 class="q-my-none">{{ crop.crop_name }}</h5>
@@ -187,12 +187,13 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useQuasar } from 'quasar';
 import { useFarmStore } from '../stores/farm-store';
 import { useSettingsStore } from 'src/stores/settings-store';
 import { usePermissions } from 'src/composables/usePermissions';
+import Breadcrumbs from 'src/components/layout/Breadcrumbs.vue';
 import CropCategoryBadge from '../components/CropCategoryBadge.vue';
 import CropTypeIndicator from '../components/CropTypeIndicator.vue';
 
@@ -202,6 +203,9 @@ const $q = useQuasar();
 const farmStore = useFarmStore();
 const settingsStore = useSettingsStore();
 const { hasPermission } = usePermissions();
+
+const breadcrumbItems = computed(() => route.meta.breadcrumb || []);
+const currentLabel = computed(() => crop.value?.crop_name || 'Crop');
 
 const cropId = route.params.id;
 const crop = ref(null);

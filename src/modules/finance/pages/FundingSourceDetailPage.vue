@@ -2,7 +2,7 @@
   <q-page padding>
     <!-- Back Button & Header -->
     <div class="row items-center q-mb-md">
-      <q-btn flat round icon="arrow_back" @click="$router.back()" />
+      <Breadcrumbs :items="breadcrumbItems" :current="currentLabel" class="q-mr-sm" />
       <div class="col">
         <h4 class="q-my-none q-ml-sm">Funding Source Details</h4>
       </div>
@@ -258,10 +258,14 @@ import { formatDate } from 'src/utils/dateUtils';
 import { useFinanceStore } from '../stores/finance-store';
 import { tables } from 'src/boot/appwrite';
 import { Query } from 'appwrite';
+import Breadcrumbs from 'src/components/layout/Breadcrumbs.vue';
 
 const route = useRoute();
 const $q = useQuasar();
 const financeStore = useFinanceStore();
+
+const breadcrumbItems = computed(() => route.meta.breadcrumb || []);
+const currentLabel = computed(() => fundingSource.value?.name || 'Funding Source');
 
 // State
 const loading = ref(true);

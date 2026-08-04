@@ -12,7 +12,7 @@ const lendingRoutes = [
     meta: {
       requiresAuth: true,
       requiresPermission: 'lending:read',
-      requiresSetting: 'lendingEnabled'
+      requiresSetting: 'lendingEnabled',
     },
     children: [
       {
@@ -24,19 +24,25 @@ const lendingRoutes = [
         path: 'create',
         name: 'create-loan',
         component: () => import('./pages/CreateLoanPage.vue'),
+        meta: {
+          breadcrumb: [{ label: 'Lending', to: '/lending' }],
+        },
       },
       {
         path: ':id',
         name: 'loan-detail',
         component: () => import('./pages/LoanDetailPage.vue'),
+        meta: {
+          breadcrumb: [{ label: 'Lending', to: '/lending' }],
+        },
       },
       {
         path: 'reports',
         name: 'lending-reports',
         component: () => import('./pages/LendingReportsPage.vue'), // Placeholder for future
-      }
-    ]
-  }
+      },
+    ],
+  },
 ];
 
 export default lendingRoutes;

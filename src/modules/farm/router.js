@@ -38,6 +38,10 @@ const farmRoutes = [
       requiresAuth: true,
       requiresSetting: 'farmEnabled',
       requiresPermission: 'farm:write',
+      breadcrumb: [
+        { label: 'Farm', to: '/farm/dashboard' },
+        { label: 'Plots', to: '/farm/plots' },
+      ],
     },
   },
   {
@@ -48,6 +52,10 @@ const farmRoutes = [
       requiresAuth: true,
       requiresSetting: 'farmEnabled',
       requiresPermission: 'farm:read',
+      breadcrumb: [
+        { label: 'Farm', to: '/farm/dashboard' },
+        { label: 'Plots', to: '/farm/plots' },
+      ],
     },
   },
   {
@@ -58,6 +66,10 @@ const farmRoutes = [
       requiresAuth: true,
       requiresSetting: 'farmEnabled',
       requiresPermission: 'farm:write',
+      breadcrumb: [
+        { label: 'Farm', to: '/farm/dashboard' },
+        { label: 'Plots', to: '/farm/plots' },
+      ],
     },
   },
   // Crops Database (Story 3.2)
@@ -79,6 +91,10 @@ const farmRoutes = [
       requiresAuth: true,
       requiresSetting: 'farmEnabled',
       requiresPermission: 'farm:admin',
+      breadcrumb: [
+        { label: 'Farm', to: '/farm/dashboard' },
+        { label: 'Crop Database', to: '/farm/crops' },
+      ],
     },
   },
   {
@@ -89,6 +105,10 @@ const farmRoutes = [
       requiresAuth: true,
       requiresSetting: 'farmEnabled',
       requiresPermission: 'farm:read',
+      breadcrumb: [
+        { label: 'Farm', to: '/farm/dashboard' },
+        { label: 'Crop Database', to: '/farm/crops' },
+      ],
     },
   },
   {
@@ -99,6 +119,10 @@ const farmRoutes = [
       requiresAuth: true,
       requiresSetting: 'farmEnabled',
       requiresPermission: 'farm:admin',
+      breadcrumb: [
+        { label: 'Farm', to: '/farm/dashboard' },
+        { label: 'Crop Database', to: '/farm/crops' },
+      ],
     },
   },
 
@@ -121,6 +145,10 @@ const farmRoutes = [
       requiresAuth: true,
       requiresSetting: 'farmEnabled',
       requiresPermission: 'farm:read',
+      breadcrumb: [
+        { label: 'Farm', to: '/farm/dashboard' },
+        { label: 'Plantings', to: '/farm/plantings' },
+      ],
     },
   },
   {
@@ -131,6 +159,10 @@ const farmRoutes = [
       requiresAuth: true,
       requiresSetting: 'farmEnabled',
       requiresPermission: 'farm:write',
+      breadcrumb: [
+        { label: 'Farm', to: '/farm/dashboard' },
+        { label: 'Plots', to: '/farm/plots' },
+      ],
     },
   },
 
@@ -143,6 +175,10 @@ const farmRoutes = [
       requiresAuth: true,
       requiresSetting: 'farmEnabled',
       requiresPermission: 'farm:write',
+      breadcrumb: [
+        { label: 'Farm', to: '/farm/dashboard' },
+        { label: 'Plantings', to: '/farm/plantings' },
+      ],
     },
   },
 
@@ -191,6 +227,10 @@ const farmRoutes = [
       requiresAuth: true,
       requiresSetting: 'farmEnabled',
       requiresPermission: 'farm:read',
+      breadcrumb: [
+        { label: 'Farm', to: '/farm/dashboard' },
+        { label: 'Farm Sales', to: '/farm/sales' },
+      ],
     },
   },
 

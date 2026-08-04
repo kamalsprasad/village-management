@@ -10,9 +10,7 @@
   <q-page padding>
     <!-- Header -->
     <div class="row items-center q-mb-md">
-      <q-btn flat dense round icon="arrow_back" to="/school/learners" class="q-mr-sm">
-        <q-tooltip>Back to Learners</q-tooltip>
-      </q-btn>
+      <Breadcrumbs :items="breadcrumbItems" :current="currentLabel" class="q-mr-sm" />
       <div>
         <div class="text-h5">
           <q-skeleton v-if="isLoading" type="text" width="200px" />
@@ -218,6 +216,7 @@ import { usePermissions } from 'src/composables/usePermissions';
 import { computeScorePercent } from '../utils/school-utils';
 import { normalizeClassId } from '../utils/school-utils';
 import { useProgressReport } from '../composables/useProgressReport';
+import Breadcrumbs from 'src/components/layout/Breadcrumbs.vue';
 import EnrollmentStatusBadge from '../components/EnrollmentStatusBadge.vue';
 import LearnerOverviewTab from '../components/LearnerOverviewTab.vue';
 import LearnerAcademicsTab from '../components/LearnerAcademicsTab.vue';
@@ -226,6 +225,9 @@ import LearnerInterventionsTab from '../components/LearnerInterventionsTab.vue';
 
 const route = useRoute();
 const router = useRouter();
+
+const breadcrumbItems = computed(() => route.meta.breadcrumb || []);
+const currentLabel = computed(() => learnerName.value || 'Learner');
 const $q = useQuasar();
 const learnerStore = useLearnerStore();
 const schoolStore = useSchoolStore();

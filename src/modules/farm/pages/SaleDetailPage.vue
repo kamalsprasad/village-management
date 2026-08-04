@@ -18,7 +18,7 @@
       <!-- Header -->
       <div class="row items-center justify-between q-mb-md">
         <div class="row items-center">
-          <q-btn flat round icon="arrow_back" @click="goBack" class="q-mr-sm" />
+          <Breadcrumbs :items="breadcrumbItems" :current="currentLabel" class="q-mr-sm" />
           <div>
             <h5 class="q-my-none">Sale Detail</h5>
             <p class="text-grey-7 q-mt-xs q-mb-none">
@@ -304,11 +304,17 @@ import { useRoute, useRouter } from 'vue-router';
 import { useFarmStore } from '../stores/farm-store';
 import { useInventoryStore } from 'src/stores/inventory-store';
 import { formatDate } from 'src/utils/dateUtils';
+import Breadcrumbs from 'src/components/layout/Breadcrumbs.vue';
 
 const route = useRoute();
 const router = useRouter();
 const farmStore = useFarmStore();
 const inventoryStore = useInventoryStore();
+
+const breadcrumbItems = computed(() => route.meta.breadcrumb || []);
+const currentLabel = computed(
+  () => `${sale.value?.buyer_name || 'Sale'} — ${formatDate(sale.value?.sale_date)}`,
+);
 
 const saleId = computed(() => route.params.id);
 const sale = computed(() => farmStore.currentSale);
@@ -355,14 +361,6 @@ const roiPercent = computed(() => {
 function formatCurrency(value) {
   const n = Number(value) || 0;
   return n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-}
-
-function goBack() {
-  if (window.history.length > 1) {
-    router.back();
-  } else {
-    router.push('/farm/sales');
-  }
 }
 
 function goToTransaction() {

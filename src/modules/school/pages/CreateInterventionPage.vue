@@ -5,10 +5,8 @@
 -->
 <template>
   <q-page padding>
+    <Breadcrumbs :items="breadcrumbItems" :current="currentLabel" class="q-mb-md" />
     <div class="row items-center q-mb-md">
-      <q-btn flat dense round icon="arrow_back" :to="backTarget" class="q-mr-sm">
-        <q-tooltip>Back</q-tooltip>
-      </q-btn>
       <div>
         <div class="text-h5">
           {{ isEditMode ? 'Edit Intervention Plan' : 'Create Intervention Plan' }}
@@ -216,6 +214,7 @@ import { useAcademicTermsStore } from '../stores/academic-terms-store';
 import { useAtRiskStore } from '../stores/at-risk-store';
 import { useInterventionStore } from '../stores/intervention-store';
 import { useAuthStore } from 'src/stores/auth-store';
+import Breadcrumbs from 'src/components/layout/Breadcrumbs.vue';
 import {
   INTERVENTION_TYPES,
   INTERVENTION_STATUSES,
@@ -237,6 +236,9 @@ const isSubmitting = ref(false);
 const isLoadingIntervention = ref(false);
 
 const isEditMode = computed(() => !!route.params.id);
+
+const breadcrumbItems = computed(() => route.meta.breadcrumb || []);
+const currentLabel = computed(() => (isEditMode.value ? 'Edit Intervention' : 'New Intervention'));
 const existingIntervention = computed(() =>
   isEditMode.value
     ? interventionStore.interventions.find((i) => i.$id === route.params.id) || null

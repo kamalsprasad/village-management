@@ -27,7 +27,7 @@
     <template v-else>
       <!-- Header -->
       <div class="row items-center q-mb-lg">
-        <q-btn icon="arrow_back" flat dense class="q-mr-md" @click="goBackToPlot" />
+        <Breadcrumbs :items="breadcrumbItems" :current="currentLabel" class="q-mr-md" />
         <div>
           <h5 class="q-my-none">Record New Planting</h5>
           <p v-if="plot" class="text-grey q-mt-xs q-mb-none">
@@ -307,6 +307,7 @@ import { useRoute, useRouter } from 'vue-router';
 import { useQuasar } from 'quasar';
 import { useFarmStore } from '../stores/farm-store';
 import { usePlantingForm, SEED_SOURCES } from '../composables/usePlantingForm';
+import Breadcrumbs from 'src/components/layout/Breadcrumbs.vue';
 
 const route = useRoute();
 const router = useRouter();
@@ -315,6 +316,12 @@ const farmStore = useFarmStore();
 
 const plotId = computed(() => route.params.id);
 const plot = computed(() => farmStore.currentPlot);
+
+const breadcrumbItems = computed(() => [
+  ...(route.meta.breadcrumb || []),
+  { label: plot.value?.name || 'Plot', to: `/farm/plots/${route.params.id}` },
+]);
+const currentLabel = 'Record New Planting';
 
 const isLoading = ref(true);
 const loadError = ref(null);

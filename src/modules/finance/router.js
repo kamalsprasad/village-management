@@ -36,6 +36,7 @@ const financeRoutes = [
     meta: {
       requiresAuth: true,
       requiresPermission: 'finance:read',
+      breadcrumb: [{ label: 'Finance', to: '/finance/dashboard' }],
     },
   },
   // Story 2.8: Financial Reports

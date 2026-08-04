@@ -2,7 +2,7 @@
   <q-page padding>
     <!-- Header row with Back button -->
     <div class="row items-center q-mb-md">
-      <q-btn flat dense round icon="arrow_back" to="/school/classes" class="q-mr-sm" />
+      <Breadcrumbs :items="breadcrumbItems" :current="currentLabel" class="q-mr-sm" />
       <div v-if="cls">
         <div class="text-h5 row items-center">
           {{ cls.name }}
@@ -525,10 +525,14 @@ import { useAtRiskStore } from '../stores/at-risk-store';
 import { useSettingsStore } from 'src/stores/settings-store';
 import { usePermissions } from 'src/composables/usePermissions';
 import { toDateStrInTimezone, addDaysToDateStr } from 'src/utils/dateUtils';
+import Breadcrumbs from 'src/components/layout/Breadcrumbs.vue';
 import ClassTimetablePanel from '../components/ClassTimetablePanel.vue';
 
 const route = useRoute();
 const router = useRouter();
+
+const breadcrumbItems = computed(() => route.meta.breadcrumb || []);
+const currentLabel = computed(() => cls.value?.name || 'Class');
 const $q = useQuasar();
 const classStore = useClassStore();
 const learnerStore = useLearnerStore();

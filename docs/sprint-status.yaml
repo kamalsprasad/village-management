@@ -98,7 +98,7 @@ development_status:
   # in-progress until all MVP sub-stories (a-e) are done.
   5-10-system-completion-final-dashboard-integration-and-production-setup: in-progress
   5-10a-dashboard-completion-real-data-wiring: done
-  5-10b-navigation-polish-breadcrumbs-and-quick-search: backlog
+  5-10b-navigation-polish-breadcrumbs-and-quick-search: done
   5-10c-notifications-system: backlog
   5-10d-help-and-documentation: backlog
   5-10e-ux-polish-performance-mobile-and-final-testing-checklist: backlog

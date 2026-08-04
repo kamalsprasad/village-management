@@ -9,7 +9,7 @@
       <template v-else-if="loan">
         <!-- Header -->
         <div class="row items-center q-mb-md">
-          <q-btn flat round icon="arrow_back" to="/lending" class="q-mr-sm" />
+          <Breadcrumbs :items="breadcrumbItems" :current="currentLabel" class="q-mr-sm" />
           <div class="col">
             <h5 class="q-my-none">Loan Details</h5>
             <div class="text-subtitle2 text-grey-7">ID: {{ loan.$id }}</div>
@@ -30,20 +30,20 @@
                 <div class="text-h4 text-primary q-mb-md">
                   {{ formatCurrency(loan.outstanding_balance) }}
                 </div>
-                
+
                 <div class="text-subtitle2 text-grey-7">Original Principal</div>
                 <div class="text-h6">{{ formatCurrency(loan.principal_amount) }}</div>
               </q-card-section>
-              
+
               <q-separator />
-              
+
               <q-card-section>
-                <q-btn 
+                <q-btn
                   v-if="loan.status === 'active'"
-                  color="primary" 
-                  icon="payment" 
-                  label="Record Payment" 
-                  class="full-width" 
+                  color="primary"
+                  icon="payment"
+                  label="Record Payment"
+                  class="full-width"
                   @click="showPaymentDialog = true"
                 />
               </q-card-section>
@@ -52,7 +52,7 @@
             <q-card flat bordered>
               <q-card-section>
                 <div class="text-h6 q-mb-md">Details</div>
-                
+
                 <q-list dense>
                   <q-item>
                     <q-item-section>
@@ -75,7 +75,9 @@
                   <q-item>
                     <q-item-section>
                       <q-item-label caption>Disbursement Date</q-item-label>
-                      <q-item-label>{{ settingsStore.formatDateTime(loan.disbursement_date, 'PP') }}</q-item-label>
+                      <q-item-label>{{
+                        settingsStore.formatDateTime(loan.disbursement_date, 'PP')
+                      }}</q-item-label>
                     </q-item-section>
                   </q-item>
                   <q-item>
@@ -125,7 +127,12 @@
                   >
                     <template #body-cell-status="props">
                       <q-td :props="props">
-                        <q-chip :color="getScheduleStatusColor(props.value)" text-color="white" dense size="sm">
+                        <q-chip
+                          :color="getScheduleStatusColor(props.value)"
+                          text-color="white"
+                          dense
+                          size="sm"
+                        >
                           {{ props.value.toUpperCase() }}
                         </q-chip>
                       </q-td>
@@ -145,7 +152,10 @@
 
                 <!-- Payments Panel -->
                 <q-tab-panel name="payments" class="q-pa-none">
-                  <div v-if="lendingStore.payments.length === 0" class="q-pa-md text-center text-grey">
+                  <div
+                    v-if="lendingStore.payments.length === 0"
+                    class="q-pa-md text-center text-grey"
+                  >
                     No payments recorded yet.
                   </div>
                   <q-list v-else separator>
@@ -154,9 +164,15 @@
                         <q-avatar color="green-1" text-color="positive" icon="done" />
                       </q-item-section>
                       <q-item-section>
-                        <q-item-label class="text-weight-bold">{{ formatCurrency(payment.amount) }}</q-item-label>
-                        <q-item-label caption>{{ settingsStore.formatDateTime(payment.payment_date, 'PPpp') }}</q-item-label>
-                        <q-item-label caption v-if="payment.notes">{{ payment.notes }}</q-item-label>
+                        <q-item-label class="text-weight-bold">{{
+                          formatCurrency(payment.amount)
+                        }}</q-item-label>
+                        <q-item-label caption>{{
+                          settingsStore.formatDateTime(payment.payment_date, 'PPpp')
+                        }}</q-item-label>
+                        <q-item-label caption v-if="payment.notes">{{
+                          payment.notes
+                        }}</q-item-label>
                       </q-item-section>
                       <q-item-section side>
                         <q-chip size="sm" outline>{{ payment.payment_method }}</q-chip>
@@ -189,9 +205,11 @@
                 step="0.01"
                 class="q-mb-md"
                 :rules="[
-                  val => !!val || 'Amount is required',
-                  val => val > 0 || 'Amount must be greater than 0',
-                  val => val <= (loan?.outstanding_balance || 0) / 100 || 'Amount exceeds outstanding balance'
+                  (val) => !!val || 'Amount is required',
+                  (val) => val > 0 || 'Amount must be greater than 0',
+                  (val) =>
+                    val <= (loan?.outstanding_balance || 0) / 100 ||
+                    'Amount exceeds outstanding balance',
                 ]"
               />
 
@@ -201,7 +219,7 @@
                 label="Payment Date *"
                 outlined
                 class="q-mb-md"
-                :rules="[val => !!val || 'Date is required']"
+                :rules="[(val) => !!val || 'Date is required']"
               />
 
               <q-select
@@ -210,7 +228,7 @@
                 label="Payment Method *"
                 outlined
                 class="q-mb-md"
-                :rules="[val => !!val || 'Method is required']"
+                :rules="[(val) => !!val || 'Method is required']"
               />
 
               <q-input
@@ -224,7 +242,12 @@
 
               <div class="row justify-end q-gutter-sm">
                 <q-btn flat label="Cancel" color="grey-7" v-close-popup />
-                <q-btn type="submit" label="Record Payment" color="primary" :loading="lendingStore.isLoading" />
+                <q-btn
+                  type="submit"
+                  label="Record Payment"
+                  color="primary"
+                  :loading="lendingStore.isLoading"
+                />
               </div>
             </q-form>
           </q-card-section>
@@ -240,11 +263,15 @@ import { useRoute } from 'vue-router';
 import { useLendingStore } from '../stores/lendingStore';
 import { useSettingsStore } from 'src/stores/settings-store';
 import { useResidentsStore } from 'src/stores/residents-store';
+import Breadcrumbs from 'src/components/layout/Breadcrumbs.vue';
 
 const route = useRoute();
 const lendingStore = useLendingStore();
 const settingsStore = useSettingsStore();
 const residentsStore = useResidentsStore();
+
+const breadcrumbItems = computed(() => route.meta.breadcrumb || []);
+const currentLabel = computed(() => borrowerName.value || 'Loan');
 
 const tab = ref('schedule');
 const showPaymentDialog = ref(false);
@@ -254,7 +281,7 @@ const paymentData = ref({
   uiAmount: null,
   date: new Date().toISOString().split('T')[0],
   method: 'Cash',
-  notes: ''
+  notes: '',
 });
 
 const scheduleColumns = [
@@ -270,8 +297,8 @@ onMounted(async () => {
   if (loan.value) {
     // default payment amount to scheduled amount or remaining balance
     paymentData.value.uiAmount = Math.min(
-      loan.value.payment_amount / 100, 
-      loan.value.outstanding_balance / 100
+      loan.value.payment_amount / 100,
+      loan.value.outstanding_balance / 100,
     );
   }
 });
@@ -297,19 +324,27 @@ function formatCurrency(amountInNgwee) {
 
 function getStatusColor(status) {
   switch (status) {
-    case 'paid': return 'positive';
-    case 'active': return 'primary';
-    case 'defaulted': return 'negative';
-    default: return 'grey';
+    case 'paid':
+      return 'positive';
+    case 'active':
+      return 'primary';
+    case 'defaulted':
+      return 'negative';
+    default:
+      return 'grey';
   }
 }
 
 function getScheduleStatusColor(status) {
   switch (status) {
-    case 'paid': return 'positive';
-    case 'pending': return 'warning';
-    case 'overdue': return 'negative';
-    default: return 'grey';
+    case 'paid':
+      return 'positive';
+    case 'pending':
+      return 'warning';
+    case 'overdue':
+      return 'negative';
+    default:
+      return 'grey';
   }
 }
 
@@ -328,19 +363,19 @@ async function submitPayment() {
   };
 
   const result = await lendingStore.recordPayment(payload);
-  
+
   if (result.success) {
     showPaymentDialog.value = false;
-    // We should ideally mark the schedule as paid here, but we will rely on 
+    // We should ideally mark the schedule as paid here, but we will rely on
     // fetchLoanDetails to refresh state in a real app or add logic in the store
     await lendingStore.fetchLoanDetails(route.params.id);
-    
+
     // Reset payment form
     paymentData.value = {
       uiAmount: Math.min(loan.value.payment_amount / 100, loan.value.outstanding_balance / 100),
       date: new Date().toISOString().split('T')[0],
       method: 'Cash',
-      notes: ''
+      notes: '',
     };
   }
 }

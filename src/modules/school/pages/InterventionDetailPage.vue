@@ -11,9 +11,7 @@
 
     <template v-else-if="intervention">
       <div class="row items-center q-mb-md">
-        <q-btn flat dense round icon="arrow_back" to="/school/interventions" class="q-mr-sm">
-          <q-tooltip>Back to Interventions</q-tooltip>
-        </q-btn>
+        <Breadcrumbs :items="breadcrumbItems" :current="currentLabel" class="q-mr-sm" />
         <div>
           <router-link
             :to="`/school/learners/${intervention.learner_id_normalized}`"
@@ -288,6 +286,7 @@ import {
   INTERVENTION_STATUSES,
   getAllowedStatusTransitions,
 } from '../utils/school-constants';
+import Breadcrumbs from 'src/components/layout/Breadcrumbs.vue';
 import InterventionStatusBadge from '../components/InterventionStatusBadge.vue';
 import InterventionStatusChangeDialog from '../components/InterventionStatusChangeDialog.vue';
 
@@ -295,6 +294,12 @@ const route = useRoute();
 const router = useRouter();
 const $q = useQuasar();
 const { hasPermission } = usePermissions();
+
+const breadcrumbItems = computed(() => route.meta.breadcrumb || []);
+const currentLabel = computed(
+  () =>
+    `${learnerName.value || 'Learner'} — ${intervention.value?.intervention_type || 'Intervention'}`,
+);
 
 const learnerStore = useLearnerStore();
 const teacherStore = useTeacherStore();

@@ -56,6 +56,10 @@ const schoolRoutes = [
       requiresAuth: true,
       requiresSetting: 'schoolEnabled',
       requiresPermission: 'school:write',
+      breadcrumb: [
+        { label: 'School', to: '/school/dashboard' },
+        { label: 'Learners', to: '/school/learners' },
+      ],
     },
   },
   {
@@ -66,6 +70,10 @@ const schoolRoutes = [
       requiresAuth: true,
       requiresSetting: 'schoolEnabled',
       requiresPermission: 'school:read',
+      breadcrumb: [
+        { label: 'School', to: '/school/dashboard' },
+        { label: 'Learners', to: '/school/learners' },
+      ],
     },
   },
   {
@@ -76,6 +84,10 @@ const schoolRoutes = [
       requiresAuth: true,
       requiresSetting: 'schoolEnabled',
       requiresPermission: 'school:admin',
+      breadcrumb: [
+        { label: 'School', to: '/school/dashboard' },
+        { label: 'Learners', to: '/school/learners' },
+      ],
     },
   },
   {
@@ -96,6 +108,10 @@ const schoolRoutes = [
       requiresAuth: true,
       requiresSetting: 'schoolEnabled',
       requiresPermission: 'school:read',
+      breadcrumb: [
+        { label: 'School', to: '/school/dashboard' },
+        { label: 'Classes', to: '/school/classes' },
+      ],
     },
   },
   {
@@ -171,6 +187,10 @@ const schoolRoutes = [
       requiresAuth: true,
       requiresSetting: 'schoolEnabled',
       requiresPermission: 'school:write',
+      breadcrumb: [
+        { label: 'School', to: '/school/dashboard' },
+        { label: 'Interventions', to: '/school/interventions' },
+      ],
     },
   },
   {
@@ -181,6 +201,10 @@ const schoolRoutes = [
       requiresAuth: true,
       requiresSetting: 'schoolEnabled',
       requiresPermission: 'school:read',
+      breadcrumb: [
+        { label: 'School', to: '/school/dashboard' },
+        { label: 'Interventions', to: '/school/interventions' },
+      ],
     },
   },
   {
@@ -191,6 +215,10 @@ const schoolRoutes = [
       requiresAuth: true,
       requiresSetting: 'schoolEnabled',
       requiresPermission: 'school:write',
+      breadcrumb: [
+        { label: 'School', to: '/school/dashboard' },
+        { label: 'Interventions', to: '/school/interventions' },
+      ],
     },
   },
   {

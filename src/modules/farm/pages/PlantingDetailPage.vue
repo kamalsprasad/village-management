@@ -27,7 +27,7 @@
       <!-- Header -->
       <div class="row items-center justify-between q-mb-md">
         <div class="row items-center">
-          <q-btn icon="arrow_back" flat dense class="q-mr-md" @click="goBack" />
+          <Breadcrumbs :items="breadcrumbItems" :current="currentLabel" class="q-mr-md" />
           <div>
             <h5 class="q-my-none row items-center q-gutter-sm">
               {{ cropName }}
@@ -662,6 +662,7 @@ import { usePermissions } from 'src/composables/usePermissions';
 import { parseISO, differenceInDays } from 'date-fns';
 import { OVERDUE_GRACE_DAYS } from '../utils/farm-utils';
 import { formatDate } from 'src/utils/dateUtils';
+import Breadcrumbs from 'src/components/layout/Breadcrumbs.vue';
 import UpdateStatusDialog from '../components/UpdateStatusDialog.vue';
 import HarvestStatusBadge from '../components/HarvestStatusBadge.vue';
 import HarvestEntryDialog from '../components/HarvestEntryDialog.vue';
@@ -673,6 +674,18 @@ const router = useRouter();
 const $q = useQuasar();
 const farmStore = useFarmStore();
 const inventoryStore = useInventoryStore();
+
+// The previous ad-hoc back button returned to the specific parent plot
+// (falling back to the Plantings list only when the plot hadn't loaded yet).
+// Preserve that context by inserting the plot as a dynamic ancestor segment,
+// matching the nested-ancestor pattern used by CreatePlantingPage.vue.
+const breadcrumbItems = computed(() => [
+  ...(route.meta.breadcrumb || []),
+  ...(plot.value
+    ? [{ label: plot.value.name || 'Plot', to: `/farm/plots/${plot.value.$id}` }]
+    : []),
+]);
+const currentLabel = computed(() => cropName.value || 'Planting');
 const { hasPermission } = usePermissions();
 
 // ---------------------------------------------------------------------------
@@ -1038,14 +1051,6 @@ async function loadPlanting() {
 // ---------------------------------------------------------------------------
 // Navigation
 // ---------------------------------------------------------------------------
-
-function goBack() {
-  if (plot.value) {
-    router.push(`/farm/plots/${plot.value.$id}`);
-  } else {
-    router.push('/farm/plantings');
-  }
-}
 
 function goToFarm() {
   router.push('/farm');
