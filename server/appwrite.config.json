@@ -167,6 +167,35 @@
         "TABLE_ROLES": "roles",
         "TABLE_AUDIT_LOGS": "audit_logs"
       }
+    },
+    {
+      "$id": "createNotification",
+      "execute": ["users"],
+      "name": "Create Notification",
+      "enabled": true,
+      "logging": true,
+      "runtime": "node-16.0",
+      "scopes": [
+        "databases.read",
+        "databases.write",
+        "tables.read",
+        "tables.write",
+        "rows.read",
+        "rows.write"
+      ],
+      "events": [],
+      "schedule": "",
+      "timeout": 15,
+      "entrypoint": "src/main.js",
+      "commands": "npm install",
+      "specification": "s-0.5vcpu-512mb",
+      "path": "functions/createNotification",
+      "vars": {
+        "DATABASE_ID": "villageDB",
+        "TABLE_USERS": "users",
+        "TABLE_ROLES": "roles",
+        "TABLE_NOTIFICATIONS": "notifications"
+      }
     }
   ],
   "tablesDB": [

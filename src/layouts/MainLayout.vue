@@ -83,6 +83,38 @@
           </q-menu>
         </div>
 
+        <!-- Notifications Bell -->
+        <q-btn
+          flat
+          round
+          dense
+          icon="notifications"
+          aria-label="Notifications"
+          class="q-mr-sm"
+          @click="notificationOpen = !notificationOpen"
+        >
+          <q-badge v-if="notificationsStore.unreadCount > 0" floating color="red">
+            {{ notificationBadgeLabel }}
+          </q-badge>
+
+          <q-menu
+            v-if="$q.screen.gt.xs"
+            v-model="notificationOpen"
+            anchor="bottom right"
+            self="top right"
+            :offset="[0, 8]"
+            style="width: 360px; max-width: 90vw"
+          >
+            <NotificationPanel @close="closeNotificationPanel" @navigate="router.push" />
+          </q-menu>
+        </q-btn>
+
+        <q-dialog v-if="$q.screen.xs" v-model="notificationOpen" full-width position="top">
+          <q-card style="max-width: 100vw">
+            <NotificationPanel @close="closeNotificationPanel" @navigate="router.push" />
+          </q-card>
+        </q-dialog>
+
         <!-- User Profile Dropdown -->
         <q-btn
           flat
@@ -763,15 +795,19 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted, reactive, watch } from 'vue';
+import { ref, computed, onMounted, onBeforeUnmount, onUnmounted, reactive, watch } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { useQuasar } from 'quasar';
+import { Realtime } from 'appwrite';
 import { useAuthStore } from 'src/stores/auth-store';
 import { useSettingsStore } from 'src/stores/settings-store';
+import { useNotificationsStore } from 'src/stores/notifications-store';
 import { usePermissions } from 'src/composables/usePermissions';
 import { usePersonalFilesStore } from 'src/modules/storage/stores/personal-files-store';
 import { useGlobalSearch } from 'src/composables/useGlobalSearch';
+import { client } from 'src/boot/appwrite';
 import SampleDataBanner from 'src/components/layout/SampleDataBanner.vue';
+import NotificationPanel from 'src/components/layout/NotificationPanel.vue';
 import { version } from '../../package.json';
 
 const router = useRouter();
@@ -779,6 +815,7 @@ const route = useRoute();
 const $q = useQuasar();
 const authStore = useAuthStore();
 const settingsStore = useSettingsStore();
+const notificationsStore = useNotificationsStore();
 const personalFilesStore = usePersonalFilesStore();
 const { hasPermission, hasAnyPermission, userStorageQuota } = usePermissions();
 const { searchTerm, groupedResults, loading, search } = useGlobalSearch();
@@ -826,6 +863,17 @@ const leftDrawerOpen = ref(false);
 const userMenu = ref(null);
 const userMenuVisible = ref(false);
 const isClient = ref(false); // Track client-side hydration for SSR
+const notificationOpen = ref(false);
+
+const notificationBadgeLabel = computed(() => {
+  const count = notificationsStore.unreadCount;
+  if (count > 99) return '99+';
+  return count > 0 ? String(count) : '';
+});
+
+function closeNotificationPanel() {
+  notificationOpen.value = false;
+}
 
 const expandedSections = reactive({
   community: false,
@@ -850,8 +898,37 @@ watch(
   { immediate: true },
 );
 
+let notificationUnsubscribe = null;
+let notificationPollInterval = null;
+
 onMounted(() => {
   isClient.value = true; // Enable client-side rendering after hydration
+  notificationsStore.isClient = true;
+  notificationsStore.fetchMyNotifications();
+
+  try {
+    const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
+    const notifTableId = import.meta.env.VITE_APPWRITE_TABLE_NOTIFICATIONS || 'notifications';
+    const realtime = new Realtime(client);
+    notificationUnsubscribe = realtime.subscribe(
+      [`tablesdb.${dbId}.tables.${notifTableId}.rows`],
+      () => notificationsStore.fetchMyNotifications(),
+    );
+  } catch (e) {
+    console.error('Notification realtime subscribe failed, falling back to polling', e);
+    notificationPollInterval = setInterval(() => notificationsStore.fetchMyNotifications(), 30000);
+  }
+});
+
+onBeforeUnmount(() => {
+  if (typeof notificationUnsubscribe === 'function') {
+    notificationUnsubscribe();
+    notificationUnsubscribe = null;
+  }
+  if (notificationPollInterval) {
+    clearInterval(notificationPollInterval);
+    notificationPollInterval = null;
+  }
 });
 
 // Fetch personal-file usage whenever auth roles become available or change.

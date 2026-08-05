@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia';
 import { tables } from 'src/boot/appwrite';
 import { useErrorHandler } from 'src/composables/useErrorHandler';
+import { useNotificationsStore } from 'src/stores/notifications-store';
 import { ID, Query } from 'appwrite';
 
 const errorHandler = useErrorHandler();
@@ -191,6 +192,18 @@ export const useVendorsStore = defineStore('vendors', {
 
         this.vendors.push(newVendor);
         this.vendors.sort((a, b) => a.name.localeCompare(b.name));
+
+        useNotificationsStore()
+          .createNotification({
+            type: 'vendor_created',
+            title: `New vendor added: ${newVendor.name}`,
+            body: `Vendor type: ${newVendor.vendor_type}`,
+            link: `/vendors/${newVendor.$id}`,
+            related_entity_type: 'vendor',
+            related_entity_id: newVendor.$id,
+            severity: 'info',
+          })
+          .catch((err) => console.error('Failed to notify vendor created', err));
 
         errorHandler.notifySuccess(`Vendor "${newVendor.name}" created successfully`);
         return { success: true, data: newVendor };

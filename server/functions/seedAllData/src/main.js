@@ -3271,6 +3271,91 @@ async function seedBellSchedules(tablesDB, dbId, log) {
 }
 
 // =============================================================================
+// PHASE 6 — NOTIFICATIONS
+// =============================================================================
+
+async function seedNotifications(tablesDB, dbId, log) {
+  log('Phase 6: Notifications...');
+  await batchRun(
+    [
+      () =>
+        createRow(tablesDB, dbId, 'notifications', {
+          type: 'at_risk_learner',
+          title: 'Sample: learner flagged as at-risk',
+          body: 'Attendance below threshold; multiple risk factors identified.',
+          link: '/school/learners',
+          target_roles: ['School Administrator', 'Head Teacher', 'Teacher'],
+          target_permissions: [],
+          related_entity_type: 'learner',
+          related_entity_id: 'seed-learner-1',
+          severity: 'warning',
+          created_by: 'seed-script',
+        }),
+      () =>
+        createRow(tablesDB, dbId, 'notifications', {
+          type: 'farm_alert:upcoming_harvest',
+          title: 'Sample: maize plot — Harvest in 5 days',
+          body: 'Expected harvest date is approaching.',
+          link: '/farm/alerts',
+          target_roles: ['Farm Manager', 'Crop Manager', 'Village Head', 'Deputy Village Head'],
+          target_permissions: [],
+          related_entity_type: 'planting',
+          related_entity_id: 'seed-planting-1',
+          severity: 'info',
+          created_by: 'seed-script',
+        }),
+      () =>
+        createRow(tablesDB, dbId, 'notifications', {
+          type: 'farm_alert:low_inventory',
+          title: 'Sample: low farm input stock',
+          body: 'Fertilizer stock is below the configured threshold.',
+          link: '/farm/alerts',
+          target_roles: ['Farm Manager', 'Crop Manager', 'Village Head', 'Deputy Village Head'],
+          target_permissions: [],
+          related_entity_type: 'inventory',
+          related_entity_id: 'seed-inventory-1',
+          severity: 'warning',
+          created_by: 'seed-script',
+        }),
+      () =>
+        createRow(tablesDB, dbId, 'notifications', {
+          type: 'vendor_created',
+          title: 'Sample: new vendor added',
+          body: 'Vendor type: Supplier',
+          link: '/vendors',
+          target_roles: [
+            'Finance Manager',
+            'Farm Manager',
+            'Crop Manager',
+            'Village Head',
+            'Deputy Village Head',
+          ],
+          target_permissions: [],
+          related_entity_type: 'vendor',
+          related_entity_id: 'seed-vendor-1',
+          severity: 'info',
+          created_by: 'seed-script',
+        }),
+      () =>
+        createRow(tablesDB, dbId, 'notifications', {
+          type: 'farm_alert:crop_failure',
+          title: 'Sample: crop failure reported',
+          body: 'A planting has been marked as failed.',
+          link: '/farm/alerts',
+          target_roles: ['Farm Manager', 'Crop Manager', 'Village Head', 'Deputy Village Head'],
+          target_permissions: [],
+          related_entity_type: 'planting',
+          related_entity_id: 'seed-planting-2',
+          severity: 'critical',
+          created_by: 'seed-script',
+        }),
+    ],
+    5,
+  );
+  log('  5 sample notifications');
+}
+
+// =============================================================================
 // ENTRY POINT
 // =============================================================================
 
@@ -3310,6 +3395,7 @@ export default async ({ req, res, log, error }) => {
     await seedSchool(tablesDB, dbId, residentIds, slotIdsByGrade, log);
     await seedCalendar(tablesDB, dbId, log);
     await seedVillageSettings(tablesDB, dbId, councilMemberIds, log);
+    await seedNotifications(tablesDB, dbId, log);
 
     log('=== seedAllData: complete ===');
     return res.json({ success: true, message: 'All sample data seeded successfully.' });

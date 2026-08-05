@@ -6,6 +6,7 @@ import { tables } from 'src/boot/appwrite';
 import { ID, Query } from 'appwrite';
 import { useInventoryStore } from 'src/stores/inventory-store';
 import { useFinanceStore } from 'src/modules/finance/stores/finance-store';
+import { useNotificationsStore } from 'src/stores/notifications-store';
 import { differenceInCalendarDays, parseISO } from 'date-fns';
 import { getSeason, OVERDUE_GRACE_DAYS } from '../utils/farm-utils';
 
@@ -2540,6 +2541,35 @@ export const useFarmStore = defineStore('farm', {
         (a, b) =>
           (severityOrder[a.severity] ?? 3) - (severityOrder[b.severity] ?? 3) ||
           new Date(b.triggered_at) - new Date(a.triggered_at),
+      );
+    },
+
+    /**
+     * Story 5.10c: notify target roles when farm alerts are newly raised.
+     * Fire-and-forget: each alert becomes one notification; duplicates are skipped
+     * server-side by the createNotification function.
+     */
+    async notifyNewFarmAlerts(alerts) {
+      const notificationsStore = useNotificationsStore();
+      await Promise.allSettled(
+        (alerts || []).map((alert) =>
+          notificationsStore
+            .createNotification({
+              type: `farm_alert:${alert.alert_type}`,
+              title: alert.title,
+              body: `Severity: ${alert.severity}`,
+              link:
+                alert.related_entity_type === 'planting'
+                  ? `/farm/plantings/${alert.related_entity_id}`
+                  : alert.related_entity_type === 'inventory'
+                    ? `/inventory/${alert.related_entity_id}`
+                    : '/farm/alerts',
+              related_entity_type: alert.related_entity_type,
+              related_entity_id: alert.related_entity_id,
+              severity: alert.severity,
+            })
+            .catch((err) => console.error('Failed to notify farm alert', err)),
+        ),
       );
     },
 

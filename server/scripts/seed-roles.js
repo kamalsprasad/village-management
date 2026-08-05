@@ -61,6 +61,9 @@ const rolesTableId = stripQuotes(process.env.APPWRITE_TABLE_ROLES) || 'roles';
 // storage:farm:read, storage:school:read and storage:village-docs:write;
 // Farm Manager and Crop Manager get storage:farm:read/write; School
 // Administrator, Head Teacher and Teacher get storage:school:read/write).
+// NOTE (Story 5.10c): notifications:read is granted to every role
+// (System Administrator is already covered by '*'). notifications:write is
+// granted to roles that hold school:read, farm:read, or vendors:write.
 // This seeder is upsert-capable: when a role already exists by name, its
 // permissions/storage_quota/category are updated to match the canonical
 // definition below. Re-running this script keeps existing role rows in sync
@@ -87,6 +90,7 @@ const defaultRoles = [
       'storage:farm:read',
       'storage:school:read',
       'storage:village-docs:write',
+      'notifications:read',
     ],
     storage_quota: 2,
   },
@@ -104,6 +108,8 @@ const defaultRoles = [
       'storage:write',
       'storage:farm:read',
       'storage:farm:write',
+      'notifications:read',
+      'notifications:write',
     ],
     storage_quota: 10,
   },
@@ -119,6 +125,8 @@ const defaultRoles = [
       'storage:write',
       'storage:farm:read',
       'storage:farm:write',
+      'notifications:read',
+      'notifications:write',
     ],
     storage_quota: 2,
   },
@@ -134,6 +142,8 @@ const defaultRoles = [
       'storage:write',
       'storage:school:read',
       'storage:school:write',
+      'notifications:read',
+      'notifications:write',
     ],
     storage_quota: 2,
   },
@@ -150,6 +160,8 @@ const defaultRoles = [
       'storage:write',
       'storage:school:read',
       'storage:school:write',
+      'notifications:read',
+      'notifications:write',
     ],
     storage_quota: 10,
   },
@@ -163,6 +175,8 @@ const defaultRoles = [
       'storage:write',
       'storage:school:read',
       'storage:school:write',
+      'notifications:read',
+      'notifications:write',
     ],
     storage_quota: 2,
   },
@@ -182,6 +196,8 @@ const defaultRoles = [
       'storage:write',
       'storage:finance:read',
       'storage:finance:write',
+      'notifications:read',
+      'notifications:write',
     ],
     storage_quota: 10,
   },
@@ -203,13 +219,21 @@ const defaultRoles = [
       'storage:farm:read',
       'storage:school:read',
       'storage:village-docs:write',
+      'notifications:read',
+      'notifications:write',
     ],
     storage_quota: 20,
   },
   {
     name: 'Village Resident',
     category: 'resident',
-    permissions: ['profile:read', 'profile:write', 'storage:read', 'storage:write'],
+    permissions: [
+      'profile:read',
+      'profile:write',
+      'storage:read',
+      'storage:write',
+      'notifications:read',
+    ],
     storage_quota: 2,
   },
   {
@@ -229,6 +253,8 @@ const defaultRoles = [
       'storage:farm:read',
       'storage:school:read',
       'storage:village-docs:write',
+      'notifications:read',
+      'notifications:write',
     ],
     storage_quota: 10,
   },
@@ -242,13 +268,22 @@ const defaultRoles = [
       'households:read',
       'storage:read',
       'storage:write',
+      'notifications:read',
     ],
     storage_quota: 2,
   },
   {
     name: 'Learner',
     category: 'school',
-    permissions: ['school:read', 'profile:read', 'profile:write', 'storage:read', 'storage:write'],
+    permissions: [
+      'school:read',
+      'profile:read',
+      'profile:write',
+      'storage:read',
+      'storage:write',
+      'notifications:read',
+      'notifications:write',
+    ],
     storage_quota: 1,
   },
   // {

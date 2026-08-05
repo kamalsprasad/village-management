@@ -28,6 +28,7 @@ import { useSchoolStore } from './school-store';
 import { useAcademicTermsStore } from './academic-terms-store';
 import { useCalendarEventsStore } from './calendar-events-store';
 import { useSettingsStore } from 'src/stores/settings-store';
+import { useNotificationsStore } from 'src/stores/notifications-store';
 import { toDateStrInTimezone } from 'src/utils/dateUtils';
 import { normalizeClassId } from '../utils/school-utils';
 import {
@@ -259,6 +260,14 @@ export const useAtRiskStore = defineStore('atRisk', {
 
         this.atRiskLearners = atRiskList;
         this.lastComputedAt = Date.now();
+
+        // Fire-and-forget notification trigger (does not block return or cache).
+        if (atRiskList.length > 0) {
+          this.notifyNewAtRiskLearners(atRiskList).catch((err) =>
+            console.error('notifyNewAtRiskLearners failed:', err),
+          );
+        }
+
         return { success: true, data: atRiskList };
       } catch (error) {
         console.error('Error computing at-risk status:', error);
@@ -274,6 +283,35 @@ export const useAtRiskStore = defineStore('atRisk', {
      */
     async refresh() {
       return this.computeAtRisk({ force: true });
+    },
+
+    /**
+     * Story 5.10c: notify target roles when learners are newly flagged as at-risk.
+     * One notification per learner; duplicates are skipped server-side by the
+     * createNotification function.
+     */
+    async notifyNewAtRiskLearners(atRiskList) {
+      const notificationsStore = useNotificationsStore();
+      await Promise.allSettled(
+        atRiskList.map((learner) =>
+          notificationsStore
+            .createNotification({
+              type: 'at_risk_learner',
+              title: `${learner.learnerName} flagged as at-risk`,
+              body: (learner.reasons || []).join('; ') || 'Multiple risk factors identified.',
+              link: `/school/learners/${learner.learnerId}`,
+              related_entity_type: 'learner',
+              related_entity_id: learner.learnerId,
+              severity:
+                learner.severity === 'high'
+                  ? 'critical'
+                  : learner.severity === 'medium'
+                    ? 'warning'
+                    : 'info',
+            })
+            .catch((err) => console.error('Failed to notify at-risk learner', err)),
+        ),
+      );
     },
   },
 });

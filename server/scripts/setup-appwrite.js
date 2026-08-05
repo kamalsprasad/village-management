@@ -1776,6 +1776,77 @@ const tableSchemas = {
     ],
   },
 
+  // Story 5.10c: Role-targeted in-app notifications. Notifications are created
+  // only by the createNotification Appwrite Function (admin API key), so clients
+  // only need read access. Read receipts are per-user rows created client-side.
+  notifications: {
+    name: 'Notifications',
+    permissions: [Permission.read(Role.users())],
+    rowSecurity: false,
+    columns: [
+      { key: 'type', type: 'string', size: 100, required: true },
+      { key: 'title', type: 'string', size: 255, required: true },
+      { key: 'body', type: 'string', size: 1000, required: false },
+      { key: 'link', type: 'string', size: 255, required: false },
+      { key: 'target_roles', type: 'string', size: 100, array: true, required: false },
+      { key: 'target_permissions', type: 'string', size: 100, array: true, required: false },
+      { key: 'related_entity_type', type: 'string', size: 50, required: false },
+      { key: 'related_entity_id', type: 'string', size: 50, required: false },
+      {
+        key: 'severity',
+        type: 'enum',
+        elements: ['info', 'warning', 'critical'],
+        required: true,
+        default: 'info',
+      },
+      { key: 'created_by', type: 'string', size: 50, required: false },
+      { key: 'expires_at', type: 'datetime', required: false },
+    ],
+    indexes: [
+      {
+        key: 'idx_notifications_dedup',
+        type: 'key',
+        columns: ['type', 'related_entity_type', 'related_entity_id'],
+        orders: ['ASC', 'ASC', 'ASC'],
+      },
+      {
+        key: 'idx_notifications_created',
+        type: 'key',
+        columns: ['$createdAt'],
+        orders: ['DESC'],
+      },
+    ],
+  },
+
+  notification_reads: {
+    name: 'Notification Reads',
+    permissions: [
+      Permission.read(Role.users()),
+      Permission.create(Role.users()),
+      Permission.delete(Role.users()),
+    ],
+    rowSecurity: true,
+    columns: [
+      { key: 'notification_id', type: 'string', size: 50, required: true },
+      { key: 'user_id', type: 'string', size: 50, required: true },
+      { key: 'read_at', type: 'datetime', required: true },
+    ],
+    indexes: [
+      {
+        key: 'idx_notification_reads_user',
+        type: 'key',
+        columns: ['user_id'],
+        orders: ['ASC'],
+      },
+      {
+        key: 'idx_notification_reads_lookup',
+        type: 'key',
+        columns: ['notification_id', 'user_id'],
+        orders: ['ASC', 'ASC'],
+      },
+    ],
+  },
+
   // Story 5.12: Tamper-resistant audit trail for admin-driven user
   // management actions (create/update/deactivate/reactivate). Read-only for
   // System Administrators via the console/UI; all writes happen exclusively
@@ -2326,7 +2397,7 @@ async function setupDatabase() {
 
     console.log('\n✅ Database setup complete!');
     console.log('\n📋 Summary:');
-    console.log('   - 26 Tables created/verified');
+    console.log('   - 28 Tables created/verified');
     console.log('   - 150+ columns created/verified (incl. Story 5.4 shared_folder)');
     console.log('   - 25+ indexes created/verified (incl. idx_file_metadata_shared_folder)');
     console.log('   - 2 Storage buckets created/verified (personal_files, shared_files)');
@@ -2351,6 +2422,7 @@ async function setupDatabase() {
     );
     console.log('   Calendar: village_events');
     console.log('   Storage: file_metadata (buckets: personal_files, shared_files)');
+    console.log('   Notifications: notifications, notification_reads');
   } catch (error) {
     console.error('\n❌ Setup failed:', error.message);
     if (error.response) {

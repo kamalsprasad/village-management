@@ -337,6 +337,7 @@ async function loadAlerts() {
     await farmStore.fetchAlertConfig();
   }
   alerts.value = farmStore.generateFarmAlerts();
+  farmStore.notifyNewFarmAlerts(alerts.value);
   isLoading.value = false;
 }
 

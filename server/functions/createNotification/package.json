@@ -1,0 +1,16 @@
+{
+  "name": "create-notification",
+  "version": "1.0.0",
+  "description": "Appwrite Function: role-targeted in-app notification delivery for at-risk learners, farm alerts, and vendor creation.",
+  "main": "src/main.js",
+  "type": "module",
+  "scripts": {
+    "format": "prettier --write ."
+  },
+  "dependencies": {
+    "node-appwrite": "^21.1.0"
+  },
+  "devDependencies": {
+    "prettier": "^3.2.5"
+  }
+}
