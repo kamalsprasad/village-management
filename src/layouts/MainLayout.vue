@@ -19,7 +19,7 @@
         <div class="text-caption q-mr-md">v{{ version }}</div>
 
         <!-- Global Quick Search -->
-        <div class="gt-xs q-mr-md" style="min-width: 220px; max-width: 320px">
+        <div class="gt-xs q-mr-md" style="width: 260px">
           <q-input
             v-model="searchTerm"
             dense
@@ -28,6 +28,9 @@
             debounce="300"
             placeholder="Search..."
             aria-label="Search"
+            bg-color="white"
+            color="dark"
+            input-class="text-dark"
             @update:model-value="onSearchInput"
             @focus="onSearchFocus"
           >
@@ -35,7 +38,7 @@
               <q-icon name="search" />
             </template>
           </q-input>
-          <q-menu v-model="searchMenuOpen" fit no-parent-event :offset="[0, 4]">
+          <q-menu v-model="searchMenuOpen" fit no-parent-event no-focus no-refocus :offset="[0, 4]">
             <q-list style="min-width: 260px">
               <template v-if="(searchTerm || '').length < 2">
                 <q-item>

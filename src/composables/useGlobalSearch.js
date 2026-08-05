@@ -3,6 +3,7 @@ import { Query } from 'appwrite';
 import { tables } from 'src/boot/appwrite';
 import { usePermissions } from 'src/composables/usePermissions';
 import { useSettingsStore } from 'src/stores/settings-store';
+import { formatDate } from 'src/utils/dateUtils';
 
 const MIN_SEARCH_LENGTH = 2;
 const MAX_RESULTS = 5;
@@ -234,11 +235,11 @@ export function useGlobalSearch() {
       }));
   }
 
-  async function queryTable(tableId, field, term) {
+  async function queryTable(tableId, field, term, limit = MAX_RESULTS) {
     return tables.listRows({
       databaseId: import.meta.env.VITE_APPWRITE_DATABASE_ID,
       tableId,
-      queries: [Query.startsWith(field, term), Query.limit(MAX_RESULTS)],
+      queries: [Query.startsWith(field, term), Query.limit(limit)],
     });
   }
 
@@ -285,13 +286,23 @@ export function useGlobalSearch() {
   async function searchFinance(term) {
     if (!hasPermission('finance:read')) return [];
     const response = await queryTable('finance_transactions', 'description', term);
-    return (response.rows || []).map((row) => ({
-      id: row.$id,
-      label: row.description,
-      secondary: `${row.type || 'Transaction'} — ${row.amount ?? 0}`,
-      icon: 'receipt_long',
-      to: '/finance/transactions',
-    }));
+    return (response.rows || []).map((row) => {
+      const date = formatDate(row.date, '');
+      const amount = row.amount_funded ?? row.amount ?? 0;
+      const formatted = new Intl.NumberFormat('en-ZM', {
+        style: 'currency',
+        currency: 'ZMW',
+        minimumFractionDigits: 0,
+      }).format(amount);
+      const secondary = `${row.type || 'Transaction'} — ${formatted}`;
+      return {
+        id: row.$id,
+        label: row.description,
+        secondary: date ? `${secondary} · ${date}` : secondary,
+        icon: 'receipt_long',
+        to: '/finance/transactions',
+      };
+    });
   }
 
   async function searchPlots(term) {
@@ -306,30 +317,61 @@ export function useGlobalSearch() {
     }));
   }
 
+  // The learners table has no name columns — it links to residents via
+  // resident_id. To search learners by name we first match residents by
+  // first_name / last_name, then look up which of those residents have a
+  // learner row. Pool size > MAX_RESULTS so we don't miss enrolled learners
+  // hidden behind non-learner residents that matched the name prefix.
+  const LEARNER_RESIDENT_POOL = 25;
+
   async function searchLearners(term) {
     if (!hasPermission('school:read') || !settingsStore.schoolEnabled) return [];
-    const results = await Promise.allSettled([
-      queryTable('learners', 'first_name', term),
-      queryTable('learners', 'last_name', term),
+    const residentsTableId = import.meta.env.VITE_APPWRITE_TABLE_RESIDENTS;
+    const nameResults = await Promise.allSettled([
+      queryTable(residentsTableId, 'first_name', term, LEARNER_RESIDENT_POOL),
+      queryTable(residentsTableId, 'last_name', term, LEARNER_RESIDENT_POOL),
     ]);
-    const map = new Map();
-    results.forEach((result) => {
+    const residentMap = new Map();
+    nameResults.forEach((result) => {
       if (result.status === 'fulfilled') {
         (result.value.rows || []).forEach((row) => {
-          if (!map.has(row.$id)) {
-            const fullName = [row.first_name, row.last_name].filter(Boolean).join(' ');
-            map.set(row.$id, {
-              id: row.$id,
-              label: fullName,
-              secondary: 'Learner',
-              icon: 'school',
-              to: `/school/learners/${row.$id}`,
-            });
+          if (!residentMap.has(row.$id)) {
+            residentMap.set(row.$id, row);
           }
         });
       }
     });
-    return Array.from(map.values()).slice(0, MAX_RESULTS);
+    const residentIds = Array.from(residentMap.keys());
+    if (residentIds.length === 0) return [];
+
+    let learnerRows = [];
+    try {
+      const response = await tables.listRows({
+        databaseId: import.meta.env.VITE_APPWRITE_DATABASE_ID,
+        tableId: 'learners',
+        queries: [Query.equal('resident_id', residentIds), Query.limit(MAX_RESULTS)],
+      });
+      learnerRows = response.rows || [];
+    } catch (error) {
+      console.error('GlobalSearch: learners lookup failed', error);
+      return [];
+    }
+
+    return learnerRows.map((learner) => {
+      const residentId =
+        typeof learner.resident_id === 'object' ? learner.resident_id?.$id : learner.resident_id;
+      const resident = residentMap.get(residentId);
+      const fullName = resident
+        ? [resident.first_name, resident.middle_names, resident.last_name].filter(Boolean).join(' ')
+        : 'Learner';
+      return {
+        id: learner.$id,
+        label: fullName,
+        secondary: 'Learner',
+        icon: 'school',
+        to: `/school/learners/${learner.$id}`,
+      };
+    });
   }
 
   async function searchVendors(term) {
