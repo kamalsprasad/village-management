@@ -67,9 +67,23 @@ export const useNotificationsStore = defineStore('notifications', {
         const readsTableId =
           import.meta.env.VITE_APPWRITE_TABLE_NOTIFICATION_READS || 'notification_reads';
 
-        const roleFilter = Query.or(
-          userRoles.map((role) => Query.contains('target_roles', role?.name || '')),
-        );
+        // Build role filter. Query.or requires >= 2 inner queries, so for a
+        // single role we use a plain Query.contains instead. Empty role names
+        // are filtered out to avoid matching every row.
+        const roleNames = userRoles
+          .map((role) => role?.name)
+          .filter((name) => name && typeof name === 'string');
+
+        let roleFilter;
+        if (roleNames.length === 0) {
+          // No usable role names -> return no notifications.
+          this.notifications = [];
+          return;
+        } else if (roleNames.length === 1) {
+          roleFilter = Query.contains('target_roles', roleNames[0]);
+        } else {
+          roleFilter = Query.or(roleNames.map((name) => Query.contains('target_roles', name)));
+        }
 
         const [notifResult, readsResult] = await Promise.all([
           tables.listRows({
