@@ -88,7 +88,12 @@
                   (val) => (val > 0 && val <= 100) || 'Must be greater than 0 and at most 100',
                 ]"
                 hint="Represents the 90th-percentile target (e.g., 90%)"
-              />
+              >
+                <q-tooltip
+                  >The minimum academic average (%) a learner must reach to be considered "at
+                  target" for the long-term goal.</q-tooltip
+                >
+              </q-input>
             </div>
 
             <div class="col-12 col-sm-6">

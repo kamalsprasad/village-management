@@ -1,0 +1,139 @@
+---
+title: 'Story 5.10d: Help and Documentation'
+type: 'feature'
+created: '2026-08-10'
+status: 'done'
+review_loop_iteration: 0
+followup_review_recommended: false
+baseline_revision: 'd6e8be0bdbcaba15241b319f1bcaff0c73cbed10'
+context:
+  - '{project-root}/docs/implementation-artifacts/epic-5-context.md'
+  - '{project-root}/docs/implementation-artifacts/spec-5-10c-notifications-system.md'
+  - '{project-root}/docs/implementation-artifacts/spec-5-10b-navigation-polish-breadcrumbs-and-quick-search.md'
+warnings: [oversized]
+deferred: []
+---
+
+<intent-contract>
+
+## Intent
+
+**Problem:** The app has no help/documentation surface: no help icon, no user guide, no FAQ, and no contextual tooltips on key controls — new/low-digital-literacy users have no in-app guidance (PRD NFR-1, UX Design Principle 1).
+
+**Approach:** Add a help `q-btn` + menu in `MainLayout.vue`'s header (between the bell and the user profile) linking to a new `/help` page with two `q-tab-panels`: "User Guide" (`q-expansion-item` per module, module-enabled-aware) and "FAQ" (`q-expansion-item` accordion, categorized). Add a bounded, spec-enumerated set of 20 `q-tooltip` elements across existing pages. Reuse-only: no new Appwrite infrastructure.
+
+## Boundaries & Constraints
+
+**Always:**
+
+- Reuse-only: no new tables, server functions, permissions, `.env` vars, or stores. Only `MainLayout.vue`, `routes.js`, and the files listed below (all existing) are modified; `HelpPage.vue` is the only new component.
+- FAQ is a `q-tab` panel on `HelpPage.vue` (one route, one lazy chunk) — not a separate `/help/faq` route.
+- `/help` route: `meta: { requiresAuth: true }`, no `requiresPermission` (help is universal); no `meta.breadcrumb` — `HelpPage.vue` is a top-level page like `DashboardPage.vue`/`ResidentsListPage.vue`, none of which use `Breadcrumbs.vue`, so this story does not introduce that pattern for it.
+- `HelpPage.vue` renders all 12 module sections unconditionally during SSR; after `onMounted` sets `isClient = true`, sections for modules present in `OPTIONAL_MODULE_KEYS` (`farm`, `school`, `vendors`) that are NOT in `settingsStore.modulesEnabled` show a "This module is not enabled. Ask a System Administrator to enable it in Module Management." note instead of instructions (core modules never show this note).
+- Exactly the 20 tooltips enumerated in Code Map, each with the exact text given — no more, no fewer. Use the existing `<q-tooltip>text</q-tooltip>` slotted-child pattern (see `FarmAlertsPage.vue` line 176, `ClassDetailPage.vue` line 186).
+- Nav-section-header tooltips (7) are desktop-only guidance (hover); no code change is needed to "suppress on mobile" beyond the existing pattern, since `q-tooltip` is inherently hover/long-press-triggered and unobtrusive on touch — do not add extra screen-size guards.
+- Quasar components only, Vue 3 `<script setup>`, hardcoded English, no i18n, no emojis.
+
+**Block If:** A new third-party dependency would be required (none identified — all components used are already in Quasar v2.18.5).
+
+**Never:**
+
+- Add Guests/Equipment/Energy help sections, FAQ entries, or tooltips.
+- Touch `notifications-store.js`, `useGlobalSearch.js`, `NotificationPanel.vue` internals, or any Appwrite table/function/permission.
+- Implement UX/perf/mobile audit work (5.10e).
+
+## I/O & Edge-Case Matrix
+
+| Scenario                 | Input / State                                                                        | Expected Output / Behavior                                                                            | Error Handling    |
+| ------------------------ | ------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------- | ----------------- |
+| Help icon click, desktop | `$q.screen.gt.xs`, user clicks help `q-btn`                                          | `q-menu` opens with User Guide / FAQ / About links                                                    | No error expected |
+| Help icon click, mobile  | `$q.screen.xs`, user clicks help `q-btn`                                             | `q-dialog` opens with the same three links                                                            | No error expected |
+| Farm module disabled     | User visits `/help`, `settingsStore.modulesEnabled` excludes `farm` (post-hydration) | Farm section shows "not enabled" note instead of instructions                                         | No error expected |
+| SSR render of `/help`    | Server-side execution                                                                | All 12 sections render with instructions (no disabled-module notes yet); no Appwrite calls fire       | No error expected |
+| FAQ entry click          | User clicks a collapsed `q-expansion-item` FAQ question                              | Entry expands to show its answer; other entries stay collapsed (independent, not accordion-exclusive) | No error expected |
+
+</intent-contract>
+
+## Code Map
+
+- `src/layouts/MainLayout.vue` -- Add a help `q-btn` (`flat round dense icon="help" aria-label="Help"`) immediately after the notifications bell `q-btn` (after line 116, its closing `q-dialog`) and before the user profile `q-btn` (line 119). Add `<q-tooltip>Help, user guide, and FAQ.</q-tooltip>` inside it. On click, toggle `helpMenuOpen` (new `ref(false)`, declared next to `notificationOpen`). Desktop (`$q.screen.gt.xs`): `q-menu v-model="helpMenuOpen"` (`anchor="bottom right" self="top right" :offset="[0,8]"`, same pattern as the notification `q-menu` at lines 100-109) containing a `q-list` with three `q-item`s: "User Guide" (`icon="menu_book"`, `@click="router.push('/help'); helpMenuOpen=false"`), "FAQ" (`icon="quiz"`, `@click="router.push({path:'/help', query:{tab:'faq'}}); helpMenuOpen=false"`), then a `q-separator`, then an inline About block (`q-item-label caption`: `{{ settingsStore.villageName }} · v{{ version }}`). Mobile (`$q.screen.xs`): `q-dialog v-model="helpMenuOpen"` wrapping a `q-card` with the same three items (mirrors the notification bell's `q-menu`/`q-dialog` split at lines 100-116). Add `<q-tooltip>View your notifications. Unread count shown on the badge.</q-tooltip>` as a child of the existing notifications bell `q-btn` (line 87-110, insert as first child after opening tag, before the `q-badge`). Add `<q-tooltip>Search across residents, households, finance, plots, learners, vendors, inventory, and calendar events.</q-tooltip>` as a child of the quick-search `q-input` (inside the `<template #prepend>`-sibling position, i.e. directly inside `<q-input>` at line 23-40, after the `#prepend` template block). Add one `<q-tooltip>{{ TEXT }}</q-tooltip>` child to each of the 7 `q-expansion-item` nav-section headers (Community line 262, Finance line 302, Vendors line 388, Agriculture line 423, School line 528, Services line 652, Administration line 695), with TEXT: Community="Manage households and residents.", Finance="Record transactions, manage inventory, and track lending.", Vendors="Manage suppliers and buyers.", Agriculture="Manage farm plots, crops, plantings, harvests, and sales.", School="Manage learners, classes, attendance, and academic records.", Services="Access the village calendar and file storage.", Administration="Manage users, roles, modules, and village settings."
+- `src/router/routes.js` -- Add `{ path: 'help', component: () => import('pages/help/HelpPage.vue'), meta: { requiresAuth: true } }` as a child of the `/` MainLayout route (insert after the `profile` route, before the finance-settings block, matching existing ordering-by-addition convention).
+- `src/pages/households/HouseholdsListPage.vue` -- Add `<q-tooltip>Create a new household record.</q-tooltip>` as a child of the "Add Household" `q-btn` at line 11-17 (the primary header button, not the empty-state banner button at line 42-48).
+- `src/pages/residents/ResidentsListPage.vue` -- Add `<q-tooltip>Create a new resident record.</q-tooltip>` as a child of the "Add Resident" `q-btn` at line 11-17 (the primary header button, not the empty-state banner button).
+- `src/modules/finance/pages/FinanceTransactionsPage.vue` -- Add `<q-tooltip>Log a new income transaction.</q-tooltip>` to the "Record Income" `q-btn` (line 11-17) and `<q-tooltip>Log a new expense transaction.</q-tooltip>` to the "Record Expense" `q-btn` (line 18-24).
+- `src/pages/inventory/InventoryListPage.vue` -- Add `<q-tooltip>Add a new inventory item to track stock.</q-tooltip>` to the "Add Inventory Item" `q-btn` (line 21-27).
+- `src/modules/farm/pages/PlotsListPage.vue` -- Add `<q-tooltip>Register a new farm plot.</q-tooltip>` to the "Add Plot" `q-btn` (line 15-21).
+- `src/modules/vendors/pages/VendorsListPage.vue` -- Add `<q-tooltip>Register a new supplier or buyer.</q-tooltip>` to the "Add Vendor" `q-btn` (line 19-25).
+- `src/pages/settings/VillageSettingsPage.vue` -- Add `<q-tooltip>The ISO 4217 currency code used for all financial reports (e.g., ZMW for Zambian Kwacha, USD for US Dollar).</q-tooltip>` as a child of the "Default Currency" `q-input` (line 100-113, after the existing `#prepend` template block).
+- `src/pages/admin/StorageSettingsPage.vue` -- Add `<q-tooltip>Override this user's storage quota in GB. Enter 0 to use their role's default quota, or -1 for unlimited storage.</q-tooltip>` as a child of the `quotaOverride` `q-input` inside the `#body-cell-quotaOverride` template (line 61-72ish).
+- `src/modules/school/pages/LongTermGoalsSettingsPage.vue` -- Add `<q-tooltip>The minimum academic average (%) a learner must reach to be considered "at target" for the long-term goal.</q-tooltip>` as a child of the "Benchmark Score Threshold" `q-input` (line 77-93). This substitutes for the originally-suggested "attendance threshold in at-risk settings" field, which does not exist as an editable UI control — `AT_RISK_THRESHOLDS` in `at-risk-utils.js` is a hardcoded constant with no settings page; this is the closest existing configurable-threshold field.
+- `src/pages/help/HelpPage.vue` (NEW) -- `<script setup>` importing `useSettingsStore`, `usePermissions` is not needed (module-enabled check only uses `settingsStore.modulesEnabled`); `ref`, `onMounted`, `useRoute`. State: `isClient = ref(false)`, `activeTab = ref(route.query.tab === 'faq' ? 'faq' : 'guide')`. `onMounted(() => { isClient.value = true })`. Template: `q-page padding` > header (`h4` "Help & Documentation") > `q-tabs v-model="activeTab"` with two `q-tab`s (`name="guide" label="User Guide"`, `name="faq" label="FAQ"`) > `q-tab-panels v-model="activeTab" animated`. Guide panel: a linear `q-card` "Getting Started" section always visible at top (First Login & Setup Wizard reference to 5.11, Sample Data Mode explanation reusing `settingsStore.isUsingSampleData` wording style from `SampleDataBanner.vue`, Navigation basics referencing the drawer/quick-search/breadcrumbs from 5.10b), followed by an `q-list` of `q-expansion-item`s (one per module, `default-opened` false) for: Navigation, Residents & Households, Finance, Inventory, Farm, School, Vendors, Calendar, Storage, Administration, Notifications (11 items after Getting Started = 12 sections total per the intent). Each module `q-expansion-item` for Farm/School/Vendors gets `v-if`-independent rendering (always rendered) but its body shows `v-if="!isClient || settingsStore.modulesEnabled.includes('farm')"` (etc.) the real instructions, else a `q-banner class="bg-warning text-white"` reading "This module is not enabled. Ask a System Administrator to enable it in Module Management." Content per section is short paragraphs + numbered steps (see Tasks below for exact per-section content outline). FAQ panel: `q-list` of `q-expansion-item`s grouped under 5 `q-item-label header` captions (General, Data Entry, Roles & Permissions, Troubleshooting, Sample Data vs Real Data) — exact Q&A text specified in Tasks.
+
+## Tasks & Acceptance
+
+**Execution:**
+
+- `src/pages/help/HelpPage.vue` -- Create per Code Map. Getting Started content: "Getting Started" card with 3 short paragraphs — (1) "First Login & Setup" (reference: an administrator runs the Start Fresh wizard on first login to configure the village profile, admin account, and initial modules — see the Administration section below), (2) "Sample Data Mode" ("If the banner at the top of the app says you are using sample data, all records are placeholders. A System Administrator can switch to real data via Start Fresh - Wipe All Data in the sample-data banner, which permanently deletes the sample records."), (3) "Navigation" ("Use the left drawer to reach each module, the search box in the header to jump directly to a resident, transaction, plot, learner, vendor, or event, and the breadcrumb trail at the top of detail pages to go back up a level."). Module sections (each 2-4 sentences + a short numbered workflow where applicable): Residents & Households ("Add a household from the Households page, then add residents to it from either the household detail page or the Residents page."); Finance ("Record Income/Record Expense buttons on Finance > Transactions log a transaction; Reports shows summaries by category; Inventory and Lending are reached from the Finance section of the drawer."); Inventory ("Inventory items can be added manually or are auto-created when a Finance expense is tagged as an inventory purchase."); Farm ("Plots, crops, plantings, harvests, and sales are managed under the Agriculture section; the Farm Alerts widget on the dashboard surfaces upcoming/overdue harvests, low inventory, underperforming yield, and crop-failure alerts — you'll also get a notification if you hold a farm role."); School ("Manage learners, attendance, test scores, calendars, bell schedules, and timetables under the School section; At-Risk Learners flags students below the attendance or academic thresholds so staff can log an intervention — you'll get a notification if you hold a school role."); Vendors ("Vendors track suppliers and buyers; once added, a vendor appears in the Farm sales buyer dropdown and the Finance expense vendor dropdown."); Calendar ("The village calendar shows all events color-coded by category; only users with the matching role (e.g. Farm Manager for Farm events) or the Events Coordinator/System Administrator role can create or edit events."); Storage ("My Files holds your personal, private uploads; Shared Folders (Finance, Farm, School, Village Documents, Admin Only) are shared with everyone who has read/write access to that module; your quota and usage are shown in the user menu."); Administration ("System Administrators manage user accounts and roles under User Management and Roles & Permissions, enable or disable optional modules under Module Management, and configure village-wide settings (currency, timezone, etc.) under Village Settings."); Notifications ("The bell icon in the header shows unread notifications for events relevant to your role (at-risk learners, farm alerts, new vendors); click a notification to jump to the related page, and use Mark all read to clear the badge."). FAQ entries (exact Q/A, `q-expansion-item` per entry): **General** — Q:"What is this system?" A:"A village management platform for tracking residents, households, finances, inventory, farm activity, school records, vendors, the shared calendar, and file storage."; Q:"How do I log in?" A:"Enter the email and password given to you by your System Administrator on the login page. Accounts are created by administrators — there is no self-service signup."; Q:"How do I change my password?" A:"Open your profile (click your avatar in the header, then My Profile) and use the Change Password option. You'll need to enter your current password."; **Data Entry** — Q:"How do I add a resident?" A:"Go to Residents (or a household's detail page) and click Add Resident."; Q:"How do I record a harvest?" A:"Open the planting's detail page under Farm > Plots and use the harvest entry form."; Q:"How do I enter a test score?" A:"Open the learner's or class's detail page under School and use the test score entry form."; Q:"How do I create a finance transaction?" A:"Go to Finance > Transactions and click Record Income or Record Expense."; **Roles & Permissions** — Q:"What can each role do?" A:"Open Administration > Roles & Permissions to see every role and the exact permissions it grants."; Q:"Why don't I see a module in the menu?" A:"Either your role lacks permission for it, or a System Administrator has disabled that optional module (Farm, School, or Vendors) in Module Management."; Q:"How are roles assigned to me?" A:"A System Administrator assigns one or more roles to your account from User Management > Manage Roles; your permissions are the union of all your assigned roles."; **Troubleshooting** — Q:"A page won't load." A:"Refresh the page. If it still won't load, confirm you have permission to view it — you may see an Unauthorized page instead."; Q:"My changes aren't saving." A:"Check for a red error notification at the top of the screen; it usually explains what's missing. Confirm your internet connection is active."; Q:"Search isn't finding what I expect." A:"Quick search only returns results from modules you have permission to view, and requires at least 2 characters."; Q:"I'm not seeing notifications." A:"Notifications are role-targeted — you'll only see ones relevant to your assigned roles (e.g. at-risk learners for school roles, farm alerts for farm roles)."; **Sample Data vs Real Data** — Q:"How do I switch from sample data to real data?" A:"A System Administrator clicks Start Fresh - Wipe All Data on the sample-data banner and completes the 5-step setup wizard."; Q:"What does Start Fresh - Wipe All Data do?" A:"It permanently deletes all sample records and lets you configure your village profile, admin account, village head, modules, and first household from scratch."; Q:"Is it safe to edit sample data?" A:"Yes — sample data is placeholder content meant for exploration; nothing you do to it affects real village records, since real records only exist after Start Fresh is run."
+- `src/router/routes.js` -- Add the `/help` route per Code Map.
+- `src/layouts/MainLayout.vue` -- Add the help icon, menu/dialog, and the 10 remaining tooltips (bell, search input, 7 nav headers) per Code Map. Import `version` is already present; no new imports needed beyond a `helpMenuOpen` ref.
+- `src/pages/households/HouseholdsListPage.vue`, `src/pages/residents/ResidentsListPage.vue`, `src/modules/finance/pages/FinanceTransactionsPage.vue`, `src/pages/inventory/InventoryListPage.vue`, `src/modules/farm/pages/PlotsListPage.vue`, `src/modules/vendors/pages/VendorsListPage.vue` -- Add the 7 primary-action-button tooltips per Code Map (one `<q-tooltip>` per button; FinanceTransactionsPage.vue gets two).
+- `src/pages/settings/VillageSettingsPage.vue`, `src/pages/admin/StorageSettingsPage.vue`, `src/modules/school/pages/LongTermGoalsSettingsPage.vue` -- Add the 3 complex-form-field tooltips per Code Map.
+
+**Acceptance Criteria:**
+
+- Given a user is on any authenticated page, when they click the header help icon, then a menu/dialog opens (menu on `gt-xs`, dialog on `xs`) with User Guide, FAQ, and About entries, and it does not visually collide with the notifications bell or user profile menu.
+- Given a user clicks "User Guide" in the help menu, when the app navigates, then `/help` renders with the "guide" tab active and all 12 sections present.
+- Given a user clicks "FAQ" in the help menu, when the app navigates, then `/help?tab=faq` renders with the "faq" tab active and at least 3 `q-expansion-item` entries per of the 5 categories (17 total).
+- Given `settingsStore.modulesEnabled` excludes `farm` after hydration, when the user views the Farm section on `/help`, then it shows the "not enabled" banner instead of Farm instructions.
+- Given any of the 20 enumerated elements, when a user hovers/long-presses it, then the exact specified tooltip text appears.
+- Given the header now renders the bell, help icon, and user profile together, when viewed at `xs` width, then all three remain visible with no overflow (quick-search stays hidden at `xs` via its existing `gt-xs` class, unchanged).
+
+## Spec Change Log
+
+## Review Triage Log
+
+### 2026-08-10 — Review pass
+
+- intent_gap: 0
+- bad_spec: 0
+- patch: 1 (low 1, medium 0, high 0)
+- defer: 0
+- reject: 16 (low 0, medium 0, high 0)
+- addressed_findings:
+  - `[low]` `[patch]` Blind Hunter flagged that the new Help dropdown's desktop `q-menu` and mobile `q-dialog` duplicated the same three-item `q-list` markup verbatim, unlike the existing Notifications bell which reuses a single `NotificationPanel` component for both. Fixed by extracting a new `src/components/layout/HelpMenuList.vue` component (emits `navigate`) and referencing it from both the `q-menu` and `q-dialog` in `MainLayout.vue`, with a new `onHelpNavigate(to)` handler mirroring `closeNotificationPanel`'s close-after-navigate behavior. Verified via `npm run lint` and `npm run build` (both passed).
+
+Rejected (16): Blind Hunter — "missing `version` variable declaration" (false; `version` was already imported at the top of `MainLayout.vue` before this diff, confirmed by grep and by `npm run build` succeeding both before and after); "inconsistent tooltip formatting" (Prettier-driven multi-line wrapping for long tooltip text, not a real inconsistency — lint passes clean); "missing tooltips on nav sub-items" (out of scope — spec's Always section caps tooltips at exactly the 20 enumerated); "help route not in drawer nav" (out of scope — intent specifies a header icon, not a drawer nav item); "missing tooltip on user profile button" (out of scope — not one of the 20 enumerated); "SSR always shows enabled content for disabled modules" (intentional per spec's explicit SSR-safety design, matching the original intent's own recommendation to "render all sections during SSR for simplicity, then hide after hydration"); "inconsistent button tooltip placement" (structural necessity — self-closing buttons had to become open/close tags to hold a child tooltip; not an inconsistency); "missing aria-label/role on help menu items" (matches existing `q-item` convention elsewhere in the file, e.g. the user-profile menu, not a regression); "no tooltip on mobile help dialog" (not required by spec); "Add Resident tooltip too generic" and "storage quota tooltip wording unclear" (both match the spec-mandated exact text verbatim — a wording preference, not a defect); "no i18n support" (explicitly out of scope per project-wide convention, already documented in `deferred-work.md`); "missing keyboard navigation/focus indicators" (Quasar `q-menu`/`q-dialog` provide this by default, matching every other menu/dialog in the file). Edge Case Hunter — "screen size between xs and gt.xs unhandled" (false; Quasar's `$q.screen.xs`/`$q.screen.gt.xs` are complementary and mutually exclusive, and this exact `v-if` pattern is the pre-existing Notifications-bell pattern reused verbatim); "invalid `route.query.tab` value unhandled" (false; `activeTab = ref(route.query.tab === 'faq' ? 'faq' : 'guide')` already defaults safely to `'guide'` for any non-`'faq'` value); "`settingsStore.modulesEnabled` non-array crash" (false; the store getter at `src/stores/settings-store.js:154` already defaults to `[]` via `state.settings?.modules_enabled || []`).
+
+## Design Notes
+
+The help menu intentionally mirrors the notifications bell's `q-menu`/`q-dialog` responsive split (5.10c precedent) rather than inventing a new pattern. The FAQ-as-tab decision (over a separate route) avoids a second route/lazy-chunk for a reuse-only story and keeps `/help?tab=faq` deep-linkable via the query param read in `onMounted`/`activeTab`'s initializer. The desktop/mobile Help menu content is shared via a small `HelpMenuList.vue` component (emitting `navigate`), matching the `NotificationPanel.vue` reuse pattern already established for the bell.
+
+## Verification
+
+**Manual checks (if no CLI):**
+
+- Open `/help`, confirm both tabs render with the exact enumerated content and no TBDs.
+- Toggle a module off in Module Management, revisit `/help`, confirm its section shows the "not enabled" note.
+- Resize to `xs` and confirm the header shows menu icon, help icon, bell, and user avatar without overflow, and the help dialog opens correctly.
+- Hover each of the 20 enumerated elements and confirm tooltip text matches exactly.
+
+## Auto Run Result
+
+**Summary:** Implemented Story 5.10d (Help and Documentation) per spec: a header help icon + responsive menu/dialog in `MainLayout.vue` (User Guide / FAQ / About), a new `/help` page with a User Guide tab (12 sections, module-enabled-aware for Farm/School/Vendors) and an FAQ tab (17 Q&A across 5 categories), and exactly 20 enumerated `q-tooltip` elements across `MainLayout.vue` and 9 other existing pages. Reuse-only — no new Appwrite tables, functions, permissions, `.env` vars, or stores.
+
+**Files changed:**
+
+- `src/pages/help/HelpPage.vue` (NEW) — `/help` page: User Guide tab (Getting Started + 11 module sections) and FAQ tab (17 Q&A, 5 categories).
+- `src/components/layout/HelpMenuList.vue` (NEW, added during review patch) — shared User Guide / FAQ / About list, reused by both the desktop `q-menu` and mobile `q-dialog`.
+- `src/router/routes.js` — added `/help` route (`requiresAuth: true`, no `requiresPermission`, no breadcrumb).
+- `src/layouts/MainLayout.vue` — added help `q-btn` + responsive menu/dialog; tooltips on the bell, quick-search input, help icon, and all 7 nav-section headers; `helpMenuOpen` ref and `onHelpNavigate` handler.
+- `src/pages/households/HouseholdsListPage.vue`, `src/pages/residents/ResidentsListPage.vue`, `src/modules/finance/pages/FinanceTransactionsPage.vue`, `src/pages/inventory/InventoryListPage.vue`, `src/modules/farm/pages/PlotsListPage.vue`, `src/modules/vendors/pages/VendorsListPage.vue` — tooltips on the 7 primary action buttons.
+- `src/pages/settings/VillageSettingsPage.vue`, `src/pages/admin/StorageSettingsPage.vue`, `src/modules/school/pages/LongTermGoalsSettingsPage.vue` — tooltips on the 3 complex form fields.
+
+**Review findings breakdown:** 1 patch applied (low severity — deduplicated the Help dropdown's menu markup into a shared `HelpMenuList.vue` component), 0 deferred, 16 rejected (13 from Blind Hunter, 3 from Edge Case Hunter — all either out-of-scope per the spec's explicit boundaries, already-handled by existing code, or factually incorrect claims; see Review Triage Log for the full breakdown). Verification Gap review found no gaps. Intent Alignment audit confirmed the diff faithfully implements the spec's narrowed intent-contract with no unresolved divergence.
+
+**Follow-up review recommendation:** `false` — this pass's only patched finding was low severity (score: 1×low = 1, below the 5 threshold; no high-severity patch).
+
+**Verification performed:** `npm run lint` (pass, both before and after the patch), `npm run build` (pass, both before and after the patch — SPA build succeeded, `HelpPage` and `HelpMenuList` chunks generated). Manual UI checks were not exercised in this pass (no automated test infrastructure exists in this repository per `package.json`'s placeholder `test` script — consistent with all prior Epic 5 stories) — the spec's Verification section's manual checks (opening `/help`, toggling a module off, resizing to `xs`, hovering tooltips) are recommended for a human to spot-check post-merge.
+
+**Residual risks:** No automated tests cover the new page/tooltips (matches the project's pre-existing no-test-infrastructure state, not a regression introduced here). The user guide and FAQ content is hardcoded English per project convention; any future wording changes require direct edits to `HelpPage.vue`.

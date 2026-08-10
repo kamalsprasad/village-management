@@ -136,6 +136,13 @@ const routes = [
           requiresAuth: true,
         },
       },
+      {
+        path: 'help',
+        component: () => import('pages/help/HelpPage.vue'),
+        meta: {
+          requiresAuth: true,
+        },
+      },
       // Admin Settings routes (Story 2.3)
       {
         path: 'admin/finance-settings',

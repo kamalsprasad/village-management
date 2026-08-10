@@ -18,7 +18,9 @@
         icon="add"
         label="Add Plot"
         @click="$router.push('/farm/plots/add')"
-      />
+      >
+        <q-tooltip>Register a new farm plot.</q-tooltip>
+      </q-btn>
     </div>
 
     <!-- Filters -->

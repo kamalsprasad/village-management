@@ -22,7 +22,9 @@
           icon="add"
           label="Add Vendor"
           to="/vendors/add"
-        />
+        >
+          <q-tooltip>Register a new supplier or buyer.</q-tooltip>
+        </q-btn>
       </div>
 
       <!-- Stats -->

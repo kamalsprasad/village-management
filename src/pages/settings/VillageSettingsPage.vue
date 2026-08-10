@@ -109,6 +109,10 @@
                   <template #prepend>
                     <q-icon name="attach_money" />
                   </template>
+                  <q-tooltip
+                    >The ISO 4217 currency code used for all financial reports (e.g., ZMW for
+                    Zambian Kwacha, USD for US Dollar).</q-tooltip
+                  >
                 </q-input>
               </div>
               <div class="col-12 col-md-4">

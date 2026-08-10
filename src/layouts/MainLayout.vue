@@ -37,6 +37,10 @@
             <template #prepend>
               <q-icon name="search" />
             </template>
+            <q-tooltip
+              >Search across residents, households, finance, plots, learners, vendors, inventory,
+              and calendar events.</q-tooltip
+            >
           </q-input>
           <q-menu v-model="searchMenuOpen" fit no-parent-event no-focus no-refocus :offset="[0, 4]">
             <q-list style="min-width: 260px">
@@ -93,6 +97,7 @@
           class="q-mr-sm"
           @click="notificationOpen = !notificationOpen"
         >
+          <q-tooltip>View your notifications. Unread count shown on the badge.</q-tooltip>
           <q-badge v-if="notificationsStore.unreadCount > 0" floating color="red">
             {{ notificationBadgeLabel }}
           </q-badge>
@@ -112,6 +117,36 @@
         <q-dialog v-if="$q.screen.xs" v-model="notificationOpen" full-width position="top">
           <q-card style="max-width: 100vw">
             <NotificationPanel @close="closeNotificationPanel" @navigate="router.push" />
+          </q-card>
+        </q-dialog>
+
+        <!-- Help Dropdown -->
+        <q-btn
+          flat
+          round
+          dense
+          icon="help"
+          aria-label="Help"
+          class="q-mr-sm"
+          @click="helpMenuOpen = !helpMenuOpen"
+        >
+          <q-tooltip>Help, user guide, and FAQ.</q-tooltip>
+
+          <q-menu
+            v-if="$q.screen.gt.xs"
+            v-model="helpMenuOpen"
+            anchor="bottom right"
+            self="top right"
+            :offset="[0, 8]"
+            style="min-width: 220px"
+          >
+            <HelpMenuList @navigate="onHelpNavigate" />
+          </q-menu>
+        </q-btn>
+
+        <q-dialog v-if="$q.screen.xs" v-model="helpMenuOpen" full-width position="top">
+          <q-card style="max-width: 100vw">
+            <HelpMenuList @navigate="onHelpNavigate" />
           </q-card>
         </q-dialog>
 
@@ -267,6 +302,7 @@
           header-class="nav-section-header"
           expand-icon-class="nav-expand-icon"
         >
+          <q-tooltip>Manage households and residents.</q-tooltip>
           <q-item
             v-if="isClient && hasPermission('households:read')"
             clickable
@@ -308,6 +344,7 @@
           header-class="nav-section-header"
           expand-icon-class="nav-expand-icon"
         >
+          <q-tooltip>Record transactions, manage inventory, and track lending.</q-tooltip>
           <q-item
             v-if="hasPermission('finance:read')"
             clickable
@@ -394,6 +431,7 @@
           header-class="nav-section-header"
           expand-icon-class="nav-expand-icon"
         >
+          <q-tooltip>Manage suppliers and buyers.</q-tooltip>
           <q-item clickable to="/vendors" class="nav-sub-item" active-class="nav-sub-item--active">
             <q-item-section avatar class="nav-sub-icon">
               <q-icon name="list" size="16px" />
@@ -429,6 +467,7 @@
           header-class="nav-section-header"
           expand-icon-class="nav-expand-icon"
         >
+          <q-tooltip>Manage farm plots, crops, plantings, harvests, and sales.</q-tooltip>
           <q-item clickable to="/farm" class="nav-sub-item" active-class="nav-sub-item--active">
             <q-item-section avatar class="nav-sub-icon">
               <q-icon name="agriculture" size="16px" />
@@ -534,6 +573,7 @@
           header-class="nav-section-header"
           expand-icon-class="nav-expand-icon"
         >
+          <q-tooltip>Manage learners, classes, attendance, and academic records.</q-tooltip>
           <q-item
             clickable
             to="/school/dashboard"
@@ -658,6 +698,7 @@
           header-class="nav-section-header"
           expand-icon-class="nav-expand-icon"
         >
+          <q-tooltip>Access the village calendar and file storage.</q-tooltip>
           <q-item
             v-if="hasPermission('storage:read')"
             clickable
@@ -701,6 +742,7 @@
           header-class="nav-section-header"
           expand-icon-class="nav-expand-icon"
         >
+          <q-tooltip>Manage users, roles, modules, and village settings.</q-tooltip>
           <q-item
             clickable
             to="/admin/users"
@@ -808,6 +850,7 @@ import { useGlobalSearch } from 'src/composables/useGlobalSearch';
 import { client } from 'src/boot/appwrite';
 import SampleDataBanner from 'src/components/layout/SampleDataBanner.vue';
 import NotificationPanel from 'src/components/layout/NotificationPanel.vue';
+import HelpMenuList from 'src/components/layout/HelpMenuList.vue';
 import { version } from '../../package.json';
 
 const router = useRouter();
@@ -864,6 +907,7 @@ const userMenu = ref(null);
 const userMenuVisible = ref(false);
 const isClient = ref(false); // Track client-side hydration for SSR
 const notificationOpen = ref(false);
+const helpMenuOpen = ref(false);
 
 const notificationBadgeLabel = computed(() => {
   const count = notificationsStore.unreadCount;
@@ -873,6 +917,11 @@ const notificationBadgeLabel = computed(() => {
 
 function closeNotificationPanel() {
   notificationOpen.value = false;
+}
+
+function onHelpNavigate(to) {
+  router.push(to);
+  helpMenuOpen.value = false;
 }
 
 const expandedSections = reactive({

@@ -14,14 +14,18 @@
             icon="add"
             label="Record Income"
             @click="openAddDialog('income')"
-          />
+          >
+            <q-tooltip>Log a new income transaction.</q-tooltip>
+          </q-btn>
           <q-btn
             v-if="isClient && hasPermission('finance:write')"
             color="negative"
             icon="remove"
             label="Record Expense"
             @click="openAddDialog('expense')"
-          />
+          >
+            <q-tooltip>Log a new expense transaction.</q-tooltip>
+          </q-btn>
         </div>
       </div>
 

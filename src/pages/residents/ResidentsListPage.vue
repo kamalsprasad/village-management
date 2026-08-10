@@ -14,7 +14,9 @@
             icon="add"
             label="Add Resident"
             @click="showAddDialog = true"
-          />
+          >
+            <q-tooltip>Create a new resident record.</q-tooltip>
+          </q-btn>
         </div>
       </div>
 

@@ -70,7 +70,12 @@
               hint="GB (-1 = unlimited, 0 = no override)"
               @blur="saveOverride(props.row)"
               @keyup.enter="saveOverride(props.row)"
-            />
+            >
+              <q-tooltip
+                >Override this user's storage quota in GB. Enter 0 to use their role's default
+                quota, or -1 for unlimited storage.</q-tooltip
+              >
+            </q-input>
           </q-td>
         </template>
       </q-table>

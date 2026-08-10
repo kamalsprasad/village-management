@@ -14,7 +14,9 @@
             icon="add"
             label="Add Household"
             @click="showAddDialog = true"
-          />
+          >
+            <q-tooltip>Create a new household record.</q-tooltip>
+          </q-btn>
         </div>
       </div>
 

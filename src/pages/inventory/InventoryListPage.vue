@@ -24,7 +24,9 @@
             icon="add"
             label="Add Inventory Item"
             @click="$router.push('/inventory/add')"
-          />
+          >
+            <q-tooltip>Add a new inventory item to track stock.</q-tooltip>
+          </q-btn>
         </div>
       </div>
 
