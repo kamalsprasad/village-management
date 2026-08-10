@@ -95,7 +95,7 @@
           icon="notifications"
           aria-label="Notifications"
           class="q-mr-sm"
-          @click="notificationOpen = !notificationOpen"
+          @click="$q.screen.xs && (notificationOpen = true)"
         >
           <q-tooltip>View your notifications. Unread count shown on the badge.</q-tooltip>
           <q-badge v-if="notificationsStore.unreadCount > 0" floating color="red">
@@ -104,7 +104,6 @@
 
           <q-menu
             v-if="$q.screen.gt.xs"
-            v-model="notificationOpen"
             anchor="bottom right"
             self="top right"
             :offset="[0, 8]"
@@ -128,13 +127,12 @@
           icon="help"
           aria-label="Help"
           class="q-mr-sm"
-          @click="helpMenuOpen = !helpMenuOpen"
+          @click="$q.screen.xs && (helpMenuOpen = true)"
         >
           <q-tooltip>Help, user guide, and FAQ.</q-tooltip>
 
           <q-menu
             v-if="$q.screen.gt.xs"
-            v-model="helpMenuOpen"
             anchor="bottom right"
             self="top right"
             :offset="[0, 8]"
