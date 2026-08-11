@@ -95,13 +95,21 @@ development_status:
   5-9-module-management-and-configuration: done
   # Story 5.10 split into sub-stories 5.10a-5.10e (user decision 2026-08-04).
   # AC8 (System Health Monitoring) deferred to post-MVP. Parent 5-10 stays
-  # in-progress until all MVP sub-stories (a-e) are done.
+  # in-progress until all MVP sub-stories (a-e, with 5.10e split into e1-e4)
+  # are done.
+  # 5.10e split into sub-stories 5.10e1-5.10e4 (user decision 2026-08-11):
+  #   e1 = AC4 UX polish & accessibility, e2 = AC5 performance, e3 = AC6 mobile
+  #   responsiveness, e4 = AC9 final testing checklist (manual doc; automated
+  #   test infra deferred to a new post-MVP testing epic).
   5-10-system-completion-final-dashboard-integration-and-production-setup: in-progress
   5-10a-dashboard-completion-real-data-wiring: done
   5-10b-navigation-polish-breadcrumbs-and-quick-search: done
   5-10c-notifications-system: done
-  5-10d-help-and-documentation: backlog
-  5-10e-ux-polish-performance-mobile-and-final-testing-checklist: backlog
+  5-10d-help-and-documentation: done
+  5-10e1-ux-polish-and-accessibility: backlog
+  5-10e2-performance-optimization: backlog
+  5-10e3-mobile-responsiveness: backlog
+  5-10e4-final-testing-checklist: backlog
   5-11-start-fresh-production-setup-wizard: done
   5-12-user-management-crud-operations: done
   5-13-role-assignment-and-permissions-management-ui: done
