@@ -19,6 +19,7 @@ export const useInventoryStore = defineStore('inventory', {
     items: [],
     currentItem: null,
     isLoading: false,
+    loaded: false,
     pagination: {
       currentPage: 1,
       itemsPerPage: 25,
@@ -305,7 +306,15 @@ export const useInventoryStore = defineStore('inventory', {
      * @param {number} page - Page number (1-indexed)
      * @param {number} limit - Items per page
      */
-    async fetchItems(page = 1, limit = 25) {
+    async fetchItems(page = 1, limit = 25, force = false) {
+      if (
+        this.loaded &&
+        !force &&
+        page === this.pagination.currentPage &&
+        limit === this.pagination.itemsPerPage
+      ) {
+        return { success: true, data: this.items };
+      }
       this.isLoading = true;
       try {
         const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
@@ -342,6 +351,7 @@ export const useInventoryStore = defineStore('inventory', {
         // Update alert counts
         this.updateAlertCounts();
 
+        this.loaded = true;
         return { success: true, data: items };
       } catch (error) {
         console.error('Error fetching inventory:', error);
@@ -433,7 +443,7 @@ export const useInventoryStore = defineStore('inventory', {
         });
 
         // Refresh the list
-        await this.fetchItems(this.pagination.currentPage, this.pagination.itemsPerPage);
+        await this.fetchItems(this.pagination.currentPage, this.pagination.itemsPerPage, true);
 
         errorHandler.notifySuccess('Inventory item created successfully');
         return { success: true, data: response };
@@ -485,7 +495,7 @@ export const useInventoryStore = defineStore('inventory', {
         });
 
         // Refresh the list
-        await this.fetchItems(this.pagination.currentPage, this.pagination.itemsPerPage);
+        await this.fetchItems(this.pagination.currentPage, this.pagination.itemsPerPage, true);
 
         // Update currentItem if it's the one being edited
         if (this.currentItem && this.currentItem.$id === id) {
@@ -556,7 +566,7 @@ export const useInventoryStore = defineStore('inventory', {
         });
 
         // Refresh the list
-        await this.fetchItems(this.pagination.currentPage, this.pagination.itemsPerPage);
+        await this.fetchItems(this.pagination.currentPage, this.pagination.itemsPerPage, true);
 
         // Update currentItem if it's the one being adjusted
         if (this.currentItem && this.currentItem.$id === itemId) {
@@ -603,7 +613,7 @@ export const useInventoryStore = defineStore('inventory', {
         });
 
         // Refresh the list
-        await this.fetchItems(this.pagination.currentPage, this.pagination.itemsPerPage);
+        await this.fetchItems(this.pagination.currentPage, this.pagination.itemsPerPage, true);
 
         errorHandler.notifySuccess('Inventory item deleted successfully');
         return { success: true };
@@ -1247,6 +1257,7 @@ export const useInventoryStore = defineStore('inventory', {
      */
     setFilters(filters) {
       this.filters = { ...this.filters, ...filters };
+      this.loaded = false;
     },
 
     /**
@@ -1259,6 +1270,7 @@ export const useInventoryStore = defineStore('inventory', {
         search: '',
         sources: [],
       };
+      this.loaded = false;
     },
 
     /**

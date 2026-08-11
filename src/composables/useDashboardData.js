@@ -307,9 +307,6 @@ export function useDashboardData() {
     loading.value = true;
     error.value = null;
 
-    // Small delay for hydration safety, matching the existing DashboardPage pattern.
-    await new Promise((resolve) => setTimeout(resolve, 300));
-
     try {
       await Promise.all([fetchQuickStats(), fetchRecentActivity()]);
     } catch (err) {

@@ -108,7 +108,6 @@ import { computed, ref, onMounted, watch, nextTick } from 'vue';
 //import { useRouter } from 'vue-router';
 import { useInventoryStore } from 'src/stores/inventory-store';
 import { date } from 'quasar';
-import Chart from 'chart.js/auto';
 
 //const router = useRouter();
 const inventoryStore = useInventoryStore();
@@ -189,12 +188,14 @@ function getStatusLabel(status) {
   return labels[status] || status;
 }
 
-function renderChart() {
+async function renderChart() {
   if (!chartCanvas.value || itemsByTypeData.value.length === 0) return;
 
   if (chartInstance) {
     chartInstance.destroy();
   }
+
+  const { default: Chart } = await import('chart.js/auto');
 
   const ctx = chartCanvas.value.getContext('2d');
   const data = itemsByTypeData.value;

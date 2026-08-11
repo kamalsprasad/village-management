@@ -752,7 +752,6 @@
 import { ref, shallowRef, computed, watch, onMounted, onUnmounted, nextTick } from 'vue';
 import { useQuasar } from 'quasar';
 import { useRoute } from 'vue-router';
-import { Chart, registerables } from 'chart.js';
 import { startOfDay, endOfDay, parseISO } from 'date-fns';
 import { useFinanceStore } from '../stores/finance-store';
 import { useInventoryStore } from 'src/stores/inventory-store';
@@ -773,8 +772,17 @@ import {
 import { exportToCSV, exportToPDF, printReport } from 'src/services/ReportExportService';
 import { filterByModuleScope, getAvailableModuleOptions } from 'src/utils/report-scope';
 
-// Register Chart.js components
-Chart.register(...registerables);
+// Chart.js is loaded lazily (see ensureChart()) so it isn't part of this page's
+// own static bundle -- it becomes a shared on-demand chunk instead.
+let ChartCtor = null;
+async function ensureChart() {
+  if (!ChartCtor) {
+    const { Chart, registerables } = await import('chart.js');
+    Chart.register(...registerables);
+    ChartCtor = Chart;
+  }
+  return ChartCtor;
+}
 
 const $q = useQuasar();
 const financeStore = useFinanceStore();
@@ -1139,12 +1147,13 @@ function destroyAllCharts() {
   chartInstances.value = {};
 }
 
-function createChart(canvasRef, config, key) {
+async function createChart(canvasRef, config, key) {
   if (!canvasRef) return;
   // Destroy existing chart on this canvas
   if (chartInstances.value[key]) {
     chartInstances.value[key].destroy();
   }
+  const Chart = await ensureChart();
   chartInstances.value[key] = new Chart(canvasRef.getContext('2d'), {
     ...config,
     options: {

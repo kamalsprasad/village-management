@@ -22,6 +22,7 @@ export const useHouseholdsStore = defineStore('households', {
     households: [],
     currentHousehold: null,
     isLoading: false,
+    loaded: false,
     pagination: {
       currentPage: 1,
       itemsPerPage: 10,
@@ -66,7 +67,15 @@ export const useHouseholdsStore = defineStore('households', {
      * @param {number} page - Page number (1-indexed)
      * @param {number} limit - Items per page (10, 25, 50, 100)
      */
-    async fetchHouseholds(page = 1, limit = 10) {
+    async fetchHouseholds(page = 1, limit = 10, force = false) {
+      if (
+        this.loaded &&
+        !force &&
+        page === this.pagination.currentPage &&
+        limit === this.pagination.itemsPerPage
+      ) {
+        return { success: true, data: this.households };
+      }
       this.isLoading = true;
       try {
         const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
@@ -90,6 +99,7 @@ export const useHouseholdsStore = defineStore('households', {
         // Fetch occupant counts for each household
         await this.enrichHouseholdsWithOccupantCounts();
 
+        this.loaded = true;
         return { success: true, data: response.rows };
       } catch (error) {
         console.error('Error fetching households:', error);
@@ -206,7 +216,7 @@ export const useHouseholdsStore = defineStore('households', {
         });
 
         // Refresh the current page to include new household
-        await this.fetchHouseholds(this.pagination.currentPage, this.pagination.itemsPerPage);
+        await this.fetchHouseholds(this.pagination.currentPage, this.pagination.itemsPerPage, true);
 
         // check if village_settings table exists and has data
         // to avoid notification pop-ups during sample data load
@@ -250,7 +260,7 @@ export const useHouseholdsStore = defineStore('households', {
         });
 
         // Refresh the current page
-        await this.fetchHouseholds(this.pagination.currentPage, this.pagination.itemsPerPage);
+        await this.fetchHouseholds(this.pagination.currentPage, this.pagination.itemsPerPage, true);
 
         // Update currentHousehold if it's the one being edited
         if (this.currentHousehold && this.currentHousehold.$id === householdId) {
@@ -308,7 +318,7 @@ export const useHouseholdsStore = defineStore('households', {
         });
 
         // Refresh the current page
-        await this.fetchHouseholds(this.pagination.currentPage, this.pagination.itemsPerPage);
+        await this.fetchHouseholds(this.pagination.currentPage, this.pagination.itemsPerPage, true);
 
         errorHandler.notifySuccess('Household deleted successfully');
         return { success: true };

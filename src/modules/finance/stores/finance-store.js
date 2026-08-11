@@ -329,8 +329,8 @@ export const useFinanceStore = defineStore('finance', {
       try {
         const [transactionsRes, fundingSourcesRes, categoriesRes] = await Promise.all([
           this.fetchTransactionsForReport(),
-          this.fetchFundingSources(),
-          this.fetchCategories(),
+          this.fetchFundingSources(forceRefresh),
+          this.fetchCategories(forceRefresh),
         ]);
 
         if (!transactionsRes?.success) {
@@ -526,7 +526,10 @@ export const useFinanceStore = defineStore('finance', {
     /**
      * Fetch all funding sources
      */
-    async fetchFundingSources() {
+    async fetchFundingSources(force = false) {
+      if (this.fundingSourcesLoaded && !force) {
+        return { success: true, data: this.fundingSources };
+      }
       this.isFundingSourcesLoading = true;
       try {
         const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
@@ -804,7 +807,10 @@ export const useFinanceStore = defineStore('finance', {
     /**
      * Fetch all categories
      */
-    async fetchCategories() {
+    async fetchCategories(force = false) {
+      if (this.categoriesLoaded && !force) {
+        return { success: true, data: this.categories };
+      }
       this.isCategoriesLoading = true;
       try {
         const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
