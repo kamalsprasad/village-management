@@ -1,6 +1,6 @@
 <template>
   <q-page padding>
-    <div class="q-pa-md">
+    <div>
       <Breadcrumbs :items="breadcrumbItems" :current="currentLabel" />
 
       <!-- Loading State -->
@@ -17,14 +17,16 @@
             <div class="row items-center">
               <div class="col">
                 <h4 class="text-h5 q-my-none">{{ householdsStore.currentHousehold.name }}</h4>
-                <p class="text-grey-7 q-mb-none"><q-chip
-                  :color="getTypeColor(householdsStore.currentHousehold.household_type)"
-                  text-color="white"
-                  dense
-                  class="q-mt-sm"
-                >
-                  {{ householdsStore.currentHousehold.household_type }}
-                </q-chip></p>
+                <p class="text-grey-7 q-mb-none">
+                  <q-chip
+                    :color="getTypeColor(householdsStore.currentHousehold.household_type)"
+                    text-color="white"
+                    dense
+                    class="q-mt-sm"
+                  >
+                    {{ householdsStore.currentHousehold.household_type }}
+                  </q-chip>
+                </p>
               </div>
               <div class="col-auto">
                 <q-btn

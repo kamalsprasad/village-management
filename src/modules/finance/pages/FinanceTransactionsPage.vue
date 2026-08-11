@@ -1,6 +1,6 @@
 <template>
   <q-page padding>
-    <div class="q-pa-md">
+    <div>
       <!-- Page Header -->
       <div class="row items-center q-mb-md">
         <div class="col">

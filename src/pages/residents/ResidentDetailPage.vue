@@ -1,6 +1,6 @@
 <template>
   <q-page padding>
-    <div class="q-pa-md">
+    <div>
       <Breadcrumbs :items="breadcrumbItems" :current="currentLabel" />
 
       <!-- Loading State -->
@@ -17,14 +17,16 @@
             <div class="row items-center">
               <div class="col">
                 <h4 class="text-h5 q-my-none">{{ getFullName(residentsStore.currentResident) }}</h4>
-                <p class="text-grey-7 q-mb-none"><q-chip
-                  :color="residentsStore.currentResident.gender === 'Male' ? 'blue' : 'pink'"
-                  text-color="white"
-                  dense
-                  class="q-mt-sm"
-                >
-                  {{ residentsStore.currentResident.gender }}
-                </q-chip></p>
+                <p class="text-grey-7 q-mb-none">
+                  <q-chip
+                    :color="residentsStore.currentResident.gender === 'Male' ? 'blue' : 'pink'"
+                    text-color="white"
+                    dense
+                    class="q-mt-sm"
+                  >
+                    {{ residentsStore.currentResident.gender }}
+                  </q-chip>
+                </p>
               </div>
               <div class="col-auto">
                 <q-btn

@@ -1,6 +1,6 @@
 <template>
   <q-page padding>
-    <div class="q-pa-md">
+    <div>
       <h4 class="text-h5 q-my-none">Help &amp; Documentation</h4>
 
       <q-tabs v-model="activeTab" class="q-mt-md" dense align="left">
