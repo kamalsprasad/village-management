@@ -179,6 +179,7 @@
                   icon="inventory_2"
                   color="teal"
                   size="xs"
+                  aria-label="View linked inventory item"
                   @click.stop="router.push(`/inventory/${getLinkedInventory(props.row.$id).$id}`)"
                 >
                   <q-tooltip>
@@ -581,6 +582,7 @@
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue';
 import { useQuasar } from 'quasar';
+import { useErrorHandler } from 'src/composables/useErrorHandler';
 import { useRouter, useRoute } from 'vue-router';
 import { format, parseISO } from 'date-fns';
 import { formatDate } from 'src/utils/dateUtils';
@@ -593,6 +595,7 @@ import AddFundingDialog from '../components/AddFundingDialog.vue';
 import LoanPortfolioWidget from '../components/LoanPortfolioWidget.vue';
 
 const $q = useQuasar();
+const errorHandler = useErrorHandler();
 const router = useRouter();
 const route = useRoute();
 const financeStore = useFinanceStore();
@@ -881,10 +884,7 @@ function handleFundingAdded() {
   transactionToFund.value = null;
   // Refresh transactions to show updated amounts
   financeStore.fetchTransactions(financeStore.pagination.currentPage, itemsPerPage.value);
-  $q.notify({
-    type: 'positive',
-    message: 'Funding added successfully',
-  });
+  errorHandler.notifySuccess('Funding added successfully');
 }
 
 // Confirm delete transaction

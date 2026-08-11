@@ -33,6 +33,7 @@
             input-class="text-dark"
             @update:model-value="onSearchInput"
             @focus="onSearchFocus"
+            @keydown="onSearchKeydown"
           >
             <template #prepend>
               <q-icon name="search" />
@@ -71,6 +72,7 @@
                     :key="`${groupName}-${result.id}`"
                     clickable
                     v-close-popup
+                    :class="{ highlighted: flattenedResults[highlightedIndex] === result }"
                     @click="onResultClick(result)"
                   >
                     <q-item-section avatar>
@@ -98,7 +100,14 @@
           @click="$q.screen.xs && (notificationOpen = true)"
         >
           <q-tooltip>View your notifications. Unread count shown on the badge.</q-tooltip>
-          <q-badge v-if="notificationsStore.unreadCount > 0" floating color="red">
+          <q-badge
+            v-if="notificationsStore.unreadCount > 0"
+            floating
+            color="red"
+            role="status"
+            aria-live="polite"
+            :aria-label="`${notificationsStore.unreadCount} unread notifications`"
+          >
             {{ notificationBadgeLabel }}
           </q-badge>
 
@@ -845,6 +854,7 @@ import { useNotificationsStore } from 'src/stores/notifications-store';
 import { usePermissions } from 'src/composables/usePermissions';
 import { usePersonalFilesStore } from 'src/modules/storage/stores/personal-files-store';
 import { useGlobalSearch } from 'src/composables/useGlobalSearch';
+import { useErrorHandler } from 'src/composables/useErrorHandler';
 import { client } from 'src/boot/appwrite';
 import SampleDataBanner from 'src/components/layout/SampleDataBanner.vue';
 import NotificationPanel from 'src/components/layout/NotificationPanel.vue';
@@ -860,8 +870,22 @@ const notificationsStore = useNotificationsStore();
 const personalFilesStore = usePersonalFilesStore();
 const { hasPermission, hasAnyPermission, userStorageQuota } = usePermissions();
 const { searchTerm, groupedResults, loading, search } = useGlobalSearch();
+const errorHandler = useErrorHandler();
 
 const searchMenuOpen = ref(false);
+const highlightedIndex = ref(-1);
+
+// Flatten groupedResults (object keyed by group name -> array of results)
+// into a single ordered list for arrow-key traversal, matching display order.
+const flattenedResults = computed(() => {
+  const flat = [];
+  for (const groupName in groupedResults.value) {
+    for (const result of groupedResults.value[groupName]) {
+      flat.push(result);
+    }
+  }
+  return flat;
+});
 
 const sectionPrefixMap = {
   '/households': 'community',
@@ -882,6 +906,7 @@ function onResultClick(result) {
   if (result?.to) {
     router.push(result.to);
     searchMenuOpen.value = false;
+    highlightedIndex.value = -1;
   }
 }
 
@@ -891,12 +916,42 @@ function onSearchInput(term) {
   // Open the menu for any non-empty input so the "type at least 2 characters"
   // hint is reachable; it only closes once the field is fully cleared.
   searchMenuOpen.value = trimmed.length >= 1;
+  highlightedIndex.value = -1;
 }
 
 function onSearchFocus() {
   const trimmed = (searchTerm.value || '').trim();
   if (trimmed.length >= 1) {
     searchMenuOpen.value = true;
+  }
+}
+
+// Keyboard navigation for the quick-search results menu. Keeps focus in the
+// input (no-focus/no-refocus on the q-menu is preserved) while allowing
+// ArrowDown/ArrowUp/Enter/Escape to drive result selection, matching the
+// behavior a mouse click would produce.
+function onSearchKeydown(evt) {
+  if (!searchMenuOpen.value || flattenedResults.value.length === 0) {
+    if (evt.key === 'Escape') {
+      searchMenuOpen.value = false;
+    }
+    return;
+  }
+
+  if (evt.key === 'ArrowDown') {
+    evt.preventDefault();
+    highlightedIndex.value = (highlightedIndex.value + 1) % flattenedResults.value.length;
+  } else if (evt.key === 'ArrowUp') {
+    evt.preventDefault();
+    highlightedIndex.value =
+      (highlightedIndex.value - 1 + flattenedResults.value.length) % flattenedResults.value.length;
+  } else if (evt.key === 'Enter') {
+    if (highlightedIndex.value >= 0 && highlightedIndex.value < flattenedResults.value.length) {
+      evt.preventDefault();
+      onResultClick(flattenedResults.value[highlightedIndex.value]);
+    }
+  } else if (evt.key === 'Escape') {
+    searchMenuOpen.value = false;
   }
 }
 
@@ -963,6 +1018,7 @@ onMounted(() => {
     );
   } catch (e) {
     console.error('Notification realtime subscribe failed, falling back to polling', e);
+    errorHandler.notifyError('Live notifications unavailable; refreshing periodically instead.');
     notificationPollInterval = setInterval(() => notificationsStore.fetchMyNotifications(), 30000);
   }
 });
@@ -1029,11 +1085,7 @@ async function handleLogout() {
     const result = await authStore.logout();
 
     if (result.success) {
-      $q.notify({
-        type: 'positive',
-        message: 'Logged out successfully',
-        position: 'top',
-      });
+      errorHandler.notifySuccess('Logged out successfully');
       router.push('/auth');
     } else {
       $q.notify({
@@ -1053,6 +1105,11 @@ function formatStorageQuota(bytes) {
 </script>
 
 <style lang="scss">
+/* ─── Quick search keyboard-nav highlight ─────────────────────── */
+.highlighted {
+  background: rgba(0, 0, 0, 0.06);
+}
+
 /* ─── Drawer shell ─────────────────────────────────────────────── */
 .nav-drawer {
   background: #ffffff;

@@ -17,9 +17,9 @@
               <div class="text-h6 q-mb-md">Getting Started</div>
               <p>
                 <strong>First Login &amp; Setup:</strong>
-                An administrator runs the Start Fresh wizard on first login to configure the
-                village profile, admin account, and initial modules. See the Administration section
-                below for details on managing users, roles, and modules.
+                An administrator runs the Start Fresh wizard on first login to configure the village
+                profile, admin account, and initial modules. See the Administration section below
+                for details on managing users, roles, and modules.
               </p>
               <p>
                 <strong>Sample Data Mode:</strong>
@@ -48,9 +48,9 @@
                     expand it and see its pages.
                   </p>
                   <p>
-                    At the top of the screen, the quick-search box lets you jump directly to
-                    records across modules. The bell icon shows notifications relevant to your
-                    roles. Your avatar menu contains profile, settings, and logout options.
+                    At the top of the screen, the quick-search box lets you jump directly to records
+                    across modules. The bell icon shows notifications relevant to your roles. Your
+                    avatar menu contains profile, settings, and logout options.
                   </p>
                 </q-card-section>
               </q-card>
@@ -72,7 +72,10 @@
                   <ol>
                     <li>Open Community &gt; Households and click Add Household.</li>
                     <li>Fill in the household name, type, address, and other details.</li>
-                    <li>Open the new household and click Add Resident, or go to Residents &gt; Add Resident.</li>
+                    <li>
+                      Open the new household and click Add Resident, or go to Residents &gt; Add
+                      Resident.
+                    </li>
                     <li>Enter the resident's name, gender, date of birth, and contact details.</li>
                   </ol>
                 </q-card-section>
@@ -88,8 +91,8 @@
               <q-card flat>
                 <q-card-section>
                   <p>
-                    Use the Record Income and Record Expense buttons on Finance &gt; Transactions
-                    to log a transaction. Reports shows summaries by category. Inventory and Lending
+                    Use the Record Income and Record Expense buttons on Finance &gt; Transactions to
+                    log a transaction. Reports shows summaries by category. Inventory and Lending
                     are reached from the Finance section of the drawer when those modules are
                     enabled.
                   </p>
@@ -97,7 +100,9 @@
                     <li>Go to Finance &gt; Transactions.</li>
                     <li>Click Record Income or Record Expense.</li>
                     <li>Enter the amount, category, date, and optional description.</li>
-                    <li>Save the transaction. It will appear in the list and reports immediately.</li>
+                    <li>
+                      Save the transaction. It will appear in the list and reports immediately.
+                    </li>
                   </ol>
                 </q-card-section>
               </q-card>
@@ -112,13 +117,15 @@
               <q-card flat>
                 <q-card-section>
                   <p>
-                    Inventory items can be added manually or are auto-created when a Finance
-                    expense is tagged as an inventory purchase. Track stock levels, set low-stock
-                    alerts, and adjust quantities as items are used or received.
+                    Inventory items can be added manually or are auto-created when a Finance expense
+                    is tagged as an inventory purchase. Track stock levels, set low-stock alerts,
+                    and adjust quantities as items are used or received.
                   </p>
                   <ol>
                     <li>Go to Finance &gt; Inventory.</li>
-                    <li>Click Add Inventory Item and enter the item name, type, and initial stock.</li>
+                    <li>
+                      Click Add Inventory Item and enter the item name, type, and initial stock.
+                    </li>
                     <li>Use the Adjust action to record stock changes.</li>
                   </ol>
                 </q-card-section>
@@ -143,7 +150,7 @@
                   </ol>
                 </q-card-section>
                 <q-card-section v-else>
-                  <q-banner class="bg-warning text-white" rounded>
+                  <q-banner class="bg-warning text-dark" rounded>
                     This module is not enabled. Ask a System Administrator to enable it in Module
                     Management.
                   </q-banner>
@@ -169,7 +176,7 @@
                   </ol>
                 </q-card-section>
                 <q-card-section v-else>
-                  <q-banner class="bg-warning text-white" rounded>
+                  <q-banner class="bg-warning text-dark" rounded>
                     This module is not enabled. Ask a System Administrator to enable it in Module
                     Management.
                   </q-banner>
@@ -178,13 +185,11 @@
             </q-expansion-item>
 
             <!-- Vendors -->
-            <q-expansion-item
-              icon="storefront"
-              label="Vendors"
-              header-class="text-weight-medium"
-            >
+            <q-expansion-item icon="storefront" label="Vendors" header-class="text-weight-medium">
               <q-card flat>
-                <q-card-section v-if="!isClient || settingsStore.modulesEnabled.includes('vendors')">
+                <q-card-section
+                  v-if="!isClient || settingsStore.modulesEnabled.includes('vendors')"
+                >
                   <p>
                     Vendors track suppliers and buyers. Once added, a vendor appears in the Farm
                     sales buyer dropdown and the Finance expense vendor dropdown. You can also
@@ -197,7 +202,7 @@
                   </ol>
                 </q-card-section>
                 <q-card-section v-else>
-                  <q-banner class="bg-warning text-white" rounded>
+                  <q-banner class="bg-warning text-dark" rounded>
                     This module is not enabled. Ask a System Administrator to enable it in Module
                     Management.
                   </q-banner>
@@ -237,7 +242,10 @@
                   <ol>
                     <li>Open Services &gt; Storage.</li>
                     <li>Upload files to My Files or a shared folder.</li>
-                    <li>Admins can review usage and adjust quotas in Administration &gt; Storage Settings.</li>
+                    <li>
+                      Admins can review usage and adjust quotas in Administration &gt; Storage
+                      Settings.
+                    </li>
                   </ol>
                 </q-card-section>
               </q-card>

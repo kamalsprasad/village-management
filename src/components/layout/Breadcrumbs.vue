@@ -26,7 +26,7 @@
       round
       dense
       icon="arrow_back"
-      aria-label="Back"
+      :aria-label="backAriaLabel"
       class="q-mb-md"
       @click="handleBack"
     />
@@ -55,6 +55,10 @@ const router = useRouter();
 const $q = useQuasar();
 
 const tabletItems = computed(() => props.items.slice(-1));
+
+const backAriaLabel = computed(() =>
+  props.items.length ? `Back to ${props.items[props.items.length - 1].label}` : 'Back',
+);
 
 function handleBack() {
   const target = props.items[props.items.length - 1]?.to;

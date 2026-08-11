@@ -393,6 +393,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue';
 import { useQuasar } from 'quasar';
+import { useErrorHandler } from 'src/composables/useErrorHandler';
 import { usePermissions } from 'src/composables/usePermissions';
 import { useSettingsStore } from 'src/stores/settings-store';
 import { getModuleLabel } from 'src/utils/module-registry';
@@ -402,6 +403,7 @@ import { Query } from 'appwrite';
 //import { useAuthStore } from 'src/stores/auth-store';
 
 const $q = useQuasar();
+const errorHandler = useErrorHandler();
 const settingsStore = useSettingsStore();
 const { hasPermission } = usePermissions();
 //const authStore = useAuthStore();
@@ -646,13 +648,10 @@ async function saveMember() {
 
     await fetchCouncilMembers();
     closeMemberDialog();
-    $q.notify({ type: 'positive', message: 'Council member saved.' });
+    errorHandler.notifySuccess('Council member saved successfully');
   } catch (error) {
     console.error('Failed to save council member:', error);
-    $q.notify({
-      type: 'negative',
-      message: 'Unable to save council member. Please try again.',
-    });
+    errorHandler.notifyError('Unable to save council member. Please try again.');
   }
 }
 
@@ -730,6 +729,7 @@ async function fetchCouncilRoles(forceReload = false) {
   } catch (error) {
     console.error('Error fetching council roles:', error);
     councilRolesError.value = error.message;
+    errorHandler.notifyError('Unable to load council roles. Please try again.');
   } finally {
     isCouncilRolesLoading.value = false;
   }
@@ -792,6 +792,7 @@ async function fetchCouncilMembers() {
   } catch (error) {
     console.error('Failed to load council members:', error);
     councilMembersError.value = 'Unable to load council members. Please try again later.';
+    errorHandler.notifyError('Unable to load council members. Please try again later.');
   } finally {
     isCouncilMembersLoading.value = false;
   }
@@ -938,6 +939,7 @@ async function ensureUserEntry(userId) {
     return normalized;
   } catch (error) {
     console.error('Failed to load user entry:', error);
+    errorHandler.notifyError('Unable to load user account details.');
     return null;
   }
 }
@@ -971,13 +973,10 @@ function confirmDeleteMember(index) {
       );
 
       await fetchCouncilMembers();
-      $q.notify({ type: 'positive', message: 'Council member removed.' });
+      errorHandler.notifySuccess('Council member removed successfully');
     } catch (error) {
       console.error('Failed to remove council member:', error);
-      $q.notify({
-        type: 'negative',
-        message: 'Unable to remove council member. Please try again.',
-      });
+      errorHandler.notifyError('Unable to remove council member. Please try again.');
     }
   });
 }

@@ -27,24 +27,10 @@
       <q-card-section>
         <div class="row q-col-gutter-md items-end">
           <div class="col-12 col-sm-3">
-            <q-input
-              v-model="filters.dateFrom"
-              label="From"
-              type="date"
-              clearable
-              dense
-              outlined
-            />
+            <q-input v-model="filters.dateFrom" label="From" type="date" clearable dense outlined />
           </div>
           <div class="col-12 col-sm-3">
-            <q-input
-              v-model="filters.dateTo"
-              label="To"
-              type="date"
-              clearable
-              dense
-              outlined
-            />
+            <q-input v-model="filters.dateTo" label="To" type="date" clearable dense outlined />
           </div>
           <div class="col-12 col-sm-3">
             <q-select
@@ -101,9 +87,7 @@
         <q-card bordered>
           <q-card-section>
             <div class="text-caption text-grey">Total Quantity</div>
-            <div class="text-h6 text-weight-bold">
-              {{ totalQuantity.toFixed(2) }} kg
-            </div>
+            <div class="text-h6 text-weight-bold">{{ totalQuantity.toFixed(2) }} kg</div>
           </q-card-section>
         </q-card>
       </div>
@@ -123,11 +107,16 @@
         :rows="filteredSales"
         :columns="columns"
         row-key="$id"
-        :loading="farmStore.isSalesLoading"
+        :loading="farmStore.isSalesLoading || loading"
         :pagination="{ rowsPerPage: 25, sortBy: 'sale_date', descending: true }"
         flat
         @row-click="onRowClick"
       >
+        <template #loading>
+          <q-inner-loading showing>
+            <q-spinner-dots size="50px" color="primary" />
+          </q-inner-loading>
+        </template>
         <template #body-cell-sale_date="slotProps">
           <q-td :props="slotProps">{{ formatDate(slotProps.row.sale_date) }}</q-td>
         </template>
@@ -148,9 +137,7 @@
         </template>
         <template #body-cell-payment_status="slotProps">
           <q-td :props="slotProps">
-            <q-badge
-              :color="slotProps.row.payment_status === 'Completed' ? 'positive' : 'warning'"
-            >
+            <q-badge :color="slotProps.row.payment_status === 'Completed' ? 'positive' : 'warning'">
               {{ slotProps.row.payment_status }}
             </q-badge>
           </q-td>
@@ -179,6 +166,9 @@ const inventoryStore = useInventoryStore();
 
 // Local cache of inventory items by $id for crop/item-name lookups
 const inventoryByInventoryId = ref({});
+
+// Loading state (covers the parallel onMounted fetches)
+const loading = ref(true);
 
 const paymentStatusOptions = [
   { label: 'Completed', value: 'Completed' },
@@ -259,14 +249,10 @@ const filteredSales = computed(() => {
     });
   }
   if (filters.value.dateFrom) {
-    rows = rows.filter(
-      (r) => (r.sale_date || '').slice(0, 10) >= filters.value.dateFrom,
-    );
+    rows = rows.filter((r) => (r.sale_date || '').slice(0, 10) >= filters.value.dateFrom);
   }
   if (filters.value.dateTo) {
-    rows = rows.filter(
-      (r) => (r.sale_date || '').slice(0, 10) <= filters.value.dateTo,
-    );
+    rows = rows.filter((r) => (r.sale_date || '').slice(0, 10) <= filters.value.dateTo);
   }
   return rows;
 });
@@ -309,19 +295,24 @@ function onRowClick(evt, row) {
 }
 
 onMounted(async () => {
-  // Load prerequisite reference data in parallel
-  const loaders = [];
-  if (!farmStore.cropsLoaded) loaders.push(farmStore.fetchCrops());
-  loaders.push(farmStore.fetchSales({ limit: 500 }));
-  // Fetch farm produce inventory for crop lookups
-  loaders.push(inventoryStore.fetchFarmProduceItems());
-  await Promise.all(loaders);
+  loading.value = true;
+  try {
+    // Load prerequisite reference data in parallel
+    const loaders = [];
+    if (!farmStore.cropsLoaded) loaders.push(farmStore.fetchCrops());
+    loaders.push(farmStore.fetchSales({ limit: 500 }));
+    // Fetch farm produce inventory for crop lookups
+    loaders.push(inventoryStore.fetchFarmProduceItems());
+    await Promise.all(loaders);
 
-  // Build lookup table
-  const map = {};
-  for (const item of inventoryStore.farmProduceItems || []) {
-    map[item.$id] = item;
+    // Build lookup table
+    const map = {};
+    for (const item of inventoryStore.farmProduceItems || []) {
+      map[item.$id] = item;
+    }
+    inventoryByInventoryId.value = map;
+  } finally {
+    loading.value = false;
   }
-  inventoryByInventoryId.value = map;
 });
 </script>

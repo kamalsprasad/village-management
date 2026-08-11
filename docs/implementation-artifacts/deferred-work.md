@@ -167,6 +167,15 @@ Items deferred during code reviews. Revisit before closing their parent story or
   summary: The `/setup` route (`src/router/routes.js`) requires only `requiresAuth: true`, with no `requiresPermission` check — any authenticated user, not just a System Administrator, can navigate to `/setup` and launch the Start Fresh Wizard.
   evidence: `src/router/routes.js:31-38`. Pre-existing behavior from the original `SetupWizard.vue` (the "Load Sample Data" card had the same exposure); not introduced by 5.11. Owning story: post-MVP RBAC hardening pass.
 
+## Deferred from: code review of spec-5-10e1-ux-polish-and-accessibility (2026-08-11)
+
+- source_spec: `docs/implementation-artifacts/spec-5-10e1-ux-polish-and-accessibility.md`
+  summary: Systemic `bg-info text-white` low-contrast banner pattern (~1.8:1, fails the 4.5:1 WCAG AA threshold) is used across 10+ files (`DashboardPage.vue`, `HouseholdsListPage.vue`, `ResidentsListPage.vue`, `VillageSettingsPage.vue`, `RolesPage.vue`, `FinanceTransactionsPage.vue`, `AddFundingDialog.vue`, `TeachersListPage.vue`, and others) as the dominant info-banner styling convention app-wide.
+  evidence: `src/css/quasar.variables.scss` `$info: #31ccec` against white text computes to roughly 1.8:1 contrast, well under WCAG AA's 4.5:1 minimum for normal text. Unlike the bounded `bg-warning text-white` outlier fix in this story (6 instances corrected to the already-dominant `bg-warning text-dark`), `bg-info text-white` IS the dominant pattern — fixing it would mean re-theming every info banner in the app, a high-blast-radius visual change requiring explicit user sign-off before implementation. Owning story: post-MVP theming pass, or a user-directed follow-up story once a target contrast-safe color/approach is chosen (e.g. `bg-info text-dark`, or a darker `$info` shade).
+- source_spec: `docs/implementation-artifacts/spec-5-10e1-ux-polish-and-accessibility.md`
+  summary: Resolved by this story — the two 5.10b-deferred accessibility items (generic `Breadcrumbs.vue` back-button `aria-label="Back"`, and the quick-search `q-menu`'s `no-focus no-refocus` reducing keyboard reachability) are now fixed.
+  evidence: `src/components/layout/Breadcrumbs.vue` back button now binds a computed `backAriaLabel` derived from `props.items`/`props.current` instead of a hardcoded generic label. `src/layouts/MainLayout.vue` quick-search now has a `highlightedIndex` ref, a flattened `groupedResults` list, and an `@keydown` handler on the search `q-input` supporting `ArrowDown`/`ArrowUp`/`Enter`/`Escape`, while `no-focus no-refocus` remains unchanged on the `q-menu` (the `3152db1` focus-steal fix is preserved). Marked resolved — no further action needed.
+
 ## Deferred from: Story 5.10a planning (2026-08-04)
 
 - source_spec: `docs/implementation-artifacts/spec-5-10a-dashboard-completion-real-data-wiring.md`

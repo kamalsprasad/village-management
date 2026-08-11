@@ -157,7 +157,7 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue';
-import { useQuasar } from 'quasar';
+import { useErrorHandler } from 'src/composables/useErrorHandler';
 import { useDashboardData } from '../composables/useDashboardData';
 import { useAuthStore } from 'src/stores/auth-store';
 import { useSettingsStore } from 'src/stores/settings-store';
@@ -172,7 +172,7 @@ import LowStockAlertsWidget from '../components/LowStockAlertsWidget.vue';
 import TopExpenseCategoriesWidget from '../components/TopExpenseCategoriesWidget.vue';
 import IncomeExpenseTrendWidget from '../components/IncomeExpenseTrendWidget.vue';
 
-const $q = useQuasar();
+const errorHandler = useErrorHandler();
 const authStore = useAuthStore();
 const settingsStore = useSettingsStore();
 const { dashboardData, refresh, isLoading, error, isRestricted, allowedModules } =
@@ -208,16 +208,10 @@ const exportDashboard = async () => {
 
     await exportDashboardToPDF(dashboardData.value, villageName, userName);
 
-    $q.notify({
-      type: 'positive',
-      message: 'Dashboard exported successfully',
-    });
+    errorHandler.notifySuccess('Dashboard exported successfully');
   } catch (err) {
     console.error('Error exporting dashboard:', err);
-    $q.notify({
-      type: 'negative',
-      message: 'Failed to export dashboard',
-    });
+    errorHandler.notifyError('Failed to export dashboard');
   } finally {
     isExporting.value = false;
   }

@@ -304,15 +304,15 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { useQuasar } from 'quasar';
 import { useFarmStore } from '../stores/farm-store';
 import { usePlantingForm, SEED_SOURCES } from '../composables/usePlantingForm';
+import { useErrorHandler } from 'src/composables/useErrorHandler';
 import Breadcrumbs from 'src/components/layout/Breadcrumbs.vue';
 
 const route = useRoute();
 const router = useRouter();
-const $q = useQuasar();
 const farmStore = useFarmStore();
+const errorHandler = useErrorHandler();
 
 const plotId = computed(() => route.params.id);
 const plot = computed(() => farmStore.currentPlot);
@@ -389,8 +389,8 @@ async function loadPageData() {
     }
     await Promise.all([farmStore.fetchPlantingsByPlot(plotId.value), loadData()]);
   } catch (error) {
-    console.error('Error loading page data:', error);
     loadError.value = error.message || 'Failed to load data';
+    errorHandler.handleError(error, 'Failed to load data');
   } finally {
     isLoading.value = false;
   }
@@ -399,18 +399,12 @@ async function loadPageData() {
 async function handleSubmit() {
   const result = await submit();
   if (result.success) {
-    $q.notify({
-      type: 'positive',
-      message: `${farmStore.getCropNameById(form.value.crop_id)} planting recorded on ${plot.value?.name}. Expected harvest: ${form.value.expected_harvest_date || 'TBD'}.`,
-      position: 'top',
-    });
+    errorHandler.notifySuccess(
+      `${farmStore.getCropNameById(form.value.crop_id)} planting recorded on ${plot.value?.name}. Expected harvest: ${form.value.expected_harvest_date || 'TBD'}.`,
+    );
     router.push(`/farm/plots/${plotId.value}`);
   } else {
-    $q.notify({
-      type: 'negative',
-      message: result.error || 'Failed to record planting',
-      position: 'top',
-    });
+    errorHandler.notifyError(result.error || 'Failed to record planting');
   }
 }
 

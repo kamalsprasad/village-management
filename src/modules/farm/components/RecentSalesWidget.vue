@@ -16,7 +16,15 @@
           <q-icon name="point_of_sale" class="q-mr-xs" />
           Recent Sales
         </div>
-        <q-btn flat round dense icon="refresh" :loading="isLoading" @click="refreshData">
+        <q-btn
+          flat
+          round
+          dense
+          icon="refresh"
+          aria-label="Refresh"
+          :loading="isLoading"
+          @click="refreshData"
+        >
           <q-tooltip>Refresh</q-tooltip>
         </q-btn>
       </div>

@@ -656,6 +656,7 @@
 import { ref, computed, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useQuasar } from 'quasar';
+import { useErrorHandler } from 'src/composables/useErrorHandler';
 import { useFarmStore } from '../stores/farm-store';
 import { useInventoryStore } from 'src/stores/inventory-store';
 import { usePermissions } from 'src/composables/usePermissions';
@@ -672,6 +673,7 @@ import EstimatedPriceDialog from '../components/EstimatedPriceDialog.vue';
 const route = useRoute();
 const router = useRouter();
 const $q = useQuasar();
+const errorHandler = useErrorHandler();
 const farmStore = useFarmStore();
 const inventoryStore = useInventoryStore();
 
@@ -1126,11 +1128,9 @@ async function onEntrySubmit(entryData) {
       return;
     }
 
-    $q.notify({
-      type: 'positive',
-      message: isCreateMode ? 'Harvest started' : 'Entry added',
-      position: 'top',
-    });
+    errorHandler.notifySuccess(
+      isCreateMode ? 'Harvest started successfully' : 'Entry added successfully',
+    );
     entryDialogOpen.value = false;
   } finally {
     entrySubmitting.value = false;
@@ -1259,13 +1259,11 @@ async function confirmMarkComplete() {
 
     // Story 3.6: Different success message for continuous picking
     if (result.isContinuousPicking) {
-      $q.notify({
-        type: 'positive',
-        message: 'Harvest completed. You can now record the next harvest.',
-        position: 'top',
-      });
+      errorHandler.notifySuccess(
+        'Harvest completed successfully. You can now record the next harvest.',
+      );
     } else {
-      $q.notify({ type: 'positive', message: 'Harvest completed', position: 'top' });
+      errorHandler.notifySuccess('Harvest completed successfully');
     }
 
     // Re-fetch the inventory row so the footer reflects the latest unit_cost / status.

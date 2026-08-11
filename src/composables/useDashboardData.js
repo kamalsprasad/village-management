@@ -16,11 +16,13 @@ import { tables } from 'src/boot/appwrite';
 import { useSettingsStore } from 'src/stores/settings-store';
 import { useFinanceStore } from 'src/modules/finance/stores/finance-store';
 import { usePermissions } from 'src/composables/usePermissions';
+import { useErrorHandler } from 'src/composables/useErrorHandler';
 
 export function useDashboardData() {
   const settingsStore = useSettingsStore();
   const financeStore = useFinanceStore();
   const { hasPermission } = usePermissions();
+  const errorHandler = useErrorHandler();
 
   const quickStats = ref(null);
   const recentActivity = ref([]);
@@ -48,6 +50,7 @@ export function useDashboardData() {
       };
     } catch (err) {
       console.error('Error fetching household count for dashboard:', err);
+      errorHandler.notifyError('Household stats could not be loaded.');
     }
 
     try {
@@ -63,6 +66,7 @@ export function useDashboardData() {
       };
     } catch (err) {
       console.error('Error fetching resident count for dashboard:', err);
+      errorHandler.notifyError('Resident stats could not be loaded.');
     }
 
     if (hasPermission('finance:read')) {
@@ -81,6 +85,7 @@ export function useDashboardData() {
         }
       } catch (err) {
         console.error('Error fetching finance summary for dashboard:', err);
+        errorHandler.notifyError('Finance summary could not be loaded.');
       }
     }
 
@@ -129,6 +134,7 @@ export function useDashboardData() {
       }));
     } catch (err) {
       console.error('Error fetching households activity for dashboard:', err);
+      errorHandler.notifyError('Recent household activity could not be loaded.');
       return [];
     }
   }
@@ -155,6 +161,7 @@ export function useDashboardData() {
       }));
     } catch (err) {
       console.error('Error fetching residents activity for dashboard:', err);
+      errorHandler.notifyError('Recent resident activity could not be loaded.');
       return [];
     }
   }
@@ -183,6 +190,7 @@ export function useDashboardData() {
       });
     } catch (err) {
       console.error('Error fetching finance activity for dashboard:', err);
+      errorHandler.notifyError('Recent finance activity could not be loaded.');
       return [];
     }
   }
@@ -211,6 +219,7 @@ export function useDashboardData() {
           }));
         } catch (err) {
           console.error('Error fetching harvests activity for dashboard:', err);
+          errorHandler.notifyError('Recent harvest activity could not be loaded.');
           return [];
         }
       })(),
@@ -234,6 +243,7 @@ export function useDashboardData() {
           }));
         } catch (err) {
           console.error('Error fetching farm sales activity for dashboard:', err);
+          errorHandler.notifyError('Recent farm sales activity could not be loaded.');
           return [];
         }
       })(),
@@ -263,6 +273,7 @@ export function useDashboardData() {
       }));
     } catch (err) {
       console.error('Error fetching school activity for dashboard:', err);
+      errorHandler.notifyError('Recent school activity could not be loaded.');
       return [];
     }
   }
@@ -287,6 +298,7 @@ export function useDashboardData() {
       }));
     } catch (err) {
       console.error('Error fetching calendar activity for dashboard:', err);
+      errorHandler.notifyError('Recent calendar activity could not be loaded.');
       return [];
     }
   }

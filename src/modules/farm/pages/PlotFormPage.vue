@@ -34,12 +34,14 @@ import { ref, computed, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useQuasar } from 'quasar';
 import { useFarmStore } from '../stores/farm-store';
+import { useErrorHandler } from 'src/composables/useErrorHandler';
 import Breadcrumbs from 'src/components/layout/Breadcrumbs.vue';
 import PlotForm from '../components/PlotForm.vue';
 
 const route = useRoute();
 const router = useRouter();
 const $q = useQuasar();
+const errorHandler = useErrorHandler();
 const farmStore = useFarmStore();
 
 const breadcrumbItems = computed(() => route.meta.breadcrumb || []);
@@ -90,21 +92,13 @@ async function handleSubmit(formData) {
     if (mode.value === 'create') {
       result = await farmStore.createPlot(formData);
       if (result.success) {
-        $q.notify({
-          type: 'positive',
-          message: 'Plot created successfully',
-          position: 'top',
-        });
+        errorHandler.notifySuccess('Plot created successfully');
         router.push('/farm/plots');
       }
     } else {
       result = await farmStore.updatePlot(plotId.value, formData);
       if (result.success) {
-        $q.notify({
-          type: 'positive',
-          message: 'Plot updated successfully',
-          position: 'top',
-        });
+        errorHandler.notifySuccess('Plot updated successfully');
         router.push(`/farm/plots/${plotId.value}`);
       }
     }

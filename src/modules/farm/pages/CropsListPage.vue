@@ -64,7 +64,7 @@
       :rows="filteredCrops"
       :columns="columns"
       row-key="$id"
-      :loading="farmStore.isCropsLoading"
+      :loading="farmStore.isCropsLoading || loading"
       :pagination="pagination"
       @row-click="onRowClick"
     >
@@ -256,6 +256,9 @@ const categoryFilter = ref(null);
 const typeFilter = ref(null);
 const showInactive = ref(false);
 
+// Loading state (covers initial onMounted fetch)
+const loading = ref(true);
+
 // Filter options
 const categoryOptions = [
   { label: 'Grain', value: 'Grain' },
@@ -361,8 +364,13 @@ function editCrop(cropId) {
 
 // Load data on mount
 onMounted(async () => {
-  if (!farmStore.cropsLoaded) {
-    await farmStore.fetchCrops();
+  loading.value = true;
+  try {
+    if (!farmStore.cropsLoaded) {
+      await farmStore.fetchCrops();
+    }
+  } finally {
+    loading.value = false;
   }
 });
 </script>

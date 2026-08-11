@@ -38,6 +38,7 @@
 import { ref, computed, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useQuasar } from 'quasar';
+import { useErrorHandler } from 'src/composables/useErrorHandler';
 import { useFarmStore } from '../stores/farm-store';
 import Breadcrumbs from 'src/components/layout/Breadcrumbs.vue';
 import CropForm from '../components/CropForm.vue';
@@ -45,6 +46,7 @@ import CropForm from '../components/CropForm.vue';
 const route = useRoute();
 const router = useRouter();
 const $q = useQuasar();
+const errorHandler = useErrorHandler();
 const farmStore = useFarmStore();
 
 const breadcrumbItems = computed(() => route.meta.breadcrumb || []);
@@ -109,10 +111,7 @@ async function handleSubmit(formData) {
     if (mode.value === 'create') {
       result = await farmStore.createCrop(formData);
       if (result.success) {
-        $q.notify({
-          type: 'positive',
-          message: `Crop "${formData.crop_name}" created successfully`,
-        });
+        errorHandler.notifySuccess(`Crop "${formData.crop_name}" created successfully`);
         router.push(`/farm/crops/${result.data.$id}`);
       }
     } else {

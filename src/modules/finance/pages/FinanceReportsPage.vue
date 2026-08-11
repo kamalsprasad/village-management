@@ -4,7 +4,7 @@
       <!-- Page Header -->
       <div class="row items-center q-mb-md">
         <div class="col">
-          <h4 class="q-my-none">Financial Reports</h4>
+          <h4 class="text-h5 q-my-none">Financial Reports</h4>
           <p class="text-grey-7 q-mb-none">Generate and export standard financial reports</p>
         </div>
       </div>

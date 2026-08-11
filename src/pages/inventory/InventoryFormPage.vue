@@ -167,9 +167,11 @@ import { ref, computed, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useInventoryStore } from 'src/stores/inventory-store';
 import { useQuasar } from 'quasar';
+import { useErrorHandler } from 'src/composables/useErrorHandler';
 import Breadcrumbs from 'src/components/layout/Breadcrumbs.vue';
 
 const $q = useQuasar();
+const errorHandler = useErrorHandler();
 const route = useRoute();
 const router = useRouter();
 const inventoryStore = useInventoryStore();
@@ -303,10 +305,9 @@ const onSubmit = async () => {
     }
 
     if (result.success) {
-      $q.notify({
-        type: 'positive',
-        message: `Inventory item ${isEdit.value ? 'updated' : 'created'} successfully`,
-      });
+      errorHandler.notifySuccess(
+        `Inventory item ${isEdit.value ? 'updated' : 'created'} successfully`,
+      );
       router.push('/inventory');
     } else {
       $q.notify({

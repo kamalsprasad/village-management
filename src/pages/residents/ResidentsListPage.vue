@@ -196,6 +196,7 @@
                 icon="visibility"
                 color="primary"
                 size="sm"
+                aria-label="View resident"
                 @click="viewResident(props.row.$id)"
               >
                 <q-tooltip>View Details</q-tooltip>
@@ -208,6 +209,7 @@
                 icon="edit"
                 color="primary"
                 size="sm"
+                aria-label="Edit resident"
                 @click="editResident(props.row)"
               >
                 <q-tooltip>Edit</q-tooltip>
@@ -220,6 +222,7 @@
                 icon="delete"
                 color="negative"
                 size="sm"
+                aria-label="Delete resident"
                 @click="confirmDelete(props.row)"
               >
                 <q-tooltip>Delete</q-tooltip>
@@ -253,6 +256,7 @@
               dense
               round
               icon="chevron_left"
+              aria-label="Previous page"
               :disable="!residentsStore.hasPreviousPage"
               @click="residentsStore.previousPage()"
             />
@@ -261,6 +265,7 @@
               dense
               round
               icon="chevron_right"
+              aria-label="Next page"
               :disable="!residentsStore.hasNextPage"
               @click="residentsStore.nextPage()"
             />

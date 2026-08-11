@@ -114,6 +114,7 @@
             round
             icon="visibility"
             size="sm"
+            aria-label="View learner"
             :to="`/school/learners/${props.row.$id}`"
           >
             <q-tooltip>View Details</q-tooltip>
@@ -125,6 +126,7 @@
             round
             icon="edit"
             size="sm"
+            aria-label="Edit learner"
             :to="`/school/learners/${props.row.$id}/edit`"
           >
             <q-tooltip>Edit</q-tooltip>

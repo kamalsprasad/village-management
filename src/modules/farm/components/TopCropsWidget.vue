@@ -16,7 +16,15 @@
           <q-icon name="emoji_events" class="q-mr-xs" />
           Top Performing Crops
         </div>
-        <q-btn flat round dense icon="refresh" :loading="isLoading" @click="refresh">
+        <q-btn
+          flat
+          round
+          dense
+          icon="refresh"
+          aria-label="Refresh"
+          :loading="isLoading"
+          @click="refresh"
+        >
           <q-tooltip>Refresh</q-tooltip>
         </q-btn>
       </div>

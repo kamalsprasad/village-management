@@ -5,7 +5,7 @@
     </q-card-section>
 
     <!-- No Households Warning (AC4) -->
-    <q-banner v-if="households.length === 0" class="bg-warning text-white">
+    <q-banner v-if="households.length === 0" class="bg-warning text-dark">
       <template #avatar>
         <q-icon name="warning" color="white" />
       </template>

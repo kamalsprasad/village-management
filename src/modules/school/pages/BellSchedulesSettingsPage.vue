@@ -420,7 +420,7 @@
             />
             <q-banner
               v-if="slotsForGradeYear.length > 0"
-              class="bg-warning text-white rounded-borders"
+              class="bg-warning text-dark rounded-borders"
               dense
             >
               <template #avatar><q-icon name="warning" /></template>

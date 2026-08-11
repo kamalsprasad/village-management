@@ -101,10 +101,25 @@
       <!-- Actions column -->
       <template #body-cell-actions="{ row }">
         <q-td class="text-right">
-          <q-btn flat round dense icon="visibility" @click.stop="viewPlot(row.$id)">
+          <q-btn
+            flat
+            round
+            dense
+            icon="visibility"
+            aria-label="View plot"
+            @click.stop="viewPlot(row.$id)"
+          >
             <q-tooltip>View</q-tooltip>
           </q-btn>
-          <q-btn v-if="canWrite" flat round dense icon="edit" @click.stop="editPlot(row.$id)">
+          <q-btn
+            v-if="canWrite"
+            flat
+            round
+            dense
+            icon="edit"
+            aria-label="Edit plot"
+            @click.stop="editPlot(row.$id)"
+          >
             <q-tooltip>Edit</q-tooltip>
           </q-btn>
           <q-btn
@@ -114,6 +129,7 @@
             dense
             color="negative"
             icon="delete"
+            aria-label="Delete plot"
             @click.stop="confirmDelete(row)"
           >
             <q-tooltip>Delete</q-tooltip>
@@ -154,17 +170,17 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
-import { useQuasar } from 'quasar';
 import { useFarmStore } from '../stores/farm-store';
 import { useResidentsStore } from 'src/stores/residents-store';
 import { usePermissions } from 'src/composables/usePermissions';
+import { useErrorHandler } from 'src/composables/useErrorHandler';
 import PlotStatusBadge from '../components/PlotStatusBadge.vue';
 
 const router = useRouter();
-const $q = useQuasar();
 const farmStore = useFarmStore();
 const residentsStore = useResidentsStore();
 const { hasPermission } = usePermissions();
+const errorHandler = useErrorHandler();
 
 // Permissions
 const canWrite = computed(() => hasPermission('farm:write'));
@@ -302,17 +318,9 @@ async function executeDelete() {
   isDeleting.value = false;
 
   if (result.success) {
-    $q.notify({
-      type: 'positive',
-      message: 'Plot deleted successfully',
-      position: 'top',
-    });
+    errorHandler.notifySuccess('Plot deleted successfully');
   } else {
-    $q.notify({
-      type: 'negative',
-      message: result.error || 'Failed to delete plot',
-      position: 'top',
-    });
+    errorHandler.notifyError(result.error || 'Failed to delete plot');
   }
 
   plotToDelete.value = null;

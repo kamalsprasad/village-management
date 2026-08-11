@@ -9,6 +9,9 @@ import { useFinanceStore } from 'src/modules/finance/stores/finance-store';
 import { useNotificationsStore } from 'src/stores/notifications-store';
 import { differenceInCalendarDays, parseISO } from 'date-fns';
 import { getSeason, OVERDUE_GRACE_DAYS } from '../utils/farm-utils';
+import { useErrorHandler } from 'src/composables/useErrorHandler';
+
+const errorHandler = useErrorHandler();
 
 // Story 3.10: Default alert configuration — used if no saved config found
 const DEFAULT_ALERT_CONFIG = {
@@ -351,6 +354,7 @@ export const useFarmStore = defineStore('farm', {
         return { success: true, data: response.rows };
       } catch (error) {
         console.error('Error fetching plots:', error);
+        errorHandler.notifyError('Failed to load plots.');
         return { success: false, error: error.message };
       } finally {
         this.isPlotsLoading = false;
@@ -369,6 +373,7 @@ export const useFarmStore = defineStore('farm', {
         return { success: true, data: response };
       } catch (error) {
         console.error('Error fetching plot:', error);
+        errorHandler.notifyError('Failed to load plot.');
         return { success: false, error: error.message };
       }
     },
@@ -388,6 +393,7 @@ export const useFarmStore = defineStore('farm', {
         return { success: true, data: response };
       } catch (error) {
         console.error('Error creating plot:', error);
+        errorHandler.notifyError('Failed to create plot.');
         return { success: false, error: error.message };
       }
     },
@@ -511,6 +517,7 @@ export const useFarmStore = defineStore('farm', {
         this.cropsLoaded = true;
         return { success: true, data: response.rows };
       } catch (error) {
+        errorHandler.notifyError('Failed to load crops.');
         console.error('Error fetching crops:', error);
         return { success: false, error: error.message };
       } finally {
@@ -612,6 +619,7 @@ export const useFarmStore = defineStore('farm', {
         return { success: true, data: response.rows };
       } catch (error) {
         console.error('Error fetching plantings:', error);
+        errorHandler.notifyError('Failed to load plantings.');
         return { success: false, error: error.message };
       } finally {
         this.isPlantingsLoading = false;
@@ -862,6 +870,7 @@ export const useFarmStore = defineStore('farm', {
         return { success: true, data: response.rows };
       } catch (error) {
         console.error('Error fetching harvests:', error);
+        errorHandler.notifyError('Failed to load harvests.');
         return { success: false, error: error.message };
       } finally {
         this.isHarvestsLoading = false;

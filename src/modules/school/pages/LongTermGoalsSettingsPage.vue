@@ -8,7 +8,15 @@
   <q-page padding>
     <!-- Header -->
     <div class="row items-center q-mb-md">
-      <q-btn flat dense round icon="arrow_back" to="/school/settings" class="q-mr-sm" />
+      <q-btn
+        flat
+        dense
+        round
+        icon="arrow_back"
+        aria-label="Back to School Settings"
+        to="/school/settings"
+        class="q-mr-sm"
+      />
       <div>
         <div class="text-h5">Long-Term Goal</div>
         <div class="text-caption text-grey-7">

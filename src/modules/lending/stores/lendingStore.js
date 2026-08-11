@@ -82,7 +82,6 @@ export const useLendingStore = defineStore('lending', {
 
         return { success: true, data: response.rows };
       } catch (error) {
-        console.error('Error fetching loans:', error);
         errorHandler.notifyError('Failed to load loans.');
         return { success: false, error: error.message };
       } finally {

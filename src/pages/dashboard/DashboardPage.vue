@@ -2,7 +2,7 @@
   <q-page class="dashboard-page q-pa-md">
     <!-- Welcome Banner -->
     <div class="welcome-banner q-mb-lg">
-      <h4 class="text-h4 q-my-none">Welcome back, {{ isClient ? userName : 'User' }}</h4>
+      <h4 class="text-h5 q-my-none">Welcome back, {{ isClient ? userName : 'User' }}</h4>
       <p class="text-subtitle1 text-grey-7 q-mt-sm q-mb-none">
         Here's what's happening in {{ settingsStore.villageName }} today
       </p>
@@ -113,12 +113,14 @@ import FinanceSummaryWidget from 'src/components/dashboard/FinanceSummaryWidget.
 import VendorsSummaryWidget from 'src/modules/vendors/components/VendorsSummaryWidget.vue';
 import { usePermissions } from 'src/composables/usePermissions';
 import { useDashboardData } from 'src/composables/useDashboardData';
+import { useErrorHandler } from 'src/composables/useErrorHandler';
 
 const authStore = useAuthStore();
 const settingsStore = useSettingsStore();
 const calendarStore = useCalendarStore();
 const { hasPermission } = usePermissions();
 const dashboard = useDashboardData();
+const errorHandler = useErrorHandler();
 
 const isClient = ref(false); // Track client-side hydration for SSR
 
@@ -170,6 +172,7 @@ onMounted(async () => {
     }
   } catch (err) {
     console.error('Error fetching guidance counts:', err);
+    errorHandler.notifyError('Some dashboard data could not be loaded.');
   } finally {
     guidanceLoading.value = false;
   }

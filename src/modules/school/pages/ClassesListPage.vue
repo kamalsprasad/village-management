@@ -50,7 +50,7 @@
     </q-card>
 
     <!-- Classes Grid -->
-    <div v-if="classStore.isLoading" class="text-center q-pa-xl">
+    <div v-if="classStore.isLoading || pageLoading" class="text-center q-pa-xl">
       <q-spinner color="primary" size="lg" />
       <div class="text-caption q-mt-sm">Loading school classes...</div>
     </div>
@@ -273,11 +273,19 @@ const selectedTeacherOption = ref(null);
 const allTeachers = ref([]);
 const filteredTeachersList = ref([]);
 
+// Covers the full onMounted sequence (classStore.isLoading only covers fetchClasses)
+const pageLoading = ref(true);
+
 onMounted(async () => {
-  await classStore.fetchClasses();
-  await learnerStore.fetchLearners();
-  await schoolStore.fetchTestScores();
-  await loadTeachers();
+  pageLoading.value = true;
+  try {
+    await classStore.fetchClasses();
+    await learnerStore.fetchLearners();
+    await schoolStore.fetchTestScores();
+    await loadTeachers();
+  } finally {
+    pageLoading.value = false;
+  }
 });
 
 // Load residents that can be assigned as teachers

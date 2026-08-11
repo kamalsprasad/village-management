@@ -112,10 +112,17 @@
         :rows="filteredPlantings"
         :columns="columns"
         row-key="$id"
-        :loading="farmStore.isPlantingsLoading"
+        :loading="farmStore.isPlantingsLoading || loading"
         :pagination="pagination"
         @row-click="(evt, row) => viewPlanting(row)"
       >
+        <!-- Loading state -->
+        <template #loading>
+          <q-inner-loading showing>
+            <q-spinner-dots size="50px" color="primary" />
+          </q-inner-loading>
+        </template>
+
         <!-- Custom column renderers -->
         <template #body-cell-plot="{ row }">
           <q-td>
@@ -217,6 +224,9 @@ const filters = ref({
   status: null,
 });
 
+// Loading state (covers the sequential onMounted fetches)
+const loading = ref(true);
+
 const statusOptions = ['planted', 'growing', 'harvesting', 'completed', 'failed'];
 
 const pagination = ref({
@@ -292,16 +302,21 @@ const filteredPlantings = computed(() => {
 });
 
 onMounted(async () => {
-  // Load plantings
-  if (!farmStore.plantingsLoaded) {
-    await farmStore.fetchPlantings();
-  }
-  // Load supporting data
-  if (!farmStore.plotsLoaded) {
-    await farmStore.fetchPlots();
-  }
-  if (!farmStore.cropsLoaded) {
-    await farmStore.fetchCrops();
+  loading.value = true;
+  try {
+    // Load plantings
+    if (!farmStore.plantingsLoaded) {
+      await farmStore.fetchPlantings();
+    }
+    // Load supporting data
+    if (!farmStore.plotsLoaded) {
+      await farmStore.fetchPlots();
+    }
+    if (!farmStore.cropsLoaded) {
+      await farmStore.fetchCrops();
+    }
+  } finally {
+    loading.value = false;
   }
 });
 

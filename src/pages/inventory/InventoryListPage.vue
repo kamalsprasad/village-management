@@ -30,84 +30,93 @@
         </div>
       </div>
 
-      <!-- Stats Cards -->
-      <div class="row q-col-gutter-md q-mb-md">
-        <div class="col-12 col-sm-6 col-md-3">
-          <q-card flat bordered>
-            <q-card-section class="row items-center">
-              <div class="col">
-                <div class="text-caption text-grey-7">Total Items</div>
-                <div class="text-h4">{{ totalItems }}</div>
-              </div>
-              <q-icon name="inventory_2" size="48px" color="primary" class="col-auto" />
-            </q-card-section>
-          </q-card>
-        </div>
-
-        <div class="col-12 col-sm-6 col-md-3">
-          <q-card flat bordered>
-            <q-card-section class="row items-center">
-              <div class="col">
-                <div class="text-caption text-grey-7">Low Stock</div>
-                <div class="text-h4 text-warning">{{ inventoryStore.lowStockCount }}</div>
-              </div>
-              <q-icon name="warning" size="48px" color="warning" class="col-auto" />
-            </q-card-section>
-          </q-card>
-        </div>
-
-        <div class="col-12 col-sm-6 col-md-3">
-          <q-card flat bordered>
-            <q-card-section class="row items-center">
-              <div class="col">
-                <div class="text-caption text-grey-7">Out of Stock</div>
-                <div class="text-h4 text-negative">{{ inventoryStore.outOfStockCount }}</div>
-              </div>
-              <q-icon name="error" size="48px" color="negative" class="col-auto" />
-            </q-card-section>
-          </q-card>
-        </div>
-
-        <div class="col-12 col-sm-6 col-md-3" v-if="canViewValues">
-          <q-card flat bordered>
-            <q-card-section class="row items-center">
-              <div class="col">
-                <div class="text-caption text-grey-7">Total Value</div>
-                <div class="text-h5">{{ formatCurrency(totalValue) }}</div>
-              </div>
-              <q-icon name="attach_money" size="48px" color="positive" class="col-auto" />
-            </q-card-section>
-          </q-card>
-        </div>
+      <!-- Loading State -->
+      <div v-if="loading" class="q-pa-md">
+        <q-skeleton type="rect" height="60px" class="q-mb-sm" />
+        <q-skeleton type="rect" height="60px" class="q-mb-sm" />
+        <q-skeleton type="rect" height="60px" class="q-mb-sm" />
       </div>
 
-      <!-- Filters -->
-      <InventoryFilters class="q-mb-md" @filter="onFilter" />
+      <template v-else>
+        <!-- Stats Cards -->
+        <div class="row q-col-gutter-md q-mb-md">
+          <div class="col-12 col-sm-6 col-md-3">
+            <q-card flat bordered>
+              <q-card-section class="row items-center">
+                <div class="col">
+                  <div class="text-caption text-grey-7">Total Items</div>
+                  <div class="text-h4">{{ totalItems }}</div>
+                </div>
+                <q-icon name="inventory_2" size="48px" color="primary" class="col-auto" />
+              </q-card-section>
+            </q-card>
+          </div>
 
-      <!-- Inventory Table -->
-      <q-card flat bordered>
-        <q-card-section>
-          <InventoryListTable
-            :items="filteredItems"
-            @row-click="onRowClick"
-            @edit="onEdit"
-            @adjust="onAdjust"
-            @delete="onDelete"
-          />
-        </q-card-section>
+          <div class="col-12 col-sm-6 col-md-3">
+            <q-card flat bordered>
+              <q-card-section class="row items-center">
+                <div class="col">
+                  <div class="text-caption text-grey-7">Low Stock</div>
+                  <div class="text-h4 text-warning">{{ inventoryStore.lowStockCount }}</div>
+                </div>
+                <q-icon name="warning" size="48px" color="warning" class="col-auto" />
+              </q-card-section>
+            </q-card>
+          </div>
 
-        <!-- Pagination -->
-        <q-card-section class="row justify-center" v-if="inventoryStore.totalPages > 1">
-          <q-pagination
-            v-model="currentPage"
-            :max="inventoryStore.totalPages"
-            :max-pages="6"
-            boundary-numbers
-            direction-links
-            @update:model-value="onPageChange"
-          />
-        </q-card-section>
-      </q-card>
+          <div class="col-12 col-sm-6 col-md-3">
+            <q-card flat bordered>
+              <q-card-section class="row items-center">
+                <div class="col">
+                  <div class="text-caption text-grey-7">Out of Stock</div>
+                  <div class="text-h4 text-negative">{{ inventoryStore.outOfStockCount }}</div>
+                </div>
+                <q-icon name="error" size="48px" color="negative" class="col-auto" />
+              </q-card-section>
+            </q-card>
+          </div>
+
+          <div class="col-12 col-sm-6 col-md-3" v-if="canViewValues">
+            <q-card flat bordered>
+              <q-card-section class="row items-center">
+                <div class="col">
+                  <div class="text-caption text-grey-7">Total Value</div>
+                  <div class="text-h5">{{ formatCurrency(totalValue) }}</div>
+                </div>
+                <q-icon name="attach_money" size="48px" color="positive" class="col-auto" />
+              </q-card-section>
+            </q-card>
+          </div>
+        </div>
+
+        <!-- Filters -->
+        <InventoryFilters class="q-mb-md" @filter="onFilter" />
+
+        <!-- Inventory Table -->
+        <q-card flat bordered>
+          <q-card-section>
+            <InventoryListTable
+              :items="filteredItems"
+              @row-click="onRowClick"
+              @edit="onEdit"
+              @adjust="onAdjust"
+              @delete="onDelete"
+            />
+          </q-card-section>
+
+          <!-- Pagination -->
+          <q-card-section class="row justify-center" v-if="inventoryStore.totalPages > 1">
+            <q-pagination
+              v-model="currentPage"
+              :max="inventoryStore.totalPages"
+              :max-pages="6"
+              boundary-numbers
+              direction-links
+              @update:model-value="onPageChange"
+            />
+          </q-card-section>
+        </q-card>
+      </template>
 
       <!-- Stock Adjustment Dialog -->
       <StockAdjustDialog v-model="showAdjustDialog" :item="selectedItem" @submit="onAdjustSubmit" />
@@ -138,6 +147,7 @@ const router = useRouter();
 const inventoryStore = useInventoryStore();
 
 const currentPage = ref(1);
+const loading = ref(true);
 const showAdjustDialog = ref(false);
 const showDeleteDialog = ref(false);
 const selectedItem = ref(null);
@@ -183,7 +193,12 @@ const filteredItems = computed(() => {
 });
 
 onMounted(async () => {
-  await inventoryStore.fetchItems(1, inventoryStore.pagination.itemsPerPage);
+  loading.value = true;
+  try {
+    await inventoryStore.fetchItems(1, inventoryStore.pagination.itemsPerPage);
+  } finally {
+    loading.value = false;
+  }
 });
 
 function onRowClick(row) {

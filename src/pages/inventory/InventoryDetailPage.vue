@@ -437,10 +437,12 @@ import InfoRow from 'src/components/inventory/InfoRow.vue';
 import RecordSaleDialog from 'src/modules/farm/components/RecordSaleDialog.vue';
 import { usePermissions } from 'src/composables/usePermissions';
 import { useQuasar } from 'quasar';
+import { useErrorHandler } from 'src/composables/useErrorHandler';
 import { date } from 'quasar';
 import Breadcrumbs from 'src/components/layout/Breadcrumbs.vue';
 
 const $q = useQuasar();
+const errorHandler = useErrorHandler();
 const route = useRoute();
 const router = useRouter();
 const inventoryStore = useInventoryStore();
@@ -608,11 +610,7 @@ async function onSaleSubmit(saleFormData) {
       });
       return;
     }
-    $q.notify({
-      type: 'positive',
-      message: `Sale recorded: ${saleFormData.quantity_sold}${item.value?.unit || 'kg'} ${cropDisplayName.value} to ${saleFormData.buyer_name} for ZMW ${saleFormData.total_amount.toFixed(2)}`,
-      timeout: 4000,
-    });
+    errorHandler.notifySuccess('Sale recorded successfully');
     showSaleDialog.value = false;
     // Refresh item (quantity changed) and sales history
     await Promise.all([loadItem(), loadSalesHistory()]);

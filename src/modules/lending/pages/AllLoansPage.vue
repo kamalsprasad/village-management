@@ -1,119 +1,126 @@
 <template>
   <div>
-    <!-- Dashboard Stats Widget -->
-    <div class="row q-col-gutter-md q-mb-md">
-      <div class="col-12 col-md-4">
-        <q-card class="bg-primary text-white">
-          <q-card-section>
-            <div class="text-h6">Total Outstanding</div>
-            <div class="text-h4">{{ formatCurrency(lendingStore.dashboardStats.totalOutstanding) }}</div>
-          </q-card-section>
-        </q-card>
-      </div>
-      <div class="col-12 col-md-4">
-        <q-card class="bg-blue-8 text-white">
-          <q-card-section>
-            <div class="text-h6">Active Loans</div>
-            <div class="text-h4">{{ lendingStore.dashboardStats.activeLoansCount }}</div>
-          </q-card-section>
-        </q-card>
-      </div>
-      <div class="col-12 col-md-4">
-        <q-card class="bg-negative text-white" :class="{ 'bg-orange-8': lendingStore.dashboardStats.overdueLoansCount === 0 }">
-          <q-card-section>
-            <div class="text-h6">Overdue Loans</div>
-            <div class="text-h4">{{ lendingStore.dashboardStats.overdueLoansCount }}</div>
-          </q-card-section>
-        </q-card>
-      </div>
+    <!-- Loading State -->
+    <div v-if="pageLoading" class="q-pa-md">
+      <q-skeleton type="rect" height="60px" class="q-mb-sm" />
+      <q-skeleton type="rect" height="60px" class="q-mb-sm" />
+      <q-skeleton type="rect" height="60px" class="q-mb-sm" />
     </div>
 
-    <!-- Filters & Search -->
-    <q-card flat bordered class="q-mb-md">
-      <q-card-section class="row q-col-gutter-md items-center">
+    <template v-else>
+      <!-- Dashboard Stats Widget -->
+      <div class="row q-col-gutter-md q-mb-md">
         <div class="col-12 col-md-4">
-          <q-input
-            v-model="searchQuery"
-            dense
-            outlined
-            placeholder="Search borrower name..."
-            clearable
-          >
-            <template #prepend>
-              <q-icon name="search" />
-            </template>
-          </q-input>
+          <q-card class="bg-primary text-white">
+            <q-card-section>
+              <div class="text-h6">Total Outstanding</div>
+              <div class="text-h4">
+                {{ formatCurrency(lendingStore.dashboardStats.totalOutstanding) }}
+              </div>
+            </q-card-section>
+          </q-card>
         </div>
-        <div class="col-12 col-md-3">
-          <q-select
-            v-model="statusFilter"
-            :options="statusOptions"
-            dense
-            outlined
-            emit-value
-            map-options
-            label="Status"
-            clearable
-          />
+        <div class="col-12 col-md-4">
+          <q-card class="bg-blue-8 text-white">
+            <q-card-section>
+              <div class="text-h6">Active Loans</div>
+              <div class="text-h4">{{ lendingStore.dashboardStats.activeLoansCount }}</div>
+            </q-card-section>
+          </q-card>
         </div>
-      </q-card-section>
-    </q-card>
-
-    <!-- Loans Table -->
-    <q-table
-      :rows="filteredLoans"
-      :columns="columns"
-      row-key="$id"
-      :loading="lendingStore.isLoading"
-      :pagination="initialPagination"
-      flat
-      bordered
-      @row-click="onRowClick"
-      class="cursor-pointer"
-    >
-      <template #body-cell-status="props">
-        <q-td :props="props">
-          <q-chip
-            :color="getStatusColor(props.value)"
-            text-color="white"
-            dense
-            size="sm"
+        <div class="col-12 col-md-4">
+          <q-card
+            class="bg-negative text-white"
+            :class="{ 'bg-orange-8': lendingStore.dashboardStats.overdueLoansCount === 0 }"
           >
-            {{ props.value.toUpperCase() }}
-          </q-chip>
-          <q-badge v-if="isOverdue(props.row)" color="negative" floating rounded>!</q-badge>
-        </q-td>
-      </template>
+            <q-card-section>
+              <div class="text-h6">Overdue Loans</div>
+              <div class="text-h4">{{ lendingStore.dashboardStats.overdueLoansCount }}</div>
+            </q-card-section>
+          </q-card>
+        </div>
+      </div>
 
-      <template #body-cell-principal_amount="props">
-        <q-td :props="props">
-          {{ formatCurrency(props.value) }}
-        </q-td>
-      </template>
+      <!-- Filters & Search -->
+      <q-card flat bordered class="q-mb-md">
+        <q-card-section class="row q-col-gutter-md items-center">
+          <div class="col-12 col-md-4">
+            <q-input
+              v-model="searchQuery"
+              dense
+              outlined
+              placeholder="Search borrower name..."
+              clearable
+            >
+              <template #prepend>
+                <q-icon name="search" />
+              </template>
+            </q-input>
+          </div>
+          <div class="col-12 col-md-3">
+            <q-select
+              v-model="statusFilter"
+              :options="statusOptions"
+              dense
+              outlined
+              emit-value
+              map-options
+              label="Status"
+              clearable
+            />
+          </div>
+        </q-card-section>
+      </q-card>
 
-      <template #body-cell-outstanding_balance="props">
-        <q-td :props="props" :class="{ 'text-negative text-weight-bold': isOverdue(props.row) }">
-          {{ formatCurrency(props.value) }}
-        </q-td>
-      </template>
-      
-      <template #body-cell-interest_rate="props">
-        <q-td :props="props">
-          {{ (props.value / 100).toFixed(2) }}%
-        </q-td>
-      </template>
+      <!-- Loans Table -->
+      <q-table
+        :rows="filteredLoans"
+        :columns="columns"
+        row-key="$id"
+        :loading="lendingStore.isLoading"
+        :pagination="initialPagination"
+        flat
+        bordered
+        @row-click="onRowClick"
+        class="cursor-pointer"
+      >
+        <template #body-cell-status="props">
+          <q-td :props="props">
+            <q-chip :color="getStatusColor(props.value)" text-color="white" dense size="sm">
+              {{ props.value.toUpperCase() }}
+            </q-chip>
+            <q-badge v-if="isOverdue(props.row)" color="negative" floating rounded>!</q-badge>
+          </q-td>
+        </template>
 
-      <template #body-cell-next_due_date="props">
-        <q-td :props="props" :class="{ 'text-negative text-weight-bold': isOverdue(props.row) }">
-          <span v-if="props.value">{{ settingsStore.formatDateTime(props.value, 'PP') }}</span>
-          <span v-else class="text-grey">-</span>
-          
-          <q-tooltip v-if="isOverdue(props.row)" class="bg-negative">
-            {{ getDaysOverdue(props.row) }} days overdue
-          </q-tooltip>
-        </q-td>
-      </template>
-    </q-table>
+        <template #body-cell-principal_amount="props">
+          <q-td :props="props">
+            {{ formatCurrency(props.value) }}
+          </q-td>
+        </template>
+
+        <template #body-cell-outstanding_balance="props">
+          <q-td :props="props" :class="{ 'text-negative text-weight-bold': isOverdue(props.row) }">
+            {{ formatCurrency(props.value) }}
+          </q-td>
+        </template>
+
+        <template #body-cell-interest_rate="props">
+          <q-td :props="props"> {{ (props.value / 100).toFixed(2) }}% </q-td>
+        </template>
+
+        <template #body-cell-next_due_date="props">
+          <q-td :props="props" :class="{ 'text-negative text-weight-bold': isOverdue(props.row) }">
+            <span v-if="props.value">{{ settingsStore.formatDateTime(props.value, 'PP') }}</span>
+            <span v-else class="text-grey">-</span>
+
+            <q-tooltip v-if="isOverdue(props.row)" class="bg-negative">
+              {{ getDaysOverdue(props.row) }} days overdue
+            </q-tooltip>
+          </q-td>
+        </template>
+      </q-table>
+    </template>
   </div>
 </template>
 
@@ -137,63 +144,70 @@ const initialPagination = {
   sortBy: 'next_due_date',
   descending: false,
   page: 1,
-  rowsPerPage: 20
+  rowsPerPage: 20,
 };
 
 const statusOptions = [
   { label: 'Active', value: 'active' },
   { label: 'Fully Repaid', value: 'paid' },
-  { label: 'Defaulted', value: 'defaulted' }
+  { label: 'Defaulted', value: 'defaulted' },
 ];
 
 const columns = [
-  { 
-    name: 'borrower', 
-    label: 'Borrower', 
-    field: row => getBorrowerName(row.borrower_id), 
-    sortable: true, 
-    align: 'left' 
+  {
+    name: 'borrower',
+    label: 'Borrower',
+    field: (row) => getBorrowerName(row.borrower_id),
+    sortable: true,
+    align: 'left',
   },
-  { 
-    name: 'principal_amount', 
-    label: 'Principal', 
-    field: 'principal_amount', 
-    sortable: true, 
-    align: 'right' 
+  {
+    name: 'principal_amount',
+    label: 'Principal',
+    field: 'principal_amount',
+    sortable: true,
+    align: 'right',
   },
-  { 
-    name: 'interest_rate', 
-    label: 'Rate', 
-    field: 'interest_rate', 
-    sortable: true, 
-    align: 'right' 
+  {
+    name: 'interest_rate',
+    label: 'Rate',
+    field: 'interest_rate',
+    sortable: true,
+    align: 'right',
   },
-  { 
-    name: 'status', 
-    label: 'Status', 
-    field: 'status', 
-    sortable: true, 
-    align: 'center' 
+  {
+    name: 'status',
+    label: 'Status',
+    field: 'status',
+    sortable: true,
+    align: 'center',
   },
-  { 
-    name: 'outstanding_balance', 
-    label: 'Balance', 
-    field: 'outstanding_balance', 
-    sortable: true, 
-    align: 'right' 
+  {
+    name: 'outstanding_balance',
+    label: 'Balance',
+    field: 'outstanding_balance',
+    sortable: true,
+    align: 'right',
   },
-  { 
-    name: 'next_due_date', 
-    label: 'Next Due', 
-    field: 'next_due_date', 
-    sortable: true, 
-    align: 'right' 
-  }
+  {
+    name: 'next_due_date',
+    label: 'Next Due',
+    field: 'next_due_date',
+    sortable: true,
+    align: 'right',
+  },
 ];
 
+const pageLoading = ref(true);
+
 onMounted(async () => {
-  await residentsStore.fetchResidents(); // Need residents for names
-  await lendingStore.fetchLoans();
+  pageLoading.value = true;
+  try {
+    await residentsStore.fetchResidents(); // Need residents for names
+    await lendingStore.fetchLoans();
+  } finally {
+    pageLoading.value = false;
+  }
 });
 
 const filteredLoans = computed(() => {
@@ -201,13 +215,13 @@ const filteredLoans = computed(() => {
 
   // Filter by status
   if (statusFilter.value) {
-    filtered = filtered.filter(loan => loan.status === statusFilter.value);
+    filtered = filtered.filter((loan) => loan.status === statusFilter.value);
   }
 
   // Filter by search query (borrower name)
   if (searchQuery.value) {
     const query = searchQuery.value.toLowerCase();
-    filtered = filtered.filter(loan => {
+    filtered = filtered.filter((loan) => {
       const name = getBorrowerName(loan.borrower_id).toLowerCase();
       return name.includes(query);
     });
@@ -248,10 +262,14 @@ function formatCurrency(amountInNgwee) {
 
 function getStatusColor(status) {
   switch (status) {
-    case 'paid': return 'positive';
-    case 'active': return 'primary';
-    case 'defaulted': return 'negative';
-    default: return 'grey';
+    case 'paid':
+      return 'positive';
+    case 'active':
+      return 'primary';
+    case 'defaulted':
+      return 'negative';
+    default:
+      return 'grey';
   }
 }
 

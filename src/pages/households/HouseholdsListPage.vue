@@ -4,7 +4,7 @@
       <!-- Page Header -->
       <div class="row items-center q-mb-md">
         <div class="col">
-          <h4 class="q-my-none">Households</h4>
+          <h4 class="text-h5 q-my-none">Households</h4>
           <p class="text-grey-7 q-mb-none">Manage village households and occupants</p>
         </div>
         <div class="col-auto">
@@ -95,6 +95,7 @@
                 icon="visibility"
                 color="primary"
                 size="sm"
+                aria-label="View household"
                 @click="viewHousehold(props.row.$id)"
               >
                 <q-tooltip>View Details</q-tooltip>
@@ -108,6 +109,7 @@
                   icon="edit"
                   color="primary"
                   size="sm"
+                  aria-label="Edit household"
                   @click="editHousehold(props.row)"
                 >
                   <q-tooltip>Edit</q-tooltip>
@@ -120,6 +122,7 @@
                   icon="delete"
                   color="negative"
                   size="sm"
+                  aria-label="Delete household"
                   @click="confirmDelete(props.row)"
                 >
                   <q-tooltip>Delete</q-tooltip>
@@ -154,6 +157,7 @@
               dense
               round
               icon="chevron_left"
+              aria-label="Previous page"
               :disable="!householdsStore.hasPreviousPage"
               @click="householdsStore.previousPage()"
             />
@@ -162,6 +166,7 @@
               dense
               round
               icon="chevron_right"
+              aria-label="Next page"
               :disable="!householdsStore.hasNextPage"
               @click="householdsStore.nextPage()"
             />

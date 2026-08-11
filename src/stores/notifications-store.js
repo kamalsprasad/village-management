@@ -105,7 +105,6 @@ export const useNotificationsStore = defineStore('notifications', {
           is_read: readIds.has(row.$id),
         }));
       } catch (err) {
-        console.error('Error fetching notifications:', err);
         this.error = err.message || 'Unable to load notifications right now.';
         errorHandler.notifyError('Failed to load notifications.');
       } finally {
