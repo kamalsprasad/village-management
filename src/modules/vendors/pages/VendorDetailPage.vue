@@ -19,7 +19,7 @@
             <Breadcrumbs :items="breadcrumbItems" :current="currentLabel" class="q-mr-sm" />
             <div class="q-ml-sm">
               <div class="row items-center q-gutter-sm">
-                <h1 class="text-h5 text-weight-bold q-my-none">{{ vendor.name }}</h1>
+                <h4 class="text-h5 q-my-none">{{ vendor.name }}</h4>
                 <q-badge
                   :color="getVendorTypeColor(vendor.vendor_type)"
                   :label="vendor.vendor_type"
@@ -35,7 +35,7 @@
                   :label="vendor.is_active !== false ? 'Active' : 'Inactive'"
                 />
               </div>
-              <p class="text-grey-7 q-mt-xs q-mb-none">
+              <p class="text-grey-7 q-mb-none">
                 {{ vendor.business_type || 'No business type set' }}
               </p>
             </div>

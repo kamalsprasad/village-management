@@ -29,8 +29,8 @@
       <div class="row items-center q-mb-lg">
         <Breadcrumbs :items="breadcrumbItems" :current="currentLabel" class="q-mr-md" />
         <div>
-          <h5 class="q-my-none">Record New Planting</h5>
-          <p v-if="plot" class="text-grey q-mt-xs q-mb-none">
+          <h4 class="text-h5 q-my-none">Record New Planting</h4>
+          <p class="text-grey-7 q-mb-none" v-if="plot">
             Plot: <strong>{{ plot.name }}</strong> ({{ formatSize(plot.size_hectares) }} ha total)
           </p>
         </div>

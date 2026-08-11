@@ -11,11 +11,11 @@
       <div class="row items-center">
         <q-btn flat dense round icon="arrow_back" to="/school/dashboard" class="q-mr-sm" />
         <div>
-          <div class="text-h5">Educational Goals</div>
-          <div class="text-caption text-grey-7">
+          <h4 class="text-h5 q-my-none">Educational Goals</h4>
+          <p class="text-grey-7 q-mb-none">
             Progress toward the long-term educational goal
             <span v-if="activeGoal">— {{ activeGoal.goal_name }}</span>
-          </div>
+          </p>
         </div>
       </div>
       <div class="row q-gutter-sm">

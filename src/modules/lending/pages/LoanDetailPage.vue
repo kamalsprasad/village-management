@@ -11,8 +11,8 @@
         <div class="row items-center q-mb-md">
           <Breadcrumbs :items="breadcrumbItems" :current="currentLabel" class="q-mr-sm" />
           <div class="col">
-            <h5 class="q-my-none">Loan Details</h5>
-            <div class="text-subtitle2 text-grey-7">ID: {{ loan.$id }}</div>
+            <h4 class="text-h5 q-my-none">Loan Details</h4>
+            <p class="text-grey-7 q-mb-none">ID: {{ loan.$id }}</p>
           </div>
           <div class="col-auto">
             <q-chip :color="getStatusColor(loan.status)" text-color="white">

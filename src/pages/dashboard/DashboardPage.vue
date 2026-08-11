@@ -3,7 +3,7 @@
     <!-- Welcome Banner -->
     <div class="welcome-banner q-mb-lg">
       <h4 class="text-h5 q-my-none">Welcome back, {{ isClient ? userName : 'User' }}</h4>
-      <p class="text-subtitle1 text-grey-7 q-mt-sm q-mb-none">
+      <p class="text-grey-7 q-mb-none">
         Here's what's happening in {{ settingsStore.villageName }} today
       </p>
     </div>

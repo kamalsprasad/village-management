@@ -18,10 +18,10 @@
     <div class="row items-center q-mb-md">
       <q-btn flat dense round icon="arrow_back" to="/school/dashboard" class="q-mr-sm" />
       <div>
-        <div class="text-h5">School Calendar</div>
-        <div class="text-caption text-grey-7">
+        <h4 class="text-h5 q-my-none">School Calendar</h4>
+        <p class="text-grey-7 q-mb-none">
           Academic terms, school holidays, and calendar events
-        </div>
+        </p>
       </div>
       <q-space />
       <!-- View toggle -->

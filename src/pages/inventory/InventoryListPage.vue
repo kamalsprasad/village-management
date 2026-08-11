@@ -4,8 +4,8 @@
       <!-- Header -->
       <div class="row items-center justify-between q-mb-md">
         <div>
-          <h1 class="text-h5 text-weight-bold q-my-none">Inventory Management</h1>
-          <p class="text-grey-7 q-mt-xs q-mb-none">
+          <h4 class="text-h5 q-my-none">Inventory Management</h4>
+          <p class="text-grey-7 q-mb-none">
             Track and manage village assets and stock levels
           </p>
         </div>

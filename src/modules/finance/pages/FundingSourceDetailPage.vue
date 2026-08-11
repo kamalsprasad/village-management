@@ -4,7 +4,7 @@
     <div class="row items-center q-mb-md">
       <Breadcrumbs :items="breadcrumbItems" :current="currentLabel" class="q-mr-sm" />
       <div class="col">
-        <h4 class="q-my-none q-ml-sm">Funding Source Details</h4>
+        <h4 class="text-h5 q-my-none">Funding Source Details</h4>
       </div>
       <q-btn
         color="primary"

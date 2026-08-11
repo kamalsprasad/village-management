@@ -20,8 +20,8 @@
         <div class="row items-center">
           <Breadcrumbs :items="breadcrumbItems" :current="currentLabel" class="q-mr-sm" />
           <div>
-            <h5 class="q-my-none">Sale Detail</h5>
-            <p class="text-grey-7 q-mt-xs q-mb-none">
+            <h4 class="text-h5 q-my-none">Sale Detail</h4>
+            <p class="text-grey-7 q-mb-none">
               <q-badge
                 :color="sale?.payment_status === 'Completed' ? 'positive' : 'warning'"
                 outline

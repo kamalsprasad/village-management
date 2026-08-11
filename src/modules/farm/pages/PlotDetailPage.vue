@@ -18,11 +18,8 @@
         <div class="row items-center">
           <Breadcrumbs :items="breadcrumbItems" :current="currentLabel" class="q-mr-md" />
           <div>
-            <h5 class="q-my-none row items-center q-gutter-sm">
-              {{ plot.name }}
-              <PlotStatusBadge :status="plot.status" />
-            </h5>
-            <p class="text-grey q-mt-xs q-mb-none">{{ formatSize(plot.size_hectares) }} hectares</p>
+            <h4 class="text-h5 q-my-none">{{ plot.name }} <PlotStatusBadge :status="plot.status" /></h4>
+            <p class="text-grey-7 q-mb-none">{{ formatSize(plot.size_hectares) }} hectares</p>
           </div>
         </div>
         <div class="row q-gutter-sm">

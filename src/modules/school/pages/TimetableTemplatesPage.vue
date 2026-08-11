@@ -12,8 +12,8 @@
     <div class="row items-center q-mb-md">
       <q-btn flat dense round icon="arrow_back" to="/school/settings" class="q-mr-sm" />
       <div>
-        <div class="text-h5">Timetable Templates</div>
-        <div class="text-caption text-grey-7">Build grade-level weekly subject templates</div>
+        <h4 class="text-h5 q-my-none">Timetable Templates</h4>
+        <p class="text-grey-7 q-mb-none">Build grade-level weekly subject templates</p>
       </div>
     </div>
 

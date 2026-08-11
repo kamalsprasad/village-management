@@ -17,8 +17,8 @@
     <div class="row items-center q-mb-md">
       <q-btn flat dense round icon="arrow_back" to="/school/settings" class="q-mr-sm" />
       <div>
-        <div class="text-h5">Academic Terms</div>
-        <div class="text-caption text-grey-7">Configure term names and dates per academic year</div>
+        <h4 class="text-h5 q-my-none">Academic Terms</h4>
+        <p class="text-grey-7 q-mb-none">Configure term names and dates per academic year</p>
       </div>
     </div>
 

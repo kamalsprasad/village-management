@@ -10,8 +10,8 @@
     <div class="row items-center q-mb-lg">
       <Breadcrumbs :items="breadcrumbItems" :current="currentLabel" class="q-mr-sm" />
       <div>
-        <h5 class="q-my-none">{{ pageTitle }}</h5>
-        <p class="text-grey q-mt-xs q-mb-none">{{ pageSubtitle }}</p>
+        <h4 class="text-h5 q-my-none">{{ pageTitle }}</h4>
+        <p class="text-grey-7 q-mb-none">{{ pageSubtitle }}</p>
       </div>
     </div>
 

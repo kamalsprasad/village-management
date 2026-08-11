@@ -2,8 +2,8 @@
   <q-page padding class="storage-settings-page">
     <div class="row items-center justify-between q-mb-md">
       <div>
-        <h1 class="text-h5 text-weight-bold q-my-none">Storage Settings</h1>
-        <p class="text-grey-7 q-mt-xs q-mb-none">
+        <h4 class="text-h5 q-my-none">Storage Settings</h4>
+        <p class="text-grey-7 q-mb-none">
           Storage usage for every user (personal + shared files owned by them), their effective
           quota, and per-user quota overrides.
         </p>

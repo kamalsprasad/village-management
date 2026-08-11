@@ -4,19 +4,14 @@
     <div class="row items-center q-mb-md">
       <Breadcrumbs :items="breadcrumbItems" :current="currentLabel" class="q-mr-sm" />
       <div v-if="cls">
-        <div class="text-h5 row items-center">
-          {{ cls.name }}
-          <q-chip outline color="primary" dense square class="q-ml-sm text-weight-bold">
-            Year {{ cls.academic_year }}
-          </q-chip>
-        </div>
-        <div class="text-caption text-grey-7 row items-center">
+        <h4 class="text-h5 q-my-none">{{ cls.name }} <q-chip outline color="primary" dense square class="q-ml-sm text-weight-bold"> Year {{ cls.academic_year }} </q-chip></h4>
+        <p class="text-grey-7 q-mb-none">
           <span class="q-mr-md"><strong>Grade Level:</strong> {{ cls.grade_level }}</span>
           <span class="q-mr-md"
             ><strong>Class Teacher:</strong> {{ cls.teacher_name || 'No Teacher Assigned' }}</span
           >
           <span><strong>Students Enrolled:</strong> {{ studentCount }}</span>
-        </div>
+        </p>
       </div>
     </div>
 

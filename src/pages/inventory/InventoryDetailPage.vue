@@ -6,8 +6,8 @@
         <div class="row items-center">
           <Breadcrumbs :items="breadcrumbItems" :current="currentLabel" class="q-mr-sm" />
           <div>
-            <h1 class="text-h5 text-weight-bold q-my-none">{{ item?.item_name }}</h1>
-            <p class="text-grey-7 q-mt-xs q-mb-none">
+            <h4 class="text-h5 q-my-none">{{ item?.item_name }}</h4>
+            <p class="text-grey-7 q-mb-none">
               <q-badge :color="getItemColor(item?.item_type)" outline>
                 {{ inventoryStore.getItemTypeLabel(item?.item_type) }}
               </q-badge>

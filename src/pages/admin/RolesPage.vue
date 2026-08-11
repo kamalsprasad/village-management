@@ -1,7 +1,7 @@
 <template>
   <q-page padding>
     <div class="row items-center justify-between q-mb-md">
-      <h4 class="text-h4 q-my-md">Roles & Permissions</h4>
+      <h4 class="text-h5 q-my-none">Roles & Permissions</h4>
     </div>
 
     <q-banner class="bg-info text-white q-mb-md" rounded>

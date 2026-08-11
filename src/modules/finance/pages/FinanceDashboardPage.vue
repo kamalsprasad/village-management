@@ -3,13 +3,13 @@
     <!-- Header -->
     <div class="row items-center justify-between q-mb-md">
       <div>
-        <h1 class="text-h5 q-my-none">Financial Dashboard</h1>
-        <div class="text-caption text-grey">
+        <h4 class="text-h5 q-my-none">Financial Dashboard</h4>
+        <p class="text-grey-7 q-mb-none">
           Overview of village finances, funding, and assets
           <span v-if="dashboardData.summary.lastUpdated" class="q-ml-sm">
             (Updated: {{ formatReportDate(dashboardData.summary.lastUpdated) }})
           </span>
-        </div>
+        </p>
       </div>
 
       <div class="row q-gutter-sm items-center">

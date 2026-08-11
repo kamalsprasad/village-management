@@ -9,11 +9,8 @@
     <!-- Header -->
     <div class="row items-center justify-between q-mb-lg">
       <div>
-        <div class="text-h5 text-weight-bold">
-          <q-icon name="tune" class="q-mr-sm" />
-          Farm Settings
-        </div>
-        <div class="text-caption text-grey">Configure farm alert thresholds and notifications</div>
+        <h4 class="text-h5 q-my-none">Farm Settings</h4>
+        <p class="text-grey-7 q-mb-none">Configure farm alert thresholds and notifications</p>
       </div>
       <q-btn
         flat

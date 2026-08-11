@@ -4,7 +4,7 @@
       <!-- Page Header -->
       <div class="row items-center q-mb-md">
         <div class="col">
-          <h4 class="q-my-none">Finance Settings</h4>
+          <h4 class="text-h5 q-my-none">Finance Settings</h4>
           <p class="text-grey-7 q-mb-none">
             Manage income and expense categories for financial transactions
           </p>

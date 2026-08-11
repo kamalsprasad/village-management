@@ -10,8 +10,8 @@
     <!-- Header -->
     <div class="row items-center justify-between q-mb-md">
       <div>
-        <h5 class="q-my-none">Farm Sales</h5>
-        <p class="text-grey q-mt-xs q-mb-none">Recorded produce sales across all crops</p>
+        <h4 class="text-h5 q-my-none">Farm Sales</h4>
+        <p class="text-grey-7 q-mb-none">Recorded produce sales across all crops</p>
       </div>
       <q-btn
         color="primary"

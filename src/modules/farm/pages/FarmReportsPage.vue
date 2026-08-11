@@ -9,11 +9,8 @@
     <!-- Header -->
     <div class="row items-center justify-between q-mb-md">
       <div>
-        <div class="text-h5 text-weight-bold">
-          <q-icon name="bar_chart" class="q-mr-sm" />
-          Farm Reports
-        </div>
-        <div class="text-caption text-grey">Crop profitability & performance analysis</div>
+        <h4 class="text-h5 q-my-none">Farm Reports</h4>
+        <p class="text-grey-7 q-mb-none">Crop profitability & performance analysis</p>
       </div>
       <q-btn
         flat

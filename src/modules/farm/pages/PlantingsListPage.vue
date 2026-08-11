@@ -10,8 +10,8 @@
     <!-- Header -->
     <div class="row items-center justify-between q-mb-lg">
       <div>
-        <h5 class="q-my-none">Plantings</h5>
-        <p class="text-grey q-mt-xs q-mb-none">
+        <h4 class="text-h5 q-my-none">Plantings</h4>
+        <p class="text-grey-7 q-mb-none">
           {{ activePlantingsCount }} active
           <span v-if="overdueCount" class="text-negative"> · {{ overdueCount }} overdue </span>
         </p>

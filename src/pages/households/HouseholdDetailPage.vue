@@ -16,15 +16,15 @@
           <q-card-section>
             <div class="row items-center">
               <div class="col">
-                <h5 class="q-my-none">{{ householdsStore.currentHousehold.name }}</h5>
-                <q-chip
+                <h4 class="text-h5 q-my-none">{{ householdsStore.currentHousehold.name }}</h4>
+                <p class="text-grey-7 q-mb-none"><q-chip
                   :color="getTypeColor(householdsStore.currentHousehold.household_type)"
                   text-color="white"
                   dense
                   class="q-mt-sm"
                 >
                   {{ householdsStore.currentHousehold.household_type }}
-                </q-chip>
+                </q-chip></p>
               </div>
               <div class="col-auto">
                 <q-btn

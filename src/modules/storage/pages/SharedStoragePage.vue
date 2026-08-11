@@ -2,8 +2,8 @@
   <q-page padding class="shared-storage-page">
     <div class="row items-center justify-between q-mb-md">
       <div>
-        <h1 class="text-h5 text-weight-bold q-my-none">Shared Folders</h1>
-        <p class="text-grey-7 q-mt-xs q-mb-none">
+        <h4 class="text-h5 q-my-none">Shared Folders</h4>
+        <p class="text-grey-7 q-mb-none">
           Module-based folders shared with your role. Files uploaded here count against your
           personal storage quota.
         </p>

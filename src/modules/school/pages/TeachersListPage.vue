@@ -11,10 +11,10 @@
     <!-- Page header -->
     <div class="row items-center justify-between q-mb-md">
       <div>
-        <div class="text-h5">School Faculty & Teachers</div>
-        <div class="text-caption text-grey-7">
+        <h4 class="text-h5 q-my-none">School Faculty & Teachers</h4>
+        <p class="text-grey-7 q-mb-none">
           Browse teaching profiles, class assignments, and master schedules
-        </div>
+        </p>
       </div>
       <q-btn
         v-if="canAdmin"

@@ -8,9 +8,7 @@
     <div class="vendor-form-page">
       <Breadcrumbs :items="breadcrumbItems" :current="currentLabel" class="q-mb-md" />
       <div class="row items-center q-mb-md">
-        <h1 class="text-h5 text-weight-bold q-my-none q-ml-sm">
-          {{ isEditMode ? 'Edit Vendor' : 'Add Vendor' }}
-        </h1>
+        <h4 class="text-h5 q-my-none">{{ isEditMode ? 'Edit Vendor' : 'Add Vendor' }}</h4>
       </div>
 
       <q-card flat bordered>

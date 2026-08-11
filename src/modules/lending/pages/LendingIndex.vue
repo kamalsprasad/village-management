@@ -3,7 +3,7 @@
     <div class="q-pa-md">
       <div class="row items-center q-mb-md">
         <div class="col">
-          <h4 class="q-my-none">Village Lending</h4>
+          <h4 class="text-h5 q-my-none">Village Lending</h4>
           <p class="text-grey-7 q-mb-none">Manage community loans and repayments</p>
         </div>
         <div class="col-auto">

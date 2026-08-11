@@ -18,10 +18,10 @@
         class="q-mr-sm"
       />
       <div>
-        <div class="text-h5">Long-Term Goal</div>
-        <div class="text-caption text-grey-7">
+        <h4 class="text-h5 q-my-none">Long-Term Goal</h4>
+        <p class="text-grey-7 q-mb-none">
           Configure the village's educational goal and target timeline
-        </div>
+        </p>
       </div>
     </div>
 

@@ -9,8 +9,8 @@
     <!-- Header -->
     <div class="row items-center justify-between q-mb-md">
       <div>
-        <h5 class="q-my-none">Harvests</h5>
-        <p class="text-grey q-mt-xs q-mb-none">Manage and view all harvest records</p>
+        <h4 class="text-h5 q-my-none">Harvests</h4>
+        <p class="text-grey-7 q-mb-none">Manage and view all harvest records</p>
       </div>
       <q-btn
         v-if="canWrite"

@@ -12,10 +12,10 @@
         <Breadcrumbs :items="breadcrumbItems" :current="currentLabel" class="q-mr-sm" />
         <div>
           <div class="row items-center">
-            <h5 class="q-my-none">{{ crop.crop_name }}</h5>
+            <h4 class="text-h5 q-my-none">{{ crop.crop_name }}</h4>
             <q-badge v-if="!crop.is_active" color="grey" class="q-ml-md">Inactive</q-badge>
           </div>
-          <p class="text-grey q-mt-xs q-mb-none">
+          <p class="text-grey-7 q-mb-none">
             <CropCategoryBadge :category="crop.category" />
             <CropTypeIndicator :crop-type="crop.crop_type" class="q-ml-sm" />
           </p>

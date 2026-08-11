@@ -8,11 +8,11 @@
   <q-page padding>
     <div class="row items-center q-mb-md">
       <div>
-        <div class="text-h5">At-Risk Learners</div>
-        <div class="text-caption text-grey-7">
+        <h4 class="text-h5 q-my-none">At-Risk Learners</h4>
+        <p class="text-grey-7 q-mb-none">
           Learners below the 90% attendance or academic thresholds
           <span v-if="atRiskStore.lastComputedAt"> · Last updated {{ lastComputedLabel }} </span>
-        </div>
+        </p>
       </div>
       <q-space />
       <q-btn

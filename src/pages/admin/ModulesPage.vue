@@ -2,8 +2,8 @@
   <q-page padding class="modules-page">
     <div class="row items-center justify-between q-mb-md">
       <div>
-        <h1 class="text-h5 text-weight-bold q-my-none">Module Management</h1>
-        <p class="text-grey-7 q-mt-xs q-mb-none">
+        <h4 class="text-h5 q-my-none">Module Management</h4>
+        <p class="text-grey-7 q-mb-none">
           Enable or disable optional modules. Disabling a module hides its navigation, routes, and
           dashboard widgets. No data is deleted.
         </p>

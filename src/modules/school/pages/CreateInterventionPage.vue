@@ -8,16 +8,14 @@
     <Breadcrumbs :items="breadcrumbItems" :current="currentLabel" class="q-mb-md" />
     <div class="row items-center q-mb-md">
       <div>
-        <div class="text-h5">
-          {{ isEditMode ? 'Edit Intervention Plan' : 'Create Intervention Plan' }}
-        </div>
-        <div class="text-caption text-grey-7">
+        <h4 class="text-h5 q-my-none">{{ isEditMode ? 'Edit Intervention Plan' : 'Create Intervention Plan' }}</h4>
+        <p class="text-grey-7 q-mb-none">
           {{
             isEditMode
               ? 'Update the intervention plan details, status, and outcome'
               : 'Specify a structured plan of support for an at-risk learner'
           }}
-        </div>
+        </p>
       </div>
     </div>
 

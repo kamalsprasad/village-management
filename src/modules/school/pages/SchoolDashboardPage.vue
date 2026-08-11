@@ -7,8 +7,8 @@
   <q-page padding>
     <div class="row items-center q-mb-md">
       <div>
-        <div class="text-h5">School Dashboard</div>
-        <div class="text-caption text-grey-7">Learner enrollment and school management</div>
+        <h4 class="text-h5 q-my-none">School Dashboard</h4>
+        <p class="text-grey-7 q-mb-none">Learner enrollment and school management</p>
       </div>
       <q-space />
       <q-btn

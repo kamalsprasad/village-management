@@ -27,8 +27,8 @@
       <div class="row items-center q-mb-md">
         <Breadcrumbs :items="breadcrumbItems" :current="currentLabel" class="q-mr-md" />
         <div>
-          <h5 class="q-my-none">Edit Planting</h5>
-          <p class="text-grey q-mt-xs q-mb-none">{{ cropName }} on {{ plotName }}</p>
+          <h4 class="text-h5 q-my-none">Edit Planting</h4>
+          <p class="text-grey-7 q-mb-none">{{ cropName }} on {{ plotName }}</p>
         </div>
       </div>
 

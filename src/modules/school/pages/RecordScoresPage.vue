@@ -10,8 +10,8 @@
         class="q-mr-sm"
       />
       <div>
-        <div class="text-h5">Record Test Scores</div>
-        <div class="text-caption text-grey-7">Record or update class assessment scores</div>
+        <h4 class="text-h5 q-my-none">Record Test Scores</h4>
+        <p class="text-grey-7 q-mb-none">Record or update class assessment scores</p>
       </div>
     </div>
 

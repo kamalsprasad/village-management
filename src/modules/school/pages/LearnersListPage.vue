@@ -6,10 +6,10 @@
   <q-page padding>
     <div class="row items-center q-mb-md">
       <div>
-        <div class="text-h5">Learners</div>
-        <div class="text-caption text-grey-7">
+        <h4 class="text-h5 q-my-none">Learners</h4>
+        <p class="text-grey-7 q-mb-none">
           {{ learnerStore.filteredLearners.length }} of {{ learnerStore.learners.length }} learners
-        </div>
+        </p>
       </div>
       <q-space />
       <q-btn

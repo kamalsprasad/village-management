@@ -29,11 +29,8 @@
         <div class="row items-center">
           <Breadcrumbs :items="breadcrumbItems" :current="currentLabel" class="q-mr-md" />
           <div>
-            <h5 class="q-my-none row items-center q-gutter-sm">
-              {{ cropName }}
-              <q-badge :color="statusColor">{{ planting.status }}</q-badge>
-            </h5>
-            <p v-if="plot" class="text-grey q-mt-xs q-mb-none">
+            <h4 class="text-h5 q-my-none">{{ cropName }} <q-badge :color="statusColor">{{ planting.status }}</q-badge></h4>
+            <p class="text-grey-7 q-mb-none" v-if="plot">
               Plot: {{ plot.name }} | Planted: {{ formatDate(planting.planting_date) }}
             </p>
           </div>

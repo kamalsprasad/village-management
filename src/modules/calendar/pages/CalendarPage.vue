@@ -23,10 +23,10 @@
     <!-- ── Header ────────────────────────────────────────────────── -->
     <div class="row items-center q-mb-md">
       <div>
-        <div class="text-h5">Village Calendar</div>
-        <div class="text-caption text-grey-7">
+        <h4 class="text-h5 q-my-none">Village Calendar</h4>
+        <p class="text-grey-7 q-mb-none">
           All village events in one place — school, farm harvests, and more
-        </div>
+        </p>
       </div>
       <q-space />
       <!-- Story 5.2: Create Event (permission-gated) -->

@@ -2,8 +2,8 @@
   <q-page padding class="storage-page">
     <div class="row items-center justify-between q-mb-md">
       <div>
-        <h1 class="text-h5 text-weight-bold q-my-none">My Files</h1>
-        <p class="text-grey-7 q-mt-xs q-mb-none">Personal storage — visible only to you.</p>
+        <h4 class="text-h5 q-my-none">My Files</h4>
+        <p class="text-grey-7 q-mb-none">Personal storage — visible only to you.</p>
       </div>
     </div>
 

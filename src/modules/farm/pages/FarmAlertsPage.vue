@@ -9,13 +9,10 @@
     <!-- Header -->
     <div class="row items-center justify-between q-mb-md">
       <div>
-        <div class="text-h5 text-weight-bold">
-          <q-icon name="notifications_active" class="q-mr-sm text-orange" />
-          Farm Alerts
-        </div>
-        <div class="text-caption text-grey">
+        <h4 class="text-h5 q-my-none">Farm Alerts</h4>
+        <p class="text-grey-7 q-mb-none">
           {{ unreadCount }} unread · {{ alerts.length }} total active alerts
-        </div>
+        </p>
       </div>
       <div class="row q-gutter-sm">
         <q-btn

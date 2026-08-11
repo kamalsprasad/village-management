@@ -12,14 +12,11 @@
     <div class="row items-center q-mb-md">
       <Breadcrumbs :items="breadcrumbItems" :current="currentLabel" class="q-mr-sm" />
       <div>
-        <div class="text-h5">
-          <q-skeleton v-if="isLoading" type="text" width="200px" />
-          <span v-else>{{ learnerName || 'Learner' }}</span>
-        </div>
-        <div v-if="learner" class="text-caption text-grey-7">
+        <h4 class="text-h5 q-my-none"><q-skeleton v-if="isLoading" type="text" width="200px" /> <span v-else>{{ learnerName || 'Learner' }}</span></h4>
+        <p class="text-grey-7 q-mb-none" v-if="learner">
           {{ learnerClassName }} ·
           <EnrollmentStatusBadge :status="learner.enrollment_status" />
-        </div>
+        </p>
       </div>
       <q-space />
       <q-btn

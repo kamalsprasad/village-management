@@ -9,8 +9,8 @@
     <!-- Header -->
     <div class="row items-center justify-between q-mb-lg">
       <div>
-        <h5 class="q-my-none">Crop Database</h5>
-        <p class="text-grey q-mt-xs q-mb-none">Manage available crops for your region</p>
+        <h4 class="text-h5 q-my-none">Crop Database</h4>
+        <p class="text-grey-7 q-mb-none">Manage available crops for your region</p>
       </div>
       <q-btn
         v-if="hasPermission('farm:admin')"

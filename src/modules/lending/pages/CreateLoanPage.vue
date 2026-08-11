@@ -3,7 +3,7 @@
     <div class="q-pa-md max-width-800 q-mx-auto">
       <Breadcrumbs :items="breadcrumbItems" :current="currentLabel" class="q-mb-md" />
       <div class="row items-center q-mb-md">
-        <h5 class="q-my-none">Create New Loan</h5>
+        <h4 class="text-h5 q-my-none">Create New Loan</h4>
       </div>
 
       <q-form ref="loanForm" @submit="submitLoan">

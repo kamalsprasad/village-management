@@ -8,14 +8,14 @@
     <Breadcrumbs :items="breadcrumbItems" :current="currentLabel" class="q-mb-md" />
     <div class="row items-center q-mb-md">
       <div>
-        <div class="text-h5">{{ isEditMode ? 'Edit Learner' : 'Enroll Learner' }}</div>
-        <div class="text-caption text-grey-7">
+        <h4 class="text-h5 q-my-none">{{ isEditMode ? 'Edit Learner' : 'Enroll Learner' }}</h4>
+        <p class="text-grey-7 q-mb-none">
           {{
             isEditMode
               ? 'Update enrollment details, change class, or update status'
               : 'Select a resident to enroll as a learner'
           }}
-        </div>
+        </p>
       </div>
     </div>
 

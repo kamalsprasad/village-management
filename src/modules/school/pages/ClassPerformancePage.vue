@@ -10,10 +10,10 @@
         class="q-mr-sm"
       />
       <div>
-        <div class="text-h5">Class Performance Analysis</div>
-        <div class="text-caption text-grey-7">
+        <h4 class="text-h5 q-my-none">Class Performance Analysis</h4>
+        <p class="text-grey-7 q-mb-none">
           Detailed grade-level assessment performance and analysis
-        </div>
+        </p>
       </div>
       <q-space />
       <q-btn

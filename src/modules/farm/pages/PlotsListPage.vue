@@ -9,8 +9,8 @@
     <!-- Header -->
     <div class="row items-center justify-between q-mb-lg">
       <div>
-        <h5 class="q-my-none">Farm Plots</h5>
-        <p class="text-grey q-mt-xs q-mb-none">Manage all farm plots and assignments</p>
+        <h4 class="text-h5 q-my-none">Farm Plots</h4>
+        <p class="text-grey-7 q-mb-none">Manage all farm plots and assignments</p>
       </div>
       <q-btn
         v-if="canWrite"

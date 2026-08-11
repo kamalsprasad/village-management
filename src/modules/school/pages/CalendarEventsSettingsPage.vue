@@ -16,10 +16,10 @@
     <div class="row items-center q-mb-md">
       <q-btn flat dense round icon="arrow_back" to="/school/settings" class="q-mr-sm" />
       <div>
-        <div class="text-h5">Holidays &amp; Calendar Events</div>
-        <div class="text-caption text-grey-7">
+        <h4 class="text-h5 q-my-none">Holidays &amp; Calendar Events</h4>
+        <p class="text-grey-7 q-mb-none">
           Mark school closures, public holidays, PD days, and exam blocks
-        </div>
+        </p>
       </div>
     </div>
 

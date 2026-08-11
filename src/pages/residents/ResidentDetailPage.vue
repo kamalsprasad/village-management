@@ -16,15 +16,15 @@
           <q-card-section>
             <div class="row items-center">
               <div class="col">
-                <h5 class="q-my-none">{{ getFullName(residentsStore.currentResident) }}</h5>
-                <q-chip
+                <h4 class="text-h5 q-my-none">{{ getFullName(residentsStore.currentResident) }}</h4>
+                <p class="text-grey-7 q-mb-none"><q-chip
                   :color="residentsStore.currentResident.gender === 'Male' ? 'blue' : 'pink'"
                   text-color="white"
                   dense
                   class="q-mt-sm"
                 >
                   {{ residentsStore.currentResident.gender }}
-                </q-chip>
+                </q-chip></p>
               </div>
               <div class="col-auto">
                 <q-btn
