@@ -4,6 +4,7 @@ type: 'feature'
 created: '2026-08-11'
 status: 'done'
 baseline_revision: '2acced52dcffda941122a85c8d37893ee50d28a7'
+final_revision: '6f251e7a3e8489a80a442bfd90ecfbaedb99ea44'
 review_loop_iteration: 0
 followup_review_recommended: false
 context: []
@@ -16,8 +17,8 @@ deferred:
       Surfaced incidentally by the Blind Hunter review pass while auditing MainLayout.vue/FarmDashboardPage.vue
       changes; the clickable cards are pre-existing markup untouched by this story's enumerated 4e fix list
       (which targeted icon-only `q-btn`s specifically, not clickable `q-card`/div elements). Not caused by this
-      diff. Owning story: a future accessibility hardening pass (could be folded into 5.10e3 mobile/touch-target
-      work or a dedicated post-MVP a11y pass).
+      diff. Owning story: 5.10e3 (Mobile Responsiveness — AC6) per user decision 2026-08-11; the 44px touch-target
+      audit and clickable-card keyboard a11y are both interaction-surface concerns that fit 5.10e3's scope.
     location: >-
       src/modules/farm/pages/FarmDashboardPage.vue:892-907
     severity: medium
@@ -178,6 +179,13 @@ _4f — Deferred a11y fixes from 5.10b (2 fixes):_
 - reject: 19
 - addressed_findings:
   - `[medium]` `[patch]` `docs/implementation-artifacts/deferred-work.md:172-173` had a malformed entry (`source*spec` instead of `source_spec`, and a broken `\_dominant*` escape) from the implementation pass's append — corrected to `source_spec` and `dominant`, matching every other entry's format in the file.
+
+### 2026-08-11 — Post-finalization patches (commits `26779c6`, `6f251e7`)
+
+Two follow-up commits landed after the spec was marked `done`, extending the 4a (Consistent UI) work beyond the original 3-fix enumeration. Recorded here per the established 5.10b/5.10c/5.10d post-finalization-patch convention. `final_revision` set to `6f251e7`.
+
+- `[low]` `[patch]` `26779c6` — "Standardize page-header markup across all pages." Extended the 4a heading-hierarchy fix from the 3 enumerated pages (HouseholdsListPage, FinanceReportsPage, DashboardPage) to ALL 65 pages under `src/pages/**` and `src/modules/*/pages/**`, collapsing 6+ ad-hoc combinations of heading tag (h1/h4/h5/div), size class (text-h4/text-h5/none), weight, and subtitle markup to one canonical pattern: `<h4 class="text-h5 q-my-none">{Title}</h4>` + `<p class="text-grey-7 q-mb-none">{Subtitle}</p>`. Also removed the one inline icon in a page title (FarmSettingsPage.vue's tune icon). This is a scope expansion of 4a (3 → 65 pages) but aligns with the spec's intent (consistency) and the dominant pattern the spec identified. No script/store/route/permission changes; lint and build pass. Section/card headings, dialog titles, and stat-card numbers untouched.
+- `[low]` `[patch]` `6f251e7` — "fix: page margins." Adjusted page margins on 9 pages (FinanceReportsPage, FinanceTransactionsPage, FinanceSettingsPage, HelpPage, HouseholdDetailPage, HouseholdsListPage, ResidentDetailPage, ResidentsListPage, VillageSettingsPage) to align with the standardized header pattern from `26779c6`. No functional changes; lint and build pass.
 
 ## Design Notes
 

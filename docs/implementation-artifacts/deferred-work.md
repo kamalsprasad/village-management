@@ -175,6 +175,9 @@ Items deferred during code reviews. Revisit before closing their parent story or
 - source_spec: `docs/implementation-artifacts/spec-5-10e1-ux-polish-and-accessibility.md`
   summary: Resolved by this story — the two 5.10b-deferred accessibility items (generic `Breadcrumbs.vue` back-button `aria-label="Back"`, and the quick-search `q-menu`'s `no-focus no-refocus` reducing keyboard reachability) are now fixed.
   evidence: `src/components/layout/Breadcrumbs.vue` back button now binds a computed `backAriaLabel` derived from `props.items`/`props.current` instead of a hardcoded generic label. `src/layouts/MainLayout.vue` quick-search now has a `highlightedIndex` ref, a flattened `groupedResults` list, and an `@keydown` handler on the search `q-input` supporting `ArrowDown`/`ArrowUp`/`Enter`/`Escape`, while `no-focus no-refocus` remains unchanged on the `q-menu` (the `3152db1` focus-steal fix is preserved). Marked resolved — no further action needed.
+- source_spec: `docs/implementation-artifacts/spec-5-10e1-ux-polish-and-accessibility.md`
+  summary: FarmDashboardPage.vue's clickable module-navigation cards (~892-907) have no `role="button"`, `tabindex="0"`, or keyboard event handlers, making them unreachable for keyboard-only users. Pre-existing markup, not introduced by 5.10e1.
+  evidence: Surfaced incidentally by the Blind Hunter review pass. The clickable `q-card`/div elements act as navigation links but lack keyboard a11y attributes. Owning story: 5.10e3 (Mobile Responsiveness — AC6) per user decision 2026-08-11; the 44px touch-target audit and clickable-card keyboard a11y are both interaction-surface concerns that fit 5.10e3's scope.
 
 ## Deferred from: Story 5.10a planning (2026-08-04)
 
