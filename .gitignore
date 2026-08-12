@@ -43,3 +43,10 @@ yarn-error.log*
 # local .env files
 .env.local*
 .env
+.env.test
+
+# Test artifacts
+coverage
+cypress/screenshots
+cypress/videos
+cypress/downloads
