@@ -1,4 +1,15 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+
+// Top-level mocks with valid exports. No references to outer variables,
+// so vi.mock hoisting is safe and produces no warnings.
+vi.mock('jspdf', () => ({
+  jsPDF: class FakeJsPDF {},
+}));
+
+vi.mock('jspdf-autotable', () => ({
+  default: vi.fn(),
+}));
+
 import { DonorReportService } from 'src/services/DonorReportService';
 
 describe('DonorReportService', () => {
@@ -94,24 +105,28 @@ describe('DonorReportService', () => {
   });
 
   describe('loadDependencies', () => {
-    it('caches jsPDF after first load', async () => {
-      const fakeJsPDF = class {};
-      const fakeAutoTable = vi.fn();
-      // Use vi.mock on dynamic imports via doMock pattern: we can't easily
-      // mock dynamic import('jspdf') here without a top-level vi.mock. We
-      // instead verify the error path when the import fails.
+    it('loads and caches jsPDF on first call', async () => {
+      expect(svc.jsPDF).toBeNull();
+      await svc.loadDependencies();
+      expect(svc.jsPDF).toBeDefined();
+      expect(typeof svc.autoTable).toBe('function');
+    });
+
+    it('returns cached jsPDF on second call without re-importing', async () => {
+      await svc.loadDependencies();
+      const firstJsPDF = svc.jsPDF;
+      await svc.loadDependencies();
+      expect(svc.jsPDF).toBe(firstJsPDF);
+    });
+
+    it('throws when jspdf-autotable export shape is invalid', async () => {
       vi.resetModules();
-      // Force the dynamic import to reject by mocking the modules.
-      vi.doMock('jspdf', () => { throw new Error('not installed'); });
-      vi.doMock('jspdf-autotable', () => { throw new Error('not installed'); });
-      const fresh = new DonorReportService();
+      // Override the top-level mock with an invalid export (no default,
+      // no autoTable). The factory returns an object — it does NOT throw.
+      vi.doMock('jspdf-autotable', () => ({}));
+      const { DonorReportService: FreshService } = await import('src/services/DonorReportService');
+      const fresh = new FreshService();
       await expect(fresh.loadDependencies()).rejects.toThrow(/PDF generation requires/);
-      vi.doUnmock('jspdf');
-      vi.doUnmock('jspdf-autotable');
-      // Reference fakeJsPDF/fakeAutoTable so lint does not complain; they
-      // document the expected shape when deps ARE installed.
-      expect(fakeJsPDF).toBeDefined();
-      expect(typeof fakeAutoTable).toBe('function');
     });
   });
 });
