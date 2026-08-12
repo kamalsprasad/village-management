@@ -4,6 +4,7 @@
 import { defineConfig } from 'vitest/config';
 import { fileURLToPath, URL } from 'node:url';
 import { loadEnv } from 'vite';
+import vue from '@vitejs/plugin-vue';
 
 const r = (p) => fileURLToPath(new URL(p, import.meta.url));
 
@@ -13,6 +14,7 @@ export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '');
 
   return {
+    plugins: [vue()],
     resolve: {
       alias: {
         src: r('./src'),
