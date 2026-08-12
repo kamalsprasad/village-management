@@ -1,0 +1,31 @@
+{
+  "adminUser": {
+    "email": "admin@test.village",
+    "password": "TestAdmin123!",
+    "name": "Test Admin"
+  },
+  "financeManager": {
+    "email": "finance@test.village",
+    "password": "TestFinance123!",
+    "name": "Test Finance Manager"
+  },
+  "farmManager": {
+    "email": "farm@test.village",
+    "password": "TestFarm123!",
+    "name": "Test Farm Manager"
+  },
+  "resident": {
+    "email": "resident@test.village",
+    "password": "TestResident123!",
+    "name": "Test Resident"
+  },
+  "villageSettings": {
+    "village_name": "Test Village",
+    "address": "123 Test Street",
+    "default_currency": "ZMW",
+    "currency_symbol": "K",
+    "timezone": "Africa/Lusaka",
+    "country_code": "ZM",
+    "country_phone_code": "260"
+  }
+}
