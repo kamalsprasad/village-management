@@ -184,6 +184,30 @@ Items deferred during code reviews. Revisit before closing their parent story or
 - source_spec: `docs/implementation-artifacts/spec-5-10a-dashboard-completion-real-data-wiring.md`
   summary: Story 5.10 AC8 (System Health Monitoring) is deferred to post-MVP. An admin page showing database size, storage usage, active user counts, and error logs would require a new server function (to query Appwrite project-level metrics not exposed to client SDKs) and is out of scope for MVP dashboard completion.
   evidence: Story 5.10 acceptance criteria (AC8); no existing server function or store exposes this data. Owning story: post-MVP admin/observability epic.
+  expanded_by_5-10e4: >-
+  Expanded 2026-08-12 per Story 5.10e4 (see
+  `docs/implementation-artifacts/final-testing-checklist.md` §9h for full detail).
+  Proposed page: `/admin/system-health` (`SystemHealthPage.vue`, `requiresPermission: '*'`,
+  new Administration nav entry) showing database size/row counts, aggregate storage usage
+  (extending the Story 5.4 `storageUsageReport` per-user pattern to a village-wide summary),
+  active user counts (`users.active` aggregate, optionally a session-recency metric), and
+  recent server-function error logs (via Appwrite's Functions execution-history API, which
+  none of this codebase's existing functions currently wrap). Requires a new admin-only
+  Appwrite Function (e.g. `getSystemHealth`) using an admin-scope API key against Appwrite's
+  project-level Database/Storage/Functions Management APIs (distinct from the `TablesDB`/
+  `Storage` client surface already used by every existing function in this codebase) plus
+  `tablesDB.listRows`/`Query.limit(1)`/`.total` aggregation for user counts (same pattern as
+  `useDashboardData.js`). No new Appwrite tables are strictly required (a
+  `system_health_snapshots` table for historical trending is a possible future enhancement,
+  not a requirement). Reusable data sources: `users` table (`active` column, Story 5.12),
+  `file_metadata` table + `personal_files`/`shared_files` buckets (Story 5.3/5.4),
+  `audit_logs` table (Story 5.12, partial proxy for admin activity). Effort estimate:
+  **T-shirt size M (Medium)** — one new admin-scoped function using unfamiliar
+  Management-API surface, one new admin page + nav entry, and a scoping decision on what
+  "error logs" means for a single-tenant village deployment; not Large because it reuses
+  existing caller-verification/dashboard-card UI patterns, not Small because the
+  Management-API access pattern is new to this codebase. Owning story unchanged: post-MVP
+  admin/observability epic.
 
 ## Deferred from: code review of spec-5-10b-navigation-polish-breadcrumbs-and-quick-search (2026-08-04)
 
@@ -212,3 +236,39 @@ Items deferred during code reviews. Revisit before closing their parent story or
 - **Automated test infrastructure deferred to a new post-MVP testing epic.** AC9's "final testing checklist" is satisfied in MVP by a manual `docs/implementation-artifacts/final-testing-checklist.md` doc (produced by 5.10e4) covering all MVP user journeys, RBAC matrix, data integrity, integrations, and sample-data mode. The full automated test infrastructure (Vitest + Cypress/Playwright + comprehensive tests) is deferred to a new post-MVP testing epic — the project has no existing test infrastructure (placeholder `test` script in `package.json`), and setting it up is large scope that warrants its own epic. 5.10e4 documents this new epic here and in the final-testing-checklist.md. The existing `docs/testing.md` (manual testing checklists for Stories 1.4 and 1.8) is a planning doc, not a system-wide final checklist — 5.10e4's manual checklist supersedes it for MVP sign-off.
 - **3 security/realtime deferred items re-deferred to post-MVP.** The 3 items deferred from 5.10c (notification_reads table-level create griefing vector, realtime subscription async-failure gap, at-risk 60s cache re-flip suppression) were originally assigned to "5.10e or future." Per user decision 2026-08-11, they are re-deferred to post-MVP hardening passes (security-hardening, realtime-hardening, at-risk-notification refinement respectively) — none fit 5.10e1/e2/e3/e4's ACs (AC4/AC5/AC6/AC9 cover UI polish, performance, mobile, and testing — not server-side security or realtime connection handling). Their "Owning story" lines above have been updated accordingly.
 - **AC8 (System Health Monitoring) deferral to be expanded by 5.10e4.** AC8 was deferred during 5.10a with a single paragraph (see "Deferred from: Story 5.10a planning" above). 5.10e4 will verify and expand the deferral entry with proposed admin page layout, server function requirements, data sources, and estimated post-MVP effort. Not implemented in MVP.
+
+## Deferred from: Story 5.10e4 final testing checklist (2026-08-12)
+
+- source_spec: `docs/implementation-artifacts/spec-5-10e4-final-testing-checklist.md`
+  summary: >-
+  New post-MVP epic — Automated Testing Infrastructure. The project has zero
+  automated test infrastructure (`package.json` `test` is a placeholder, no Vitest/
+  Cypress/Playwright dependencies, no `*.test.js` files). AC9's final testing
+  checklist is satisfied for MVP by the manual
+  `docs/implementation-artifacts/final-testing-checklist.md`; the full automated
+  harness is deferred to a new post-MVP epic.
+  evidence: >-
+  Numerous prior `deferred-work.md` entries (Stories 5.3, 5.4, 5.7, 5.12, etc.)
+  note the absence of automated test coverage and defer it to a post-MVP testing
+  initiative. `docs/testing.md` (Stories 1.4/1.8) contains ready-made unit/
+  integration test cases that can be lifted into Vitest suites.
+  scope: >-
+  (1) Unit tests (Vitest) for pure utils/composables — `src/utils/permissions.js`,
+  `src/modules/school/utils/at-risk-utils.js`, `src/modules/school/utils/school-utils.js`,
+  `src/utils/module-registry.js`, `src/modules/storage/utils/format-storage.js`.
+  (2) Component/store tests (Vitest + Vue Test Utils + mocked Appwrite SDK) for
+  Pinia stores and key components. (3) E2E tests (Cypress or Playwright) covering
+  the journeys in `final-testing-checklist.md` §9a, the RBAC matrix in §9b, and
+  the sample-data lifecycle in §9e. (4) CI integration (lint + unit + component
+  tests on every PR, optional E2E smoke tests against a scratch Appwrite project).
+  effort_estimate: >-
+  T-shirt size XL for the full epic; L for a minimal first story (Vitest unit tests
+  - CI wiring only). Rationale: ~40+ Pinia stores/composables, 71 page files, and
+    zero existing test scaffolding.
+    dependencies: >-
+    Depends on `final-testing-checklist.md` §9a (MVP User Journeys) and §9b (RBAC
+    Matrix). No dependency on §9c–9h.
+    owning_story: >-
+    None yet created — new post-MVP epic stub (working title: "Automated Testing
+    Infrastructure"). A future planning pass should create stories following the
+    Scope bullets above.
