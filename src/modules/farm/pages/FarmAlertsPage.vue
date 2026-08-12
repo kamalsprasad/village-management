@@ -165,14 +165,13 @@
               flat
               round
               dense
-              size="xs"
               :icon="readIds.has(alertKey(row)) ? 'mark_email_unread' : 'mark_email_read'"
               :color="readIds.has(alertKey(row)) ? 'grey' : 'primary'"
               @click.stop="toggleRead(row)"
             >
               <q-tooltip>{{ readIds.has(alertKey(row)) ? 'Mark unread' : 'Mark read' }}</q-tooltip>
             </q-btn>
-            <q-btn flat round dense size="xs" icon="close" color="grey" @click.stop="dismiss(row)">
+            <q-btn flat round dense icon="close" color="grey" @click.stop="dismiss(row)">
               <q-tooltip>Dismiss</q-tooltip>
             </q-btn>
           </q-td>

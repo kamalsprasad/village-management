@@ -433,9 +433,10 @@ defineExpose({
   min-width: 600px;
 }
 
-@media (max-width: 600px) {
+@media (max-width: 599px) {
   .harvest-entry-dialog {
-    min-width: 100%;
+    min-width: 0 !important;
+    max-width: 95vw;
   }
 }
 </style>

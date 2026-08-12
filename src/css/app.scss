@@ -1,1 +1,14 @@
 // app global css in SCSS form
+
+@media (max-width: 599px) {
+  .q-dialog__inner .q-card {
+    max-width: 95vw !important;
+    min-width: 0 !important;
+    width: 95vw !important;
+  }
+
+  .q-btn.q-btn--dense.q-btn--round {
+    min-width: 44px;
+    min-height: 44px;
+  }
+}

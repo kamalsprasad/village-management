@@ -220,10 +220,14 @@
         <div class="row q-col-gutter-md">
           <div class="col-12 col-md-6 col-lg-3" v-for="link in moduleLinks" :key="link.name">
             <q-card
-              class="cursor-pointer hover-shadow"
+              class="cursor-pointer hover-shadow module-nav-card"
               bordered
               clickable
+              role="button"
+              tabindex="0"
               @click="$router.push(link.route)"
+              @keydown.enter="$router.push(link.route)"
+              @keydown.space.prevent="$router.push(link.route)"
             >
               <q-card-section class="row items-center">
                 <q-icon :name="link.icon" size="2rem" class="q-mr-md" :color="link.color" />
@@ -400,5 +404,10 @@ onMounted(async () => {
 <style scoped>
 .hover-shadow:hover {
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.module-nav-card:focus-visible {
+  outline: 2px solid var(--q-primary, #1976d2);
+  outline-offset: 2px;
 }
 </style>

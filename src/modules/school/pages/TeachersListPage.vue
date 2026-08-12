@@ -64,7 +64,7 @@
     >
       <template #body-cell-name="props">
         <q-td :props="props">
-          <div class="row items-center no-wrap">
+          <div class="row items-center">
             <q-avatar
               color="primary"
               text-color="white"

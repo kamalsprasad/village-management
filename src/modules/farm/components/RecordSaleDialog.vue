@@ -309,9 +309,10 @@ function onCancel() {
   background-color: #f0f7ff;
 }
 
-@media (max-width: 600px) {
+@media (max-width: 599px) {
   .record-sale-dialog {
-    min-width: 100%;
+    min-width: 0 !important;
+    max-width: 95vw;
   }
 }
 </style>

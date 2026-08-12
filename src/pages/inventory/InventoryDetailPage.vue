@@ -348,7 +348,7 @@
             class="q-mb-md"
           >
             <q-card-section>
-              <div class="row items-center no-wrap">
+              <div class="row items-center">
                 <q-icon :name="alertIcon" size="32px" class="q-mr-md" />
                 <div>
                   <div class="text-weight-bold">{{ alertTitle }}</div>

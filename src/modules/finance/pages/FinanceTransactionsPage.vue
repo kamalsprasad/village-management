@@ -161,7 +161,7 @@
           <!-- Custom column: type (Story 2.4: Add supporting transaction badge, Story 2.7: Inventory link) -->
           <template #body-cell-type="props">
             <q-td :props="props">
-              <div class="row items-center no-wrap q-gutter-xs">
+              <div class="row items-center q-gutter-xs">
                 <q-chip
                   :color="props.value === 'income' ? 'positive' : 'negative'"
                   text-color="white"
@@ -178,7 +178,6 @@
                   round
                   icon="inventory_2"
                   color="teal"
-                  size="xs"
                   aria-label="View linked inventory item"
                   @click.stop="router.push(`/inventory/${getLinkedInventory(props.row.$id).$id}`)"
                 >

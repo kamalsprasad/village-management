@@ -145,7 +145,7 @@
             anchor="bottom right"
             self="top right"
             :offset="[0, 8]"
-            style="min-width: 220px"
+            style="min-width: 220px; max-width: 90vw"
           >
             <HelpMenuList @navigate="onHelpNavigate" />
           </q-menu>
@@ -174,7 +174,7 @@
             @before-show="userMenuVisible = true"
             @hide="userMenuVisible = false"
           >
-            <q-list style="min-width: 250px">
+            <q-list style="min-width: 250px; max-width: 90vw">
               <!-- User Info Section -->
               <q-item>
                 <q-item-section>

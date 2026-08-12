@@ -60,7 +60,7 @@
     </div>
 
     <div class="row justify-end">
-      <q-btn flat dense size="xs" color="grey-7" label="Clear" @click="clearCell" />
+      <q-btn flat dense color="grey-7" label="Clear" @click="clearCell" />
     </div>
   </div>
 </template>
