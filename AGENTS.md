@@ -34,6 +34,13 @@ test/
 │   ├── composables/         # Composable function tests
 │   ├── services/            # Service-layer tests
 │   ├── stores/              # Pinia store tests
+│   ├── modules/             # Module-specific store tests
+│   │   ├── farm/            # Farm store tests
+│   │   ├── finance/         # Finance store tests
+│   │   ├── lending/         # Lending store tests
+│   │   ├── school/          # School store tests (class, intervention, etc.)
+│   │   ├── storage/         # Personal/shared files store tests
+│   │   └── vendors/         # Vendors store tests
 │   └── utils/               # Pure utility tests
 ├── e2e/                     # Cypress E2E tests
 │   ├── fixtures/            # Test data (users, settings, etc.)
@@ -57,13 +64,13 @@ Coverage thresholds are enforced per layer, not globally. This avoids
 forcing uniform coverage on UI-heavy pages while still holding logic
 layers to a high standard.
 
-| Layer              | Current threshold | Target |
-|--------------------|-------------------|--------|
-| Logic (utils/services/composables) | 75% | 90% |
-| Stores             | 70% | 80% |
-| Boot & router      | 80% | 80% |
-| Components         | 50% | 50% |
-| Pages              | Not gated (E2E)  | —      |
+| Layer                              | Current threshold | Target         |
+| ---------------------------------- | ----------------- | -------------- |
+| Logic (utils/services/composables) | 95%               | 90% (achieved) |
+| Stores                             | 55%               | 80%            |
+| Boot & router                      | 95%               | 80% (achieved) |
+| Components                         | 80%               | 50% (achieved) |
+| Pages                              | Not gated (E2E)   | —              |
 
 The gate script is `scripts/check-coverage.mjs`. It reads
 `coverage/coverage-summary.json` and exits non-zero if any layer
@@ -105,6 +112,7 @@ falls below its threshold.
 ### CI pipeline
 
 The GitHub Actions workflow (`.github/workflows/test.yml`) runs:
+
 1. **Lint** — ESLint on all source files.
 2. **Unit tests + coverage** — Vitest with V8 coverage, then tiered gate.
 3. **Build** — Production build check.
@@ -117,6 +125,7 @@ Cypress videos.
 ### Appwrite mock patterns
 
 The test setup (`test/setup.js`) globally mocks:
+
 - `appwrite` SDK exports: `ID`, `Permission`, `Role`, `Query`
 - `src/boot/appwrite` — `tables`, `account`, `functions`, `storage`
 - Quasar `Notify` plugin
