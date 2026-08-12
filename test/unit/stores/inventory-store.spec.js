@@ -55,7 +55,10 @@ describe('inventory-store', () => {
     });
 
     it('filteredItems filters by search', () => {
-      store.items = [item({ $id: 'i1', item_name: 'Seeds' }), item({ $id: 'i2', item_name: 'Fertilizer' })];
+      store.items = [
+        item({ $id: 'i1', item_name: 'Seeds' }),
+        item({ $id: 'i2', item_name: 'Fertilizer' }),
+      ];
       store.filters.search = 'seed';
       expect(store.filteredItems).toHaveLength(1);
       expect(store.filteredItems[0].item_name).toBe('Seeds');
@@ -608,6 +611,617 @@ describe('inventory-store', () => {
       expect(store.formatCurrency(0)).toBe('\u2014');
       expect(store.formatCurrency(null)).toBe('\u2014');
       expect(store.formatCurrency(undefined)).toBe('\u2014');
+    });
+  });
+
+  // ================================================================
+  // Farm produce sync — createOrUpdateFarmProduceFromHarvest
+  // ================================================================
+
+  describe('createOrUpdateFarmProduceFromHarvest', () => {
+    const planting = { $id: 'p1' };
+    const crop = { $id: 'c1', crop_name: 'Maize' };
+    const plot = { $id: 'plot1', name: 'North Field' };
+    const entry = { quantity_kg: 50, entry_date: '2025-01-15', harvest_id: 'h1' };
+
+    it('creates new row when none exists', async () => {
+      mockTables.listRows.mockResolvedValue({ rows: [] }); // findFarmProduceRow returns null
+      const created = item({ $id: 'new1', item_type: 'farm_produce', quantity: 50 });
+      mockTables.createRow.mockResolvedValue(created);
+
+      const result = await store.createOrUpdateFarmProduceFromHarvest({
+        planting,
+        crop,
+        plot,
+        entry,
+      });
+
+      expect(result.success).toBe(true);
+      expect(result.data).toEqual(created);
+      expect(mockTables.createRow).toHaveBeenCalled();
+      // Should be added to items array
+      expect(store.items.find((i) => i.$id === 'new1')).toBeDefined();
+    });
+
+    it('updates existing row by incrementing quantity', async () => {
+      const existing = item({
+        $id: 'fp1',
+        item_type: 'farm_produce',
+        quantity: 100,
+        reorder_threshold: 10,
+      });
+      mockTables.listRows.mockResolvedValue({ rows: [existing] });
+      const updated = { ...existing, quantity: 150 };
+      mockTables.updateRow.mockResolvedValue(updated);
+
+      const result = await store.createOrUpdateFarmProduceFromHarvest({
+        planting,
+        crop,
+        plot,
+        entry,
+      });
+
+      expect(result.success).toBe(true);
+      expect(mockTables.updateRow).toHaveBeenCalled();
+      const updateData = mockTables.updateRow.mock.calls[0][0].data;
+      expect(updateData.quantity).toBe(150);
+    });
+
+    it('preserves existing unit_cost on update', async () => {
+      const existing = item({ $id: 'fp1', item_type: 'farm_produce', quantity: 100, unit_cost: 5 });
+      mockTables.listRows.mockResolvedValue({ rows: [existing] });
+      mockTables.updateRow.mockResolvedValue({ ...existing, quantity: 150 });
+
+      await store.createOrUpdateFarmProduceFromHarvest({ planting, crop, plot, entry });
+
+      const updateData = mockTables.updateRow.mock.calls[0][0].data;
+      // Should NOT include unit_cost in update data
+      expect(updateData.unit_cost).toBeUndefined();
+    });
+
+    it('updates estimated_value when unit_cost > 0', async () => {
+      const existing = item({ $id: 'fp1', item_type: 'farm_produce', quantity: 100, unit_cost: 5 });
+      mockTables.listRows.mockResolvedValue({ rows: [existing] });
+      mockTables.updateRow.mockResolvedValue({ ...existing, quantity: 150 });
+
+      await store.createOrUpdateFarmProduceFromHarvest({ planting, crop, plot, entry });
+
+      const updateData = mockTables.updateRow.mock.calls[0][0].data;
+      // 150 * 5 = 750
+      expect(updateData.estimated_value).toBe(750);
+    });
+
+    it('does not include estimated_value when unit_cost is 0', async () => {
+      const existing = item({ $id: 'fp1', item_type: 'farm_produce', quantity: 100, unit_cost: 0 });
+      mockTables.listRows.mockResolvedValue({ rows: [existing] });
+      mockTables.updateRow.mockResolvedValue({ ...existing, quantity: 150 });
+
+      await store.createOrUpdateFarmProduceFromHarvest({ planting, crop, plot, entry });
+
+      const updateData = mockTables.updateRow.mock.calls[0][0].data;
+      expect(updateData.estimated_value).toBeUndefined();
+    });
+
+    it('derives correct status from new quantity', async () => {
+      const existing = item({
+        $id: 'fp1',
+        item_type: 'farm_produce',
+        quantity: 5,
+        reorder_threshold: 10,
+      });
+      mockTables.listRows.mockResolvedValue({ rows: [existing] });
+      mockTables.updateRow.mockResolvedValue({ ...existing, quantity: 55 });
+
+      await store.createOrUpdateFarmProduceFromHarvest({ planting, crop, plot, entry });
+
+      const updateData = mockTables.updateRow.mock.calls[0][0].data;
+      // 55 > 10 → in_stock
+      expect(updateData.status).toBe('in_stock');
+    });
+
+    it('syncs local items array on update', async () => {
+      const existing = item({ $id: 'fp1', item_type: 'farm_produce', quantity: 100 });
+      mockTables.listRows.mockResolvedValue({ rows: [existing] });
+      const updated = { ...existing, quantity: 150 };
+      mockTables.updateRow.mockResolvedValue(updated);
+      store.items = [existing];
+
+      await store.createOrUpdateFarmProduceFromHarvest({ planting, crop, plot, entry });
+
+      expect(store.items[0].quantity).toBe(150);
+    });
+
+    it('returns error when missing required params', async () => {
+      const result = await store.createOrUpdateFarmProduceFromHarvest({
+        planting: null,
+        crop,
+        plot,
+        entry,
+      });
+      expect(result.success).toBe(false);
+      expect(result.error).toMatch(/Missing required/);
+    });
+
+    it('returns error when entry.quantity_kg is missing', async () => {
+      const result = await store.createOrUpdateFarmProduceFromHarvest({
+        planting,
+        crop,
+        plot,
+        entry: { entry_date: '2025-01-15' },
+      });
+      expect(result.success).toBe(false);
+    });
+
+    it('returns error when tables.createRow fails', async () => {
+      mockTables.listRows.mockResolvedValue({ rows: [] });
+      mockTables.createRow.mockRejectedValue(new Error('db error'));
+
+      const result = await store.createOrUpdateFarmProduceFromHarvest({
+        planting,
+        crop,
+        plot,
+        entry,
+      });
+
+      expect(result.success).toBe(false);
+      expect(result.error).toMatch(/db error/);
+    });
+
+    it('returns error when tables.updateRow fails', async () => {
+      mockTables.listRows.mockResolvedValue({ rows: [item({ $id: 'fp1', quantity: 100 })] });
+      mockTables.updateRow.mockRejectedValue(new Error('update failed'));
+
+      const result = await store.createOrUpdateFarmProduceFromHarvest({
+        planting,
+        crop,
+        plot,
+        entry,
+      });
+
+      expect(result.success).toBe(false);
+      expect(result.error).toMatch(/update failed/);
+    });
+
+    it('handles object harvest_id in new row creation', async () => {
+      mockTables.listRows.mockResolvedValue({ rows: [] });
+      mockTables.createRow.mockResolvedValue(item({ $id: 'new1' }));
+      const entryWithObjHarvest = {
+        quantity_kg: 30,
+        entry_date: '2025-01-15',
+        harvest_id: { $id: 'h-obj' },
+      };
+
+      await store.createOrUpdateFarmProduceFromHarvest({
+        planting,
+        crop,
+        plot,
+        entry: entryWithObjHarvest,
+      });
+
+      const createData = mockTables.createRow.mock.calls[0][0].data;
+      expect(createData.source_reference_id).toBe('h-obj');
+    });
+  });
+
+  // ================================================================
+  // reverseFarmProduceFromHarvest
+  // ================================================================
+
+  describe('reverseFarmProduceFromHarvest', () => {
+    const planting = { $id: 'p1' };
+    const crop = { $id: 'c1' };
+    const entry = { quantity_kg: 30 };
+
+    it('decrements quantity and updates row', async () => {
+      const existing = item({
+        $id: 'fp1',
+        item_type: 'farm_produce',
+        quantity: 100,
+        reorder_threshold: 10,
+      });
+      mockTables.listRows.mockResolvedValue({ rows: [existing] });
+      const updated = { ...existing, quantity: 70 };
+      mockTables.updateRow.mockResolvedValue(updated);
+
+      const result = await store.reverseFarmProduceFromHarvest({ planting, crop, entry });
+
+      expect(result.success).toBe(true);
+      const updateData = mockTables.updateRow.mock.calls[0][0].data;
+      expect(updateData.quantity).toBe(70);
+    });
+
+    it('returns insufficient reason when quantity < entry', async () => {
+      const existing = item({ $id: 'fp1', item_type: 'farm_produce', quantity: 20 });
+      mockTables.listRows.mockResolvedValue({ rows: [existing] });
+
+      const result = await store.reverseFarmProduceFromHarvest({ planting, crop, entry });
+
+      expect(result.success).toBe(false);
+      expect(result.reason).toBe('insufficient');
+    });
+
+    it('returns error when row not found', async () => {
+      mockTables.listRows.mockResolvedValue({ rows: [] });
+
+      const result = await store.reverseFarmProduceFromHarvest({ planting, crop, entry });
+
+      expect(result.success).toBe(false);
+      expect(result.error).toMatch(/not found/);
+    });
+
+    it('returns error when missing required params', async () => {
+      const result = await store.reverseFarmProduceFromHarvest({
+        planting: null,
+        crop,
+        entry,
+      });
+      expect(result.success).toBe(false);
+    });
+
+    it('preserves unit_cost during reversal', async () => {
+      const existing = item({ $id: 'fp1', item_type: 'farm_produce', quantity: 100, unit_cost: 5 });
+      mockTables.listRows.mockResolvedValue({ rows: [existing] });
+      mockTables.updateRow.mockResolvedValue({ ...existing, quantity: 70 });
+
+      await store.reverseFarmProduceFromHarvest({ planting, crop, entry });
+
+      const updateData = mockTables.updateRow.mock.calls[0][0].data;
+      expect(updateData.unit_cost).toBeUndefined();
+    });
+
+    it('updates estimated_value when unit_cost > 0', async () => {
+      const existing = item({ $id: 'fp1', item_type: 'farm_produce', quantity: 100, unit_cost: 5 });
+      mockTables.listRows.mockResolvedValue({ rows: [existing] });
+      mockTables.updateRow.mockResolvedValue({ ...existing, quantity: 70 });
+
+      await store.reverseFarmProduceFromHarvest({ planting, crop, entry });
+
+      const updateData = mockTables.updateRow.mock.calls[0][0].data;
+      // 70 * 5 = 350
+      expect(updateData.estimated_value).toBe(350);
+    });
+
+    it('syncs local items array', async () => {
+      const existing = item({ $id: 'fp1', item_type: 'farm_produce', quantity: 100 });
+      mockTables.listRows.mockResolvedValue({ rows: [existing] });
+      const updated = { ...existing, quantity: 70 };
+      mockTables.updateRow.mockResolvedValue(updated);
+      store.items = [existing];
+
+      await store.reverseFarmProduceFromHarvest({ planting, crop, entry });
+
+      expect(store.items[0].quantity).toBe(70);
+    });
+  });
+
+  // ================================================================
+  // deleteFarmProduceForHarvest
+  // ================================================================
+
+  describe('deleteFarmProduceForHarvest', () => {
+    const planting = { $id: 'p1' };
+
+    it('decrements when quantity sufficient', async () => {
+      const existing = item({
+        $id: 'fp1',
+        item_type: 'farm_produce',
+        quantity: 100,
+        reorder_threshold: 10,
+      });
+      mockTables.listRows.mockResolvedValue({ rows: [existing] });
+      mockTables.updateRow.mockResolvedValue({ ...existing, quantity: 40 });
+
+      const result = await store.deleteFarmProduceForHarvest({ total_quantity_kg: 60 }, planting);
+
+      expect(result.success).toBe(true);
+      expect(result.data.deletedInventoryRow).toBe(false);
+      expect(result.data.newQuantity).toBe(40);
+    });
+
+    it('deletes row when quantity goes to 0 or below', async () => {
+      const existing = item({ $id: 'fp1', item_type: 'farm_produce', quantity: 50 });
+      mockTables.listRows.mockResolvedValue({ rows: [existing] });
+      mockTables.deleteRow.mockResolvedValue();
+      store.items = [existing];
+
+      const result = await store.deleteFarmProduceForHarvest({ total_quantity_kg: 50 }, planting);
+
+      expect(result.success).toBe(true);
+      expect(result.data.deletedInventoryRow).toBe(true);
+      expect(mockTables.deleteRow).toHaveBeenCalled();
+      // Should be removed from items
+      expect(store.items.find((i) => i.$id === 'fp1')).toBeUndefined();
+    });
+
+    it('returns insufficient when inventory < harvest qty', async () => {
+      const existing = item({ $id: 'fp1', item_type: 'farm_produce', quantity: 30 });
+      mockTables.listRows.mockResolvedValue({ rows: [existing] });
+
+      const result = await store.deleteFarmProduceForHarvest({ total_quantity_kg: 50 }, planting);
+
+      expect(result.success).toBe(false);
+      expect(result.reason).toBe('insufficient');
+    });
+
+    it('returns success with deletedInventoryRow=false when no row exists', async () => {
+      mockTables.listRows.mockResolvedValue({ rows: [] });
+
+      const result = await store.deleteFarmProduceForHarvest({ total_quantity_kg: 50 }, planting);
+
+      expect(result.success).toBe(true);
+      expect(result.data.deletedInventoryRow).toBe(false);
+    });
+
+    it('returns error when updateRow fails', async () => {
+      const existing = item({ $id: 'fp1', item_type: 'farm_produce', quantity: 100 });
+      mockTables.listRows.mockResolvedValue({ rows: [existing] });
+      mockTables.updateRow.mockRejectedValue(new Error('update fail'));
+
+      const result = await store.deleteFarmProduceForHarvest({ total_quantity_kg: 60 }, planting);
+
+      expect(result.success).toBe(false);
+      expect(result.error).toMatch(/Failed to decrement/);
+    });
+
+    it('returns error when deleteRow fails', async () => {
+      const existing = item({ $id: 'fp1', item_type: 'farm_produce', quantity: 50 });
+      mockTables.listRows.mockResolvedValue({ rows: [existing] });
+      mockTables.deleteRow.mockRejectedValue(new Error('delete fail'));
+
+      const result = await store.deleteFarmProduceForHarvest({ total_quantity_kg: 50 }, planting);
+
+      expect(result.success).toBe(false);
+      expect(result.error).toMatch(/Failed to delete inventory row/);
+    });
+  });
+
+  // ================================================================
+  // deleteFarmProduceRowIfEmpty
+  // ================================================================
+
+  describe('deleteFarmProduceRowIfEmpty', () => {
+    it('deletes row when quantity is 0', async () => {
+      const existing = item({ $id: 'fp1', item_type: 'farm_produce', quantity: 0 });
+      mockTables.listRows.mockResolvedValue({ rows: [existing] });
+      mockTables.deleteRow.mockResolvedValue();
+      store.items = [existing];
+
+      const result = await store.deleteFarmProduceRowIfEmpty('p1');
+
+      expect(result.success).toBe(true);
+      expect(mockTables.deleteRow).toHaveBeenCalled();
+      expect(store.items.find((i) => i.$id === 'fp1')).toBeUndefined();
+    });
+
+    it('returns error when quantity > 0', async () => {
+      const existing = item({ $id: 'fp1', item_type: 'farm_produce', quantity: 50 });
+      mockTables.listRows.mockResolvedValue({ rows: [existing] });
+
+      const result = await store.deleteFarmProduceRowIfEmpty('p1');
+
+      expect(result.success).toBe(false);
+      expect(result.error).toMatch(/still has quantity/);
+    });
+
+    it('returns success when row not found (no-op)', async () => {
+      mockTables.listRows.mockResolvedValue({ rows: [] });
+
+      const result = await store.deleteFarmProduceRowIfEmpty('p1');
+
+      expect(result.success).toBe(true);
+    });
+  });
+
+  // ================================================================
+  // fetchHistoricalPriceForCrop
+  // ================================================================
+
+  describe('fetchHistoricalPriceForCrop', () => {
+    it('returns null price when no plantings found', async () => {
+      mockTables.listRows.mockResolvedValue({ rows: [] });
+
+      const result = await store.fetchHistoricalPriceForCrop('c1');
+
+      expect(result.success).toBe(true);
+      expect(result.price).toBeNull();
+      expect(result.saleCount).toBe(0);
+    });
+
+    it('returns null price when no harvests found', async () => {
+      mockTables.listRows
+        .mockResolvedValueOnce({ rows: [{ $id: 'p1' }] }) // plantings
+        .mockResolvedValueOnce({ rows: [] }); // harvests
+
+      const result = await store.fetchHistoricalPriceForCrop('c1');
+
+      expect(result.success).toBe(true);
+      expect(result.price).toBeNull();
+    });
+
+    it('returns null price when no sales found', async () => {
+      mockTables.listRows
+        .mockResolvedValueOnce({ rows: [{ $id: 'p1' }] }) // plantings
+        .mockResolvedValueOnce({ rows: [{ $id: 'h1' }] }) // harvests
+        .mockResolvedValueOnce({ rows: [] }); // sales
+
+      const result = await store.fetchHistoricalPriceForCrop('c1');
+
+      expect(result.success).toBe(true);
+      expect(result.price).toBeNull();
+    });
+
+    it('calculates weighted average price from sales', async () => {
+      mockTables.listRows
+        .mockResolvedValueOnce({ rows: [{ $id: 'p1' }] })
+        .mockResolvedValueOnce({ rows: [{ $id: 'h1' }] })
+        .mockResolvedValueOnce({
+          rows: [
+            { quantity_sold: 100, price_per_kg: 5 },
+            { quantity_sold: 50, price_per_kg: 8 },
+          ],
+        });
+
+      const result = await store.fetchHistoricalPriceForCrop('c1');
+
+      expect(result.success).toBe(true);
+      expect(result.saleCount).toBe(2);
+      // weighted: (100*5 + 50*8) / (100+50) = 900/150 = 6
+      expect(result.price).toBe(6);
+    });
+
+    it('returns error on exception', async () => {
+      mockTables.listRows.mockRejectedValue(new Error('network'));
+
+      const result = await store.fetchHistoricalPriceForCrop('c1');
+
+      expect(result.success).toBe(false);
+      expect(result.error).toMatch(/network/);
+    });
+  });
+
+  // ================================================================
+  // Simple fetch methods
+  // ================================================================
+
+  describe('fetchFarmProduceItems', () => {
+    it('fetches and sets farmProduceItems state', async () => {
+      const items = [item({ $id: 'fp1', item_type: 'farm_produce' })];
+      mockTables.listRows.mockResolvedValue({ rows: items });
+
+      const result = await store.fetchFarmProduceItems();
+
+      expect(result.success).toBe(true);
+      expect(result.items).toEqual(items);
+      expect(store.farmProduceItems).toEqual(items);
+    });
+
+    it('returns error on failure', async () => {
+      mockTables.listRows.mockRejectedValue(new Error('fail'));
+
+      const result = await store.fetchFarmProduceItems();
+
+      expect(result.success).toBe(false);
+      expect(result.items).toEqual([]);
+    });
+  });
+
+  describe('fetchFarmInputItems', () => {
+    it('fetches and sets farmInputItems state', async () => {
+      const items = [item({ $id: 'fi1', item_type: 'farm_inputs' })];
+      mockTables.listRows.mockResolvedValue({ rows: items });
+
+      const result = await store.fetchFarmInputItems();
+
+      expect(result.success).toBe(true);
+      expect(store.farmInputItems).toEqual(items);
+      expect(store.farmInputsLoaded).toBe(true);
+    });
+
+    it('returns error on failure', async () => {
+      mockTables.listRows.mockRejectedValue(new Error('fail'));
+
+      const result = await store.fetchFarmInputItems();
+
+      expect(result.success).toBe(false);
+    });
+  });
+
+  describe('fetchItemsBySourceRefs', () => {
+    it('returns empty map for empty input', async () => {
+      const result = await store.fetchItemsBySourceRefs([]);
+      expect(result).toEqual({});
+    });
+
+    it('maps items by string transaction_id', async () => {
+      mockTables.listRows.mockResolvedValue({
+        rows: [{ $id: 'i1', transaction_id: 't1' }],
+      });
+
+      const result = await store.fetchItemsBySourceRefs(['t1']);
+
+      expect(result.t1).toBeDefined();
+      expect(result.t1.$id).toBe('i1');
+    });
+
+    it('maps items by object transaction_id', async () => {
+      mockTables.listRows.mockResolvedValue({
+        rows: [{ $id: 'i1', transaction_id: { $id: 't1' } }],
+      });
+
+      const result = await store.fetchItemsBySourceRefs(['t1']);
+
+      expect(result.t1).toBeDefined();
+    });
+
+    it('returns empty map on error', async () => {
+      mockTables.listRows.mockRejectedValue(new Error('fail'));
+
+      const result = await store.fetchItemsBySourceRefs(['t1']);
+
+      expect(result).toEqual({});
+    });
+  });
+
+  describe('updateAlertCounts', () => {
+    it('counts low_stock and out_of_stock items', () => {
+      store.items = [
+        item({ status: 'in_stock' }),
+        item({ status: 'low_stock' }),
+        item({ status: 'out_of_stock' }),
+        item({ status: 'low_stock' }),
+      ];
+
+      store.updateAlertCounts();
+
+      expect(store.lowStockCount).toBe(2);
+      expect(store.outOfStockCount).toBe(1);
+    });
+
+    it('returns 0 counts for empty items', () => {
+      store.items = [];
+      store.updateAlertCounts();
+      expect(store.lowStockCount).toBe(0);
+      expect(store.outOfStockCount).toBe(0);
+    });
+  });
+
+  describe('fetchLowStockItems', () => {
+    it('returns low stock items', async () => {
+      const items = [item({ status: 'low_stock' })];
+      mockTables.listRows.mockResolvedValue({ rows: items });
+
+      const result = await store.fetchLowStockItems();
+
+      expect(result.success).toBe(true);
+      expect(result.data).toEqual(items);
+    });
+
+    it('returns error on failure', async () => {
+      mockTables.listRows.mockRejectedValue(new Error('fail'));
+
+      const result = await store.fetchLowStockItems();
+
+      expect(result.success).toBe(false);
+    });
+  });
+
+  describe('fetchOutOfStockItems', () => {
+    it('returns out of stock items', async () => {
+      const items = [item({ status: 'out_of_stock' })];
+      mockTables.listRows.mockResolvedValue({ rows: items });
+
+      const result = await store.fetchOutOfStockItems();
+
+      expect(result.success).toBe(true);
+      expect(result.data).toEqual(items);
+    });
+
+    it('returns error on failure', async () => {
+      mockTables.listRows.mockRejectedValue(new Error('fail'));
+
+      const result = await store.fetchOutOfStockItems();
+
+      expect(result.success).toBe(false);
     });
   });
 });
