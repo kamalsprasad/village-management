@@ -7,6 +7,17 @@ import { ADMIN_ROLE, makeUser, makeUserProfile } from 'test/helpers/fixtures';
 describe('auth-store', () => {
   beforeEach(() => {
     setActivePinia(createPinia());
+    // Reset all mocks between tests
+    vi.clearAllMocks();
+    // Restore default mock implementations
+    mockAccount.get.mockResolvedValue(makeUser());
+    mockAccount.deleteSession.mockResolvedValue();
+    mockTables.getRow.mockResolvedValue(makeUserProfile({ active: true }));
+    mockTables.listRows.mockResolvedValue({ rows: [ADMIN_ROLE] });
+    mockTables.createRow.mockResolvedValue({});
+    mockFunctions.createExecution.mockResolvedValue({
+      responseBody: JSON.stringify({ success: true }),
+    });
   });
 
   describe('checkSession', () => {
@@ -17,9 +28,7 @@ describe('auth-store', () => {
       // fetchUserRoles: profile with populated role_ids
       // (called after checkSession sets this.user)
       mockTables.getRow.mockResolvedValueOnce(makeUserProfile({ active: true }));
-      mockTables.getRow.mockResolvedValueOnce(
-        makeUserProfile({ role_ids: [ADMIN_ROLE] }),
-      );
+      mockTables.getRow.mockResolvedValueOnce(makeUserProfile({ role_ids: [ADMIN_ROLE] }));
 
       const store = useAuthStore();
       const result = await store.checkSession();
@@ -113,7 +122,9 @@ describe('auth-store', () => {
         responseBody: JSON.stringify({ success: true, userExists: true }),
       });
       mockAccount.get.mockResolvedValue(makeUser());
-      mockTables.getRow.mockResolvedValue(makeUserProfile({ active: true, role_ids: [ADMIN_ROLE] }));
+      mockTables.getRow.mockResolvedValue(
+        makeUserProfile({ active: true, role_ids: [ADMIN_ROLE] }),
+      );
 
       const store = useAuthStore();
       const result = await store.checkHasUsers();
@@ -153,7 +164,10 @@ describe('auth-store', () => {
       const store = useAuthStore();
       const result = await store.changePassword('old', 'new');
       expect(result).toEqual({ success: true });
-      expect(mockAccount.updatePassword).toHaveBeenCalledWith({ password: 'new', oldPassword: 'old' });
+      expect(mockAccount.updatePassword).toHaveBeenCalledWith({
+        password: 'new',
+        oldPassword: 'old',
+      });
     });
 
     it('returns error on failure', async () => {
@@ -188,6 +202,379 @@ describe('auth-store', () => {
         secret: 'secret',
         password: 'newpw',
       });
+    });
+  });
+
+  // ================================================================
+  // createAdmin — system initialization (highest complexity)
+  // ================================================================
+
+  describe('createAdmin', () => {
+    it('creates admin user successfully with profile, roles, and team', async () => {
+      const user = makeUser();
+      mockAccount.create.mockResolvedValue();
+      mockAccount.createEmailPasswordSession.mockResolvedValue();
+      mockAccount.get.mockResolvedValue(user);
+      mockTables.listRows.mockResolvedValue({ rows: [ADMIN_ROLE] });
+      mockTables.createRow.mockResolvedValue({});
+      mockFunctions.createExecution.mockResolvedValue({
+        responseBody: JSON.stringify({ success: true }),
+      });
+      // fetchUserRoles will call getRow — return populated profile
+      mockTables.getRow.mockResolvedValue(makeUserProfile({ role_ids: [ADMIN_ROLE] }));
+
+      const store = useAuthStore();
+      const result = await store.createAdmin('Admin', 'admin@test.com', 'password123');
+
+      expect(result).toEqual({ success: true });
+      expect(store.user).toEqual(user);
+      expect(store.isLoggedIn).toBe(true);
+      expect(store.hasUsers).toBe(true);
+      expect(mockAccount.create).toHaveBeenCalled();
+      expect(mockAccount.createEmailPasswordSession).toHaveBeenCalled();
+      expect(mockTables.createRow).toHaveBeenCalled();
+    });
+
+    it('sets localStorage systemInitialized flag on success', async () => {
+      mockAccount.create.mockResolvedValue();
+      mockAccount.createEmailPasswordSession.mockResolvedValue();
+      mockAccount.get.mockResolvedValue(makeUser());
+      mockTables.listRows.mockResolvedValue({ rows: [ADMIN_ROLE] });
+      mockTables.createRow.mockResolvedValue({});
+      mockTables.getRow.mockResolvedValue(makeUserProfile({ role_ids: [ADMIN_ROLE] }));
+      mockFunctions.createExecution.mockResolvedValue({
+        responseBody: JSON.stringify({ success: true }),
+      });
+
+      const store = useAuthStore();
+      await store.createAdmin('Admin', 'admin@test.com', 'password123');
+
+      expect(window.localStorage.getItem('systemInitialized')).toBe('true');
+    });
+
+    it('throws when System Administrator role is not found', async () => {
+      mockAccount.create.mockResolvedValue();
+      mockAccount.createEmailPasswordSession.mockResolvedValue();
+      mockTables.listRows.mockResolvedValue({
+        rows: [{ $id: 'r1', name: 'Village Head' }],
+      });
+
+      const store = useAuthStore();
+      const result = await store.createAdmin('Admin', 'admin@test.com', 'password123');
+
+      expect(result.success).toBe(false);
+      expect(result.error).toMatch(/System Administrator role not found/);
+    });
+
+    it('returns error when account.create fails', async () => {
+      mockAccount.create.mockRejectedValue(new Error('email already exists'));
+
+      const store = useAuthStore();
+      const result = await store.createAdmin('Admin', 'admin@test.com', 'password123');
+
+      expect(result.success).toBe(false);
+      expect(result.error).toMatch(/email already exists/);
+    });
+
+    it('returns error when session creation fails after account creation', async () => {
+      mockAccount.create.mockResolvedValue();
+      mockAccount.createEmailPasswordSession.mockRejectedValue(new Error('auth failed'));
+
+      const store = useAuthStore();
+      const result = await store.createAdmin('Admin', 'admin@test.com', 'password123');
+
+      expect(result.success).toBe(false);
+      expect(result.error).toMatch(/auth failed/);
+    });
+
+    it('returns error when profile creation fails', async () => {
+      mockAccount.create.mockResolvedValue();
+      mockAccount.createEmailPasswordSession.mockResolvedValue();
+      mockTables.listRows.mockResolvedValue({ rows: [ADMIN_ROLE] });
+      mockTables.createRow.mockRejectedValue(new Error('db error'));
+
+      const store = useAuthStore();
+      const result = await store.createAdmin('Admin', 'admin@test.com', 'password123');
+
+      expect(result.success).toBe(false);
+      expect(result.error).toMatch(/db error/);
+    });
+
+    it('continues successfully when team function execution fails (non-critical)', async () => {
+      mockAccount.create.mockResolvedValue();
+      mockAccount.createEmailPasswordSession.mockResolvedValue();
+      mockAccount.get.mockResolvedValue(makeUser());
+      mockTables.listRows.mockResolvedValue({ rows: [ADMIN_ROLE] });
+      mockTables.createRow.mockResolvedValue({});
+      mockTables.getRow.mockResolvedValue(makeUserProfile({ role_ids: [ADMIN_ROLE] }));
+      // Team function fails — should be caught and warned, not fatal
+      mockFunctions.createExecution.mockRejectedValue(new Error('function down'));
+
+      const store = useAuthStore();
+      const result = await store.createAdmin('Admin', 'admin@test.com', 'password123');
+
+      expect(result).toEqual({ success: true });
+      expect(store.isLoggedIn).toBe(true);
+    });
+
+    it('continues successfully when team function returns success=false', async () => {
+      mockAccount.create.mockResolvedValue();
+      mockAccount.createEmailPasswordSession.mockResolvedValue();
+      mockAccount.get.mockResolvedValue(makeUser());
+      mockTables.listRows.mockResolvedValue({ rows: [ADMIN_ROLE] });
+      mockTables.createRow.mockResolvedValue({});
+      mockTables.getRow.mockResolvedValue(makeUserProfile({ role_ids: [ADMIN_ROLE] }));
+      mockFunctions.createExecution.mockResolvedValue({
+        responseBody: JSON.stringify({ success: false, error: 'team add failed' }),
+      });
+
+      const store = useAuthStore();
+      const result = await store.createAdmin('Admin', 'admin@test.com', 'password123');
+
+      expect(result).toEqual({ success: true });
+    });
+
+    it('sets isLoading to false after completion', async () => {
+      mockAccount.create.mockResolvedValue();
+      mockAccount.createEmailPasswordSession.mockResolvedValue();
+      mockAccount.get.mockResolvedValue(makeUser());
+      mockTables.listRows.mockResolvedValue({ rows: [ADMIN_ROLE] });
+      mockTables.createRow.mockResolvedValue({});
+      mockTables.getRow.mockResolvedValue(makeUserProfile({ role_ids: [ADMIN_ROLE] }));
+      mockFunctions.createExecution.mockResolvedValue({
+        responseBody: JSON.stringify({ success: true }),
+      });
+
+      const store = useAuthStore();
+      await store.createAdmin('Admin', 'admin@test.com', 'password123');
+
+      expect(store.isLoading).toBe(false);
+    });
+  });
+
+  // ================================================================
+  // login
+  // ================================================================
+
+  describe('login', () => {
+    it('logs in successfully with valid credentials', async () => {
+      const user = makeUser();
+      mockAccount.deleteSession.mockRejectedValue(new Error('no session')); // pre-existing session cleanup
+      mockAccount.createEmailPasswordSession.mockResolvedValue();
+      mockAccount.get.mockResolvedValue(user);
+      mockTables.getRow.mockResolvedValue(makeUserProfile({ active: true }));
+
+      const store = useAuthStore();
+      const result = await store.login('admin@test.com', 'password123');
+
+      expect(result).toEqual({ success: true });
+      expect(store.user).toEqual(user);
+      expect(store.isLoggedIn).toBe(true);
+      expect(store.hasUsers).toBe(true);
+    });
+
+    it('sets localStorage systemInitialized flag on success', async () => {
+      mockAccount.deleteSession.mockRejectedValue(new Error('no session'));
+      mockAccount.createEmailPasswordSession.mockResolvedValue();
+      mockAccount.get.mockResolvedValue(makeUser());
+      mockTables.getRow.mockResolvedValue(makeUserProfile({ active: true }));
+
+      const store = useAuthStore();
+      await store.login('admin@test.com', 'password123');
+
+      expect(window.localStorage.getItem('systemInitialized')).toBe('true');
+    });
+
+    it('rejects login for deactivated account (defense-in-depth)', async () => {
+      mockAccount.deleteSession.mockRejectedValue(new Error('no session'));
+      mockAccount.createEmailPasswordSession.mockResolvedValue();
+      mockAccount.get.mockResolvedValue(makeUser());
+      // isUserProfileActive returns false
+      mockTables.getRow.mockResolvedValue(makeUserProfile({ active: false }));
+
+      const store = useAuthStore();
+      const result = await store.login('admin@test.com', 'password123');
+
+      expect(result.success).toBe(false);
+      expect(result.error).toMatch(/deactivated/);
+      expect(store.user).toBeNull();
+      expect(store.isLoggedIn).toBe(false);
+      // Should delete the session that was just created
+      expect(mockAccount.deleteSession).toHaveBeenCalledWith({ sessionId: 'current' });
+    });
+
+    it('returns error when createEmailPasswordSession fails', async () => {
+      mockAccount.deleteSession.mockRejectedValue(new Error('no session'));
+      mockAccount.createEmailPasswordSession.mockRejectedValue(new Error('invalid credentials'));
+
+      const store = useAuthStore();
+      const result = await store.login('admin@test.com', 'wrongpass');
+
+      expect(result.success).toBe(false);
+      expect(result.error).toMatch(/invalid credentials/);
+    });
+
+    it('cleans up pre-existing session before login (non-critical failure)', async () => {
+      mockAccount.deleteSession.mockResolvedValue(); // session existed and was deleted
+      mockAccount.createEmailPasswordSession.mockResolvedValue();
+      mockAccount.get.mockResolvedValue(makeUser());
+      mockTables.getRow.mockResolvedValue(makeUserProfile({ active: true }));
+
+      const store = useAuthStore();
+      const result = await store.login('admin@test.com', 'password123');
+
+      expect(result).toEqual({ success: true });
+      expect(mockAccount.deleteSession).toHaveBeenCalled();
+    });
+
+    it('sets isLoading to false after completion', async () => {
+      mockAccount.deleteSession.mockRejectedValue(new Error('no session'));
+      mockAccount.createEmailPasswordSession.mockResolvedValue();
+      mockAccount.get.mockResolvedValue(makeUser());
+      mockTables.getRow.mockResolvedValue(makeUserProfile({ active: true }));
+
+      const store = useAuthStore();
+      await store.login('admin@test.com', 'password123');
+
+      expect(store.isLoading).toBe(false);
+    });
+  });
+
+  // ================================================================
+  // fetchUser
+  // ================================================================
+
+  describe('fetchUser', () => {
+    it('fetches and populates user data when profile is active', async () => {
+      const user = makeUser();
+      mockAccount.get.mockResolvedValue(user);
+      mockTables.getRow.mockResolvedValue(makeUserProfile({ active: true }));
+
+      const store = useAuthStore();
+      const result = await store.fetchUser();
+
+      expect(result).toEqual(user);
+      expect(store.user).toEqual(user);
+      expect(store.isLoggedIn).toBe(true);
+    });
+
+    it('throws and clears state when profile is deactivated', async () => {
+      mockAccount.get.mockResolvedValue(makeUser());
+      mockTables.getRow.mockResolvedValue(makeUserProfile({ active: false }));
+
+      const store = useAuthStore();
+      await expect(store.fetchUser()).rejects.toThrow(/deactivated/);
+      expect(store.user).toBeNull();
+      expect(store.isLoggedIn).toBe(false);
+      expect(mockAccount.deleteSession).toHaveBeenCalledWith({ sessionId: 'current' });
+    });
+
+    it('throws and clears state when account.get fails', async () => {
+      mockAccount.get.mockRejectedValue(new Error('no session'));
+
+      const store = useAuthStore();
+      await expect(store.fetchUser()).rejects.toThrow(/no session/);
+      expect(store.user).toBeNull();
+      expect(store.isLoggedIn).toBe(false);
+    });
+  });
+
+  // ================================================================
+  // fetchUserRoles
+  // ================================================================
+
+  describe('fetchUserRoles', () => {
+    it('sets empty array when no user is set', async () => {
+      const store = useAuthStore();
+      store.user = null;
+      await store.fetchUserRoles();
+      expect(store.userRoles).toEqual([]);
+    });
+
+    it('populates userRoles from populated role_ids (relationship objects)', async () => {
+      const store = useAuthStore();
+      store.user = makeUser();
+      mockTables.getRow.mockResolvedValue(
+        makeUserProfile({
+          role_ids: [ADMIN_ROLE, { $id: 'r2', name: 'Village Head', permissions: ['*'] }],
+        }),
+      );
+
+      await store.fetchUserRoles();
+
+      expect(store.userRoles).toHaveLength(2);
+      expect(store.userRoles[0].name).toBe('System Administrator');
+    });
+
+    it('fetches individual role documents when role_ids are string IDs', async () => {
+      const store = useAuthStore();
+      store.user = makeUser();
+      mockTables.getRow.mockResolvedValue(makeUserProfile({ role_ids: ['role-admin', 'role-vh'] }));
+      // First getRow is the profile, subsequent are role fetches
+      mockTables.getRow
+        .mockResolvedValueOnce(makeUserProfile({ role_ids: ['role-admin', 'role-vh'] }))
+        .mockResolvedValueOnce(ADMIN_ROLE)
+        .mockResolvedValueOnce({ $id: 'role-vh', name: 'Village Head', permissions: ['*'] });
+
+      await store.fetchUserRoles();
+
+      expect(store.userRoles).toHaveLength(2);
+      expect(store.userRoles[0].name).toBe('System Administrator');
+      expect(store.userRoles[1].name).toBe('Village Head');
+    });
+
+    it('sets empty array when role_ids is empty', async () => {
+      const store = useAuthStore();
+      store.user = makeUser();
+      mockTables.getRow.mockResolvedValue(makeUserProfile({ role_ids: [] }));
+
+      await store.fetchUserRoles();
+
+      expect(store.userRoles).toEqual([]);
+    });
+
+    it('sets empty array when role_ids is null/undefined', async () => {
+      const store = useAuthStore();
+      store.user = makeUser();
+      mockTables.getRow.mockResolvedValue(makeUserProfile({ role_ids: null }));
+
+      await store.fetchUserRoles();
+
+      expect(store.userRoles).toEqual([]);
+    });
+
+    it('sets storage quota override from profile', async () => {
+      const store = useAuthStore();
+      store.user = makeUser();
+      mockTables.getRow.mockResolvedValue(
+        makeUserProfile({ role_ids: [ADMIN_ROLE], storage_quota: 15 }),
+      );
+
+      await store.fetchUserRoles();
+
+      expect(store.userStorageQuotaOverride).toBe(15);
+    });
+
+    it('sets storage quota override to 0 when not a number', async () => {
+      const store = useAuthStore();
+      store.user = makeUser();
+      mockTables.getRow.mockResolvedValue(
+        makeUserProfile({ role_ids: [ADMIN_ROLE], storage_quota: null }),
+      );
+
+      await store.fetchUserRoles();
+
+      expect(store.userStorageQuotaOverride).toBe(0);
+    });
+
+    it('sets empty array on error from tables.getRow', async () => {
+      const store = useAuthStore();
+      store.user = makeUser();
+      mockTables.getRow.mockRejectedValue(new Error('network'));
+
+      await store.fetchUserRoles();
+
+      expect(store.userRoles).toEqual([]);
     });
   });
 });
