@@ -111,7 +111,7 @@ export default defineConfig(({ mode }) => {
       exclude: ['node_modules', 'dist', 'test/e2e/**', 'cypress/**'],
       coverage: {
         provider: 'v8',
-        reporter: ['text', 'text-summary', 'html', 'lcov'],
+        reporter: ['text', 'text-summary', 'html', 'lcov', 'json-summary'],
         reportsDirectory: 'coverage',
         // Tiered thresholds are enforced in CI via a per-layer script
         // (see .github/workflows/test.yml and scripts/check-coverage.mjs),
