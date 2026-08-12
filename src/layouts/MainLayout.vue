@@ -1086,7 +1086,10 @@ async function handleLogout() {
 
     if (result.success) {
       errorHandler.notifySuccess('Logged out successfully');
-      router.push('/auth');
+      // Full page reload (not router.push) to clear all Pinia store state
+      // (including cached `loaded` flags) so a different user logging in on
+      // the same device never sees the previous user's cached data.
+      window.location.href = '/auth';
     } else {
       $q.notify({
         type: 'negative',
