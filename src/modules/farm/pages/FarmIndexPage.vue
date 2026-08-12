@@ -87,10 +87,12 @@
 import { computed, ref, onMounted } from 'vue';
 import { useQuasar } from 'quasar';
 import { useFarmStore } from './stores/farm-store';
+import { usePermissions } from 'src/composables/usePermissions';
 import PlotsOverviewWidget from './components/PlotsOverviewWidget.vue';
 
 const $q = useQuasar();
 const farmStore = useFarmStore();
+const { hasPermission } = usePermissions();
 
 const stats = ref({
   totalPlots: 0,
@@ -99,10 +101,7 @@ const stats = ref({
   monthlySales: 0,
 });
 
-const hasFarmManagerRole = computed(() => {
-  // Check user roles
-  return true; // TODO: Implement proper role check
-});
+const hasFarmManagerRole = computed(() => hasPermission('farm:write'));
 
 const moduleLinks = [
   {
