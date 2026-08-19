@@ -289,6 +289,10 @@ const tableSchemas = {
         required: true,
         default: 'kg_per_hectare',
       },
+      // Story 2.5: Lending module toggle (defaults to enabled). Tracked here so the
+      // OOBE Start Fresh wizard can disable it on first run without needing the
+      // separate setup-lending-collections.js migration script to have run.
+      { key: 'lending_enabled', type: 'boolean', required: false, default: true },
       // Story 3.10: Farm alert configuration stored as serialized JSON string
       { key: 'farm_alert_config', type: 'string', size: 2000, required: false },
     ],

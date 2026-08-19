@@ -1,378 +1,505 @@
 <template>
   <div class="start-fresh-wizard q-pa-md" style="max-width: 900px; width: 100%">
-    <div class="row items-center q-mb-md">
-      <div class="col text-center">
-        <q-icon name="add_home_work" size="48px" color="primary" class="q-mb-sm" />
-        <h4 class="text-h5 text-weight-bold q-my-none">Start Fresh with Real Data</h4>
-        <p class="text-subtitle2 text-grey-7 q-mt-sm q-mb-none">
-          Set up your village management platform step by step.
-        </p>
-      </div>
-    </div>
-    <div class="text-right q-mb-md">
-      <q-btn flat dense color="grey-7" label="Cancel" icon="close" @click="$emit('cancel')" />
-    </div>
-
-    <q-stepper
-      v-model="currentStep"
-      flat
-      bordered
-      animated
-      vertical
-      color="primary"
-      done-color="positive"
-      active-color="primary"
-    >
-      <!-- Step 1: Village Profile -->
-      <q-step
-        :name="1"
-        title="Village Profile"
-        icon="home_work"
-        :caption="'Step 1 of 5'"
-        :done="currentStep > 1"
-      >
-        <q-form ref="step1Form" class="q-gutter-md">
-          <p class="text-body2 text-grey-7">
-            Defaults are set for Zambia. Adjust if your village is elsewhere.
-          </p>
-
-          <q-input
-            v-model="villageForm.village_name"
-            label="Village Name *"
-            outlined
-            dense
-            :rules="[(val) => (val && val.trim().length > 0) || 'Village name is required']"
-            lazy-rules
-          />
-
-          <q-input v-model="villageForm.address" label="Address" outlined dense />
-
-          <q-input
-            v-model="villageForm.established_date"
-            label="Established Date"
-            outlined
-            dense
-            type="date"
-          >
-            <template #prepend>
-              <q-icon name="event" />
-            </template>
-          </q-input>
-
-          <div class="row q-col-gutter-md">
-            <div class="col-12 col-md-4">
-              <q-input
-                v-model="villageForm.default_currency"
-                label="Currency Code *"
-                outlined
-                dense
-                maxlength="3"
-                hint="ISO 4217 (e.g. ZMW, USD)"
-                :rules="[(val) => !!val || 'Currency code is required']"
-                lazy-rules
-              />
-            </div>
-            <div class="col-12 col-md-4">
-              <q-input
-                v-model="villageForm.currency_symbol"
-                label="Currency Symbol *"
-                outlined
-                dense
-                hint="e.g. K, $"
-                :rules="[(val) => !!val || 'Currency symbol is required']"
-                lazy-rules
-              />
-            </div>
-            <div class="col-12 col-md-4">
-              <q-input
-                v-model="villageForm.country_code"
-                label="Country Code *"
-                outlined
-                dense
-                maxlength="2"
-                hint="ISO 3166-1 alpha-2 (e.g. ZM)"
-                :rules="[
-                  (val) => !!val || 'Country code is required',
-                  (val) => val.length === 2 || 'Must be 2 characters',
-                ]"
-                lazy-rules
-              />
+    <q-card flat bordered class="rounded-borders bg-white shadow-1">
+      <q-card-section class="row items-center justify-between q-pb-none">
+        <div class="row items-center q-gutter-md">
+          <q-avatar color="primary" text-color="white" icon="add_home_work" size="44px" />
+          <div>
+            <div class="text-h6 text-weight-bold">Start Fresh with Real Data</div>
+            <div class="text-caption text-grey-7">
+              Set up your village management platform step by step.
             </div>
           </div>
+        </div>
+        <q-btn flat round dense color="grey-7" icon="close" @click="$emit('cancel')">
+          <q-tooltip>Cancel Setup</q-tooltip>
+        </q-btn>
+      </q-card-section>
 
-          <div class="row q-col-gutter-md">
-            <div class="col-12 col-md-6">
+      <q-card-section class="q-pt-sm">
+        <q-stepper
+          v-model="currentStep"
+          flat
+          animated
+          vertical
+          color="primary"
+          done-color="positive"
+          active-color="primary"
+        >
+          <!-- Step 1: Village Profile -->
+          <q-step
+            :name="1"
+            title="Village Profile"
+            icon="home_work"
+            :caption="'Step 1 of 5'"
+            :done="currentStep > 1"
+          >
+            <q-form ref="step1Form" class="q-gutter-y-md q-pt-sm">
+              <div
+                class="q-mb-md q-pa-sm bg-blue-1 text-primary rounded-borders row items-center no-wrap"
+              >
+                <q-icon name="info" size="20px" class="q-mr-sm text-primary" />
+                <span class="text-body2">
+                  Defaults are set for Zambia. Adjust if your village is elsewhere.
+                </span>
+              </div>
+
               <q-input
-                v-model="villageForm.country_phone_code"
-                label="Country Phone Code *"
+                v-model="villageForm.village_name"
+                label="Village Name *"
                 outlined
                 dense
-                hint="e.g. +260"
-                :rules="[(val) => !!val || 'Country phone code is required']"
-                lazy-rules
-              />
-            </div>
-            <div class="col-12 col-md-6">
-              <q-select
-                v-model="villageForm.timezone"
-                :options="timezoneOptions"
-                label="Timezone *"
-                outlined
-                dense
-                option-value="value"
-                option-label="label"
-                emit-value
-                map-options
-                :rules="[(val) => !!val || 'Timezone is required']"
+                placeholder="e.g. Mtika Village"
+                :rules="[(val) => (val && val.trim().length > 0) || 'Village name is required']"
                 lazy-rules
               >
                 <template #prepend>
-                  <q-icon name="schedule" />
+                  <q-icon name="location_city" color="primary" />
+                </template>
+              </q-input>
+
+              <q-input
+                v-model="villageForm.address"
+                label="Address"
+                outlined
+                dense
+                placeholder="e.g. Katete District, Eastern Province, Zambia"
+              >
+                <template #prepend>
+                  <q-icon name="place" color="primary" />
+                </template>
+              </q-input>
+
+              <q-input
+                v-model="villageForm.established_date"
+                label="Established Date"
+                outlined
+                dense
+                placeholder="YYYY-MM-DD"
+                mask="####-##-##"
+              >
+                <template #prepend>
+                  <q-icon name="event" class="cursor-pointer" color="primary">
+                    <q-popup-proxy cover transition-show="scale" transition-hide="scale">
+                      <q-date v-model="villageForm.established_date" mask="YYYY-MM-DD">
+                        <div class="row items-center justify-end">
+                          <q-btn v-close-popup label="Close" color="primary" flat />
+                        </div>
+                      </q-date>
+                    </q-popup-proxy>
+                  </q-icon>
+                </template>
+                <template #append>
+                  <q-icon name="edit_calendar" class="cursor-pointer text-grey-6">
+                    <q-popup-proxy cover transition-show="scale" transition-hide="scale">
+                      <q-date v-model="villageForm.established_date" mask="YYYY-MM-DD">
+                        <div class="row items-center justify-end">
+                          <q-btn v-close-popup label="Close" color="primary" flat />
+                        </div>
+                      </q-date>
+                    </q-popup-proxy>
+                  </q-icon>
+                </template>
+              </q-input>
+
+              <div class="row q-col-gutter-md q-mt-xs">
+                <div class="col-12 col-md-4">
+                  <q-input
+                    v-model="villageForm.default_currency"
+                    label="Currency Code *"
+                    outlined
+                    dense
+                    maxlength="3"
+                    placeholder="e.g. ZMW"
+                    hint="ISO 4217 (e.g. ZMW, USD)"
+                    :rules="[(val) => !!val || 'Currency code is required']"
+                    lazy-rules
+                  >
+                    <template #prepend>
+                      <q-icon name="payments" color="primary" />
+                    </template>
+                  </q-input>
+                </div>
+                <div class="col-12 col-md-4">
+                  <q-input
+                    v-model="villageForm.currency_symbol"
+                    label="Currency Symbol *"
+                    outlined
+                    dense
+                    placeholder="e.g. K"
+                    hint="e.g. K, $"
+                    :rules="[(val) => !!val || 'Currency symbol is required']"
+                    lazy-rules
+                  >
+                    <template #prepend>
+                      <q-icon name="attach_money" color="primary" />
+                    </template>
+                  </q-input>
+                </div>
+                <div class="col-12 col-md-4">
+                  <q-input
+                    v-model="villageForm.country_code"
+                    label="Country Code *"
+                    outlined
+                    dense
+                    maxlength="2"
+                    placeholder="e.g. ZM"
+                    hint="ISO 3166-1 alpha-2 (e.g. ZM)"
+                    :rules="[
+                      (val) => !!val || 'Country code is required',
+                      (val) => val.length === 2 || 'Must be 2 characters',
+                    ]"
+                    lazy-rules
+                  >
+                    <template #prepend>
+                      <q-icon name="flag" color="primary" />
+                    </template>
+                  </q-input>
+                </div>
+              </div>
+
+              <div class="row q-col-gutter-md q-mt-xs">
+                <div class="col-12 col-md-6">
+                  <q-input
+                    v-model="villageForm.country_phone_code"
+                    label="Country Phone Code *"
+                    outlined
+                    dense
+                    placeholder="e.g. +260"
+                    hint="e.g. +260"
+                    :rules="[(val) => !!val || 'Country phone code is required']"
+                    lazy-rules
+                  >
+                    <template #prepend>
+                      <q-icon name="phone" color="primary" />
+                    </template>
+                  </q-input>
+                </div>
+                <div class="col-12 col-md-6">
+                  <q-select
+                    v-model="villageForm.timezone"
+                    :options="timezoneOptions"
+                    label="Timezone *"
+                    outlined
+                    dense
+                    option-value="value"
+                    option-label="label"
+                    emit-value
+                    map-options
+                    hint="Select local timezone"
+                    :rules="[(val) => !!val || 'Timezone is required']"
+                    lazy-rules
+                  >
+                    <template #prepend>
+                      <q-icon name="schedule" color="primary" />
+                    </template>
+                  </q-select>
+                </div>
+              </div>
+            </q-form>
+
+            <q-stepper-navigation class="q-mt-lg">
+              <q-btn
+                color="primary"
+                label="Next"
+                icon-right="chevron_right"
+                :loading="stepLoading"
+                @click="onStep1Next"
+              />
+            </q-stepper-navigation>
+          </q-step>
+
+          <!-- Step 2: Admin User -->
+          <q-step
+            :name="2"
+            title="Admin User"
+            icon="admin_panel_settings"
+            :caption="'Step 2 of 5'"
+            :done="currentStep > 2"
+          >
+            <p class="text-body2 text-grey-7 q-mb-md">
+              You are the System Administrator. This account was created during initial login.
+            </p>
+
+            <q-list bordered separator class="rounded-borders q-mb-md bg-grey-1">
+              <q-item class="q-py-md">
+                <q-item-section avatar>
+                  <q-avatar color="primary" text-color="white" icon="person" size="40px" />
+                </q-item-section>
+                <q-item-section>
+                  <q-item-label class="text-weight-bold text-subtitle1">{{
+                    adminName
+                  }}</q-item-label>
+                  <q-item-label caption class="text-grey-7">Administrator Name</q-item-label>
+                </q-item-section>
+              </q-item>
+              <q-item class="q-py-md">
+                <q-item-section avatar>
+                  <q-avatar color="primary" text-color="white" icon="email" size="40px" />
+                </q-item-section>
+                <q-item-section>
+                  <q-item-label class="text-weight-bold text-subtitle1">{{
+                    adminEmail
+                  }}</q-item-label>
+                  <q-item-label caption class="text-grey-7">Administrator Email</q-item-label>
+                </q-item-section>
+              </q-item>
+            </q-list>
+
+            <q-stepper-navigation class="q-mt-lg">
+              <q-btn
+                color="primary"
+                label="Next"
+                icon-right="chevron_right"
+                @click="currentStep = 3"
+              />
+              <q-btn
+                flat
+                color="primary"
+                label="Back"
+                icon="chevron_left"
+                class="q-ml-sm"
+                @click="currentStep = 1"
+              />
+            </q-stepper-navigation>
+          </q-step>
+
+          <!-- Step 3: Village Head -->
+          <q-step
+            :name="3"
+            title="Village Head"
+            icon="person_add"
+            :caption="'Step 3 of 5'"
+            :done="currentStep > 3"
+          >
+            <p class="text-body2 text-grey-7 q-mb-md">
+              Optionally create a Village Head user account, or skip if you are the Village Head.
+            </p>
+
+            <q-option-group
+              v-model="villageHeadOption"
+              :options="villageHeadOptions"
+              color="primary"
+              class="q-mb-md"
+            />
+
+            <q-form
+              v-if="villageHeadOption === 'create'"
+              ref="step3Form"
+              class="q-gutter-y-md q-pt-sm"
+            >
+              <q-input
+                v-model="villageHeadForm.name"
+                label="Full Name *"
+                outlined
+                dense
+                placeholder="e.g. Chief Mtika"
+                maxlength="255"
+                :rules="[(val) => (val && val.trim().length > 0) || 'Name is required']"
+                lazy-rules
+              >
+                <template #prepend>
+                  <q-icon name="person" color="primary" />
+                </template>
+              </q-input>
+
+              <q-input
+                v-model="villageHeadForm.email"
+                type="email"
+                label="Email *"
+                outlined
+                dense
+                placeholder="e.g. chief@example.com"
+                maxlength="255"
+                :rules="[
+                  (val) => (val && val.trim().length > 0) || 'Email is required',
+                  (val) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val) || 'Enter a valid email address',
+                ]"
+                lazy-rules
+              >
+                <template #prepend>
+                  <q-icon name="email" color="primary" />
+                </template>
+              </q-input>
+
+              <q-input
+                v-model="villageHeadForm.password"
+                :type="showVHPassword ? 'text' : 'password'"
+                label="Password *"
+                outlined
+                dense
+                placeholder="Minimum 8 characters"
+                maxlength="265"
+                :rules="[
+                  (val) => (val && val.length > 0) || 'Password is required',
+                  (val) => (val && val.length >= 8) || 'Password must be at least 8 characters',
+                ]"
+                lazy-rules
+              >
+                <template #prepend>
+                  <q-icon name="lock" color="primary" />
+                </template>
+                <template #append>
+                  <q-icon
+                    :name="showVHPassword ? 'visibility_off' : 'visibility'"
+                    class="cursor-pointer text-grey-7"
+                    @click="showVHPassword = !showVHPassword"
+                  />
+                </template>
+              </q-input>
+            </q-form>
+
+            <q-stepper-navigation class="q-mt-lg">
+              <q-btn
+                color="primary"
+                label="Next"
+                icon-right="chevron_right"
+                :loading="stepLoading"
+                @click="onStep3Next"
+              />
+              <q-btn
+                flat
+                color="primary"
+                label="Back"
+                icon="chevron_left"
+                class="q-ml-sm"
+                @click="currentStep = 2"
+              />
+            </q-stepper-navigation>
+          </q-step>
+
+          <!-- Step 4: Module Selection -->
+          <q-step
+            :name="4"
+            title="Module Selection"
+            icon="apps"
+            :caption="'Step 4 of 5'"
+            :done="currentStep > 4"
+          >
+            <p class="text-body2 text-grey-7 q-mb-md">
+              Choose which optional modules to enable. You can enable/disable modules later in
+              Settings.
+            </p>
+
+            <ModuleSelectionGrid
+              v-model="enabledModules"
+              :show-warnings="false"
+              :show-configure="false"
+            />
+
+            <q-stepper-navigation class="q-mt-lg">
+              <q-btn
+                color="primary"
+                label="Next"
+                icon-right="chevron_right"
+                :loading="stepLoading"
+                @click="onStep4Next"
+              />
+              <q-btn
+                flat
+                color="primary"
+                label="Back"
+                icon="chevron_left"
+                class="q-ml-sm"
+                @click="currentStep = 3"
+              />
+            </q-stepper-navigation>
+          </q-step>
+
+          <!-- Step 5: First Household -->
+          <q-step
+            :name="5"
+            title="First Household"
+            icon="home"
+            :caption="'Step 5 of 5'"
+            :done="currentStep > 5"
+          >
+            <p class="text-body2 text-grey-7 q-mb-md">
+              Create your first household to get started.
+            </p>
+
+            <q-form ref="step5Form" class="q-gutter-y-md q-pt-sm">
+              <q-input
+                v-model="householdForm.name"
+                label="Household Name *"
+                outlined
+                dense
+                placeholder="e.g. Banda Family Homestead"
+                :rules="[(val) => (val && val.trim().length > 0) || 'Household name is required']"
+                lazy-rules
+              >
+                <template #prepend>
+                  <q-icon name="home" color="primary" />
+                </template>
+              </q-input>
+
+              <q-select
+                v-model="householdForm.household_type"
+                :options="householdTypes"
+                label="Household Type"
+                outlined
+                dense
+                placeholder="Select household type"
+              >
+                <template #prepend>
+                  <q-icon name="category" color="primary" />
                 </template>
               </q-select>
-            </div>
-          </div>
-        </q-form>
 
-        <q-stepper-navigation>
-          <q-btn
-            color="primary"
-            label="Next"
-            icon-right="chevron_right"
-            :loading="stepLoading"
-            @click="onStep1Next"
-          />
-        </q-stepper-navigation>
-      </q-step>
+              <q-input
+                v-model="householdForm.construction_date"
+                label="Construction Date"
+                outlined
+                dense
+                placeholder="YYYY-MM-DD"
+                mask="####-##-##"
+              >
+                <template #prepend>
+                  <q-icon name="event" class="cursor-pointer" color="primary">
+                    <q-popup-proxy cover transition-show="scale" transition-hide="scale">
+                      <q-date v-model="householdForm.construction_date" mask="YYYY-MM-DD">
+                        <div class="row items-center justify-end">
+                          <q-btn v-close-popup label="Close" color="primary" flat />
+                        </div>
+                      </q-date>
+                    </q-popup-proxy>
+                  </q-icon>
+                </template>
+                <template #append>
+                  <q-icon name="edit_calendar" class="cursor-pointer text-grey-6">
+                    <q-popup-proxy cover transition-show="scale" transition-hide="scale">
+                      <q-date v-model="householdForm.construction_date" mask="YYYY-MM-DD">
+                        <div class="row items-center justify-end">
+                          <q-btn v-close-popup label="Close" color="primary" flat />
+                        </div>
+                      </q-date>
+                    </q-popup-proxy>
+                  </q-icon>
+                </template>
+              </q-input>
+            </q-form>
 
-      <!-- Step 2: Admin User -->
-      <q-step
-        :name="2"
-        title="Admin User"
-        icon="admin_panel_settings"
-        :caption="'Step 2 of 5'"
-        :done="currentStep > 2"
-      >
-        <p class="text-body2 text-grey-7">
-          You are the System Administrator. This account was created during initial login.
-        </p>
-
-        <q-list bordered separator class="rounded-borders q-mb-md">
-          <q-item>
-            <q-item-section avatar>
-              <q-icon name="person" color="primary" />
-            </q-item-section>
-            <q-item-section>
-              <q-item-label>{{ adminName }}</q-item-label>
-              <q-item-label caption>Name</q-item-label>
-            </q-item-section>
-          </q-item>
-          <q-item>
-            <q-item-section avatar>
-              <q-icon name="email" color="primary" />
-            </q-item-section>
-            <q-item-section>
-              <q-item-label>{{ adminEmail }}</q-item-label>
-              <q-item-label caption>Email</q-item-label>
-            </q-item-section>
-          </q-item>
-        </q-list>
-
-        <q-stepper-navigation>
-          <q-btn color="primary" label="Next" icon-right="chevron_right" @click="currentStep = 3" />
-          <q-btn
-            flat
-            color="primary"
-            label="Back"
-            icon="chevron_left"
-            class="q-ml-sm"
-            @click="currentStep = 1"
-          />
-        </q-stepper-navigation>
-      </q-step>
-
-      <!-- Step 3: Village Head -->
-      <q-step
-        :name="3"
-        title="Village Head"
-        icon="person_add"
-        :caption="'Step 3 of 5'"
-        :done="currentStep > 3"
-      >
-        <p class="text-body2 text-grey-7">
-          Optionally create a Village Head user account, or skip if you are the Village Head.
-        </p>
-
-        <q-option-group
-          v-model="villageHeadOption"
-          :options="villageHeadOptions"
-          color="primary"
-          class="q-mb-md"
-        />
-
-        <q-form v-if="villageHeadOption === 'create'" ref="step3Form" class="q-gutter-md">
-          <q-input
-            v-model="villageHeadForm.name"
-            label="Full Name *"
-            outlined
-            dense
-            maxlength="255"
-            :rules="[(val) => (val && val.trim().length > 0) || 'Name is required']"
-            lazy-rules
-          />
-
-          <q-input
-            v-model="villageHeadForm.email"
-            type="email"
-            label="Email *"
-            outlined
-            dense
-            maxlength="255"
-            :rules="[
-              (val) => (val && val.trim().length > 0) || 'Email is required',
-              (val) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val) || 'Enter a valid email address',
-            ]"
-            lazy-rules
-          />
-
-          <q-input
-            v-model="villageHeadForm.password"
-            :type="showVHPassword ? 'text' : 'password'"
-            label="Password *"
-            outlined
-            dense
-            maxlength="265"
-            :rules="[
-              (val) => (val && val.length > 0) || 'Password is required',
-              (val) => (val && val.length >= 8) || 'Password must be at least 8 characters',
-            ]"
-            lazy-rules
-          >
-            <template #prepend>
-              <q-icon name="lock" />
-            </template>
-            <template #append>
-              <q-icon
-                :name="showVHPassword ? 'visibility_off' : 'visibility'"
-                class="cursor-pointer"
-                @click="showVHPassword = !showVHPassword"
+            <q-stepper-navigation class="q-mt-lg">
+              <q-btn
+                color="primary"
+                label="Finish"
+                icon="check"
+                :loading="stepLoading"
+                @click="onStep5Finish"
               />
-            </template>
-          </q-input>
-        </q-form>
-
-        <q-stepper-navigation>
-          <q-btn
-            color="primary"
-            label="Next"
-            icon-right="chevron_right"
-            :loading="stepLoading"
-            @click="onStep3Next"
-          />
-          <q-btn
-            flat
-            color="primary"
-            label="Back"
-            icon="chevron_left"
-            class="q-ml-sm"
-            @click="currentStep = 2"
-          />
-        </q-stepper-navigation>
-      </q-step>
-
-      <!-- Step 4: Module Selection -->
-      <q-step
-        :name="4"
-        title="Module Selection"
-        icon="apps"
-        :caption="'Step 4 of 5'"
-        :done="currentStep > 4"
-      >
-        <p class="text-body2 text-grey-7">
-          Choose which optional modules to enable. You can enable/disable modules later in Settings.
-        </p>
-
-        <ModuleSelectionGrid v-model="enabledModules" :show-warnings="false" />
-
-        <q-stepper-navigation class="q-mt-md">
-          <q-btn
-            color="primary"
-            label="Next"
-            icon-right="chevron_right"
-            :loading="stepLoading"
-            @click="onStep4Next"
-          />
-          <q-btn
-            flat
-            color="primary"
-            label="Back"
-            icon="chevron_left"
-            class="q-ml-sm"
-            @click="currentStep = 3"
-          />
-        </q-stepper-navigation>
-      </q-step>
-
-      <!-- Step 5: First Household -->
-      <q-step
-        :name="5"
-        title="First Household"
-        icon="home"
-        :caption="'Step 5 of 5'"
-        :done="currentStep > 5"
-      >
-        <p class="text-body2 text-grey-7">Create your first household to get started.</p>
-
-        <q-form ref="step5Form" class="q-gutter-md">
-          <q-input
-            v-model="householdForm.name"
-            label="Household Name *"
-            outlined
-            dense
-            :rules="[(val) => (val && val.trim().length > 0) || 'Household name is required']"
-            lazy-rules
-          />
-
-          <q-select
-            v-model="householdForm.household_type"
-            :options="householdTypes"
-            label="Household Type"
-            outlined
-            dense
-          />
-
-          <q-input
-            v-model="householdForm.construction_date"
-            label="Construction Date"
-            outlined
-            dense
-            type="date"
-          >
-            <template #prepend>
-              <q-icon name="event" />
-            </template>
-          </q-input>
-        </q-form>
-
-        <q-stepper-navigation>
-          <q-btn
-            color="primary"
-            label="Finish"
-            icon="check"
-            :loading="stepLoading"
-            @click="onStep5Finish"
-          />
-          <q-btn
-            flat
-            color="primary"
-            label="Back"
-            icon="chevron_left"
-            class="q-ml-sm"
-            @click="currentStep = 4"
-          />
-        </q-stepper-navigation>
-      </q-step>
-    </q-stepper>
+              <q-btn
+                flat
+                color="primary"
+                label="Back"
+                icon="chevron_left"
+                class="q-ml-sm"
+                @click="currentStep = 4"
+              />
+            </q-stepper-navigation>
+          </q-step>
+        </q-stepper>
+      </q-card-section>
+    </q-card>
   </div>
 </template>
 

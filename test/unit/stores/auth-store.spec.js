@@ -233,6 +233,10 @@ describe('auth-store', () => {
       expect(mockAccount.create).toHaveBeenCalled();
       expect(mockAccount.createEmailPasswordSession).toHaveBeenCalled();
       expect(mockTables.createRow).toHaveBeenCalled();
+      // Story 5.12: the users table requires `active` (boolean). The OOBE
+      // createAdmin path must set it explicitly or Appwrite rejects the row.
+      const createRowCall = mockTables.createRow.mock.calls[0][0];
+      expect(createRowCall.data).toMatchObject({ active: true });
     });
 
     it('sets localStorage systemInitialized flag on success', async () => {

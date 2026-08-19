@@ -215,6 +215,10 @@ export const useAuthStore = defineStore('auth', {
             email,
             name,
             role_ids: [adminRole.$id], // Relationship to roles table
+            // Story 5.12: active is a required boolean column on the users
+            // table. Explicitly set it so the row passes schema validation
+            // even though the column has a default in the schema.
+            active: true,
             // storage_quota is optional and has a default in the schema
           },
         });

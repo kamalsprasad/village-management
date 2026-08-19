@@ -49,7 +49,11 @@
           </q-banner>
         </q-card-section>
 
-        <q-card-actions v-if="module.configureRoute" align="right" class="q-pt-none">
+        <q-card-actions
+          v-if="showConfigure && module.configureRoute"
+          align="right"
+          class="q-pt-none"
+        >
           <q-btn
             flat
             dense
@@ -82,6 +86,10 @@ const props = defineProps({
     default: false,
   },
   showWarnings: {
+    type: Boolean,
+    default: true,
+  },
+  showConfigure: {
     type: Boolean,
     default: true,
   },
