@@ -2,11 +2,8 @@
 // Requires a seeded test Appwrite project with admin user.
 
 describe('Household CRUD', () => {
-  before(() => {
-    cy.loginAsAdmin();
-  });
-
   beforeEach(() => {
+    cy.loginAsAdmin();
     cy.visit('/households');
     cy.url().should('include', '/households');
   });
@@ -35,6 +32,12 @@ describe('Household CRUD', () => {
     cy.get('[data-test="household-name"]').type('E2E Test Household');
     cy.get('[data-test="household-type"]').click();
     cy.get('.q-menu .q-item').contains('Single Family').click();
+    // construction_date is a required field
+    cy.get('[data-test="household-name"]')
+      .closest('form')
+      .find('input[type="date"]')
+      .first()
+      .type('2020-01-15');
 
     cy.get('[data-test="form-submit"], button:contains("Save"), button[type="submit"]')
       .last()
@@ -44,19 +47,25 @@ describe('Household CRUD', () => {
   });
 
   it('cannot delete a household with occupants', () => {
-    // Find a household with occupants and try to delete it
-    cy.get('[data-test="household-row"], tbody tr')
-      .first()
-      .then(($row) => {
-        // Click delete button if it exists
-        cy.wrap($row)
-          .find('[data-test="delete-button"], button:contains("Delete")')
-          .first()
-          .click();
-        // Confirm deletion
-        cy.get('[data-test="confirm-delete"], button:contains("Confirm")').last().click();
-        // Should see an error about occupants
-        // (This may pass or fail depending on whether the household has occupants)
-      });
+    // Setup: create a household, then add a resident to it so it has an occupant.
+    const householdName = `Occupied HH ${Date.now()}`;
+    cy.createHouseholdViaUI(householdName, 'Single Family', '2020-01-15');
+
+    // Add a resident to this household via the residents page.
+    cy.createResidentViaUI('Occupant', 'Test', '1990-01-15', 'Male');
+
+    // Go back to households and find the household we created.
+    cy.visit('/households');
+    cy.get('[data-test="households-table"] tbody tr').should('have.length.gte', 1);
+
+    // The household with occupants should not show a delete button (the UI
+    // hides delete/edit actions when occupant_count > 0).
+    cy.get('[data-test="households-table"] tbody tr').each(($row) => {
+      const name = $row.find('td').first().text();
+      if (name.includes(householdName)) {
+        // The delete button should NOT be present for this household.
+        cy.wrap($row).find('[data-test="delete-button"]').should('not.exist');
+      }
+    });
   });
 });

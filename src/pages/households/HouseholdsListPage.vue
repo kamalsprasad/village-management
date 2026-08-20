@@ -98,6 +98,7 @@
                 color="primary"
                 size="sm"
                 aria-label="View household"
+                data-test="view-household-button"
                 @click="viewHousehold(props.row.$id)"
               >
                 <q-tooltip>View Details</q-tooltip>

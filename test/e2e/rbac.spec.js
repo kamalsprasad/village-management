@@ -34,6 +34,13 @@ describe('RBAC navigation', () => {
   });
 
   describe('resident user (limited access)', () => {
+    before(() => {
+      cy.loginAsAdmin();
+      cy.fixture('users').then((users) => {
+        cy.ensureUser({ ...users.resident, roleName: 'Village Resident' });
+      });
+    });
+
     beforeEach(() => {
       cy.fixture('users').then((users) => {
         cy.loginAs(users.resident.email, users.resident.password);

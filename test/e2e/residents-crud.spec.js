@@ -1,12 +1,9 @@
 // E2E tests for resident CRUD operations.
-// Requires a seeded test Appwrite project with admin user and households.
+// Requires a seeded test Appwrite project with admin user.
 
 describe('Resident CRUD', () => {
-  before(() => {
-    cy.loginAsAdmin();
-  });
-
   beforeEach(() => {
+    cy.loginAsAdmin();
     cy.visit('/residents');
     cy.url().should('include', '/residents');
   });
@@ -27,7 +24,11 @@ describe('Resident CRUD', () => {
   });
 
   it('can create a new resident', () => {
-    // Open create form
+    // Ensure at least one household exists (required for resident creation).
+    cy.createHouseholdViaUI(`Resident HH ${Date.now()}`, 'Single Family', '2020-01-15');
+
+    // Now create the resident.
+    cy.visit('/residents');
     cy.get(
       '[data-test="create-resident-button"], button:contains("Add Resident"), button:contains("New Resident")',
     )
@@ -41,19 +42,34 @@ describe('Resident CRUD', () => {
     cy.get('[data-test="gender"]').click();
     cy.get('.q-menu .q-item').contains('Male').click();
 
+    // Household assignment is required.
+    cy.get('[data-test="household-select"]').click();
+    cy.get('.q-menu .q-item').first().click();
+
     // Submit
     cy.get('[data-test="form-submit"], button:contains("Save"), button[type="submit"]')
       .last()
       .click();
 
-    // Should see a success notification or the resident in the list
+    // Should see a success notification
     cy.shouldSeeSuccess('successfully');
   });
 
   it('can view a resident detail page', () => {
-    // Click the first resident in the list
-    cy.get('[data-test="residents-table"] tbody tr').first().click();
-    // Should navigate to detail or open a dialog
+    // Setup: create a household + resident so the table is populated.
+    const householdName = `Detail HH ${Date.now()}`;
+    cy.createHouseholdViaUI(householdName, 'Single Family', '2020-01-15');
+    cy.createResidentViaUI('Detail', 'Test', '1985-05-20', 'Female');
+
+    // Go to residents list and click the view button on the first row.
+    cy.visit('/residents');
+    cy.get('[data-test="residents-table"] tbody tr').should('have.length.gte', 1);
+    cy.get('[data-test="residents-table"] tbody tr')
+      .first()
+      .find('[data-test="view-resident-button"]')
+      .click();
+
+    // Should navigate to the resident detail page.
     cy.url().should('include', '/residents/');
   });
 });

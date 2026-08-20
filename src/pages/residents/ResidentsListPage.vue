@@ -199,6 +199,7 @@
                 color="primary"
                 size="sm"
                 aria-label="View resident"
+                data-test="view-resident-button"
                 @click="viewResident(props.row.$id)"
               >
                 <q-tooltip>View Details</q-tooltip>

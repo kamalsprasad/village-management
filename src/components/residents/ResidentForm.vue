@@ -95,6 +95,7 @@
           :rules="[(val) => !!val || 'Household assignment is required']"
           :disable="households.length === 0"
           class="q-mb-md"
+          data-test="household-select"
           @update:model-value="onHouseholdChange"
         >
           <template #prepend>
