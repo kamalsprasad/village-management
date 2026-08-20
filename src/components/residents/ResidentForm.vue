@@ -27,6 +27,7 @@
               outlined
               dense
               :rules="[(val) => !!val || 'First name is required']"
+              data-test="first-name"
             />
           </div>
           <div class="col-12 col-md-4">
@@ -45,6 +46,7 @@
               outlined
               dense
               :rules="[(val) => !!val || 'Last name is required']"
+              data-test="last-name"
             />
           </div>
         </div>
@@ -59,6 +61,7 @@
               dense
               type="date"
               :rules="[(val) => !!val || 'Date of birth is required']"
+              data-test="dob"
             >
               <template #prepend>
                 <q-icon name="event" />
@@ -73,6 +76,7 @@
               outlined
               dense
               :rules="[(val) => !!val || 'Gender is required']"
+              data-test="gender"
             />
           </div>
         </div>
@@ -174,6 +178,7 @@
             color="primary"
             :loading="residentsStore.isLoading"
             :disable="households.length === 0"
+            data-test="form-submit"
           />
         </div>
       </q-form>

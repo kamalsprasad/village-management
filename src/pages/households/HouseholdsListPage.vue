@@ -13,6 +13,7 @@
             color="primary"
             icon="add"
             label="Add Household"
+            data-test="create-household-button"
             @click="showAddDialog = true"
           >
             <q-tooltip>Create a new household record.</q-tooltip>
@@ -61,6 +62,7 @@
           :loading="householdsStore.isLoading"
           hide-pagination
           :pagination="{ rowsPerPage: 0 }"
+          data-test="households-table"
         >
           <!-- Custom column: household_type -->
           <template #body-cell-household_type="props">
@@ -123,6 +125,7 @@
                   color="negative"
                   size="sm"
                   aria-label="Delete household"
+                  data-test="delete-button"
                   @click="confirmDelete(props.row)"
                 >
                   <q-tooltip>Delete</q-tooltip>
@@ -206,6 +209,7 @@
               label="Delete"
               color="negative"
               :loading="householdsStore.isLoading"
+              data-test="confirm-delete"
               @click="deleteHousehold"
             />
           </q-card-actions>

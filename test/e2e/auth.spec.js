@@ -21,7 +21,9 @@ describe('Authentication flows', () => {
       cy.fixture('users').then((users) => {
         cy.visit('/auth');
         cy.get('[data-test="login-email"], input[type="email"]').type(users.adminUser.email);
-        cy.get('[data-test="login-password"], input[type="password"]').type(users.adminUser.password);
+        cy.get('[data-test="login-password"], input[type="password"]').type(
+          users.adminUser.password,
+        );
         cy.get('[data-test="login-submit"], button[type="submit"]').click();
         // Should redirect away from auth
         cy.url().should('not.include', '/auth');
@@ -31,26 +33,18 @@ describe('Authentication flows', () => {
 
   describe('logout', () => {
     beforeEach(() => {
-      cy.fixture('users').then((users) => {
-        cy.visit('/auth');
-        cy.get('[data-test="login-email"], input[type="email"]').type(users.adminUser.email);
-        cy.get('[data-test="login-password"], input[type="password"]').type(users.adminUser.password);
-        cy.get('[data-test="login-submit"], button[type="submit"]').click();
-        cy.url().should('not.include', '/auth');
-      });
+      cy.loginAsAdmin();
     });
 
     it('logs out and redirects to /auth', () => {
-      // Find and click the user menu / logout button
-      cy.get('body').then(($body) => {
-        if ($body.find('[data-test="user-menu"]').length) {
-          cy.get('[data-test="user-menu"]').click();
-          cy.get('[data-test="logout-button"]').click();
-        } else {
-          // Fallback: look for a logout button or avatar menu
-          cy.get('[data-test="logout-button"], button:contains("Logout")').click();
-        }
-      });
+      // Need to be on an authenticated page to open the user menu
+      cy.visit('/');
+      // Open user menu and click logout
+      cy.get('[data-test="user-menu"]').click();
+      cy.get('[data-test="logout-button"]').click();
+      // Confirm the logout dialog
+      cy.get('.q-dialog').should('be.visible');
+      cy.get('.q-dialog button').contains('OK').click();
       cy.url().should('include', '/auth');
     });
   });

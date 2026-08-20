@@ -5,30 +5,50 @@
 // --- Authentication helpers ---
 
 /**
- * Log in as an admin via the UI.
+ * Log in as an admin via the Appwrite API.
  * Assumes the test Appwrite project has a seeded admin account.
+ * This avoids the login UI and reduces the chance of Appwrite rate limits.
  */
 Cypress.Commands.add('loginAsAdmin', (email = 'admin@test.village', password = 'TestAdmin123!') => {
   cy.session([email, password], () => {
-    cy.visit('/auth');
-    cy.get('[data-test="login-email"]').type(email);
-    cy.get('[data-test="login-password"]').type(password);
-    cy.get('[data-test="login-submit"]').click();
-    // Wait for redirect to dashboard
-    cy.url().should('not.include', '/auth');
+    const endpoint = Cypress.env('VITE_APPWRITE_ENDPOINT').replace(/\/$/, '');
+    const projectId = Cypress.env('VITE_APPWRITE_PROJECT_ID');
+
+    cy.request({
+      method: 'POST',
+      url: `${endpoint}/account/sessions/email`,
+      headers: {
+        'X-Appwrite-Project': projectId,
+        'Content-Type': 'application/json',
+      },
+      body: { email, password },
+      failOnStatusCode: false,
+    }).then((response) => {
+      expect(response.status).to.eq(201);
+    });
   });
 });
 
 /**
- * Log in as a specific user via the UI.
+ * Log in as a specific user via the Appwrite API.
  */
 Cypress.Commands.add('loginAs', (email, password) => {
   cy.session([email, password], () => {
-    cy.visit('/auth');
-    cy.get('[data-test="login-email"]').type(email);
-    cy.get('[data-test="login-password"]').type(password);
-    cy.get('[data-test="login-submit"]').click();
-    cy.url().should('not.include', '/auth');
+    const endpoint = Cypress.env('VITE_APPWRITE_ENDPOINT').replace(/\/$/, '');
+    const projectId = Cypress.env('VITE_APPWRITE_PROJECT_ID');
+
+    cy.request({
+      method: 'POST',
+      url: `${endpoint}/account/sessions/email`,
+      headers: {
+        'X-Appwrite-Project': projectId,
+        'Content-Type': 'application/json',
+      },
+      body: { email, password },
+      failOnStatusCode: false,
+    }).then((response) => {
+      expect(response.status).to.eq(201);
+    });
   });
 });
 
@@ -38,6 +58,9 @@ Cypress.Commands.add('loginAs', (email, password) => {
 Cypress.Commands.add('logout', () => {
   cy.get('[data-test="user-menu"]').click();
   cy.get('[data-test="logout-button"]').click();
+  // Confirm the logout dialog
+  cy.get('.q-dialog').should('be.visible');
+  cy.get('.q-dialog button').contains('OK').click();
   cy.url().should('include', '/auth');
 });
 
@@ -69,7 +92,8 @@ Cypress.Commands.add('seedData', () => {
 Cypress.Commands.add('callAppwriteFunction', (functionEnvVar, payload) => {
   const endpoint = Cypress.env('VITE_APPWRITE_ENDPOINT');
   const projectId = Cypress.env('VITE_APPWRITE_PROJECT_ID');
-  const functionId = Cypress.env(`VITE_APPWRITE_FUNCTION_${functionEnvVar.toUpperCase()}`) || functionEnvVar;
+  const functionId =
+    Cypress.env(`VITE_APPWRITE_FUNCTION_${functionEnvVar.toUpperCase()}`) || functionEnvVar;
 
   cy.request({
     method: 'POST',

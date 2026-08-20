@@ -16,6 +16,7 @@
           outlined
           :rules="[(val) => (val && val.length > 0) || 'Email is required']"
           lazy-rules
+          data-test="login-email"
         >
           <template v-slot:prepend>
             <q-icon name="email" />
@@ -29,6 +30,7 @@
           outlined
           :rules="[(val) => (val && val.length > 0) || 'Password is required']"
           lazy-rules
+          data-test="login-password"
         >
           <template v-slot:prepend>
             <q-icon name="lock" />
@@ -62,6 +64,7 @@
             class="full-width"
             :loading="loading"
             :disable="loading"
+            data-test="login-submit"
           />
         </div>
       </q-form>

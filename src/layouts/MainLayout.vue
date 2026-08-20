@@ -164,6 +164,7 @@
           dense
           aria-haspopup="menu"
           :aria-expanded="userMenuVisible ? 'true' : 'false'"
+          data-test="user-menu"
           @click="toggleUserMenu"
         >
           <q-avatar size="32px" color="primary" text-color="white">
@@ -249,7 +250,7 @@
 
               <q-separator class="q-my-sm" />
 
-              <q-item clickable v-close-popup @click="handleLogout">
+              <q-item clickable v-close-popup data-test="logout-button" @click="handleLogout">
                 <q-item-section avatar>
                   <q-icon name="logout" color="negative" />
                 </q-item-section>
@@ -266,7 +267,13 @@
       <SampleDataBanner v-if="settingsStore.isUsingSampleData" />
     </q-header>
 
-    <q-drawer v-model="leftDrawerOpen" show-if-above bordered class="nav-drawer">
+    <q-drawer
+      v-model="leftDrawerOpen"
+      show-if-above
+      bordered
+      class="nav-drawer"
+      data-test="main-nav"
+    >
       <!-- Drawer brand header -->
       <div class="nav-brand q-px-md q-pt-md q-pb-sm">
         <div

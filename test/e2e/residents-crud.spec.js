@@ -3,13 +3,7 @@
 
 describe('Resident CRUD', () => {
   before(() => {
-    cy.fixture('users').then((users) => {
-      cy.visit('/auth');
-      cy.get('[data-test="login-email"], input[type="email"]').type(users.adminUser.email);
-      cy.get('[data-test="login-password"], input[type="password"]').type(users.adminUser.password);
-      cy.get('[data-test="login-submit"], button[type="submit"]').click();
-      cy.url().should('not.include', '/auth');
-    });
+    cy.loginAsAdmin();
   });
 
   beforeEach(() => {
@@ -23,7 +17,9 @@ describe('Resident CRUD', () => {
   });
 
   it('can open the create resident form', () => {
-    cy.get('[data-test="create-resident-button"], button:contains("Add Resident"), button:contains("New Resident")')
+    cy.get(
+      '[data-test="create-resident-button"], button:contains("Add Resident"), button:contains("New Resident")',
+    )
       .first()
       .click();
     // A form dialog or page should appear
@@ -32,16 +28,18 @@ describe('Resident CRUD', () => {
 
   it('can create a new resident', () => {
     // Open create form
-    cy.get('[data-test="create-resident-button"], button:contains("Add Resident"), button:contains("New Resident")')
+    cy.get(
+      '[data-test="create-resident-button"], button:contains("Add Resident"), button:contains("New Resident")',
+    )
       .first()
       .click();
 
-    // Fill form — using flexible selectors since data-test attributes
-    // may not be on all fields yet.
-    cy.get('input[name="first_name"], [data-test="first-name"]').type('E2E Test');
-    cy.get('input[name="last_name"], [data-test="last-name"]').type('Resident');
-    cy.get('input[name="dob"], [data-test="dob"]').type('1990-01-15');
-    cy.get('select[name="gender"], [data-test="gender"]').select('male');
+    // Fill form using data-test attributes.
+    cy.get('[data-test="first-name"]').type('E2E Test');
+    cy.get('[data-test="last-name"]').type('Resident');
+    cy.get('[data-test="dob"]').type('1990-01-15');
+    cy.get('[data-test="gender"]').click();
+    cy.get('.q-menu .q-item').contains('Male').click();
 
     // Submit
     cy.get('[data-test="form-submit"], button:contains("Save"), button[type="submit"]')
@@ -54,7 +52,7 @@ describe('Resident CRUD', () => {
 
   it('can view a resident detail page', () => {
     // Click the first resident in the list
-    cy.get('[data-test="resident-row"], tbody tr').first().click();
+    cy.get('[data-test="residents-table"] tbody tr').first().click();
     // Should navigate to detail or open a dialog
     cy.url().should('include', '/residents/');
   });

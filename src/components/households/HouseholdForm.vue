@@ -14,6 +14,7 @@
           dense
           :rules="[(val) => !!val || 'Household name is required']"
           class="q-mb-md"
+          data-test="household-name"
         />
 
         <!-- Household Type -->
@@ -25,6 +26,7 @@
           dense
           :rules="[(val) => !!val || 'Household type is required']"
           class="q-mb-md"
+          data-test="household-type"
         />
 
         <!-- Construction Date -->
@@ -83,7 +85,13 @@
         <!-- Form Actions -->
         <div class="row q-gutter-sm justify-end">
           <q-btn flat label="Cancel" color="primary" @click="handleCancel" />
-          <q-btn type="submit" label="Save" color="primary" :loading="householdsStore.isLoading" />
+          <q-btn
+            type="submit"
+            label="Save"
+            color="primary"
+            :loading="householdsStore.isLoading"
+            data-test="form-submit"
+          />
         </div>
       </q-form>
     </q-card-section>

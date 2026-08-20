@@ -4,13 +4,7 @@
 describe('RBAC navigation', () => {
   describe('admin user', () => {
     beforeEach(() => {
-      cy.fixture('users').then((users) => {
-        cy.visit('/auth');
-        cy.get('[data-test="login-email"], input[type="email"]').type(users.adminUser.email);
-        cy.get('[data-test="login-password"], input[type="password"]').type(users.adminUser.password);
-        cy.get('[data-test="login-submit"], button[type="submit"]').click();
-        cy.url().should('not.include', '/auth');
-      });
+      cy.loginAsAdmin();
     });
 
     it('can access admin settings page', () => {
@@ -42,11 +36,7 @@ describe('RBAC navigation', () => {
   describe('resident user (limited access)', () => {
     beforeEach(() => {
       cy.fixture('users').then((users) => {
-        cy.visit('/auth');
-        cy.get('[data-test="login-email"], input[type="email"]').type(users.resident.email);
-        cy.get('[data-test="login-password"], input[type="password"]').type(users.resident.password);
-        cy.get('[data-test="login-submit"], button[type="submit"]').click();
-        cy.url().should('not.include', '/auth');
+        cy.loginAs(users.resident.email, users.resident.password);
       });
     });
 

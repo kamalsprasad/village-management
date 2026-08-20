@@ -29,7 +29,7 @@
       "security": {
         "duration": 1209600,
         "limit": 0,
-        "sessionsLimit": 2,
+        "sessionsLimit": 10,
         "passwordHistory": 0,
         "passwordDictionary": true,
         "personalDataCheck": true,

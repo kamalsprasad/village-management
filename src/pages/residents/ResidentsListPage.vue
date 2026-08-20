@@ -13,6 +13,7 @@
             color="primary"
             icon="add"
             label="Add Resident"
+            data-test="create-resident-button"
             @click="showAddDialog = true"
           >
             <q-tooltip>Create a new resident record.</q-tooltip>
@@ -122,6 +123,7 @@
           :loading="residentsStore.isLoading"
           hide-pagination
           :pagination="{ rowsPerPage: 0 }"
+          data-test="residents-table"
         >
           <!-- Custom column: full_name -->
           <template #body-cell-full_name="props">
@@ -274,7 +276,7 @@
       </q-card>
 
       <!-- Add/Edit Dialog -->
-      <q-dialog v-model="showAddDialog" persistent>
+      <q-dialog v-model="showAddDialog" persistent data-test="resident-form-dialog">
         <resident-form
           :resident="selectedResident"
           @saved="handleSaved"
