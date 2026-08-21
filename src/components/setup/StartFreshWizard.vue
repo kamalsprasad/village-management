@@ -49,8 +49,12 @@
                 label="Village Name *"
                 outlined
                 dense
+                maxlength="255"
                 placeholder="e.g. Mtika Village"
-                :rules="[(val) => (val && val.trim().length > 0) || 'Village name is required']"
+                :rules="[
+                  (val) => (val && val.trim().length > 0) || 'Village name is required',
+                  (val) => (val && val.trim().length <= 255) || 'Village name must be at most 255 characters',
+                ]"
                 lazy-rules
               >
                 <template #prepend>
@@ -63,7 +67,12 @@
                 label="Address"
                 outlined
                 dense
+                maxlength="500"
                 placeholder="e.g. Katete District, Eastern Province, Zambia"
+                :rules="[
+                  (val) => !val || val.length <= 500 || 'Address must be at most 500 characters',
+                ]"
+                lazy-rules
               >
                 <template #prepend>
                   <q-icon name="place" color="primary" />
@@ -77,6 +86,10 @@
                 dense
                 placeholder="YYYY-MM-DD"
                 mask="####-##-##"
+                :rules="[
+                  (val) => !val || /^\d{4}-\d{2}-\d{2}$/.test(val) || 'Date must be in YYYY-MM-DD format',
+                ]"
+                lazy-rules
               >
                 <template #prepend>
                   <q-icon name="event" class="cursor-pointer" color="primary">
@@ -112,7 +125,10 @@
                     maxlength="3"
                     placeholder="e.g. ZMW"
                     hint="ISO 4217 (e.g. ZMW, USD)"
-                    :rules="[(val) => !!val || 'Currency code is required']"
+                    :rules="[
+                      (val) => !!val || 'Currency code is required',
+                      (val) => /^[A-Za-z]{3}$/.test(val) || 'Currency code must be a 3-letter ISO code (e.g. ZMW)',
+                    ]"
                     lazy-rules
                   >
                     <template #prepend>
@@ -126,9 +142,13 @@
                     label="Currency Symbol *"
                     outlined
                     dense
+                    maxlength="10"
                     placeholder="e.g. K"
                     hint="e.g. K, $"
-                    :rules="[(val) => !!val || 'Currency symbol is required']"
+                    :rules="[
+                      (val) => !!val || 'Currency symbol is required',
+                      (val) => val.length <= 10 || 'Currency symbol must be at most 10 characters',
+                    ]"
                     lazy-rules
                   >
                     <template #prepend>
@@ -148,6 +168,7 @@
                     :rules="[
                       (val) => !!val || 'Country code is required',
                       (val) => val.length === 2 || 'Must be 2 characters',
+                      (val) => /^[A-Za-z]{2}$/.test(val) || 'Country code must be a 2-letter ISO code (e.g. ZM)',
                     ]"
                     lazy-rules
                   >
@@ -162,12 +183,17 @@
                 <div class="col-12 col-md-6">
                   <q-input
                     v-model="villageForm.country_phone_code"
-                    label="Country Phone Code *"
+                    label="Country Dialing Code *"
                     outlined
                     dense
+                    maxlength="10"
                     placeholder="e.g. +260"
-                    hint="e.g. +260"
-                    :rules="[(val) => !!val || 'Country phone code is required']"
+                    hint="International dialing code only (e.g. +260), max 10 characters"
+                    :rules="[
+                      (val) => !!val || 'Country dialing code is required',
+                      (val) => (val && val.trim().length <= 10) || 'Country dialing code must be at most 10 characters',
+                      (val) => /^\+?[0-9]{1,9}$/.test(val && val.trim()) || 'Must be a valid country dialing code (e.g. +260, max 10 digits)',
+                    ]"
                     lazy-rules
                   >
                     <template #prepend>
@@ -424,8 +450,12 @@
                 label="Household Name *"
                 outlined
                 dense
+                maxlength="255"
                 placeholder="e.g. Banda Family Homestead"
-                :rules="[(val) => (val && val.trim().length > 0) || 'Household name is required']"
+                :rules="[
+                  (val) => (val && val.trim().length > 0) || 'Household name is required',
+                  (val) => (val && val.trim().length <= 255) || 'Household name must be at most 255 characters',
+                ]"
                 lazy-rules
               >
                 <template #prepend>
@@ -436,10 +466,12 @@
               <q-select
                 v-model="householdForm.household_type"
                 :options="householdTypes"
-                label="Household Type"
+                label="Household Type *"
                 outlined
                 dense
                 placeholder="Select household type"
+                :rules="[(val) => !!val || 'Household type is required']"
+                lazy-rules
               >
                 <template #prepend>
                   <q-icon name="category" color="primary" />
@@ -448,11 +480,16 @@
 
               <q-input
                 v-model="householdForm.construction_date"
-                label="Construction Date"
+                label="Construction Date *"
                 outlined
                 dense
                 placeholder="YYYY-MM-DD"
                 mask="####-##-##"
+                :rules="[
+                  (val) => !!val || 'Construction date is required',
+                  (val) => /^\d{4}-\d{2}-\d{2}$/.test(val) || 'Construction date must be in YYYY-MM-DD format',
+                ]"
+                lazy-rules
               >
                 <template #prepend>
                   <q-icon name="event" class="cursor-pointer" color="primary">

@@ -263,14 +263,19 @@ export const useSettingsStore = defineStore('settings', {
 
         // Validate required fields
         const validation = errorHandler.validateForm(updates, {
-          village_name: { required: true, minLength: 1 },
-          //default_currency: { required: true, minLength: 3, maxLength: 3 },
-          default_currency: { required: true },
-          currency_symbol: { required: true, minLength: 1 },
+          village_name: { required: true, minLength: 1, maxLength: 255 },
+          default_currency: { required: true, minLength: 1, maxLength: 10 },
+          currency_symbol: { required: true, minLength: 1, maxLength: 10 },
           timezone: { required: true },
-          //country_code: { required: true, minLength: 2, maxLength: 2 },
-          country_code: { required: true, minLength: 2, maxLength: 2 },
-          country_phone_code: { required: true, minLength: 1, maxLength: 4 },
+          country_code: { required: true, minLength: 2, maxLength: 10 },
+          country_phone_code: {
+            required: true,
+            minLength: 1,
+            maxLength: 10,
+            pattern: /^\+?[0-9]{1,9}$/,
+            patternMessage:
+              'Country phone code must be a valid dialing code (e.g. +260, at most 10 characters).',
+          },
         });
 
         if (updates.lending_enabled !== undefined && typeof updates.lending_enabled !== 'boolean') {
@@ -327,8 +332,9 @@ export const useSettingsStore = defineStore('settings', {
         return { success: true, data: result };
       } catch (error) {
         console.error('Error updating settings:', error);
-        errorHandler.notifyError('Failed to update village settings. Please try again.');
-        return { success: false, error: error.message };
+        const errorMessage = error?.message || 'Failed to update village settings. Please try again.';
+        errorHandler.notifyError(errorMessage);
+        return { success: false, error: errorMessage };
       } finally {
         this.isLoading = false;
       }
@@ -344,6 +350,28 @@ export const useSettingsStore = defineStore('settings', {
       try {
         const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
         const tableId = import.meta.env.VITE_APPWRITE_TABLE_VILLAGE_SETTINGS;
+
+        // Validate required fields before creating
+        const validation = errorHandler.validateForm(initialSettings, {
+          village_name: { required: true, minLength: 1, maxLength: 255 },
+          default_currency: { required: true, minLength: 1, maxLength: 10 },
+          currency_symbol: { required: true, minLength: 1, maxLength: 10 },
+          timezone: { required: true },
+          country_code: { required: true, minLength: 2, maxLength: 10 },
+          country_phone_code: {
+            required: true,
+            minLength: 1,
+            maxLength: 10,
+            pattern: /^\+?[0-9]{1,9}$/,
+            patternMessage:
+              'Country phone code must be a valid dialing code (e.g. +260, at most 10 characters).',
+          },
+        });
+
+        if (!validation.isValid) {
+          errorHandler.notifyError(`Validation failed: ${validation.errors.join(', ')}`);
+          return { success: false, errors: validation.errors };
+        }
 
         const processedSettings = { ...initialSettings };
 
@@ -361,20 +389,13 @@ export const useSettingsStore = defineStore('settings', {
           }
         }
 
-        // Stringify council_members if it's an array
-        // if (Array.isArray(processedSettings.council_members)) {
-        //   processedSettings.council_members = JSON.stringify(processedSettings.council_members);
-        // }
-
-        const council_member_ids = processedSettings.council_members.map(
-          (member) => member.residentId,
-        );
-
-        // Object.fromEntries(
-        //   processedUpdates.council_members.map((member) => [member.id]),
-        // );
-        processedSettings.council_member_ids = council_member_ids;
-        delete processedSettings.council_members;
+        if (Array.isArray(processedSettings.council_members)) {
+          const council_member_ids = processedSettings.council_members.map((member) =>
+            typeof member === 'string' ? member : member.residentId,
+          );
+          processedSettings.council_member_ids = council_member_ids;
+          delete processedSettings.council_members;
+        }
 
         const result = await tables.createRow({
           databaseId: dbId,
@@ -391,8 +412,9 @@ export const useSettingsStore = defineStore('settings', {
         return { success: true, data: result };
       } catch (error) {
         console.error('Error creating settings:', error);
-        errorHandler.notifyError('Failed to create village settings. Please try again.');
-        return { success: false, error: error.message };
+        const errorMessage = error?.message || 'Failed to create village settings. Please try again.';
+        errorHandler.notifyError(errorMessage);
+        return { success: false, error: errorMessage };
       } finally {
         this.isLoading = false;
       }

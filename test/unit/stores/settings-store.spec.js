@@ -196,14 +196,73 @@ describe('settings-store', () => {
       expect(args.data.council_member_ids).toEqual(['r1', 'r2']);
     });
 
+    it('rejects country_phone_code longer than 10 characters', async () => {
+      const result = await store.updateSettings({
+        ...validSettings,
+        country_phone_code: '+26097123456',
+      });
+      expect(result.success).toBe(false);
+      expect(result.errors.some((e) => e.includes('Country Phone Code'))).toBe(true);
+      expect(mockTables.updateRow).not.toHaveBeenCalled();
+    });
+
+    it('rejects country_phone_code with invalid characters', async () => {
+      const result = await store.updateSettings({
+        ...validSettings,
+        country_phone_code: 'abc',
+      });
+      expect(result.success).toBe(false);
+      expect(result.errors.some((e) => e.includes('Country phone code must be a valid dialing code'))).toBe(true);
+      expect(mockTables.updateRow).not.toHaveBeenCalled();
+    });
+
+    it('accepts country_phone_code up to 10 characters with international codes', async () => {
+      mockTables.updateRow.mockResolvedValue({ ...validSettings, country_phone_code: '+1242' });
+      const result = await store.updateSettings({
+        ...validSettings,
+        country_phone_code: '+1242',
+      });
+      expect(result.success).toBe(true);
+    });
+
     it('handles update error', async () => {
       mockTables.updateRow.mockRejectedValue(new Error('network'));
       const result = await store.updateSettings(validSettings);
       expect(result.success).toBe(false);
+      expect(result.error).toBe('network');
     });
   });
 
   describe('createSettings', () => {
+    it('returns validation errors for missing required fields', async () => {
+      const result = await store.createSettings({ village_name: '' });
+      expect(result.success).toBe(false);
+      expect(result.errors).toBeDefined();
+      expect(mockTables.createRow).not.toHaveBeenCalled();
+    });
+
+    it('rejects country_phone_code longer than 10 characters', async () => {
+      const result = await store.createSettings({
+        ...validSettings,
+        country_phone_code: '12345678901',
+        council_members: [],
+      });
+      expect(result.success).toBe(false);
+      expect(result.errors.some((e) => e.includes('Country Phone Code'))).toBe(true);
+      expect(mockTables.createRow).not.toHaveBeenCalled();
+    });
+
+    it('rejects country_phone_code with invalid format', async () => {
+      const result = await store.createSettings({
+        ...validSettings,
+        country_phone_code: '++260',
+        council_members: [],
+      });
+      expect(result.success).toBe(false);
+      expect(result.errors.some((e) => e.includes('Country phone code must be a valid dialing code'))).toBe(true);
+      expect(mockTables.createRow).not.toHaveBeenCalled();
+    });
+
     it('creates settings and maps council_members', async () => {
       mockTables.createRow.mockResolvedValue({ village_name: 'New' });
       const result = await store.createSettings({
@@ -228,10 +287,11 @@ describe('settings-store', () => {
       expect(args.data.established_date).toBe('2020-06-15T00:00:00.000Z');
     });
 
-    it('handles error', async () => {
+    it('handles error and surfaces error message', async () => {
       mockTables.createRow.mockRejectedValue(new Error('fail'));
       const result = await store.createSettings({ ...validSettings, council_members: [] });
       expect(result.success).toBe(false);
+      expect(result.error).toBe('fail');
     });
   });
 

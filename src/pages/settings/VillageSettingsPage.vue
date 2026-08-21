@@ -150,11 +150,21 @@
               <div class="col-12 col-md-4">
                 <q-input
                   v-model="formData.country_phone_code"
-                  label="Country Phone Code *"
+                  label="Country Dialing Code *"
                   outlined
                   :readonly="!isEditMode"
-                  hint="International dialing code (e.g., 260)"
-                  :rules="[(val) => !!val || 'Country phone code is required']"
+                  maxlength="10"
+                  placeholder="e.g. 260"
+                  hint="International dialing code only (e.g. +260), max 10 characters"
+                  :rules="[
+                    (val) => !!val || 'Country dialing code is required',
+                    (val) =>
+                      (val && val.trim().length <= 10) ||
+                      'Country dialing code must be at most 10 characters',
+                    (val) =>
+                      /^\+?[0-9]{1,9}$/.test(val && val.trim()) ||
+                      'Must be a valid country dialing code (e.g. +260, max 10 digits)',
+                  ]"
                 >
                   <template #prepend>
                     <q-icon name="call" />

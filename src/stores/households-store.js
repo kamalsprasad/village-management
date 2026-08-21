@@ -226,8 +226,9 @@ export const useHouseholdsStore = defineStore('households', {
         return { success: true, data: newHousehold };
       } catch (error) {
         console.error('Error creating household:', error);
-        errorHandler.notifyError('Failed to create household. Please try again.');
-        return { success: false, error: error.message };
+        const errorMessage = error?.message || 'Failed to create household. Please try again.';
+        errorHandler.notifyError(errorMessage);
+        return { success: false, error: errorMessage };
       } finally {
         this.isLoading = false;
       }

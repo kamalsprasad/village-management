@@ -62,7 +62,14 @@ vi.mock('quasar', () => {
     QTabs: stub('QTabs'),
     QTabPanels: stub('QTabPanels'),
     QTabPanel: stub('QTabPanel'),
-    QForm: { name: 'QForm', template: '<form class="q-form"><slot/></form>' },
+    QForm: {
+      name: 'QForm',
+      template: '<form class="q-form"><slot/></form>',
+      methods: {
+        validate: vi.fn(() => Promise.resolve(true)),
+        resetValidation: vi.fn(),
+      },
+    },
     QField: stub('QField'),
     QDate: { name: 'QDate', template: '<div class="q-date"></div>' },
     QPopupProxy: stub('QPopupProxy'),
@@ -80,6 +87,11 @@ vi.mock('quasar', () => {
     QScrollArea: stub('QScrollArea'),
     QMenu: stub('QMenu'),
     QDialog: stub('QDialog'),
+    QStepper: stub('QStepper'),
+    QStep: stub('QStep'),
+    QStepperNavigation: stub('QStepperNavigation'),
+    QOptionGroup: stub('QOptionGroup'),
+    QSpinnerDots: { name: 'QSpinnerDots', template: '<div class="q-spinner-dots"></div>' },
     ClosePopup: { name: 'ClosePopup' },
   };
 });
