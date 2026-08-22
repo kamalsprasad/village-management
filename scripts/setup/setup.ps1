@@ -409,39 +409,97 @@ if ($BackendChoice -eq "2") {
   }
   Write-Ok "Docker is running."
 
-  Write-Warn "Self-hosted Appwrite requires a few manual steps in the Docker install wizard."
-  Write-Info "If you see a WSL window, you can close it. You can also close the Docker Desktop window."
-  Write-Info "You can press enter for all the Appwrite questions to use default settings."
-  Read-Host "Press Enter to run the Appwrite Docker install command, or Ctrl+C to cancel..."
+  $skipDockerInstall = $false
+  $appwriteDirExists = (Test-Path "$RootDir\appwrite")
+  $appwriteRunning = $false
 
-  docker run -it --rm `
-    --volume /var/run/docker.sock:/var/run/docker.sock `
-    --volume "${pwd}\appwrite:/usr/src/code/appwrite:rw" `
-    --entrypoint="install" `
-    appwrite/appwrite:1.8.1
-
-  Write-Info "Waiting for Appwrite to start at http://localhost..."
   try {
-    Wait-ForUrl "http://localhost" 30
-  }
-  catch {
-    Write-Warn "Appwrite may not be ready yet. You can continue and check manually."
+    $resp = Invoke-WebRequest -Uri "http://localhost/v1/health/version" -UseBasicParsing -TimeoutSec 2 -ErrorAction SilentlyContinue
+    if ($resp.StatusCode -eq 200) { $appwriteRunning = $true }
+  } catch {}
+
+  if ($appwriteDirExists -or $appwriteRunning) {
+    Write-Warn "An existing Appwrite installation was detected on this system:"
+    if ($appwriteDirExists) {
+      Write-Host "  - Local appwrite directory found: $RootDir\appwrite"
+    }
+    if ($appwriteRunning) {
+      Write-Host "  - Appwrite is currently running and responding at http://localhost"
+    }
+    Write-Host ""
+    Write-Warn "Running the Docker install command again will cause port or volume conflicts."
+    Write-Host ""
+    Write-Host "How would you like to proceed?"
+    Write-Host "  1) Use existing Appwrite instance (Recommended: Appwrite supports multiple projects)"
+    Write-Host "  2) Clean reinstall (Stop existing Appwrite, backup old directories, and reinstall)"
+    Write-Host "  3) Switch to Appwrite Cloud (Recommended if you want no Docker conflicts)"
+    Write-Host "  4) Cancel setup"
+    $existingAppwriteChoice = Read-Host "Enter choice [1]"
+    if ([string]::IsNullOrWhiteSpace($existingAppwriteChoice)) { $existingAppwriteChoice = "1" }
+
+    if ($existingAppwriteChoice -eq "1") {
+      Write-Info "Proceeding with existing Appwrite instance. Skipping Docker install command."
+      $skipDockerInstall = $true
+    }
+    elseif ($existingAppwriteChoice -eq "2") {
+      Write-Warn "Preparing for clean Appwrite reinstallation..."
+      try {
+        docker ps -q --filter "name=appwrite" | ForEach-Object { docker stop $_ }
+      } catch {}
+      if (Test-Path "$RootDir\appwrite") {
+        $backupDir = "$RootDir\appwrite.bak." + [DateTimeOffset]::UtcNow.ToUnixTimeSeconds()
+        Write-Info "Backing up $RootDir\appwrite to $backupDir..."
+        Move-Item "$RootDir\appwrite" $backupDir -Force
+      }
+      Write-Ok "Clean state prepared. Proceeding with Docker install."
+    }
+    elseif ($existingAppwriteChoice -eq "3") {
+      Write-Info "Switching to Appwrite Cloud."
+      $SelfHosted = $false
+    }
+    else {
+      Write-Error "Setup cancelled by user."
+      exit 1
+    }
   }
 
-  Write-Info "Opening Appwrite Console at http://localhost in your browser..."
-  try { Start-Process "http://localhost" } catch {}
+  if ($SelfHosted) {
+    if (-not $skipDockerInstall) {
+      Write-Warn "Self-hosted Appwrite requires a few manual steps in the Docker install wizard."
+      Write-Info "If you see a WSL window, you can close it. You can also close the Docker Desktop window."
+      Write-Info "You can press enter for all the Appwrite questions to use default settings."
+      Read-Host "Press Enter to run the Appwrite Docker install command, or Ctrl+C to cancel..."
 
-  Write-ActionRequired @(
-    "Complete these steps in the Appwrite Console (http://localhost):",
-    "",
-    "  1. Create an admin account (first-time only) by clicking on the 'Sign up' button.",
-    "  2. Create a new project and set the Project ID to something like 'village-management'",
-    "  3. Go to Settings -> View API Keys -> Create API Key.",
-    "     IMPORTANT: Select ALL scopes (Required for seeding and automated admin setup).",
-    "  4. Create a new database. Go to Databases -> Create Database. Set Database ID to something like 'villageDB'",
-    "",
-    "You will need the Project ID, Database ID and API Key in the next step."
-  )
+      docker run -it --rm `
+        --volume /var/run/docker.sock:/var/run/docker.sock `
+        --volume "${pwd}\appwrite:/usr/src/code/appwrite:rw" `
+        --entrypoint="install" `
+        appwrite/appwrite:1.8.1
+    }
+
+    Write-Info "Waiting for Appwrite to start at http://localhost..."
+    try {
+      Wait-ForUrl "http://localhost" 30
+    }
+    catch {
+      Write-Warn "Appwrite may not be ready yet. You can continue and check manually."
+    }
+
+    Write-Info "Opening Appwrite Console at http://localhost in your browser..."
+    try { Start-Process "http://localhost" } catch {}
+
+    Write-ActionRequired @(
+      "Complete these steps in the Appwrite Console (http://localhost):",
+      "",
+      "  1. Create an admin account (first-time only) by clicking on the 'Sign up' button.",
+      "  2. Create a new project and set the Project ID to something like 'village-management'",
+      "  3. Go to Settings -> View API Keys -> Create API Key.",
+      "     IMPORTANT: Select ALL scopes (Required for seeding and automated admin setup).",
+      "  4. Create a new database. Go to Databases -> Create Database. Set Database ID to something like 'villageDB'",
+      "",
+      "You will need the Project ID, Database ID and API Key in the next step."
+    )
+  }
 }
 else {
   Write-Info "Using Appwrite Cloud."

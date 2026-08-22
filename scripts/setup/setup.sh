@@ -466,37 +466,103 @@ if [[ "$BACKEND_CHOICE" == "2" ]]; then
   fi
   log_success "Docker is running."
 
-  log_warn "Self-hosted Appwrite requires a few manual steps in the Docker install wizard."
-  log_info "You can close the Docker Desktop window."
-  log_info "You can press enter for all the Appwrite questions to use default settings."
-  read -rp "Press Enter to run the Appwrite Docker install command, or Ctrl+C to cancel..."
+  SKIP_DOCKER_INSTALL=0
 
-  docker run -it --rm \
-    --volume /var/run/docker.sock:/var/run/docker.sock \
-    --volume "$(pwd)"/appwrite:/usr/src/code/appwrite:rw \
-    --entrypoint="install" \
-    appwrite/appwrite:1.8.1
-
-  log_info "Waiting for Appwrite to start at http://localhost..."
-  if wait_for_url "http://localhost" 30; then
-    log_success "Appwrite appears to be running."
-  else
-    log_warn "Appwrite may not be ready yet. You can continue and check manually."
+  # Check if /var/lib/docker/appwrite or local appwrite directory exists or if Appwrite is already running
+  APPWRITE_DIR_EXISTS=0
+  if [[ -d "/var/lib/docker/appwrite" || -d "$ROOT_DIR/appwrite" ]]; then
+    APPWRITE_DIR_EXISTS=1
   fi
 
-  log_info "Opening Appwrite Console at http://localhost in your browser..."
-  open_url "http://localhost"
+  APPWRITE_RUNNING=0
+  if curl -fsS "http://localhost/v1/health/version" >/dev/null 2>&1; then
+    APPWRITE_RUNNING=1
+  fi
 
-  action_required \
-    "Complete these steps in the Appwrite Console (http://localhost):" \
-    "" \
-    "  1. Create an admin account (first-time only)" \
-    "  2. Create a new project and set the Project ID to something like 'village-management'" \
-    "  3. Go to Settings -> View API Keys -> Create API Key." \
-    "     IMPORTANT: Select ALL scopes (Required for seeding and automated admin setup)." \
-    "  4. Create a new database. Go to Databases -> Create Database. Set Database ID to something like 'villageDB'" \
-    "" \
-    "You will need the Project ID, Database ID and API Key in the next step."
+  if [[ "$APPWRITE_DIR_EXISTS" == "1" || "$APPWRITE_RUNNING" == "1" ]]; then
+    log_warn "An existing Appwrite installation was detected on this system:"
+    if [[ -d "/var/lib/docker/appwrite" ]]; then
+      echo "  - Existing directory found: /var/lib/docker/appwrite"
+    fi
+    if [[ -d "$ROOT_DIR/appwrite" ]]; then
+      echo "  - Local appwrite directory found: $ROOT_DIR/appwrite"
+    fi
+    if [[ "$APPWRITE_RUNNING" == "1" ]]; then
+      echo "  - Appwrite is currently running and responding at http://localhost"
+    fi
+    echo ""
+    log_warn "Running the Docker install command again will cause port or volume conflicts."
+    echo ""
+    echo "How would you like to proceed?"
+    echo "  1) Use existing Appwrite instance (Recommended: Appwrite supports multiple projects)"
+    echo "  2) Clean reinstall (Stop existing Appwrite, backup old directories, and reinstall)"
+    echo "  3) Switch to Appwrite Cloud (Recommended if you want no Docker conflicts)"
+    echo "  4) Cancel setup"
+    read -rp "Enter choice [1]: " EXISTING_APPWRITE_CHOICE
+    EXISTING_APPWRITE_CHOICE="${EXISTING_APPWRITE_CHOICE:-1}"
+
+    if [[ "$EXISTING_APPWRITE_CHOICE" == "1" ]]; then
+      log_info "Proceeding with existing Appwrite instance. Skipping Docker install command."
+      SKIP_DOCKER_INSTALL=1
+    elif [[ "$EXISTING_APPWRITE_CHOICE" == "2" ]]; then
+      log_warn "Preparing for clean Appwrite reinstallation..."
+      echo "Stopping running Appwrite containers..."
+      docker ps -q --filter "name=appwrite" | xargs -r docker stop 2>/dev/null || true
+      if [[ -d "/var/lib/docker/appwrite" ]]; then
+        BACKUP_DIR="/var/lib/docker/appwrite.bak.$(date +%s)"
+        log_info "Backing up /var/lib/docker/appwrite to $BACKUP_DIR..."
+        sudo mv /var/lib/docker/appwrite "$BACKUP_DIR" 2>/dev/null || sudo rm -rf /var/lib/docker/appwrite
+      fi
+      if [[ -d "$ROOT_DIR/appwrite" ]]; then
+        BACKUP_DIR="$ROOT_DIR/appwrite.bak.$(date +%s)"
+        log_info "Backing up $ROOT_DIR/appwrite to $BACKUP_DIR..."
+        mv "$ROOT_DIR/appwrite" "$BACKUP_DIR"
+      fi
+      log_success "Clean state prepared. Proceeding with Docker install."
+    elif [[ "$EXISTING_APPWRITE_CHOICE" == "3" ]]; then
+      log_info "Switching to Appwrite Cloud."
+      SELF_HOSTED=0
+    else
+      log_error "Setup cancelled by user."
+      exit 1
+    fi
+  fi
+
+  if [[ "$SELF_HOSTED" == "1" ]]; then
+    if [[ "$SKIP_DOCKER_INSTALL" == "0" ]]; then
+      log_warn "Self-hosted Appwrite requires a few manual steps in the Docker install wizard."
+      log_info "You can close the Docker Desktop window."
+      log_info "You can press enter for all the Appwrite questions to use default settings."
+      read -rp "Press Enter to run the Appwrite Docker install command, or Ctrl+C to cancel..."
+
+      docker run -it --rm \
+        --volume /var/run/docker.sock:/var/run/docker.sock \
+        --volume "$(pwd)"/appwrite:/usr/src/code/appwrite:rw \
+        --entrypoint="install" \
+        appwrite/appwrite:1.8.1
+    fi
+
+    log_info "Waiting for Appwrite to start at http://localhost..."
+    if wait_for_url "http://localhost" 30; then
+      log_success "Appwrite appears to be running."
+    else
+      log_warn "Appwrite may not be ready yet. You can continue and check manually."
+    fi
+
+    log_info "Opening Appwrite Console at http://localhost in your browser..."
+    open_url "http://localhost"
+
+    action_required \
+      "Complete these steps in the Appwrite Console (http://localhost):" \
+      "" \
+      "  1. Create an admin account (first-time only) by clicking 'Sign up'." \
+      "  2. Create a new project and set the Project ID to something like 'village-management'" \
+      "  3. Go to Settings -> View API Keys -> Create API Key." \
+      "     IMPORTANT: Select ALL scopes (Required for seeding and automated admin setup)." \
+      "  4. Create a new database. Go to Databases -> Create Database. Set Database ID to something like 'villageDB'" \
+      "" \
+      "You will need the Project ID, Database ID and API Key in the next step."
+  fi
 else
   SELF_HOSTED=0
   log_info "Using Appwrite Cloud."
