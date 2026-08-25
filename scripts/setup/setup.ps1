@@ -476,6 +476,36 @@ if ($BackendChoice -eq "2") {
         --entrypoint="install" `
         appwrite/appwrite:1.8.1
     }
+    else {
+      # If Appwrite is not currently running, bring up existing containers
+      $isRunning = $false
+      try {
+        $resp = Invoke-WebRequest -Uri "http://localhost/v1/health/version" -UseBasicParsing -TimeoutSec 2 -ErrorAction SilentlyContinue
+        if ($resp.StatusCode -eq 200) { $isRunning = $true }
+      } catch {}
+
+      if (-not $isRunning) {
+        Write-Info "Starting existing Appwrite containers..."
+        $appwriteComposeDir = ""
+        if (Test-Path "$RootDir\appwrite\docker-compose.yml") {
+          $appwriteComposeDir = "$RootDir\appwrite"
+        }
+
+        if ($appwriteComposeDir) {
+          Write-Info "Running docker compose up -d in $appwriteComposeDir..."
+          try {
+            docker compose --project-directory "$appwriteComposeDir" -f "$appwriteComposeDir\docker-compose.yml" up -d
+          } catch {
+            try { docker ps -a -q --filter "name=appwrite" | ForEach-Object { docker start $_ } } catch {}
+          }
+        } else {
+          Write-Info "Starting stopped Appwrite containers..."
+          try {
+            docker ps -a -q --filter "name=appwrite" | ForEach-Object { docker start $_ }
+          } catch {}
+        }
+      }
+    }
 
     Write-Info "Waiting for Appwrite to start at http://localhost..."
     try {

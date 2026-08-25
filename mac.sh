@@ -65,6 +65,19 @@ if [[ ! -d "node_modules" || ! -f ".env" || ! -f "server/.env" ]]; then
 fi
 
 echo ""
+# If using a local Appwrite instance, ensure it is running
+if grep -Eq "localhost|127\.0\.0\.1" .env 2>/dev/null; then
+  if ! curl -fsS "http://localhost/v1/health/version" >/dev/null 2>&1; then
+    echo "[INFO] Local Appwrite instance is not responding. Starting containers..."
+    if [[ -f "appwrite/docker-compose.yml" ]]; then
+      docker compose --project-directory "appwrite" -f "appwrite/docker-compose.yml" up -d 2>/dev/null || \
+      docker-compose -f "appwrite/docker-compose.yml" up -d 2>/dev/null || true
+    else
+      docker ps -a -q --filter "name=appwrite" 2>/dev/null | xargs -r docker start 2>/dev/null || true
+    fi
+  fi
+fi
+
 echo "Environment already configured. Pushing Appwrite functions..."
 cd server
 appwrite push functions || echo "[WARN] Failed to push Appwrite functions. Continuing..."

@@ -540,6 +540,37 @@ if [[ "$BACKEND_CHOICE" == "2" ]]; then
         --volume "$(pwd)"/appwrite:/usr/src/code/appwrite:rw \
         --entrypoint="install" \
         appwrite/appwrite:1.8.1
+    else
+      # If Appwrite is not currently running, bring up existing containers
+      if ! curl -fsS "http://localhost/v1/health/version" >/dev/null 2>&1; then
+        log_info "Starting existing Appwrite containers..."
+        APPWRITE_COMPOSE_DIR=""
+        if [[ -f "$ROOT_DIR/appwrite/docker-compose.yml" || -f "$ROOT_DIR/appwrite/compose.yml" ]]; then
+          APPWRITE_COMPOSE_DIR="$ROOT_DIR/appwrite"
+        elif [[ -f "/var/lib/docker/appwrite/docker-compose.yml" || -f "/var/lib/docker/appwrite/compose.yml" ]]; then
+          APPWRITE_COMPOSE_DIR="/var/lib/docker/appwrite"
+        elif [[ -f "$(pwd)/appwrite/docker-compose.yml" || -f "$(pwd)/appwrite/compose.yml" ]]; then
+          APPWRITE_COMPOSE_DIR="$(pwd)/appwrite"
+        fi
+
+        if [[ -n "$APPWRITE_COMPOSE_DIR" ]]; then
+          log_info "Running docker compose up -d in $APPWRITE_COMPOSE_DIR..."
+          COMPOSE_FILE="$APPWRITE_COMPOSE_DIR/docker-compose.yml"
+          [[ ! -f "$COMPOSE_FILE" ]] && COMPOSE_FILE="$APPWRITE_COMPOSE_DIR/compose.yml"
+          if docker compose version >/dev/null 2>&1; then
+            docker compose --project-directory "$APPWRITE_COMPOSE_DIR" -f "$COMPOSE_FILE" up -d 2>/dev/null || \
+            sudo docker compose --project-directory "$APPWRITE_COMPOSE_DIR" -f "$COMPOSE_FILE" up -d 2>/dev/null || true
+          elif command -v docker-compose >/dev/null 2>&1; then
+            (cd "$APPWRITE_COMPOSE_DIR" && docker-compose up -d) 2>/dev/null || \
+            (cd "$APPWRITE_COMPOSE_DIR" && sudo docker-compose up -d) 2>/dev/null || true
+          else
+            docker ps -a -q --filter "name=appwrite" | xargs -r docker start 2>/dev/null || true
+          fi
+        else
+          log_info "Starting stopped Appwrite containers..."
+          docker ps -a -q --filter "name=appwrite" | xargs -r docker start 2>/dev/null || true
+        fi
+      fi
     fi
 
     log_info "Waiting for Appwrite to start at http://localhost..."

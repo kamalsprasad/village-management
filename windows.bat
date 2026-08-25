@@ -80,6 +80,20 @@ if errorlevel 1 (
 exit /b 0
 
 :launch
+if exist ".env" (
+    findstr /i "localhost 127.0.0.1" .env >nul 2>&1
+    if %errorlevel% equ 0 (
+        curl -fsS "http://localhost/v1/health/version" >nul 2>&1
+        if %errorlevel% neq 0 (
+            echo  [INFO] Local Appwrite instance is not responding. Starting containers...
+            if exist "appwrite\docker-compose.yml" (
+                docker compose --project-directory "appwrite" -f "appwrite\docker-compose.yml" up -d >nul 2>&1
+            ) else (
+                for /f "tokens=*" %%i in ('docker ps -a -q --filter "name=appwrite"') do docker start %%i >nul 2>&1
+            )
+        )
+    )
+)
 echo  Environment already configured. Pushing Appwrite functions...
 cd server
 call appwrite push functions
