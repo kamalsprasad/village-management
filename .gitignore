@@ -45,6 +45,9 @@ yarn-error.log*
 .env
 .env.test
 
+# Appwrite artifacts
+/appwrite
+
 # Test artifacts
 coverage
 cypress/screenshots
