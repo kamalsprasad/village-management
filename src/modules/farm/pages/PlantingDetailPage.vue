@@ -29,7 +29,9 @@
         <div class="row items-center">
           <Breadcrumbs :items="breadcrumbItems" :current="currentLabel" class="q-mr-md" />
           <div>
-            <h4 class="text-h5 q-my-none">{{ cropName }} <q-badge :color="statusColor">{{ planting.status }}</q-badge></h4>
+            <h4 class="text-h5 q-my-none">
+              {{ cropName }} <q-badge :color="statusColor">{{ planting.status }}</q-badge>
+            </h4>
             <p class="text-grey-7 q-mb-none" v-if="plot">
               Plot: {{ plot.name }} | Planted: {{ formatDate(planting.planting_date) }}
             </p>
@@ -56,6 +58,21 @@
           </q-btn>
         </div>
       </div>
+
+      <q-banner
+        v-if="consistencyWarning"
+        rounded
+        class="bg-negative text-white q-mb-md"
+        data-test="consistency-warning"
+      >
+        <template #avatar><q-icon name="report_problem" /></template>
+        <div class="text-weight-bold">Data consistency requires manual reconciliation</div>
+        <div>{{ consistencyWarning }}</div>
+        <div class="q-mt-xs">
+          Stop retrying this operation and manually reconcile the planting cost ledger, Inventory,
+          and Finance records before continuing.
+        </div>
+      </q-banner>
 
       <!-- Status / Progress Section -->
       <div class="q-mb-md">
@@ -218,27 +235,48 @@
         <div class="col-12 col-md-6">
           <!-- Cost Breakdown Card -->
           <q-card>
+            <q-card-section class="row items-center justify-between">
+              <div class="text-subtitle1 text-weight-medium">Cost Breakdown</div>
+              <q-btn
+                v-if="canWrite && !isTerminalStatus"
+                size="sm"
+                color="primary"
+                icon="add"
+                label="Add Cost"
+                @click="openAddCostDialog"
+              />
+            </q-card-section>
             <q-card-section>
-              <div class="text-subtitle1 text-weight-medium q-mb-md">Cost Breakdown</div>
-
               <q-list dense>
                 <q-item>
-                  <q-item-section>Inputs Cost</q-item-section>
-                  <q-item-section side
-                    >ZMW {{ (planting.inputs_cost || 0).toFixed(2) }}</q-item-section
-                  >
+                  <q-item-section>
+                    Inputs Cost
+                    <q-item-label v-if="costTotals.additionalInputs > 0" caption class="text-grey">
+                      initial ZMW {{ (planting.inputs_cost || 0).toFixed(2) }} + additional ZMW
+                      {{ costTotals.additionalInputs.toFixed(2) }}
+                    </q-item-label>
+                  </q-item-section>
+                  <q-item-section side> ZMW {{ costTotals.inputs.toFixed(2) }} </q-item-section>
                 </q-item>
                 <q-item>
-                  <q-item-section>Labor Cost</q-item-section>
-                  <q-item-section side
-                    >ZMW {{ (planting.labor_cost || 0).toFixed(2) }}</q-item-section
-                  >
+                  <q-item-section>
+                    Labor Cost
+                    <q-item-label v-if="costTotals.additionalLabor > 0" caption class="text-grey">
+                      initial ZMW {{ (planting.labor_cost || 0).toFixed(2) }} + additional ZMW
+                      {{ costTotals.additionalLabor.toFixed(2) }}
+                    </q-item-label>
+                  </q-item-section>
+                  <q-item-section side> ZMW {{ costTotals.labor.toFixed(2) }} </q-item-section>
                 </q-item>
                 <q-item>
-                  <q-item-section>Other Costs</q-item-section>
-                  <q-item-section side
-                    >ZMW {{ (planting.other_cost || 0).toFixed(2) }}</q-item-section
-                  >
+                  <q-item-section>
+                    Other Costs
+                    <q-item-label v-if="costTotals.additionalOther > 0" caption class="text-grey">
+                      initial ZMW {{ (planting.other_cost || 0).toFixed(2) }} + additional ZMW
+                      {{ costTotals.additionalOther.toFixed(2) }}
+                    </q-item-label>
+                  </q-item-section>
+                  <q-item-section side> ZMW {{ costTotals.other.toFixed(2) }} </q-item-section>
                 </q-item>
 
                 <q-separator class="q-my-sm" />
@@ -251,6 +289,58 @@
                 </q-item>
               </q-list>
             </q-card-section>
+          </q-card>
+
+          <!-- Additional Cost History -->
+          <q-card class="q-mt-md">
+            <q-card-section>
+              <div class="text-subtitle1 text-weight-medium">Additional Cost History</div>
+            </q-card-section>
+            <q-separator />
+            <q-card-section v-if="!costHistory.length" class="text-center text-grey-6">
+              No additional cost entries recorded.
+            </q-card-section>
+            <q-list v-else separator dense>
+              <q-item v-for="entry in costHistory" :key="entry.$id">
+                <q-item-section avatar>
+                  <q-icon
+                    :name="
+                      entry.category === 'inputs'
+                        ? 'shopping_cart'
+                        : entry.category === 'labor'
+                          ? 'people'
+                          : 'more_horiz'
+                    "
+                    color="grey-6"
+                  />
+                </q-item-section>
+                <q-item-section>
+                  <q-item-label class="text-capitalize text-weight-medium">
+                    {{ entry.category }} — ZMW {{ (Number(entry.amount) || 0).toFixed(2) }}
+                  </q-item-label>
+                  <q-item-label caption>
+                    {{ formatDate(entry.cost_date) }}
+                    <span v-if="entry.description"> · {{ entry.description }}</span>
+                  </q-item-label>
+                </q-item-section>
+                <q-item-section v-if="canWrite && !isTerminalStatus" side class="row q-gutter-xs">
+                  <q-btn flat round dense size="sm" icon="edit" @click="openEditCostDialog(entry)">
+                    <q-tooltip>Edit</q-tooltip>
+                  </q-btn>
+                  <q-btn
+                    flat
+                    round
+                    dense
+                    size="sm"
+                    icon="delete"
+                    color="negative"
+                    @click="confirmDeleteCostEntry(entry)"
+                  >
+                    <q-tooltip>Delete</q-tooltip>
+                  </q-btn>
+                </q-item-section>
+              </q-item>
+            </q-list>
           </q-card>
 
           <!-- Story 3.6: Frequency Alert for Perennials -->
@@ -646,6 +736,21 @@
         </q-card-actions>
       </q-card>
     </q-dialog>
+
+    <PlantingCostDialog
+      v-if="planting"
+      v-model="costDialogOpen"
+      :planting="planting"
+      :crop="crop"
+      :entry="costEntryToEdit"
+      :loading="costSubmitting"
+      :inventory-items="costInventoryItems"
+      :finance-categories="costFinanceCategories"
+      :funding-sources="costFundingSources"
+      :finance-transaction="costFinanceTransaction"
+      :can-use-finance="canUseFinance"
+      @submit="onCostSubmit"
+    />
   </q-page>
 </template>
 
@@ -656,6 +761,7 @@ import { useQuasar } from 'quasar';
 import { useErrorHandler } from 'src/composables/useErrorHandler';
 import { useFarmStore } from '../stores/farm-store';
 import { useInventoryStore } from 'src/stores/inventory-store';
+import { useFinanceStore } from 'src/modules/finance/stores/finance-store';
 import { usePermissions } from 'src/composables/usePermissions';
 import { parseISO, differenceInDays } from 'date-fns';
 import { OVERDUE_GRACE_DAYS } from '../utils/farm-utils';
@@ -664,6 +770,7 @@ import Breadcrumbs from 'src/components/layout/Breadcrumbs.vue';
 import UpdateStatusDialog from '../components/UpdateStatusDialog.vue';
 import HarvestStatusBadge from '../components/HarvestStatusBadge.vue';
 import HarvestEntryDialog from '../components/HarvestEntryDialog.vue';
+import PlantingCostDialog from '../components/PlantingCostDialog.vue';
 // Story 3.7: Price prompt dialog for harvest completion
 import EstimatedPriceDialog from '../components/EstimatedPriceDialog.vue';
 
@@ -673,6 +780,7 @@ const $q = useQuasar();
 const errorHandler = useErrorHandler();
 const farmStore = useFarmStore();
 const inventoryStore = useInventoryStore();
+const financeStore = useFinanceStore();
 
 // The previous ad-hoc back button returned to the specific parent plot
 // (falling back to the Plantings list only when the plot hadn't loaded yet).
@@ -697,6 +805,16 @@ const entryDialogOpen = ref(false);
 const entrySubmitting = ref(false);
 const produceInventoryRow = ref(null);
 
+// Planting cost entry dialog state
+const costDialogOpen = ref(false);
+const costSubmitting = ref(false);
+const costEntryToEdit = ref(null);
+const costInventoryItems = ref([]);
+const costFinanceCategories = ref([]);
+const costFundingSources = ref([]);
+const costFinanceTransaction = ref(null);
+const consistencyWarning = ref('');
+
 const plantingId = computed(() => route.params.id);
 const planting = computed(() => farmStore.currentPlanting);
 
@@ -705,6 +823,7 @@ const planting = computed(() => farmStore.currentPlanting);
 // ---------------------------------------------------------------------------
 
 const canWrite = computed(() => hasPermission('farm:write'));
+const canUseFinance = computed(() => hasPermission('finance:write'));
 
 const isTerminalStatus = computed(() => {
   const s = planting.value?.status?.toLowerCase();
@@ -748,13 +867,18 @@ const statusColor = computed(() => {
   return colors[planting.value?.status?.toLowerCase()] || 'grey';
 });
 
-const totalInvestment = computed(() => {
-  if (!planting.value) return 0;
-  return (
-    (planting.value.inputs_cost || 0) +
-    (planting.value.labor_cost || 0) +
-    (planting.value.other_cost || 0)
-  );
+const costTotals = computed(() => {
+  if (!planting.value) {
+    return { inputs: 0, labor: 0, other: 0, total: 0 };
+  }
+  return farmStore.getPlantingCostTotals(planting.value);
+});
+
+const totalInvestment = computed(() => costTotals.value.total);
+
+const costHistory = computed(() => {
+  if (!planting.value?.$id) return [];
+  return farmStore.plantingCostEntriesFor(planting.value.$id).slice().reverse();
 });
 
 // Parse [FAILURE: reason] prefix from notes when status is failed
@@ -1020,7 +1144,19 @@ async function loadPlanting() {
     if (!farmStore.plotsLoaded) loaders.push(farmStore.fetchPlots());
     if (!farmStore.cropsLoaded) loaders.push(farmStore.fetchCrops());
     loaders.push(farmStore.fetchHarvestsByPlanting(result.data.$id));
+    loaders.push(farmStore.fetchPlantingCostEntries(result.data.$id));
+    // Pre-load inventory/finance options for the cost dialog
+    loaders.push(inventoryStore.fetchFarmInputItems());
+    if (canUseFinance.value) {
+      loaders.push(financeStore.fetchCategories());
+      loaders.push(financeStore.fetchFundingSources());
+    }
     await Promise.all(loaders);
+
+    // Populate cost dialog option lists from store caches
+    costInventoryItems.value = inventoryStore.farmInputItems || [];
+    costFinanceCategories.value = canUseFinance.value ? financeStore.categories || [] : [];
+    costFundingSources.value = canUseFinance.value ? financeStore.activeFundingSources || [] : [];
 
     // Story 3.6: Load entries for ALL harvests (perennials may have multiple)
     const harvestList = farmStore.harvestsByPlanting(result.data.$id);
@@ -1403,6 +1539,120 @@ function confirmDeleteEntry(entry) {
       return;
     }
     $q.notify({ type: 'positive', message: 'Entry deleted', position: 'top' });
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Planting cost entry actions
+// ---------------------------------------------------------------------------
+
+function surfaceConsistencyWarning(result) {
+  if (result?.consistencyWarning) {
+    consistencyWarning.value = result.error || 'The operation left related records inconsistent.';
+  }
+}
+
+function openAddCostDialog() {
+  costEntryToEdit.value = null;
+  costFinanceTransaction.value = null;
+  costDialogOpen.value = true;
+}
+
+async function openEditCostDialog(entry) {
+  const financeId =
+    typeof entry.finance_transaction_id === 'object'
+      ? entry.finance_transaction_id?.$id
+      : entry.finance_transaction_id;
+  if (financeId && !canUseFinance.value) {
+    $q.notify({
+      type: 'negative',
+      message: 'Finance write permission is required to edit this linked cost.',
+      position: 'top',
+    });
+    return;
+  }
+  costFinanceTransaction.value = financeId
+    ? await financeStore.fetchTransactionById(financeId)
+    : null;
+  if (financeId && !costFinanceTransaction.value) {
+    $q.notify({
+      type: 'negative',
+      message: 'Unable to load linked Finance expense.',
+      position: 'top',
+    });
+    return;
+  }
+  costEntryToEdit.value = entry;
+  costDialogOpen.value = true;
+}
+
+async function onCostSubmit(payload) {
+  costSubmitting.value = true;
+  try {
+    let result;
+    if (costEntryToEdit.value?.$id) {
+      result = await farmStore.updatePlantingCostEntry(costEntryToEdit.value.$id, payload);
+    } else {
+      result = await farmStore.createPlantingCostEntry(planting.value.$id, payload);
+    }
+
+    if (!result.success) {
+      surfaceConsistencyWarning(result);
+      $q.notify({
+        type: 'negative',
+        message: result.error || 'Failed to save cost entry',
+        position: 'top',
+        timeout: 8000,
+      });
+      return;
+    }
+
+    errorHandler.notifySuccess(
+      costEntryToEdit.value?.$id ? 'Cost entry updated' : 'Cost entry added',
+    );
+    costDialogOpen.value = false;
+    costEntryToEdit.value = null;
+  } finally {
+    costSubmitting.value = false;
+  }
+}
+
+function confirmDeleteCostEntry(entry) {
+  const financeId =
+    typeof entry.finance_transaction_id === 'object'
+      ? entry.finance_transaction_id?.$id
+      : entry.finance_transaction_id;
+  if (financeId && !canUseFinance.value) {
+    $q.notify({
+      type: 'negative',
+      message: 'Finance write permission is required to delete this linked cost.',
+      position: 'top',
+    });
+    return;
+  }
+  const category = entry.category || 'cost';
+  const amount = (Number(entry.amount) || 0).toFixed(2);
+  $q.dialog({
+    title: 'Delete this cost entry?',
+    message:
+      `Remove ${category} cost of ZMW ${amount} recorded on ${formatDate(entry.cost_date)}? ` +
+      `Any deducted inventory and linked Finance expense will be reversed.`,
+    ok: { label: 'Delete Cost', color: 'negative' },
+    cancel: true,
+    persistent: true,
+  }).onOk(async () => {
+    const result = await farmStore.deletePlantingCostEntry(entry.$id);
+    if (!result.success) {
+      surfaceConsistencyWarning(result);
+      $q.notify({
+        type: 'negative',
+        message: result.error || 'Failed to delete cost entry',
+        position: 'top',
+        timeout: 8000,
+      });
+      return;
+    }
+    $q.notify({ type: 'positive', message: 'Cost entry deleted', position: 'top' });
   });
 }
 </script>

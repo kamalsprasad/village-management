@@ -4,6 +4,29 @@ import { useFarmStore } from 'src/modules/farm/stores/farm-store';
 import { mockTables } from 'test/helpers/appwrite-mock';
 import { makePlot, makeCrop, makePlanting } from 'test/helpers/fixtures';
 
+const mockInventoryStore = vi.hoisted(() => ({
+  adjustStock: vi.fn(),
+  farmInputItems: [],
+}));
+
+const mockFinanceStore = vi.hoisted(() => ({
+  createTransaction: vi.fn(),
+  updateTransaction: vi.fn(),
+  deleteTransaction: vi.fn(),
+  fetchTransactionById: vi.fn(),
+  fetchCategories: vi.fn(),
+  fetchFundingSources: vi.fn(),
+  activeFundingSources: [],
+}));
+
+vi.mock('src/stores/inventory-store', () => ({
+  useInventoryStore: () => mockInventoryStore,
+}));
+
+vi.mock('src/modules/finance/stores/finance-store', () => ({
+  useFinanceStore: () => mockFinanceStore,
+}));
+
 describe('farm-store', () => {
   let store;
 
@@ -578,6 +601,367 @@ describe('farm-store', () => {
       expect(store.filters.plotId).toBeNull();
       expect(store.filters.cropId).toBeNull();
       expect(store.filters.status).toBeNull();
+    });
+  });
+
+  // ================================================================
+  // Planting Additional Cost Entries
+  // ================================================================
+
+  describe('getPlantingCostTotals', () => {
+    it('returns initial cost fields when no ledger entries exist', () => {
+      const planting = makePlanting({ inputs_cost: 100, labor_cost: 50, other_cost: 25 });
+      const totals = store.getPlantingCostTotals(planting);
+      expect(totals.inputs).toBe(100);
+      expect(totals.labor).toBe(50);
+      expect(totals.other).toBe(25);
+      expect(totals.total).toBe(175);
+    });
+
+    it('adds additional cost entries to initial fields', () => {
+      const planting = makePlanting({ inputs_cost: 100, labor_cost: 50, other_cost: 25 });
+      store.plantingCostEntries = [
+        { planting_id: planting.$id, category: 'inputs', amount: 40 },
+        { planting_id: planting.$id, category: 'labor', amount: 20 },
+        { planting_id: planting.$id, category: 'other', amount: 10 },
+      ];
+      const totals = store.getPlantingCostTotals(planting);
+      expect(totals.inputs).toBe(140);
+      expect(totals.labor).toBe(70);
+      expect(totals.other).toBe(35);
+      expect(totals.total).toBe(245);
+    });
+  });
+
+  describe('canRecordAdditionalCost', () => {
+    it('allows cost entries for active planting statuses', () => {
+      for (const status of ['planned', 'planted', 'growing', 'harvesting']) {
+        expect(store.canRecordAdditionalCost({ status })).toBe(true);
+      }
+    });
+
+    it('blocks cost entries for closed planting statuses', () => {
+      for (const status of ['completed', 'failed']) {
+        expect(store.canRecordAdditionalCost({ status })).toBe(false);
+      }
+    });
+  });
+
+  describe('fetchPlantingCostEntries', () => {
+    it('fetches entries and updates state', async () => {
+      const entries = [{ $id: 'ce-1', planting_id: 'plant-1', category: 'inputs', amount: 10 }];
+      mockTables.listRows.mockResolvedValue({ rows: entries });
+
+      const result = await store.fetchPlantingCostEntries('plant-1');
+
+      expect(result.success).toBe(true);
+      expect(store.plantingCostEntries).toEqual(entries);
+      expect(mockTables.listRows.mock.calls[0][0].tableId).toBe('planting_cost_entries');
+    });
+  });
+
+  describe('createPlantingCostEntry', () => {
+    it('creates a standalone cost entry', async () => {
+      const planting = makePlanting();
+      store.plantings = [planting];
+      const created = {
+        $id: 'ce-1',
+        planting_id: planting.$id,
+        category: 'labor',
+        amount: 50,
+      };
+      mockTables.createRow.mockResolvedValue(created);
+
+      const result = await store.createPlantingCostEntry(planting.$id, {
+        category: 'labor',
+        date: '2026-08-20',
+        description: 'Weeding',
+        amount: 50,
+      });
+
+      expect(result.success).toBe(true);
+      expect(mockTables.createRow).toHaveBeenCalled();
+    });
+
+    it('rejects invalid category', async () => {
+      const planting = makePlanting();
+      store.plantings = [planting];
+
+      const result = await store.createPlantingCostEntry(planting.$id, {
+        category: 'invalid',
+        date: '2026-08-20',
+        description: 'x',
+        amount: 10,
+      });
+
+      expect(result.success).toBe(false);
+      expect(result.error).toMatch(/Invalid cost category/);
+    });
+
+    it('rejects closed plantings', async () => {
+      const planting = makePlanting({ status: 'completed' });
+      store.plantings = [planting];
+
+      const result = await store.createPlantingCostEntry(planting.$id, {
+        category: 'labor',
+        date: '2026-08-20',
+        description: 'x',
+        amount: 10,
+      });
+
+      expect(result.success).toBe(false);
+      expect(result.error).toMatch(/completed or failed/);
+    });
+
+    it('deducts inventory and creates linked entry', async () => {
+      const planting = makePlanting();
+      store.plantings = [planting];
+      mockInventoryStore.adjustStock.mockResolvedValue({ success: true, data: {} });
+      const created = {
+        $id: 'ce-1',
+        planting_id: planting.$id,
+        category: 'inputs',
+        amount: 100,
+      };
+      mockTables.getRow.mockResolvedValue({ item_name: 'Seed', quantity: 50, unit: 'kg' });
+      mockTables.createRow.mockResolvedValue(created);
+
+      const result = await store.createPlantingCostEntry(planting.$id, {
+        category: 'inputs',
+        date: '2026-08-20',
+        description: 'Seed purchase',
+        amount: 100,
+        inventoryItemId: 'inv-1',
+        inventoryQuantity: 10,
+      });
+
+      expect(result.success).toBe(true);
+      expect(mockInventoryStore.adjustStock).toHaveBeenCalledWith('inv-1', {
+        type: 'remove',
+        quantity: 10,
+      });
+    });
+
+    it.each([0, Number.NaN, Number.POSITIVE_INFINITY])(
+      'rejects selected inventory with non-positive or non-finite quantity %s',
+      async (inventoryQuantity) => {
+        const planting = makePlanting();
+        store.plantings = [planting];
+
+        const result = await store.createPlantingCostEntry(planting.$id, {
+          category: 'inputs',
+          date: '2026-08-20',
+          description: 'Seed',
+          amount: 100,
+          inventoryItemId: 'inv-1',
+          inventoryQuantity,
+        });
+
+        expect(result.success).toBe(false);
+        expect(result.error).toMatch(/finite number greater than zero/);
+        expect(mockInventoryStore.adjustStock).not.toHaveBeenCalled();
+      },
+    );
+
+    it('propagates Finance create failure', async () => {
+      const planting = makePlanting();
+      store.plantings = [planting];
+      mockFinanceStore.createTransaction.mockResolvedValue({
+        success: false,
+        error: 'Finance service unavailable',
+      });
+
+      const result = await store.createPlantingCostEntry(planting.$id, {
+        category: 'labor',
+        date: '2026-08-20',
+        description: 'Weeding',
+        amount: 50,
+        createFinance: true,
+        financeCategoryId: 'fc-1',
+      });
+
+      expect(result).toMatchObject({ success: false, error: 'Finance service unavailable' });
+      expect(mockTables.createRow).not.toHaveBeenCalled();
+    });
+
+    it('reports an inventory rollback failure after Finance create fails', async () => {
+      const planting = makePlanting();
+      store.plantings = [planting];
+      mockTables.getRow.mockResolvedValue({ item_name: 'Seed', quantity: 50, unit: 'kg' });
+      mockInventoryStore.adjustStock
+        .mockResolvedValueOnce({ success: true })
+        .mockResolvedValueOnce({ success: false, error: 'rollback unavailable' });
+      mockFinanceStore.createTransaction.mockResolvedValue({
+        success: false,
+        error: 'Finance create failed',
+      });
+
+      const result = await store.createPlantingCostEntry(planting.$id, {
+        category: 'inputs',
+        date: '2026-08-20',
+        description: 'Seed',
+        amount: 100,
+        inventoryItemId: 'inv-1',
+        inventoryQuantity: 10,
+        createFinance: true,
+        financeCategoryId: 'fc-1',
+      });
+
+      expect(result.success).toBe(false);
+      expect(result.consistencyWarning).toBe(true);
+      expect(result.error).toMatch(/rollback unavailable/);
+    });
+
+    it('creates finance transaction when createFinance is true', async () => {
+      const planting = makePlanting();
+      store.plantings = [planting];
+      mockFinanceStore.createTransaction.mockResolvedValue({
+        success: true,
+        data: { $id: 'tx-1' },
+      });
+      const created = { $id: 'ce-1', planting_id: planting.$id, category: 'labor', amount: 50 };
+      mockTables.createRow.mockResolvedValue(created);
+
+      const result = await store.createPlantingCostEntry(planting.$id, {
+        category: 'labor',
+        date: '2026-08-20',
+        description: 'Weeding',
+        amount: 50,
+        createFinance: true,
+        financeCategoryId: 'fc-1',
+      });
+
+      expect(result.success).toBe(true);
+      expect(mockFinanceStore.createTransaction).toHaveBeenCalled();
+    });
+  });
+
+  describe('updatePlantingCostEntry', () => {
+    it('fully synchronizes inventory when switching linked items', async () => {
+      store.plantings = [makePlanting({ $id: 'plant-1' })];
+      mockTables.getRow.mockResolvedValue({
+        $id: 'ce-1',
+        planting_id: 'plant-1',
+        category: 'inputs',
+        amount: 50,
+        cost_date: '2026-08-20T12:00:00.000Z',
+        description: 'Seed',
+        inventory_item_id: 'inv-old',
+        inventory_quantity: 5,
+      });
+      mockInventoryStore.adjustStock.mockResolvedValue({ success: true });
+      mockTables.updateRow.mockResolvedValue({ $id: 'ce-1', planting_id: 'plant-1' });
+
+      const result = await store.updatePlantingCostEntry('ce-1', {
+        category: 'inputs',
+        date: '2026-08-21',
+        description: 'Different seed',
+        amount: 60,
+        inventoryItemId: 'inv-new',
+        inventoryQuantity: 3,
+        createFinance: false,
+      });
+
+      expect(result.success).toBe(true);
+      expect(mockInventoryStore.adjustStock).toHaveBeenNthCalledWith(1, 'inv-old', {
+        type: 'add',
+        quantity: 5,
+      });
+      expect(mockInventoryStore.adjustStock).toHaveBeenNthCalledWith(2, 'inv-new', {
+        type: 'remove',
+        quantity: 3,
+      });
+    });
+
+    it('rejects zero inventory quantity when updating a selected item', async () => {
+      store.plantings = [makePlanting({ $id: 'plant-1' })];
+      mockTables.getRow.mockResolvedValue({
+        $id: 'ce-1',
+        planting_id: 'plant-1',
+        category: 'inputs',
+        amount: 50,
+        cost_date: '2026-08-20T12:00:00.000Z',
+        description: 'Seed',
+      });
+
+      const result = await store.updatePlantingCostEntry('ce-1', {
+        category: 'inputs',
+        date: '2026-08-21',
+        description: 'Seed',
+        amount: 50,
+        inventoryItemId: 'inv-1',
+        inventoryQuantity: 0,
+      });
+
+      expect(result.success).toBe(false);
+      expect(result.error).toMatch(/finite number greater than zero/);
+      expect(mockInventoryStore.adjustStock).not.toHaveBeenCalled();
+    });
+
+    it('adds a Finance link during edit', async () => {
+      store.plantings = [makePlanting({ $id: 'plant-1' })];
+      mockTables.getRow.mockResolvedValue({
+        $id: 'ce-1',
+        planting_id: 'plant-1',
+        category: 'labor',
+        amount: 50,
+        cost_date: '2026-08-20T12:00:00.000Z',
+        description: 'Labor',
+      });
+      mockFinanceStore.createTransaction.mockResolvedValue({
+        success: true,
+        data: { $id: 'tx-2' },
+      });
+      mockTables.updateRow.mockResolvedValue({
+        $id: 'ce-1',
+        planting_id: 'plant-1',
+        finance_transaction_id: 'tx-2',
+      });
+
+      const result = await store.updatePlantingCostEntry('ce-1', {
+        category: 'labor',
+        date: '2026-08-20',
+        description: 'Labor',
+        amount: 50,
+        createFinance: true,
+        financeCategoryId: 'fc-1',
+        paymentMethod: 'Cash',
+      });
+
+      expect(result.success).toBe(true);
+      expect(mockFinanceStore.createTransaction).toHaveBeenCalled();
+      expect(mockTables.updateRow.mock.calls.at(-1)[0].data.finance_transaction_id).toBe('tx-2');
+    });
+  });
+
+  describe('deletePlantingCostEntry', () => {
+    it('restores inventory, cancels finance, and deletes entry', async () => {
+      const original = {
+        $id: 'ce-1',
+        planting_id: 'plant-1',
+        category: 'inputs',
+        amount: 50,
+        inventory_item_id: 'inv-1',
+        inventory_quantity: 5,
+        finance_transaction_id: 'tx-1',
+      };
+      store.plantings = [makePlanting({ $id: 'plant-1' })];
+      mockTables.getRow.mockResolvedValueOnce(original);
+      mockTables.getRow.mockResolvedValueOnce({ item_name: 'Seed', quantity: 10, unit: 'kg' });
+      mockInventoryStore.adjustStock.mockResolvedValue({ success: true, data: {} });
+      mockFinanceStore.fetchTransactionById.mockResolvedValue({ $id: 'tx-1', amount: 50 });
+      mockFinanceStore.deleteTransaction.mockResolvedValue({ success: true });
+      mockTables.deleteRow.mockResolvedValue();
+
+      const result = await store.deletePlantingCostEntry('ce-1');
+
+      expect(result.success).toBe(true);
+      expect(mockInventoryStore.adjustStock).toHaveBeenCalledWith('inv-1', {
+        type: 'add',
+        quantity: 5,
+      });
+      expect(mockFinanceStore.deleteTransaction).toHaveBeenCalledWith('tx-1', expect.any(Object));
+      expect(mockTables.deleteRow).toHaveBeenCalled();
     });
   });
 });

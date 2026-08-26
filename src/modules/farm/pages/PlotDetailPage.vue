@@ -18,7 +18,9 @@
         <div class="row items-center">
           <Breadcrumbs :items="breadcrumbItems" :current="currentLabel" class="q-mr-md" />
           <div>
-            <h4 class="text-h5 q-my-none">{{ plot.name }} <PlotStatusBadge :status="plot.status" /></h4>
+            <h4 class="text-h5 q-my-none">
+              {{ plot.name }} <PlotStatusBadge :status="plot.status" />
+            </h4>
             <p class="text-grey-7 q-mb-none">{{ formatSize(plot.size_hectares) }} hectares</p>
           </div>
         </div>
@@ -169,19 +171,19 @@
                       <q-item>
                         <q-item-section>Inputs Cost</q-item-section>
                         <q-item-section side>
-                          ZMW {{ (planting.inputs_cost || 0).toFixed(2) }}
+                          ZMW {{ farmStore.getPlantingCostTotals(planting).inputs.toFixed(2) }}
                         </q-item-section>
                       </q-item>
                       <q-item>
                         <q-item-section>Labor Cost</q-item-section>
                         <q-item-section side>
-                          ZMW {{ (planting.labor_cost || 0).toFixed(2) }}
+                          ZMW {{ farmStore.getPlantingCostTotals(planting).labor.toFixed(2) }}
                         </q-item-section>
                       </q-item>
                       <q-item>
                         <q-item-section>Other Costs</q-item-section>
                         <q-item-section side>
-                          ZMW {{ (planting.other_cost || 0).toFixed(2) }}
+                          ZMW {{ farmStore.getPlantingCostTotals(planting).other.toFixed(2) }}
                         </q-item-section>
                       </q-item>
                     </q-list>
@@ -541,6 +543,9 @@ onMounted(async () => {
   // Load plantings for this plot
   await farmStore.fetchPlantingsByPlot(plotId.value);
 
+  // Load ledger-aware cost entries for planting totals
+  await farmStore.fetchAllPlantingCostEntries();
+
   // Story 3.10: Load yield history (ensureYieldDataLoaded handles dedup)
   await farmStore.ensureYieldDataLoaded();
   yieldHistory.value = farmStore.computePlotYieldHistory(plotId.value);
@@ -685,7 +690,7 @@ function getStatusColor(status) {
 }
 
 function calculateInvestment(planting) {
-  return (planting.inputs_cost || 0) + (planting.labor_cost || 0) + (planting.other_cost || 0);
+  return farmStore.getPlantingCostTotals(planting).total;
 }
 
 function confirmDelete() {

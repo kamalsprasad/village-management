@@ -315,6 +315,8 @@ onMounted(async () => {
     if (!farmStore.cropsLoaded) {
       await farmStore.fetchCrops();
     }
+    // Load ledger-aware cost entries for totals
+    await farmStore.fetchAllPlantingCostEntries();
   } finally {
     loading.value = false;
   }
@@ -342,7 +344,7 @@ function getStatusColor(status) {
 }
 
 function calculateInvestment(planting) {
-  return (planting.inputs_cost || 0) + (planting.labor_cost || 0) + (planting.other_cost || 0);
+  return farmStore.getPlantingCostTotals(planting).total;
 }
 
 function openPlotSelector() {

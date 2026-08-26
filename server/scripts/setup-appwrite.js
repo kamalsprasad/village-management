@@ -581,6 +581,71 @@ const tableSchemas = {
       },
     ],
   },
+
+  // Story: Additional planting cost ledger entries
+  planting_cost_entries: {
+    name: 'Planting Cost Entries',
+    permissions: permissions,
+    columns: [
+      {
+        key: 'planting_id',
+        type: 'relationship',
+        relatedTable: 'plantings',
+        relationType: 'manyToOne',
+        twoWay: false,
+        required: true,
+      },
+      {
+        key: 'category',
+        type: 'enum',
+        elements: ['inputs', 'labor', 'other'],
+        required: true,
+      },
+      { key: 'amount', type: 'float', min: 0, required: true },
+      { key: 'cost_date', type: 'datetime', required: true },
+      { key: 'description', type: 'string', size: 500, required: true },
+      {
+        key: 'inventory_item_id',
+        type: 'relationship',
+        relatedTable: 'inventory',
+        relationType: 'manyToOne',
+        twoWay: false,
+        onDelete: 'setNull',
+        required: false,
+      },
+      { key: 'inventory_quantity', type: 'float', min: 0, required: false },
+      {
+        key: 'finance_transaction_id',
+        type: 'relationship',
+        relatedTable: 'finance_transactions',
+        relationType: 'manyToOne',
+        twoWay: false,
+        onDelete: 'setNull',
+        required: false,
+      },
+    ],
+    indexes: [
+      {
+        key: 'idx_planting_cost_entries_planting',
+        type: 'key',
+        columns: ['planting_id'],
+        orders: ['ASC'],
+      },
+      {
+        key: 'idx_planting_cost_entries_date',
+        type: 'key',
+        columns: ['cost_date'],
+        orders: ['DESC'],
+      },
+      {
+        key: 'idx_planting_cost_entries_category',
+        type: 'key',
+        columns: ['planting_id', 'category'],
+        orders: ['ASC', 'ASC'],
+      },
+    ],
+  },
+
   // Epic 2: Finance Module Tables
   finance_categories: {
     name: 'Finance Categories',

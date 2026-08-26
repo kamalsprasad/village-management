@@ -31,6 +31,12 @@ function toSaleDatetime(dateLike) {
   return new Date(`${dateLike}T12:00:00Z`).toISOString();
 }
 
+// Normalise a relationship field which Appwrite may return as a string ID or object.
+function idOf(value) {
+  if (!value) return null;
+  return typeof value === 'object' ? value.$id : value;
+}
+
 export const useFarmStore = defineStore('farm', {
   state: () => ({
     // Plots (Story 3.1)
@@ -54,6 +60,11 @@ export const useFarmStore = defineStore('farm', {
     plantingsLoaded: false,
     isPlantingsLoading: false,
     currentPlanting: null,
+
+    // Planting cost entries ledger (additional costs)
+    plantingCostEntries: [],
+    plantingCostEntriesLoaded: false,
+    isPlantingCostEntriesLoading: false,
 
     // Harvests (Story 3.5-3.6)
     harvests: [],
@@ -145,6 +156,62 @@ export const useFarmStore = defineStore('farm', {
         // Date filtering logic can be added here
         return true;
       });
+    },
+
+    // Planting cost ledger getters
+    plantingCostEntriesFor: (state) => (plantingId) => {
+      return state.plantingCostEntries
+        .filter((entry) => idOf(entry.planting_id) === plantingId)
+        .sort((a, b) => new Date(a.cost_date).getTime() - new Date(b.cost_date).getTime());
+    },
+
+    getPlantingCostTotals: (state) => (planting) => {
+      if (!planting?.$id) {
+        return {
+          inputs: 0,
+          labor: 0,
+          other: 0,
+          total: 0,
+          additionalInputs: 0,
+          additionalLabor: 0,
+          additionalOther: 0,
+        };
+      }
+      const initial = {
+        inputs: Number(planting.inputs_cost) || 0,
+        labor: Number(planting.labor_cost) || 0,
+        other: Number(planting.other_cost) || 0,
+      };
+      const additional = { inputs: 0, labor: 0, other: 0 };
+      const plantingId = planting.$id;
+      for (const entry of state.plantingCostEntries) {
+        if (idOf(entry.planting_id) !== plantingId) continue;
+        const cat = (entry.category || '').toLowerCase();
+        const amt = Number(entry.amount) || 0;
+        if (cat === 'inputs') additional.inputs += amt;
+        else if (cat === 'labor') additional.labor += amt;
+        else if (cat === 'other') additional.other += amt;
+      }
+      return {
+        inputs: initial.inputs + additional.inputs,
+        labor: initial.labor + additional.labor,
+        other: initial.other + additional.other,
+        total:
+          initial.inputs +
+          initial.labor +
+          initial.other +
+          additional.inputs +
+          additional.labor +
+          additional.other,
+        additionalInputs: additional.inputs,
+        additionalLabor: additional.labor,
+        additionalOther: additional.other,
+      };
+    },
+
+    canRecordAdditionalCost: () => (planting) => {
+      const status = (planting?.status || '').toLowerCase();
+      return ['planned', 'planted', 'growing', 'harvesting'].includes(status);
     },
 
     // Active planting check for a plot (Story 3.3)
@@ -748,6 +815,593 @@ export const useFarmStore = defineStore('farm', {
 
     clearCurrentPlanting() {
       this.currentPlanting = null;
+    },
+
+    // ==========================================================================
+    // Planting Additional Cost Entries (ledger)
+    // ==========================================================================
+
+    async fetchPlantingCostEntries(plantingId) {
+      this.isPlantingCostEntriesLoading = true;
+      try {
+        const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
+        const fetched = [];
+        let offset = 0;
+        let hasMore = true;
+        const limit = 100;
+        while (hasMore) {
+          const response = await tables.listRows({
+            databaseId: dbId,
+            tableId: 'planting_cost_entries',
+            queries: [
+              Query.equal('planting_id', plantingId),
+              Query.orderDesc('cost_date'),
+              Query.limit(limit),
+              Query.offset(offset),
+            ],
+          });
+          const rows = response.rows || [];
+          fetched.push(...rows);
+          hasMore = rows.length === limit && fetched.length < (response.total || fetched.length);
+          offset += rows.length;
+        }
+        // Replace entries for this planting to avoid duplicates
+        const otherEntries = this.plantingCostEntries.filter(
+          (e) => idOf(e.planting_id) !== plantingId,
+        );
+        this.plantingCostEntries = [...otherEntries, ...fetched];
+        this.plantingCostEntriesLoaded = true;
+        return { success: true, data: fetched };
+      } catch (error) {
+        console.error('Error fetching planting cost entries:', error);
+        return { success: false, error: error.message };
+      } finally {
+        this.isPlantingCostEntriesLoading = false;
+      }
+    },
+
+    async fetchAllPlantingCostEntries() {
+      if (this.plantingCostEntriesLoaded) {
+        return { success: true, data: this.plantingCostEntries };
+      }
+      this.isPlantingCostEntriesLoading = true;
+      try {
+        const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
+        const allEntries = [];
+        let offset = 0;
+        let hasMore = true;
+        const limit = 100;
+
+        while (hasMore) {
+          const response = await tables.listRows({
+            databaseId: dbId,
+            tableId: 'planting_cost_entries',
+            queries: [Query.orderDesc('cost_date'), Query.limit(limit), Query.offset(offset)],
+          });
+          allEntries.push(...(response.rows || []));
+          const rows = response.rows || [];
+          const reachedTotal =
+            Number.isFinite(response.total) && allEntries.length >= response.total;
+          if (reachedTotal || rows.length < limit) {
+            hasMore = false;
+          } else {
+            offset += rows.length;
+          }
+        }
+
+        this.plantingCostEntries = allEntries;
+        this.plantingCostEntriesLoaded = true;
+        return { success: true, data: allEntries };
+      } catch (error) {
+        console.error('Error fetching all planting cost entries:', error);
+        return { success: false, error: error.message };
+      } finally {
+        this.isPlantingCostEntriesLoading = false;
+      }
+    },
+
+    async createPlantingCostEntry(plantingId, payload) {
+      const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
+      const inventoryStore = useInventoryStore();
+      const financeStore = useFinanceStore();
+
+      // Resolve planting and validate status
+      let planting = this.plantings.find((p) => p.$id === plantingId) || this.currentPlanting;
+      if (!planting) {
+        const fetchResult = await this.fetchPlantingById(plantingId);
+        if (!fetchResult.success) return { success: false, error: fetchResult.error };
+        planting = fetchResult.data;
+      }
+      if (!this.canRecordAdditionalCost(planting)) {
+        return { success: false, error: 'Cannot add costs to a completed or failed planting' };
+      }
+
+      // Validate core fields
+      const category = (payload.category || '').toLowerCase();
+      if (!['inputs', 'labor', 'other'].includes(category)) {
+        return { success: false, error: 'Invalid cost category' };
+      }
+      if (!payload.date) return { success: false, error: 'Cost date is required' };
+      if (!payload.description?.trim()) {
+        return { success: false, error: 'Description is required' };
+      }
+      const amount = parseFloat(payload.amount);
+      if (Number.isNaN(amount) || amount <= 0) {
+        return { success: false, error: 'Amount must be greater than zero' };
+      }
+      const inventoryQuantity = Number(payload.inventoryQuantity);
+      if (
+        payload.inventoryItemId &&
+        (!Number.isFinite(inventoryQuantity) || inventoryQuantity <= 0)
+      ) {
+        return {
+          success: false,
+          error: 'Inventory quantity must be a finite number greater than zero',
+        };
+      }
+
+      let inventoryAdjusted = false;
+      let originalInventoryQty = 0;
+      let financeTransaction = null;
+      let financeRollbackFailed = false;
+
+      try {
+        // 1. Inventory deduction for input costs
+        if (payload.inventoryItemId) {
+          const quantity = inventoryQuantity;
+          const item = await tables.getRow({
+            databaseId: dbId,
+            tableId: 'inventory',
+            rowId: payload.inventoryItemId,
+          });
+          if ((Number(item.quantity) || 0) < quantity) {
+            return {
+              success: false,
+              error: `Insufficient stock for ${item.item_name}: ${item.quantity || 0} ${item.unit || ''} available`,
+            };
+          }
+          const adjResult = await inventoryStore.adjustStock(payload.inventoryItemId, {
+            type: 'remove',
+            quantity,
+          });
+          if (!adjResult.success) {
+            return {
+              success: false,
+              error: adjResult.error || 'Failed to deduct inventory',
+            };
+          }
+          inventoryAdjusted = true;
+          originalInventoryQty = quantity;
+        }
+
+        // 2. Finance expense creation
+        if (payload.createFinance) {
+          if (!payload.financeCategoryId) {
+            if (inventoryAdjusted) {
+              const rollback = await inventoryStore.adjustStock(payload.inventoryItemId, {
+                type: 'add',
+                quantity: originalInventoryQty,
+              });
+              if (!rollback?.success) {
+                return {
+                  success: false,
+                  error: `Finance category is required. Consistency error: inventory rollback failed (${rollback?.error || 'unknown error'}).`,
+                  consistencyWarning: true,
+                };
+              }
+            }
+            return { success: false, error: 'Finance category is required' };
+          }
+          const txResult = await financeStore.createTransaction({
+            type: 'expense',
+            amount_needed: amount,
+            amount_funded: amount,
+            category_id: payload.financeCategoryId,
+            source_module: 'Farm',
+            payment_method: payload.paymentMethod || 'Cash',
+            funding_source_id: payload.fundingSourceId || null,
+            date: toSaleDatetime(payload.date),
+            description: payload.description.trim(),
+            status: 'completed',
+          });
+          if (!txResult.success || !txResult.data?.$id) {
+            // Roll back inventory
+            let rollbackFailed = false;
+            let rollbackError = '';
+            if (inventoryAdjusted) {
+              try {
+                const rollback = await inventoryStore.adjustStock(payload.inventoryItemId, {
+                  type: 'add',
+                  quantity: originalInventoryQty,
+                });
+                if (!rollback?.success) throw new Error(rollback?.error || 'unknown error');
+              } catch (rbErr) {
+                rollbackFailed = true;
+                rollbackError = rbErr.message;
+              }
+            }
+            return {
+              success: false,
+              error: rollbackFailed
+                ? `${txResult.error || 'Failed to create Finance expense'}. Consistency error: inventory rollback failed (${rollbackError}).`
+                : txResult.error || 'Failed to create Finance expense',
+              consistencyWarning: rollbackFailed,
+            };
+          }
+          financeTransaction = txResult.data;
+        }
+
+        // 3. Create ledger entry
+        const entryData = {
+          planting_id: plantingId,
+          category,
+          amount,
+          cost_date: toSaleDatetime(payload.date),
+          description: payload.description.trim(),
+          ...(payload.inventoryItemId
+            ? {
+                inventory_item_id: payload.inventoryItemId,
+                inventory_quantity: originalInventoryQty || null,
+              }
+            : {}),
+          ...(financeTransaction?.$id ? { finance_transaction_id: financeTransaction.$id } : {}),
+        };
+
+        const entry = await tables.createRow({
+          databaseId: dbId,
+          tableId: 'planting_cost_entries',
+          rowId: ID.unique(),
+          data: entryData,
+        });
+
+        this.plantingCostEntries.unshift(entry);
+        errorHandler.notifySuccess(`Added ${category} cost: ZMW ${amount.toFixed(2)}`);
+        return { success: true, data: entry };
+      } catch (error) {
+        console.error('Error creating planting cost entry:', error);
+
+        // Roll back in reverse order: finance first, then inventory
+        const rollbackErrors = [];
+        if (financeTransaction?.$id) {
+          try {
+            const rollback = await financeStore.deleteTransaction(
+              financeTransaction.$id,
+              financeTransaction,
+            );
+            if (!rollback?.success) throw new Error(rollback?.error || 'Finance rollback failed');
+          } catch (rbErr) {
+            console.error('Failed to roll back finance transaction:', rbErr);
+            financeRollbackFailed = true;
+            rollbackErrors.push(rbErr.message);
+          }
+        }
+        if (inventoryAdjusted) {
+          try {
+            const rollback = await inventoryStore.adjustStock(payload.inventoryItemId, {
+              type: 'add',
+              quantity: originalInventoryQty,
+            });
+            if (!rollback?.success) throw new Error(rollback?.error || 'Inventory rollback failed');
+          } catch (rbErr) {
+            console.error('Failed to roll back inventory adjustment:', rbErr);
+            rollbackErrors.push(rbErr.message);
+          }
+        }
+
+        return {
+          success: false,
+          error: rollbackErrors.length
+            ? `${error.message}. Consistency error: rollback failed (${rollbackErrors.join('; ')}).`
+            : error.message,
+          consistencyWarning: financeRollbackFailed || rollbackErrors.length > 0,
+        };
+      }
+    },
+
+    async updatePlantingCostEntry(entryId, payload) {
+      const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
+      const inventoryStore = useInventoryStore();
+      const financeStore = useFinanceStore();
+
+      let original;
+      try {
+        original = await tables.getRow({
+          databaseId: dbId,
+          tableId: 'planting_cost_entries',
+          rowId: entryId,
+        });
+      } catch (error) {
+        return { success: false, error: error.message || 'Entry not found' };
+      }
+
+      const plantingId = idOf(original.planting_id);
+      let planting = this.plantings.find((p) => p.$id === plantingId) || this.currentPlanting;
+      if (!planting) {
+        const fetchResult = await this.fetchPlantingById(plantingId);
+        if (!fetchResult.success) return { success: false, error: fetchResult.error };
+        planting = fetchResult.data;
+      }
+      if (!this.canRecordAdditionalCost(planting)) {
+        return { success: false, error: 'Cannot modify costs for a completed or failed planting' };
+      }
+
+      const category = (payload.category || original.category || '').toLowerCase();
+      const description = (payload.description || original.description || '').trim();
+      const amount = Number(payload.amount ?? original.amount);
+      if (!['inputs', 'labor', 'other'].includes(category)) {
+        return { success: false, error: 'Invalid cost category' };
+      }
+      if (!payload.date && !original.cost_date)
+        return { success: false, error: 'Cost date is required' };
+      if (!description) return { success: false, error: 'Description is required' };
+      if (!Number.isFinite(amount) || amount <= 0) {
+        return { success: false, error: 'Amount must be greater than zero' };
+      }
+
+      const newDate = payload.date ? toSaleDatetime(payload.date) : original.cost_date;
+      const oldItemId = idOf(original.inventory_item_id);
+      const oldQty = Number(original.inventory_quantity) || 0;
+      const newItemId = payload.inventoryItemId || null;
+      const requestedInventoryQty = Number(payload.inventoryQuantity);
+      if (newItemId && (!Number.isFinite(requestedInventoryQty) || requestedInventoryQty <= 0)) {
+        return {
+          success: false,
+          error: 'Inventory quantity must be a finite number greater than zero',
+        };
+      }
+      const newQty = newItemId ? requestedInventoryQty : 0;
+      const oldFinanceId = idOf(original.finance_transaction_id);
+      if (oldFinanceId && payload.createFinance === false) {
+        return { success: false, error: 'Unlinking an existing Finance expense is not supported' };
+      }
+
+      let originalFinance = null;
+      if (oldFinanceId) {
+        originalFinance = await financeStore.fetchTransactionById(oldFinanceId);
+        if (!originalFinance)
+          return { success: false, error: 'Linked Finance expense could not be loaded' };
+      }
+
+      const inventorySteps = [];
+      let financeStep = null;
+      let linkedFinanceId = oldFinanceId;
+
+      const adjust = async (itemId, type, quantity, message) => {
+        if (!itemId || quantity <= 0) return;
+        const result = await inventoryStore.adjustStock(itemId, { type, quantity });
+        if (!result?.success) throw new Error(result?.error || message);
+        inventorySteps.push({ itemId, type, quantity });
+      };
+
+      const financePayload = (base = {}) => ({
+        type: 'expense',
+        amount_needed: amount,
+        amount_funded: amount,
+        category_id: payload.financeCategoryId || idOf(base.category_id),
+        source_module: base.source_module || 'Farm',
+        payment_method: payload.paymentMethod || base.payment_method || 'Cash',
+        funding_source_id:
+          payload.fundingSourceId !== undefined
+            ? payload.fundingSourceId
+            : idOf(base.funding_source_id),
+        date: newDate,
+        description,
+        status: base.status === 'cancelled' ? 'completed' : base.status || 'completed',
+        subcategory: base.subcategory,
+        vendor_id: idOf(base.vendor_id),
+        receipt_number: base.receipt_number,
+        payment_status: base.payment_status || 'paid',
+      });
+
+      try {
+        // Inventory is synchronized for add, remove, switch, and same-item delta.
+        if (oldItemId === newItemId) {
+          const delta = newQty - oldQty;
+          if (delta > 0) await adjust(newItemId, 'remove', delta, 'Failed to deduct inventory');
+          if (delta < 0)
+            await adjust(oldItemId, 'add', Math.abs(delta), 'Failed to restore inventory');
+        } else {
+          if (oldItemId && oldQty > 0)
+            await adjust(oldItemId, 'add', oldQty, 'Failed to restore old inventory item');
+          if (newItemId && newQty > 0)
+            await adjust(newItemId, 'remove', newQty, 'Failed to deduct new inventory item');
+        }
+
+        if (oldFinanceId) {
+          const result = await financeStore.updateTransaction(
+            oldFinanceId,
+            financePayload(originalFinance),
+          );
+          if (!result?.success)
+            throw new Error(result?.error || 'Failed to update Finance expense');
+          financeStep = { type: 'update', id: oldFinanceId };
+        } else if (payload.createFinance) {
+          if (!payload.financeCategoryId) throw new Error('Finance category is required');
+          const result = await financeStore.createTransaction(financePayload());
+          if (!result?.success || !result.data?.$id) {
+            throw new Error(result?.error || 'Failed to create Finance expense');
+          }
+          linkedFinanceId = result.data.$id;
+          financeStep = { type: 'create', transaction: result.data };
+        }
+
+        const updated = await tables.updateRow({
+          databaseId: dbId,
+          tableId: 'planting_cost_entries',
+          rowId: entryId,
+          data: {
+            category,
+            cost_date: newDate,
+            description,
+            amount,
+            inventory_item_id: newItemId,
+            inventory_quantity: newItemId ? newQty : null,
+            finance_transaction_id: linkedFinanceId || null,
+          },
+        });
+
+        const idx = this.plantingCostEntries.findIndex((e) => e.$id === entryId);
+        if (idx !== -1) this.plantingCostEntries[idx] = updated;
+        else this.plantingCostEntries.unshift(updated);
+        errorHandler.notifySuccess(`Updated ${category} cost: ZMW ${amount.toFixed(2)}`);
+        return { success: true, data: updated };
+      } catch (error) {
+        const rollbackErrors = [];
+
+        if (financeStep?.type === 'update') {
+          try {
+            const result = await financeStore.updateTransaction(oldFinanceId, {
+              ...originalFinance,
+              category_id: idOf(originalFinance.category_id),
+              funding_source_id: idOf(originalFinance.funding_source_id),
+              vendor_id: idOf(originalFinance.vendor_id),
+            });
+            if (!result?.success) throw new Error(result?.error || 'Finance rollback failed');
+          } catch (rollbackError) {
+            rollbackErrors.push(rollbackError.message);
+          }
+        } else if (financeStep?.type === 'create') {
+          try {
+            const result = await financeStore.deleteTransaction(
+              financeStep.transaction.$id,
+              financeStep.transaction,
+            );
+            if (!result?.success) throw new Error(result?.error || 'Finance rollback failed');
+          } catch (rollbackError) {
+            rollbackErrors.push(rollbackError.message);
+          }
+        }
+
+        for (const step of [...inventorySteps].reverse()) {
+          try {
+            const inverse = step.type === 'remove' ? 'add' : 'remove';
+            const result = await inventoryStore.adjustStock(step.itemId, {
+              type: inverse,
+              quantity: step.quantity,
+            });
+            if (!result?.success) throw new Error(result?.error || 'Inventory rollback failed');
+          } catch (rollbackError) {
+            rollbackErrors.push(rollbackError.message);
+          }
+        }
+
+        return {
+          success: false,
+          error: rollbackErrors.length
+            ? `${error.message}. Consistency error: rollback failed (${rollbackErrors.join('; ')}).`
+            : error.message,
+          consistencyWarning: rollbackErrors.length > 0,
+        };
+      }
+    },
+
+    async deletePlantingCostEntry(entryId) {
+      const dbId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
+      const inventoryStore = useInventoryStore();
+      const financeStore = useFinanceStore();
+
+      let original;
+      try {
+        original = await tables.getRow({
+          databaseId: dbId,
+          tableId: 'planting_cost_entries',
+          rowId: entryId,
+        });
+      } catch (error) {
+        return { success: false, error: error.message || 'Entry not found' };
+      }
+
+      const plantingId = idOf(original.planting_id);
+      let planting = this.plantings.find((p) => p.$id === plantingId) || this.currentPlanting;
+      if (!planting) {
+        const fetched = await this.fetchPlantingById(plantingId);
+        if (!fetched.success) return { success: false, error: fetched.error };
+        planting = fetched.data;
+      }
+      if (!this.canRecordAdditionalCost(planting)) {
+        return { success: false, error: 'Cannot delete costs for a completed or failed planting' };
+      }
+
+      const itemId = idOf(original.inventory_item_id);
+      const quantity = Number(original.inventory_quantity) || 0;
+      const financeId = idOf(original.finance_transaction_id);
+      let finance = null;
+      let inventoryRestored = false;
+      let financeCancelled = false;
+
+      const compensateInventory = async () => {
+        if (!inventoryRestored) return null;
+        const result = await inventoryStore.adjustStock(itemId, { type: 'remove', quantity });
+        return result?.success ? null : result?.error || 'Inventory compensation failed';
+      };
+      const compensateFinance = async () => {
+        if (!financeCancelled || !finance) return null;
+        const result = await financeStore.updateTransaction(financeId, {
+          ...finance,
+          category_id: idOf(finance.category_id),
+          funding_source_id: idOf(finance.funding_source_id),
+          vendor_id: idOf(finance.vendor_id),
+          status: finance.status === 'cancelled' ? 'completed' : finance.status,
+        });
+        return result?.success ? null : result?.error || 'Finance compensation failed';
+      };
+      const failure = (message, errors = []) => ({
+        success: false,
+        error: errors.length
+          ? `${message}. Consistency error: compensation failed (${errors.join('; ')}).`
+          : message,
+        consistencyWarning: errors.length > 0,
+      });
+
+      try {
+        if (itemId && quantity > 0) {
+          const result = await inventoryStore.adjustStock(itemId, { type: 'add', quantity });
+          if (!result?.success) throw new Error(result?.error || 'Failed to restore inventory');
+          inventoryRestored = true;
+        }
+
+        if (financeId) {
+          finance = await financeStore.fetchTransactionById(financeId);
+          if (!finance) throw new Error('Linked Finance expense could not be loaded');
+          const result = await financeStore.deleteTransaction(financeId, finance);
+          if (!result?.success) {
+            const compensationError = await compensateInventory();
+            return failure(
+              `Cannot delete entry: ${result?.error || 'Failed to cancel Finance expense'}`,
+              compensationError ? [compensationError] : [],
+            );
+          }
+          financeCancelled = true;
+        }
+
+        try {
+          await tables.deleteRow({
+            databaseId: dbId,
+            tableId: 'planting_cost_entries',
+            rowId: entryId,
+          });
+        } catch (deleteError) {
+          const errors = [];
+          const financeError = await compensateFinance();
+          if (financeError) errors.push(financeError);
+          const inventoryError = await compensateInventory();
+          if (inventoryError) errors.push(inventoryError);
+          return failure(`Ledger row could not be removed: ${deleteError.message}`, errors);
+        }
+      } catch (error) {
+        const errors = [];
+        const financeError = await compensateFinance();
+        if (financeError) errors.push(financeError);
+        const inventoryError = await compensateInventory();
+        if (inventoryError) errors.push(inventoryError);
+        return failure(`Cannot delete entry: ${error.message}`, errors);
+      }
+
+      this.plantingCostEntries = this.plantingCostEntries.filter((e) => e.$id !== entryId);
+      errorHandler.notifySuccess(
+        `Deleted ${original.category} cost: ZMW ${(Number(original.amount) || 0).toFixed(2)}`,
+      );
+      return { success: true };
     },
 
     // Story 3.4: Status lifecycle management
