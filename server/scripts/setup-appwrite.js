@@ -626,22 +626,10 @@ const tableSchemas = {
     ],
     indexes: [
       {
-        key: 'idx_planting_cost_entries_planting',
-        type: 'key',
-        columns: ['planting_id'],
-        orders: ['ASC'],
-      },
-      {
         key: 'idx_planting_cost_entries_date',
         type: 'key',
         columns: ['cost_date'],
         orders: ['DESC'],
-      },
-      {
-        key: 'idx_planting_cost_entries_category',
-        type: 'key',
-        columns: ['planting_id', 'category'],
-        orders: ['ASC', 'ASC'],
       },
     ],
   },
