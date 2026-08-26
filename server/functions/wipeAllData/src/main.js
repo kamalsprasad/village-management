@@ -20,7 +20,10 @@ import { Client, TablesDB, Storage, Query } from 'node-appwrite';
 
 // Tables to wipe, in preferred order (children first reduces FK retries)
 const TABLES_TO_WIPE = [
+  'notification_reads',
+  'notifications',
   'transaction_links',
+  'planting_cost_entries',
   'repayment_schedule',
   'loan_payments',
   'farm_sales',

@@ -152,6 +152,21 @@ Items deferred during code reviews. Revisit before closing their parent story or
   summary: The 5.12 `updateUser` server function has no last-System-Administrator guard for `role_ids` changes — an admin can remove the System Administrator role from the only remaining admin (via ManageRolesDialog or the pre-existing UserFormDialog edit-mode role multi-select), locking the system out of the admin UI. The 5.12 `deactivateUser` action has this guard, but `updateUser` does not.
   evidence: `server/functions/User Management/src/main.js:243-346` (`updateUser` — no last-admin check on role changes; `deactivateUser` at lines 379-390 does check). Both `src/components/admin/ManageRolesDialog.vue:178` (5.13) and `src/components/admin/UserFormDialog.vue:286` (5.12 edit mode) call `usersStore.updateUser` with `role_ids` and can trigger this. Pre-existing from 5.12, surfaced incidentally by 5.13's new UI. User decision 2026-08-04: pick up in Story 5.11 (Start Fresh Production Setup Wizard) — add a last-active-System-Admin check to the `updateUser` server function when `role_ids` changes remove the System Admin role, mirroring the `deactivateUser` guard. Owning story: Story 5.11. RESOLVED in Story 5.11 — see `server/functions/User Management/src/main.js:273-292`.
 
+## Deferred from: code review of spec-comprehensive-showcase-seed-data (2026-08-26)
+
+- source_spec: `docs/implementation-artifacts/spec-comprehensive-showcase-seed-data.md`
+  summary: `listAll()` helper uses a hardcoded `Query.limit(100)` with no pagination; `findUserAnchor` and `assertSafeToSeed` rely on it, so databases with >100 households or >100 users could produce false negatives (missed active user, or false "safe to seed" when households exist past row 100).
+  evidence: `server/functions/seedAllData/src/main.js:60-63` — pre-existing helper, now used by two new safety-critical paths. Low risk at current village scale but should be hardened if user counts grow. Owning story: post-MVP pagination pass (same fix should cover all capped list stores).
+- source_spec: `docs/implementation-artifacts/spec-comprehensive-showcase-seed-data.md`
+  summary: `finance_transactions.status` column is a free-text string (size 20); the 18-month bulk transactions use `'completed'` while the new showcase transactions use `'pending'`. The `payment_status` enum (`paid`/`unpaid`/`partial`) is only set on the new fertilizer transaction, not on the bulk historical transactions, creating inconsistent coverage of the enum field.
+  evidence: `server/functions/seedAllData/src/main.js:339-415` (bulk txs use `status: 'completed'`, no `payment_status`); `server/scripts/setup-appwrite.js:852` (`status` is string), `:866-870` (`payment_status` is enum). Pre-existing from original seeder. Owning story: post-MVP data normalization.
+- source_spec: `docs/implementation-artifacts/spec-comprehensive-showcase-seed-data.md`
+  summary: `file_metadata` and `audit_logs` tables remain unseeded — `file_metadata` requires real Storage bucket files (cannot be honestly showcased with metadata alone), and `audit_logs` must only be produced by the user-management server function.
+  evidence: `server/functions/seedAllData/src/main.js:3563-3564` logs explicit skips; `server/scripts/setup-appwrite.js:1785-1838` (file_metadata schema), `:1912+` (audit_logs schema). By design per spec constraints. Owning story: none (intentional exclusion).
+- source_spec: `docs/implementation-artifacts/spec-comprehensive-showcase-seed-data.md`
+  summary: `farm_alerts` table remains unseeded because the schema reserves it for future persistent storage and MVP alerts are derived in-app; the seed now populates `village_settings.farm_alert_config` so the alert settings page has showcaseable configuration.
+  evidence: `server/functions/seedAllData/src/main.js:3565-3567` logs explicit skip; `server/scripts/setup-appwrite.js:1105+` (farm_alerts schema); `server/functions/seedAllData/src/main.js:2553-2560` (farm_alert_config seeded). By design. Owning story: future farm-alerts persistence story.
+
 ## Deferred from: code review of story-5.11 (2026-08-04)
 
 - source_spec: `docs/implementation-artifacts/spec-5-11-start-fresh-production-setup-wizard.md`
@@ -272,3 +287,6 @@ Items deferred during code reviews. Revisit before closing their parent story or
     None yet created — new post-MVP epic stub (working title: "Automated Testing
     Infrastructure"). A future planning pass should create stories following the
     Scope bullets above.
+
+ 
+ 

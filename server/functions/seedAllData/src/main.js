@@ -62,6 +62,20 @@ async function listAll(tablesDB, dbId, tableId) {
   return res.rows || [];
 }
 
+async function assertSafeToSeed(tablesDB, dbId) {
+  const existing = await listAll(tablesDB, dbId, 'households');
+  if (existing.length) {
+    throw new Error(
+      'Refusing to seed a non-empty database: households already exist. Run the approved wipe/recreate workflow first.',
+    );
+  }
+}
+
+async function findUserAnchor(tablesDB, dbId) {
+  const users = await listAll(tablesDB, dbId, 'users');
+  return users.find((user) => user.active !== false) || null;
+}
+
 function toISO(v) {
   if (!v) return new Date().toISOString();
   if (typeof v === 'string' && v.includes('T')) return v;
@@ -263,6 +277,7 @@ async function seedFinance(tablesDB, dbId, residentIds, vendorIds, log) {
       subcategories: ['School Supplies', 'Teacher Allowance'],
     },
     { name: 'Health Clinic', type: 'expense', subcategories: ['Medicines', 'Equipment'] },
+    { name: 'Farm Operations', type: 'expense', subcategories: ['Inputs', 'Labor', 'Equipment'] },
     { name: 'Administration', type: 'expense', subcategories: ['Office Supplies', 'Travel'] },
     { name: 'Loan Disbursement', type: 'expense', subcategories: ['Agriculture', 'Business'] },
   ];
@@ -403,6 +418,35 @@ async function seedFinance(tablesDB, dbId, residentIds, vendorIds, log) {
   }
   await batchRun(txTasks, 25);
 
+  const showcaseTransactions = await batchRun([
+    () =>
+      createRow(tablesDB, dbId, 'finance_transactions', {
+        type: 'income',
+        amount_needed: 12000,
+        amount_funded: 8000,
+        payment_method: 'Bank Transfer',
+        category_id: getCatId('Grants & Donations'),
+        source_module: 'Village',
+        funding_source_id: getSrcId('Water Sanitation Grant 2024'),
+        date: new Date().toISOString(),
+        description: 'Community borehole rehabilitation — partially funded',
+        status: 'pending',
+      }),
+    () =>
+      createRow(tablesDB, dbId, 'finance_transactions', {
+        type: 'expense',
+        amount_needed: 3500,
+        amount_funded: 2000,
+        payment_method: 'Other',
+        category_id: getCatId('Infrastructure Maintenance'),
+        source_module: 'Village',
+        funding_source_id: getSrcId('Water Sanitation Grant 2024'),
+        date: new Date(Date.now() + 14 * 86400000).toISOString(),
+        description: 'Planned solar pump controller replacement',
+        status: 'pending',
+      }),
+  ]);
+
   log('Phase 2: Loans...');
   const today = new Date();
   const ds = (y, mo, d) => new Date(y, mo, d).toISOString().split('T')[0];
@@ -510,7 +554,7 @@ async function seedFinance(tablesDB, dbId, residentIds, vendorIds, log) {
     await batchRun(installmentTasks, 25);
   }
   log('  Finance done');
-  return { categories, fundingSources };
+  return { categories, fundingSources, showcaseTransactions };
 }
 
 // =============================================================================
@@ -780,7 +824,7 @@ async function seedFarm(tablesDB, dbId, residentIds, categories, fundingSources,
       date_added: isoMo(5),
     },
   ];
-  await batchRun(
+  const inputRows = await batchRun(
     inputs.map(
       (inp) => () =>
         createRow(tablesDB, dbId, 'inventory', {
@@ -791,6 +835,7 @@ async function seedFarm(tablesDB, dbId, residentIds, categories, fundingSources,
         }),
     ),
   );
+  const inputByName = (name) => inputRows[inputs.findIndex((input) => input.item_name === name)];
 
   log('Phase 3: Plots...');
   const plotDefs = [
@@ -1064,6 +1109,52 @@ async function seedFarm(tablesDB, dbId, residentIds, categories, fundingSources,
   });
   const pByK = (k) => plantings[k];
 
+  log('Phase 3: Planting cost ledger...');
+  const fertilizer = inputByName('D-Compound Fertilizer');
+  const fertilizerTransaction = await createRow(tablesDB, dbId, 'finance_transactions', {
+    type: 'expense',
+    amount_needed: 550,
+    amount_funded: 550,
+    payment_method: 'Bank Transfer',
+    category_id: categories.find((category) => category.name === 'Farm Operations').$id,
+    source_module: 'Farm',
+    funding_source_id: fundingSources.find((source) => source.name === 'Village General Fund').$id,
+    vendor_id: vendorIds?.['benga agro supplies'] || null,
+    date: toISO(dAgo(45)),
+    description: 'Additional fertilizer for the groundnut planting',
+    status: 'completed',
+    payment_status: 'paid',
+  });
+  await batchRun([
+    () =>
+      createRow(tablesDB, dbId, 'planting_cost_entries', {
+        planting_id: pByK('p_groundnut_growing').$id,
+        category: 'inputs',
+        amount: 550,
+        cost_date: toISO(dAgo(45)),
+        description: 'Additional D-Compound fertilizer application',
+        inventory_item_id: fertilizer.$id,
+        inventory_quantity: 1,
+        finance_transaction_id: fertilizerTransaction.$id,
+      }),
+    () =>
+      createRow(tablesDB, dbId, 'planting_cost_entries', {
+        planting_id: pByK('p_tomato_harvesting').$id,
+        category: 'labor',
+        amount: 320,
+        cost_date: toISO(dAgo(12)),
+        description: 'Additional weeding and staking labour',
+      }),
+    () =>
+      createRow(tablesDB, dbId, 'planting_cost_entries', {
+        planting_id: pByK('p_rape_planted').$id,
+        category: 'other',
+        amount: 85,
+        cost_date: toISO(dAgo(4)),
+        description: 'Irrigation pump fuel',
+      }),
+  ]);
+
   log('Phase 3: Harvests + produce + sales...');
   const farmRevCat = categories.find((c) => c.name === 'Farming Revenue');
   const villageFund = fundingSources.find((s) => s.name === 'Village General Fund');
@@ -1169,6 +1260,11 @@ async function seedFarm(tablesDB, dbId, residentIds, categories, fundingSources,
     5,
   );
   log('  Farm done');
+  return {
+    failedPlantingId: pByK('p_maize_failed')?.$id || null,
+    upcomingHarvestPlantingId: pByK('p_upcoming_harvest')?.$id || null,
+    lowStockInventoryId: inputByName('Tomato Seeds')?.$id || null,
+  };
 }
 
 function buildHarvestPlans(dAgo, pByK, cropId, vendorIds = {}) {
@@ -2419,6 +2515,7 @@ async function seedSchool(tablesDB, dbId, residentIds, slotIdsByGrade, log) {
   ];
   await batchRun(noteTasks, 25);
   log(`  5 intervention plans + ${noteTasks.length} progress notes`);
+  return { atRiskLearnerIds: [createdLearners[0].$id, createdLearners[1].$id] };
 }
 
 // =============================================================================
@@ -2450,7 +2547,15 @@ async function seedVillageSettings(tablesDB, dbId, councilMemberIds, log) {
       'vendors',
     ],
     vendors_enabled: true,
+    lending_enabled: true,
     council_member_ids: councilResidentIds,
+    farm_alert_config: JSON.stringify({
+      low_inventory: { enabled: true, threshold: 10 },
+      upcoming_harvest: { enabled: true, threshold: 7 },
+      overdue_harvest: { enabled: true, threshold: 7 },
+      underperforming_yield: { enabled: true, threshold: 50 },
+      email_enabled: false,
+    }),
   };
   try {
     const existing = await listAll(tablesDB, dbId, 'village_settings');
@@ -3274,20 +3379,22 @@ async function seedBellSchedules(tablesDB, dbId, log) {
 // PHASE 6 — NOTIFICATIONS
 // =============================================================================
 
-async function seedNotifications(tablesDB, dbId, log) {
+async function seedNotifications(tablesDB, dbId, entityIds, log) {
   log('Phase 6: Notifications...');
-  await batchRun(
+  const rows = await batchRun(
     [
       () =>
         createRow(tablesDB, dbId, 'notifications', {
           type: 'at_risk_learner',
           title: 'Sample: learner flagged as at-risk',
           body: 'Attendance below threshold; multiple risk factors identified.',
-          link: '/school/learners',
+          link: entityIds.atRiskLearnerId
+            ? `/school/learners/${entityIds.atRiskLearnerId}`
+            : '/school/learners',
           target_roles: ['School Administrator', 'Head Teacher', 'Teacher'],
           target_permissions: [],
           related_entity_type: 'learner',
-          related_entity_id: 'seed-learner-1',
+          related_entity_id: entityIds.atRiskLearnerId || '',
           severity: 'warning',
           created_by: 'seed-script',
         }),
@@ -3296,11 +3403,13 @@ async function seedNotifications(tablesDB, dbId, log) {
           type: 'farm_alert:upcoming_harvest',
           title: 'Sample: maize plot — Harvest in 5 days',
           body: 'Expected harvest date is approaching.',
-          link: '/farm/alerts',
+          link: entityIds.upcomingHarvestPlantingId
+            ? `/farm/plantings/${entityIds.upcomingHarvestPlantingId}`
+            : '/farm/alerts',
           target_roles: ['Farm Manager', 'Crop Manager', 'Village Head', 'Deputy Village Head'],
           target_permissions: [],
           related_entity_type: 'planting',
-          related_entity_id: 'seed-planting-1',
+          related_entity_id: entityIds.upcomingHarvestPlantingId || '',
           severity: 'info',
           created_by: 'seed-script',
         }),
@@ -3313,7 +3422,7 @@ async function seedNotifications(tablesDB, dbId, log) {
           target_roles: ['Farm Manager', 'Crop Manager', 'Village Head', 'Deputy Village Head'],
           target_permissions: [],
           related_entity_type: 'inventory',
-          related_entity_id: 'seed-inventory-1',
+          related_entity_id: entityIds.lowStockInventoryId || '',
           severity: 'warning',
           created_by: 'seed-script',
         }),
@@ -3332,7 +3441,7 @@ async function seedNotifications(tablesDB, dbId, log) {
           ],
           target_permissions: [],
           related_entity_type: 'vendor',
-          related_entity_id: 'seed-vendor-1',
+          related_entity_id: entityIds.vendorId || '',
           severity: 'info',
           created_by: 'seed-script',
         }),
@@ -3341,11 +3450,13 @@ async function seedNotifications(tablesDB, dbId, log) {
           type: 'farm_alert:crop_failure',
           title: 'Sample: crop failure reported',
           body: 'A planting has been marked as failed.',
-          link: '/farm/alerts',
+          link: entityIds.failedPlantingId
+            ? `/farm/plantings/${entityIds.failedPlantingId}`
+            : '/farm/alerts',
           target_roles: ['Farm Manager', 'Crop Manager', 'Village Head', 'Deputy Village Head'],
           target_permissions: [],
           related_entity_type: 'planting',
-          related_entity_id: 'seed-planting-2',
+          related_entity_id: entityIds.failedPlantingId || '',
           severity: 'critical',
           created_by: 'seed-script',
         }),
@@ -3353,11 +3464,108 @@ async function seedNotifications(tablesDB, dbId, log) {
     5,
   );
   log('  5 sample notifications');
+  return rows;
+}
+
+async function seedVillageEvents(tablesDB, dbId, userAnchor, log) {
+  log('Phase 5.5: Village events...');
+  // created_by is a plain string column (not a relationship), so a stable
+  // 'seed-script' fallback is valid when no active user exists — this keeps
+  // the village calendar showcase populated in fresh databases.
+  const createdBy = userAnchor?.$id || 'seed-script';
+  const day = (offset) => new Date(Date.now() + offset * 86400000).toISOString();
+  await batchRun([
+    () =>
+      createRow(tablesDB, dbId, 'village_events', {
+        title: 'Monthly Village Council Meeting',
+        category: 'village',
+        start_date: day(7),
+        end_date: day(7),
+        start_time: '09:00',
+        end_time: '11:00',
+        is_all_day: false,
+        is_recurring: true,
+        recurrence_rule: 'monthly',
+        location: 'Village Administration Office',
+        description: 'Open council meeting and community progress review.',
+        created_by: createdBy,
+        notify_user_ids: userAnchor ? [userAnchor.$id] : [],
+        system_generated: false,
+      }),
+    () =>
+      createRow(tablesDB, dbId, 'village_events', {
+        title: 'Community Field Day',
+        category: 'farm',
+        start_date: day(21),
+        end_date: day(21),
+        is_all_day: true,
+        is_recurring: false,
+        location: 'North Field',
+        description: 'Crop inspection and practical soil-health demonstrations.',
+        created_by: createdBy,
+        notify_user_ids: [],
+        system_generated: false,
+      }),
+    () =>
+      createRow(tablesDB, dbId, 'village_events', {
+        title: 'Completed Water Committee Review',
+        category: 'equipment',
+        start_date: day(-30),
+        end_date: day(-30),
+        is_all_day: true,
+        is_recurring: false,
+        location: 'Borehole Site',
+        description: 'Historical maintenance review event.',
+        created_by: createdBy,
+        notify_user_ids: [],
+        system_generated: false,
+      }),
+  ]);
+}
+
+async function seedIdentityBackedScenarios(
+  tablesDB,
+  dbId,
+  userAnchor,
+  fundingSources,
+  showcaseTransactions,
+  notifications,
+  log,
+) {
+  if (!userAnchor) {
+    log(
+      'Identity-dependent showcase skipped: no active users row for transaction_links.recorded_by or notification_reads.user_id.',
+    );
+    return;
+  }
+  await createRow(tablesDB, dbId, 'transaction_links', {
+    parent_transaction_id: showcaseTransactions[1].$id,
+    child_transaction_id: showcaseTransactions[0].$id,
+    amount: 1500,
+    funding_source_id: fundingSources[1].$id,
+    recorded_by: userAnchor.$id,
+    notes: 'Water grant allocation linked to the planned solar pump controller replacement.',
+    created_at: new Date().toISOString(),
+  });
+  await createRow(tablesDB, dbId, 'notification_reads', {
+    notification_id: notifications[0].$id,
+    user_id: userAnchor.$id,
+    read_at: new Date().toISOString(),
+  });
+  log(`  Identity-backed showcase anchored to user ${userAnchor.$id}`);
 }
 
 // =============================================================================
 // ENTRY POINT
 // =============================================================================
+
+export {
+  assertSafeToSeed,
+  findUserAnchor,
+  seedIdentityBackedScenarios,
+  seedNotifications,
+  seedVillageEvents,
+};
 
 export default async ({ req, res, log, error }) => {
   const projectId = process.env.APPWRITE_PROJECT_ID;
@@ -3377,25 +3585,64 @@ export default async ({ req, res, log, error }) => {
 
   try {
     log('=== seedAllData: starting ===');
+    await assertSafeToSeed(tablesDB, dbId);
+    const userAnchor = await findUserAnchor(tablesDB, dbId);
 
     const { residentIds, councilMemberIds } = await seedHouseholdsAndResidents(tablesDB, dbId, log);
     // Story 5.7: vendors must be seeded before finance/farm so their rows can
     // reference vendor IDs instead of free-text names.
     const vendorIds = await seedVendors(tablesDB, dbId, log);
-    const { categories, fundingSources } = await seedFinance(
+    const { categories, fundingSources, showcaseTransactions } = await seedFinance(
       tablesDB,
       dbId,
       residentIds,
       vendorIds,
       log,
     );
-    await seedFarm(tablesDB, dbId, residentIds, categories, fundingSources, vendorIds, log);
+    const farmEntityIds = await seedFarm(
+      tablesDB,
+      dbId,
+      residentIds,
+      categories,
+      fundingSources,
+      vendorIds,
+      log,
+    );
     // Bell schedules must run before seedSchool so timetable entries can reference the slot IDs.
     const { slotIdsByGrade } = await seedBellSchedules(tablesDB, dbId, log);
-    await seedSchool(tablesDB, dbId, residentIds, slotIdsByGrade, log);
+    const { atRiskLearnerIds } = await seedSchool(tablesDB, dbId, residentIds, slotIdsByGrade, log);
     await seedCalendar(tablesDB, dbId, log);
+    await seedVillageEvents(tablesDB, dbId, userAnchor, log);
     await seedVillageSettings(tablesDB, dbId, councilMemberIds, log);
-    await seedNotifications(tablesDB, dbId, log);
+    const notifications = await seedNotifications(
+      tablesDB,
+      dbId,
+      {
+        atRiskLearnerId: atRiskLearnerIds?.[0] || null,
+        upcomingHarvestPlantingId: farmEntityIds?.upcomingHarvestPlantingId || null,
+        lowStockInventoryId: farmEntityIds?.lowStockInventoryId || null,
+        vendorId: vendorIds?.['benga agro supplies'] || null,
+        failedPlantingId: farmEntityIds?.failedPlantingId || null,
+      },
+      log,
+    );
+    await seedIdentityBackedScenarios(
+      tablesDB,
+      dbId,
+      userAnchor,
+      fundingSources,
+      showcaseTransactions,
+      notifications,
+      log,
+    );
+    log('Storage metadata skipped: no real bucket files were created.');
+    log('Audit logs skipped: only the user-management function may create authentic audit events.');
+    log(
+      'Farm alerts skipped: the schema reserves this table for future persistence; MVP alerts are derived.',
+    );
+    log(
+      'Users and roles preserved: seedAllData does not create identities, credentials, or authorization data.',
+    );
 
     log('=== seedAllData: complete ===');
     return res.json({ success: true, message: 'All sample data seeded successfully.' });
