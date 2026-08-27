@@ -1586,7 +1586,7 @@ async function openEditCostDialog(entry) {
   costDialogOpen.value = true;
 }
 
-async function onCostSubmit(payload) {
+async function onCostSubmit(payload, complete) {
   costSubmitting.value = true;
   try {
     let result;
@@ -1607,13 +1607,14 @@ async function onCostSubmit(payload) {
       return;
     }
 
-    errorHandler.notifySuccess(
-      costEntryToEdit.value?.$id ? 'Cost entry updated' : 'Cost entry added',
-    );
+    // errorHandler.notifySuccess(
+    //   costEntryToEdit.value?.$id ? 'Cost entry updated' : 'Cost entry added',
+    // );
     costDialogOpen.value = false;
     costEntryToEdit.value = null;
   } finally {
     costSubmitting.value = false;
+    complete?.();
   }
 }
 

@@ -484,7 +484,11 @@ async function onSubmit() {
 function confirmSubmit() {
   if (!pendingPayload.value || confirmationSubmitting.value) return;
   confirmationSubmitting.value = true;
-  emit('submit', pendingPayload.value);
+  emit('submit', pendingPayload.value, () => {
+    confirmationSubmitting.value = false;
+    confirmationOpen.value = false;
+    formData.value.amount = 0;
+  });
 }
 
 defineExpose({

@@ -78,7 +78,7 @@ describe('PlantingCostDialog', () => {
     });
   });
 
-  it('prevents duplicate confirmation submissions and resets after a failed parent operation', async () => {
+  it('prevents duplicate confirmation submissions and resets when the parent completes', async () => {
     const wrapper = mountDialog();
     Object.assign(wrapper.vm.formData, {
       category: 'labor',
@@ -95,8 +95,8 @@ describe('PlantingCostDialog', () => {
     expect(wrapper.vm.confirmationOpen).toBe(true);
     expect(wrapper.vm.confirmationSubmitting).toBe(true);
 
-    await wrapper.setProps({ loading: true });
-    await wrapper.setProps({ loading: false });
+    const complete = wrapper.emitted('submit')[0][1];
+    complete();
 
     expect(wrapper.vm.confirmationSubmitting).toBe(false);
     wrapper.vm.confirmSubmit();
