@@ -96,7 +96,7 @@ The easiest way to get started is with the one-command launcher for your platfor
 - Create `.env` and `server/.env` with your credentials
 - Run the database setup and seed default roles
 - Guide you through deploying Appwrite functions
-- Start the development server at `http://localhost:9100`
+- Start the development server at `http://localhost:9000`
 
 **Run the launcher for your OS:**
 
@@ -221,11 +221,38 @@ yarn  # or npm install
 
 ### 3. Configure Environment
 
+This project uses **two** `.env` files. The setup scripts in `server/scripts/`
+read from `server/.env` (non-prefixed keys), while the Vite client reads from
+the root `.env` (`VITE_`-prefixed keys). Both must be configured.
+
 Copy `.env.example` to `.env` and update your credentials:
 
 ```bash
 cp .env.example .env
 ```
+
+Then create `server/.env` with the non-prefixed equivalents (the server
+scripts load this file directly):
+
+```bash
+# server/.env
+APPWRITE_ENDPOINT=https://cloud.appwrite.io/v1   # or http://localhost/v1 for self-hosted
+APPWRITE_PROJECT_ID=your-project-id-here
+APPWRITE_API_KEY=your-api-key-here               # see Step 4
+APPWRITE_DATABASE_ID=villageDB
+APPWRITE_TABLE_USERS=users
+APPWRITE_TABLE_RESIDENTS=residents
+APPWRITE_TABLE_HOUSEHOLDS=households
+APPWRITE_TABLE_ROLES=roles
+APPWRITE_TABLE_VILLAGE_SETTINGS=village_settings
+APPWRITE_TABLE_INVENTORY=inventory
+APPWRITE_TABLE_VILLAGE_EVENTS=village_events
+APPWRITE_TABLE_FILE_METADATA=file_metadata
+APPWRITE_BUCKET_PERSONAL_FILES=personal_files
+APPWRITE_BUCKET_SHARED_FILES=shared_files
+```
+
+Root `.env` (client-facing, `VITE_`-prefixed):
 
 ```env
 # Appwrite Cloud (recommended):
@@ -235,19 +262,36 @@ VITE_APPWRITE_ENDPOINT=https://cloud.appwrite.io/v1
 # VITE_APPWRITE_ENDPOINT=http://localhost/v1
 
 VITE_APPWRITE_PROJECT_ID=your-project-id-here
+VITE_APPWRITE_DATABASE_ID=villageDB
+VITE_APPWRITE_API_KEY=your-api-key-here          # see Step 4
 ```
 
-**Note:** Variables need `VITE_` prefix for Vite to expose them to the client.
+> [!NOTE]
+>
+> - Variables need the `VITE_` prefix for Vite to expose them to the client.
+> - `server/.env` uses **no** `VITE_` prefix — the server scripts read these
+>   directly via `dotenv`.
+> - The automated setup (`configure-env.js`) writes both files for you; the
+>   manual path requires creating them by hand.
 
 ### 4. Create API Key
 
 1. In Appwrite Console, go to **Settings** → **API Keys**
 2. Click **"Create API Key"**, name it `Database Setup & Functions`
-3. Select scopes: **Database** (all), **Users** (read)
-4. Copy the key and add to `.env`:
+3. **Check all scopes.** The setup and seeding scripts create tables, columns,
+   indexes, buckets, teams, and users, so they require full administrative
+   scopes. Selecting only a subset (e.g. "Database (all), Users (read)") will
+   cause `setup:appwrite` and `seed:roles` to fail.
+4. Copy the key and add it to **both** env files:
 
 ```env
+# root .env
 VITE_APPWRITE_API_KEY=your-api-key-here
+```
+
+```env
+# server/.env
+APPWRITE_API_KEY=your-api-key-here
 ```
 
 ### 5. Set Up Database
@@ -268,7 +312,17 @@ Creates default roles (Admin, Farmer, Extension Officer, etc.) in the database. 
 
 ### 6. Deploy Functions
 
-Two server functions are required.
+Six server functions are required. Their definitions live in
+`server/appwrite.config.json`:
+
+| Function ID          | Name                 | Purpose                                      |
+| -------------------- | -------------------- | -------------------------------------------- |
+| `checkUsersExist`    | Check Users Exist    | Checks whether any users exist (OOBE gating) |
+| `wipeAllData`        | Wipe All Data        | Deletes all sample data ("Start Fresh")      |
+| `seedAllData`        | Seed All Data        | Loads the Katete Model Village sample data   |
+| `storageUsageReport` | Storage Usage Report | Admin storage usage report                   |
+| `userManagement`     | User Management      | Admin user CRUD, team sync, audit logging    |
+| `createNotification` | Create Notification  | Role-targeted notification delivery          |
 
 **Via Appwrite CLI** (config included at `server/appwrite.config.json`):
 
@@ -278,21 +332,34 @@ appwrite login
 appwrite push functions
 ```
 
-Select both functions when prompted.
+When prompted which functions to deploy, press **`a`** (select all) then **`Enter`**.
 
-**Configure function environment variables** in Appwrite Console (**Functions** → [Function] → **Settings**):
+**Configure function environment variables** in Appwrite Console
+(**Functions** → [Function] → **Settings**). Each function needs:
 
-- `APPWRITE_ENDPOINT` (`http://host.docker.internal/v1` for self-hosted, or cloud endpoint)
+- `APPWRITE_ENDPOINT` (`https://cloud.appwrite.io/v1` for Cloud, or
+  `http://host.docker.internal/v1` for self-hosted Windows/macOS, or the
+  gateway IP for self-hosted Linux)
 - `APPWRITE_PROJECT_ID`
 - `APPWRITE_API_KEY`
+- `APPWRITE_DATABASE_ID` (default: `villageDB`)
 
-**Note:** Set function env vars in the Appwrite Console, not `.env`. Functions run in isolated containers.
+> [!NOTE]
+> Set function env vars in the Appwrite Console, not `.env`. Functions run in
+> isolated containers. The `appwrite.config.json` also defines per-function
+> `vars` (e.g. `TABLE_USERS`, `TABLE_ROLES`) which `appwrite push` deploys
+> automatically.
 
-**Update `.env` with Function IDs:**
+**Update root `.env` with Function IDs** (these are the IDs Appwrite assigns
+when you push; the defaults match the `$id` field in `appwrite.config.json`):
 
 ```env
 VITE_APPWRITE_FUNCTION_CHECK_USERS=checkUsersExist
 VITE_APPWRITE_FUNCTION_WIPE_DATA=wipeAllData
+VITE_APPWRITE_FUNCTION_SEED_DATA=seedAllData
+VITE_APPWRITE_FUNCTION_STORAGE_REPORT=storageUsageReport
+VITE_APPWRITE_FUNCTION_USER_MANAGEMENT=userManagement
+VITE_APPWRITE_FUNCTION_CREATE_NOTIFICATION=createNotification
 ```
 
 For manual deployment, see [appwrite_setup/QUICK_START.md](appwrite_setup/QUICK_START.md).
@@ -314,7 +381,7 @@ See [DATABASE_SCHEMA.md](DATABASE_SCHEMA.md) for table definitions, relationship
 ## Tech Stack
 
 - **Frontend:** Quasar Framework v2 (Vue 3 + Vite + SSR)
-- **Backend:** Appwrite v21.2.1 (Auth, Database, Storage, Functions)
+- **Backend:** Appwrite v21.5.0 (Auth, Database, Storage, Functions)
 - **State Management:** Pinia
 - **Offline Sync:** IndexedDB + Dexie.js
 - **Charts:** Chart.js v4.5.1
