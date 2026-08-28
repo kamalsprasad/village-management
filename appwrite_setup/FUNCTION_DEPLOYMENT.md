@@ -10,7 +10,7 @@ This function checks if any users exist in the Appwrite authentication system. I
 
 1. **Appwrite Console Access**: You must have access to your Appwrite project console
 2. **API Key**: An API key with `users.read` scope (we'll create this in the steps below)
-3. **Function Code**: Located at `server/functions/checkUsersExist.js`
+3. **Function Code**: Located at `server/functions/Check Users Exist/src/main.js`
 
 ---
 
@@ -38,7 +38,7 @@ This function checks if any users exist in the Appwrite authentication system. I
 3. Configure the function:
    - **Name**: `Check Users Exist`
    - **Function ID**: `checkUsersExist` (or auto-generate)
-   - **Runtime**: `Node.js 18.0` (or latest available)
+   - **Runtime**: `Node.js 16.0` (or latest available)
    - **Execute Access**: Add `role:guest` (this allows unauthenticated users to call it)
    - **Events**: Leave empty (this is not an event-triggered function)
    - **Schedule**: Leave empty (this is not a scheduled function)
@@ -54,11 +54,12 @@ This function checks if any users exist in the Appwrite authentication system. I
 2. Scroll to **Environment Variables**
 3. Add the following variables:
 
-   | Variable Name         | Appwrite Cloud                    | Self-Hosted                       |
-   | --------------------- | --------------------------------- | --------------------------------- |
-   | `APPWRITE_ENDPOINT`   | `https://cloud.appwrite.io/v1`    | `http://host.docker.internal/v1`  |
-   | `APPWRITE_PROJECT_ID` | Your project ID (from console)    | Your project ID (from console)    |
-   | `APPWRITE_API_KEY`    | The API key you created in Step 1 | The API key you created in Step 1 |
+   | Variable Name          | Appwrite Cloud                    | Self-Hosted                       |
+   | ---------------------- | --------------------------------- | --------------------------------- |
+   | `APPWRITE_ENDPOINT`    | `https://cloud.appwrite.io/v1`    | `http://host.docker.internal/v1`  |
+   | `APPWRITE_PROJECT_ID`  | Your project ID (from console)    | Your project ID (from console)    |
+   | `APPWRITE_API_KEY`     | The API key you created in Step 1 | The API key you created in Step 1 |
+   | `APPWRITE_DATABASE_ID` | `villageDB`                       | `villageDB`                       |
 
    > 💡 **Self-hosted users**: Use `host.docker.internal` instead of `localhost`. Function containers cannot reach the host machine via `localhost` — it refers to the container itself. Alternatively, use your machine's actual IP address (e.g., `http://192.168.1.x/v1`).
 
@@ -89,19 +90,18 @@ This function checks if any users exist in the Appwrite authentication system. I
 4. Deploy the function:
 
    ```bash
-   appwrite push function
+   appwrite push functions
    ```
 
-   - Select the `checkUsersExist` function
-   - Point to the `server/functions/checkUsersExist.js` file
+   - Select the `checkUsersExist` function (or press `a` to deploy all)
 
 #### Option B: Manual Upload via Console
 
 1. In the function details page, go to the **Deployments** tab
 2. Click **Create Deployment**
 3. Configure the deployment:
-   - **Entrypoint**: `checkUsersExist.js`
-   - **Code**: Upload the `server/functions/checkUsersExist.js` file
+   - **Entrypoint**: `src/main.js`
+   - **Code**: Upload the `server/functions/Check Users Exist` folder as a zip
    - **Activate deployment after build**: ✅ Check this
 4. Click **Create**
 5. Wait for the build to complete (status will change to "Ready")
@@ -125,10 +125,10 @@ This function checks if any users exist in the Appwrite authentication system. I
 ### Step 7: Update Client-Side Code
 
 1. Open `src/boot/appwrite.js`
-2. Add the Function ID as an environment variable in `.env`:
+2. Add the Function ID as an environment variable in root `.env`:
 
    ```env
-   VITE_APPWRITE_FUNCTION_CHECK_USERS=your-function-id-here
+   VITE_APPWRITE_FUNCTION_CHECK_USERS=checkUsersExist
    ```
 
 3. The client code in `src/stores/auth-store.js` will automatically use this function
@@ -208,7 +208,7 @@ This function checks if any users exist in the Appwrite authentication system. I
 
 ### Updating the Function
 
-1. Modify `server/functions/checkUsersExist.js`
+1. Modify `server/functions/Check Users Exist/src/main.js`
 2. Redeploy using CLI or manual upload
 3. The new deployment will automatically activate
 
@@ -246,11 +246,11 @@ This function atomically wipes all village data (residents, households, settings
 3. Configure the function:
    - **Name**: `Wipe All Data`
    - **Function ID**: `wipeAllData` (or auto-generate)
-   - **Runtime**: `Node.js 18.0` (or latest available)
+   - **Runtime**: `Node.js 16.0` (or latest available)
    - **Execute Access**: Add `role:users` (only authenticated users can call it)
    - **Events**: Leave empty
    - **Schedule**: Leave empty
-   - **Timeout**: 60 seconds (data deletion may take time)
+   - **Timeout**: 300 seconds (data deletion may take time)
 
 4. Click **Create**
 
@@ -260,18 +260,17 @@ This function atomically wipes all village data (residents, households, settings
 2. Scroll to **Environment Variables**
 3. Add the following variables:
 
-   | Variable Name            | Value                             |
-   | ------------------------ | --------------------------------- |
-   | `DATABASE_ID`            | `villageDB` (or your database ID) |
-   | `TABLE_RESIDENTS`        | `residents`                       |
-   | `TABLE_HOUSEHOLDS`       | `households`                      |
-   | `TABLE_VILLAGE_SETTINGS` | `village_settings`                |
-   | `TABLE_USERS`            | `users`                           |
-   | `TABLE_ROLES`            | `roles`                           |
+   | Variable Name           | Value                             |
+   | ----------------------- | --------------------------------- |
+   | `DATABASE_ID`           | `villageDB` (or your database ID) |
+   | `TABLE_USERS`           | `users`                           |
+   | `TABLE_ROLES`           | `roles`                           |
+   | `BUCKET_PERSONAL_FILES` | `personal_files`                  |
+   | `BUCKET_SHARED_FILES`   | `shared_files`                    |
 
 4. Click **Update** to save
 
-**Note**: `APPWRITE_FUNCTION_ENDPOINT`, `APPWRITE_FUNCTION_PROJECT_ID`, and `APPWRITE_FUNCTION_API_KEY` are automatically provided by Appwrite.
+**Note**: `APPWRITE_FUNCTION_ENDPOINT`, `APPWRITE_FUNCTION_PROJECT_ID`, and `APPWRITE_FUNCTION_API_KEY` are automatically provided by Appwrite when the function is deployed via `appwrite push`. If deploying manually, set `APPWRITE_ENDPOINT`, `APPWRITE_PROJECT_ID`, and `APPWRITE_API_KEY` explicitly instead.
 
 #### Step 3: Deploy the Function Code
 
@@ -291,7 +290,7 @@ This function atomically wipes all village data (residents, households, settings
 
 3. Deploy using Appwrite CLI:
    ```bash
-   appwrite push function
+   appwrite push functions
    ```
 
 ##### Option B: Manual Upload via Console
@@ -395,7 +394,7 @@ membership in sync with the System Administrator role and writes an
    - **Name**: `User Management`
    - **Function ID**: `userManagement` (or auto-generate; must match
      `VITE_APPWRITE_FUNCTION_USER_MANAGEMENT` in `.env`)
-   - **Runtime**: `Node.js 18.0` (or latest available)
+   - **Runtime**: `Node.js 16.0` (or latest available)
    - **Execute Access**: Add `role:users` (only authenticated users can call
      it — the client only exposes this to System Administrators via the
      `/admin/users` route guard)
@@ -425,7 +424,7 @@ membership in sync with the System Administrator role and writes an
 ```bash
 cd "server/functions/User Management"
 npm install
-appwrite push function
+appwrite push functions
 ```
 
 Select the `userManagement` function and confirm the entrypoint is
@@ -472,6 +471,160 @@ Select the `userManagement` function and confirm the entrypoint is
 
 ---
 
-**Last Updated**: 2025-11-25  
-**Function Version**: 1.0.0  
-**Compatible with**: Appwrite 1.4+
+## Function: Seed All Data
+
+This function loads the Katete Model Village sample dataset (households,
+residents, council members, finance, farm, and school data) so new users can
+explore the system before entering real data.
+
+### Deployment
+
+Deploy via CLI from the `server/` directory:
+
+```bash
+cd server/
+appwrite login
+appwrite push functions
+```
+
+Select the `seedAllData` function (or press `a` to deploy all).
+
+### Environment Variables
+
+Set in the Appwrite Console under the function's **Settings** tab:
+
+| Variable Name          | Value                                                         |
+| ---------------------- | ------------------------------------------------------------- |
+| `APPWRITE_ENDPOINT`    | `https://cloud.appwrite.io/v1` (or your self-hosted endpoint) |
+| `APPWRITE_PROJECT_ID`  | Your project ID                                               |
+| `APPWRITE_API_KEY`     | API key with all scopes                                       |
+| `APPWRITE_DATABASE_ID` | `villageDB`                                                   |
+
+### Execute Access
+
+Add `role:users` (only authenticated users can call it; the client only
+exposes this to System Administrators).
+
+### Timeout
+
+900 seconds (sample data seeding is a long-running operation).
+
+### Update `.env`
+
+```env
+VITE_APPWRITE_FUNCTION_SEED_DATA=seedAllData
+```
+
+---
+
+## Function: Storage Usage Report
+
+This function generates an admin storage usage report across all users and
+buckets.
+
+### Deployment
+
+Deploy via CLI from the `server/` directory:
+
+```bash
+cd server/
+appwrite login
+appwrite push functions
+```
+
+Select the `storageUsageReport` function (or press `a` to deploy all).
+
+### Environment Variables
+
+Set in the Appwrite Console under the function's **Settings** tab:
+
+| Variable Name          | Value                                                         |
+| ---------------------- | ------------------------------------------------------------- |
+| `APPWRITE_ENDPOINT`    | `https://cloud.appwrite.io/v1` (or your self-hosted endpoint) |
+| `APPWRITE_PROJECT_ID`  | Your project ID                                               |
+| `APPWRITE_API_KEY`     | API key with all scopes                                       |
+| `APPWRITE_DATABASE_ID` | `villageDB`                                                   |
+| `TABLE_USERS`          | `users`                                                       |
+| `TABLE_FILE_METADATA`  | `file_metadata`                                               |
+
+### Execute Access
+
+Add `role:users` (only authenticated users can call it; the client only
+exposes this to System Administrators).
+
+### Update `.env`
+
+```env
+VITE_APPWRITE_FUNCTION_STORAGE_REPORT=storageUsageReport
+```
+
+---
+
+## Function: Create Notification
+
+This function delivers role-targeted notifications (Story 5.10c) by creating
+notification rows and marking them as read/unread per user.
+
+### Deployment
+
+Deploy via CLI from the `server/` directory:
+
+```bash
+cd server/
+appwrite login
+appwrite push functions
+```
+
+Select the `createNotification` function (or press `a` to deploy all).
+
+### Environment Variables
+
+Set in the Appwrite Console under the function's **Settings** tab:
+
+| Variable Name          | Value                                                         |
+| ---------------------- | ------------------------------------------------------------- |
+| `APPWRITE_ENDPOINT`    | `https://cloud.appwrite.io/v1` (or your self-hosted endpoint) |
+| `APPWRITE_PROJECT_ID`  | Your project ID                                               |
+| `APPWRITE_API_KEY`     | API key with all scopes                                       |
+| `APPWRITE_DATABASE_ID` | `villageDB`                                                   |
+| `TABLE_USERS`          | `users`                                                       |
+| `TABLE_ROLES`          | `roles`                                                       |
+| `TABLE_NOTIFICATIONS`  | `notifications`                                               |
+
+### Execute Access
+
+Add `role:users` (only authenticated users can call it).
+
+### Update `.env`
+
+```env
+VITE_APPWRITE_FUNCTION_CREATE_NOTIFICATION=createNotification
+```
+
+---
+
+## Deploying All Functions at Once
+
+The recommended approach is to deploy all 6 functions in one command from the
+`server/` directory:
+
+```bash
+cd server/
+appwrite login
+appwrite push functions
+```
+
+When prompted which functions to deploy, press **`a`** (select all) then
+**`Enter`**. The function definitions, scopes, and per-function `vars` are all
+read from `server/appwrite.config.json`.
+
+After deploying, set the 4 common environment variables
+(`APPWRITE_ENDPOINT`, `APPWRITE_PROJECT_ID`, `APPWRITE_API_KEY`,
+`APPWRITE_DATABASE_ID`) in each function's **Settings** tab in the Appwrite
+Console. The per-function `vars` (e.g. `TABLE_USERS`, `TABLE_ROLES`) are
+deployed automatically from `appwrite.config.json`.
+
+---
+
+**Last Updated**: 2026-08-28
+**Compatible with**: Appwrite 1.8.1+

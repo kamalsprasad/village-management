@@ -15,10 +15,13 @@ npm run setup:appwrite
 ```
 
 This script will automatically:
-- ✅ Create all 4 tables (users, residents, households, roles)
-- ✅ Create all 22 columns with correct types and constraints
-- ✅ Create all 4 indexes for optimal query performance
+
+- ✅ Create all 28 tables across all modules (Core, Farm, Finance, School, Calendar, Storage, Notifications)
+- ✅ Create 150+ columns with correct types and constraints
+- ✅ Create 25+ indexes for optimal query performance
+- ✅ Create 2 storage buckets (personal_files, shared_files)
 - ✅ Configure permissions for authenticated users
+- ✅ Create the `village_administrators` team
 
 ### Prerequisites for Automated Setup
 
@@ -27,16 +30,22 @@ This script will automatically:
    - Navigate to **Settings** → **API Keys**
    - Click **"Create API Key"**
    - Name: `Database Setup`
-   - Scopes: Select **Database** (all permissions)
+   - Scopes: **Check all scopes** — the setup script creates tables, columns, indexes, buckets, and teams, so it requires full administrative scopes
    - Click **"Create"**
    - Copy the API key
 
-2. **Add API Key to .env file:**
+2. **Add API Key to `server/.env` file:**
+
    ```bash
+   # server/.env (no VITE_ prefix — server scripts read this directly)
+   APPWRITE_ENDPOINT=https://cloud.appwrite.io/v1
+   APPWRITE_PROJECT_ID=your-project-id-here
    APPWRITE_API_KEY=your_api_key_here
+   APPWRITE_DATABASE_ID=villageDB
    ```
 
 3. **Run the setup script:**
+
    ```bash
    npm run setup:appwrite
    ```
@@ -48,7 +57,14 @@ This script will automatically:
 
 ---
 
-## Manual Setup (Alternative)
+## Manual Setup (Alternative — Outdated)
+
+> ⚠️ **The manual setup instructions below are outdated.** They cover only the
+> original 4 core tables (users, residents, households, roles). The system now
+> has 28 tables across all modules. The automated script (`npm run setup:appwrite`)
+> is the recommended and maintained path. These instructions are kept for
+> reference only and may not reflect the current schema. For the authoritative
+> schema, see [`server/appwrite.config.json`](../server/appwrite.config.json).
 
 If you prefer to set up the database manually or want to understand the structure better, follow the detailed steps below.
 
@@ -510,12 +526,12 @@ For now, we'll allow all authenticated users to write. Later, you can restrict t
 
 To satisfy Story 1.4 Acceptance Criterion 7, apply these table-level rules once the core RBAC roles exist. Use the **Advanced permissions** dialog in Appwrite to assign each role explicitly.
 
-| Table        | Read Access                          | Create Access                     | Update Access                     | Delete Access                     |
-|--------------|--------------------------------------|-----------------------------------|-----------------------------------|-----------------------------------|
-| `users`      | System Administrator                 | System Administrator              | System Administrator              | System Administrator              |
-| `residents`  | System Administrator, Village Head   | System Administrator, Village Head| System Administrator, Village Head| System Administrator, Village Head|
-| `households` | System Administrator, Village Head   | System Administrator, Village Head| System Administrator, Village Head| System Administrator, Village Head|
-| `roles`      | System Administrator (read-only)     | System Administrator              | System Administrator              | System Administrator              |
+| Table        | Read Access                        | Create Access                      | Update Access                      | Delete Access                      |
+| ------------ | ---------------------------------- | ---------------------------------- | ---------------------------------- | ---------------------------------- |
+| `users`      | System Administrator               | System Administrator               | System Administrator               | System Administrator               |
+| `residents`  | System Administrator, Village Head | System Administrator, Village Head | System Administrator, Village Head | System Administrator, Village Head |
+| `households` | System Administrator, Village Head | System Administrator, Village Head | System Administrator, Village Head | System Administrator, Village Head |
+| `roles`      | System Administrator (read-only)   | System Administrator               | System Administrator               | System Administrator               |
 
 **How to apply:**
 
@@ -543,7 +559,7 @@ This will be configured in Story 1.3 when we implement authentication and role-b
 ### Step 1: Test Connection
 
 1. Start your development server: `quasar dev -m ssr`
-2. Open browser to: `http://localhost:9100`
+2. Open browser to: `http://localhost:9000`
 3. Click **"Appwrite Test"** in the navigation menu
 4. Click **"Test Connection"** button
 5. ✅ You should see "Connected Successfully!"
@@ -608,7 +624,11 @@ Let's create a test household row and resident row to verify everything works.
    ```
    VITE_APPWRITE_ENDPOINT=http://your-server-ip/v1
    VITE_APPWRITE_PROJECT_ID=your-project-id
+   VITE_APPWRITE_DATABASE_ID=villageDB
    ```
+   Also check `server/.env` has the non-prefixed equivalents
+   (`APPWRITE_ENDPOINT`, `APPWRITE_PROJECT_ID`, `APPWRITE_API_KEY`,
+   `APPWRITE_DATABASE_ID`).
 2. Restart your development server: `quasar dev -m ssr`
 3. Verify Appwrite server is running
 
@@ -650,10 +670,10 @@ Let's create a test household row and resident row to verify everything works.
 
 After completing this setup:
 
-1. **Mark Subtasks 2.2-2.5 complete** (tables created)
-2. **Mark Subtasks 3.1-3.4 complete** (indexes created)
-3. **Mark Subtasks 4.1-4.3 complete** (permissions configured)
-4. Move on to Story 1.3: Authentication System implementation
+1. **Seed default roles:** `npm run seed:roles`
+2. **Deploy Appwrite functions:** See [FUNCTION_DEPLOYMENT.md](./FUNCTION_DEPLOYMENT.md)
+3. **Create the initial admin account:** `npm run create:admin`
+4. **Start the development server:** `quasar dev -m ssr` (opens at `http://localhost:9000`)
 
 ---
 
@@ -661,23 +681,15 @@ After completing this setup:
 
 ### Table schema summary (see `appwrite_setup/QUICK_REFERENCE.md`)
 
-- `households`
-- `roles`
+- 28 tables across Core, Farm, Finance, School, Calendar, Storage, Notifications, and Admin modules
 
 ### Database ID
 
 - `villageDB`
 
-### Index Names
-
-- `household_id_index` (on residents.household_id)
-- `role_ids_index` (on residents.role_ids)
-- `head_resident_id_index` (on households.head_resident_id)
-- `email_unique_index` (on users.email)
-
 ### Test Page URL
 
-- `http://localhost:9100/appwrite-test`
+- `http://localhost:9000/appwrite-test`
 
 ---
 
