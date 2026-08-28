@@ -389,21 +389,23 @@ See [DATABASE_SCHEMA.md](DATABASE_SCHEMA.md) for table definitions, relationship
 
 ## Roadmap
 
-**35 of 50 MVP features complete (70%)**
+**MVP complete — 51 of 51 MVP features delivered (100%). 6 stories deferred to post-MVP.**
 
 | Status      | Epic       | Highlights                                                              |
 | ----------- | ---------- | ----------------------------------------------------------------------- |
-| ✅ Complete | Foundation | Auth, RBAC, Households, Residents, Dashboard                            |
-| ✅ Complete | Finance    | Income/expense tracking, lending, reports                               |
+| ✅ Complete | Foundation | Auth, RBAC, Households, Residents, Dashboard, Sample Data mode          |
+| ✅ Complete | Finance    | Income/expense tracking, lending, funding sources, reports, dashboard   |
 | ✅ Complete | Inventory  | Core inventory, auto-stock from purchases                               |
 | ✅ Complete | Farm       | Plot management, planting→harvest→sales, profitability & yield analysis |
-| ✅ Complete | School     | Student registration, grades, attendance                                |
-| 🔄 Next     | Calendar   | Events, resource bookings _(not started)_                               |
-| ⏳ Planned  | Storage    | Documents, media, forms                                                 |
+| ✅ Complete | School     | Enrollment, grades, attendance, interventions, calendar, timetable      |
+| ✅ Complete | Calendar   | Global village calendar, role-based event creation, recurring events    |
+| ✅ Complete | Storage    | Personal & shared folders, role-based quotas, storage usage reports     |
+| ✅ Complete | Vendors    | Supplier/buyer tracking, finance & farm integration, dashboard widget   |
+| ✅ Complete | Platform   | Module management, notifications, user management, auth completeness    |
 
-**Recently shipped:** Farm sales recording with finance integration, ROI/profitability reports, yield trends & agronomic alerts.
+**Deferred to post-MVP:** Guests management, Equipment management, Energy management, peer reviews/self-evaluations, i18n, automated testing infrastructure.
 
-See [ROADMAP.md](ROADMAP.md) for full epic-by-epic breakdown.
+See [ROADMAP.md](ROADMAP.md) for full epic-by-epic breakdown and [docs/POST-MVP.md](docs/POST-MVP.md) for post-MVP plans.
 
 ## Sample Data
 
