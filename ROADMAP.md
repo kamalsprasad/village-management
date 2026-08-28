@@ -1,10 +1,14 @@
 # Village Management System Roadmap
 
-This roadmap tracks the implementation status of all MVP features organized by epic. Features marked with ✅ are complete, while ☐ indicates work remaining.
+This roadmap tracks the implementation status of all MVP features organized by epic. The MVP is complete — all 51 MVP stories across 5 epics are delivered. 6 stories were deferred to post-MVP.
 
-**Progress Summary:** 40 of 50 MVP features completed (80%)
+**Progress Summary:** 51 of 51 MVP features completed (100%) — MVP complete
 
 **Legend:** ✅ Complete · ☐ Remaining · ⏸️ Deferred to post-MVP
+
+> Post-MVP work (deferred stories, hardening, i18n, testing infrastructure,
+> and new modules) is tracked in [docs/POST-MVP.md](docs/POST-MVP.md) and
+> [docs/implementation-artifacts/deferred-work.md](docs/implementation-artifacts/deferred-work.md).
 
 ---
 
@@ -79,17 +83,29 @@ This roadmap tracks the implementation status of all MVP features organized by e
 
 ---
 
-## Epic 5: Village Calendar, Storage, and Optional Modules
+## Epic 5: Village Calendar, Storage, Optional Modules, and User Management
 
-**Goal:** Complete the integrated village management platform with shared calendar, cloud storage, and optional modules.
+**Goal:** Complete the integrated village management platform by delivering a shared village calendar, role-based cloud storage, an optional Vendors module, module enable/disable configuration, final system polish, production onboarding from scratch, and full user management. This is the final MVP epic — there is no Epic 6.
 
-- ☐ 5.1 - Calendar Module: Community Events Scheduling
-- ☐ 5.2 - Calendar Module: Resource Bookings and Availability
-- ☐ 5.3 - Storage Module: Document Versioning and Access Control
-- ☐ 5.4 - Storage Module: Photo and Media Archive
-- ☐ 5.5 - Storage Module: Forms and Template Management
-- ☐ 5.6 - Communications Module: Announcements and Alerts
-- ☐ 5.7 - Communications Module: Feedback and Surveys
-- ☐ 5.8 - Analytics Module: Impact Metrics Dashboard
-- ☐ 5.9 - Optional Module: Village Marketplace
-- ☐ 5.10 - Optional Module: External Integrations and Open APIs
+- ✅ 5.1 - Village Calendar: Global Calendar with Category Filtering
+- ✅ 5.2 - Village Calendar: Role-Based Event Creation and Editing
+- ✅ 5.3 - Cloud Storage: Role-Based Storage Quotas and Personal Folders
+- ✅ 5.4 - Cloud Storage: Shared Folders and Module-Based Access
+- ⏸️ 5.5 - Guests Management Module (deferred to post-MVP)
+- ⏸️ 5.6 - Equipment Management Module (deferred to post-MVP)
+- ✅ 5.7 - Vendors/Suppliers Management Module
+- ⏸️ 5.8 - Energy Management Module (deferred to post-MVP)
+- ✅ 5.9 - Module Management and Configuration
+- ✅ 5.10 - System Completion: Final Dashboard Integration and Production Setup
+  - ✅ 5.10a - Dashboard Completion: Real Data Wiring
+  - ✅ 5.10b - Navigation Polish: Breadcrumbs and Quick Search
+  - ✅ 5.10c - Notifications System
+  - ✅ 5.10d - Help and Documentation
+  - ✅ 5.10e1 - UX Polish and Accessibility
+  - ✅ 5.10e2 - Performance Optimization
+  - ✅ 5.10e3 - Mobile Responsiveness
+  - ✅ 5.10e4 - Final Testing Checklist
+- ✅ 5.11 - Start Fresh Production Setup Wizard
+- ✅ 5.12 - User Management: CRUD Operations
+- ✅ 5.13 - Role Assignment and Permissions Management UI
+- ✅ 5.14 - Authentication Completeness: Password Change and Reset
